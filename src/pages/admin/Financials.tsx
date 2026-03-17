@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { DollarSign, TrendingUp, TrendingDown, Download } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { DollarSign, TrendingUp, TrendingDown, Download, Wallet } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Line, ComposedChart, Legend } from "recharts";
 
 function formatCurrency(val: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(val);
@@ -37,29 +37,60 @@ export default function AdminFinancials() {
     },
   });
 
-  // Monthly revenue chart data
-  const monthlyRevenue = MONTHS.map((label, i) => {
+  const { data: expenses } = useQuery({
+    queryKey: ["expenses"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("expenses")
+        .select("*")
+        .order("expense_year")
+        .order("expense_month");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: investments } = useQuery({
+    queryKey: ["investments"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("investments").select("*");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Monthly revenue & expense chart data
+  const monthlyData = MONTHS.map((label, i) => {
     const month = i + 1;
-    const total = (payments ?? [])
+    const revenue = (payments ?? [])
       .filter((p) => p.payment_month === month && p.payment_year === 2026)
       .reduce((s, p) => s + Number(p.amount), 0);
-    return { month: label, revenue: total };
+    const expense = (expenses ?? [])
+      .filter((e) => e.expense_month === month && e.expense_year === 2026)
+      .reduce((s, e) => s + Number(e.amount), 0);
+    return { month: label, revenue, expenses: expense, profit: revenue - expense };
   });
 
   const ytdRevenue = (payments ?? []).reduce((s, p) => s + Number(p.amount), 0);
+  const ytdExpenses = (expenses ?? [])
+    .filter((e) => e.expense_month <= new Date().getMonth() + 1 && e.expense_year === 2026)
+    .reduce((s, e) => s + Number(e.amount), 0);
+  const ytdProfit = ytdRevenue - ytdExpenses;
   const activeMrr = (clients ?? [])
     .filter((c) => c.status === "active")
     .reduce((s, c) => s + (c.monthly_fee ?? 0), 0);
   const pendingSetup = (clients ?? []).reduce((s, c) => s + (c.balance_due ?? 0), 0);
+  const totalInvestments = (investments ?? []).reduce((s, inv) => s + Number(inv.amount), 0);
 
-  // Expenses (hardcoded from spreadsheet for now)
-  const expenses = [
-    { type: "Operating Expenses", monthly: 651 },
-    { type: "Ricky (Co-Founder) Salary", monthly: 4000 },
-    { type: "Outsourced Editing", monthly: 1200 },
-    { type: "Office Rent (starting Apr)", monthly: 625 },
-  ];
-  const totalMonthlyExpenses = expenses.reduce((s, e) => s + e.monthly, 0);
+  // Group expenses by type for current month
+  const currentMonth = new Date().getMonth() + 1;
+  const currentMonthExpenses = (expenses ?? []).filter(
+    (e) => e.expense_month === currentMonth && e.expense_year === 2026
+  );
+  const totalCurrentMonthExpenses = currentMonthExpenses.reduce((s, e) => s + Number(e.amount), 0);
+
+  // Group expenses by type across all months for the table
+  const expenseTypes = [...new Set((expenses ?? []).map((e) => e.type))];
 
   const exportCSV = () => {
     if (!payments?.length) return;
@@ -83,20 +114,38 @@ export default function AdminFinancials() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Financial Tracking</h1>
-          <p className="text-muted-foreground">Revenue, expenses, and payment history.</p>
+          <p className="text-muted-foreground">Revenue, expenses, profit margins, and investment tracking.</p>
         </div>
         <Button variant="outline" onClick={exportCSV}>
           <Download className="mr-2 h-4 w-4" /> Export CSV
         </Button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">YTD Revenue</CardTitle>
-            <TrendingUp className="h-4 w-4 text-success" />
+            <TrendingUp className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent><div className="text-2xl font-bold font-mono">{formatCurrency(ytdRevenue)}</div></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">YTD Expenses</CardTitle>
+            <TrendingDown className="h-4 w-4 text-destructive" />
+          </CardHeader>
+          <CardContent><div className="text-2xl font-bold font-mono">{formatCurrency(ytdExpenses)}</div></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">YTD Profit</CardTitle>
+            <DollarSign className={`h-4 w-4 ${ytdProfit >= 0 ? "text-emerald-500" : "text-destructive"}`} />
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold font-mono ${ytdProfit >= 0 ? "text-emerald-500" : "text-destructive"}`}>
+              {formatCurrency(ytdProfit)}
+            </div>
+          </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -107,72 +156,126 @@ export default function AdminFinancials() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Monthly Expenses</CardTitle>
-            <TrendingDown className="h-4 w-4 text-destructive" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Investments</CardTitle>
+            <Wallet className="h-4 w-4 text-primary" />
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold font-mono">{formatCurrency(totalMonthlyExpenses)}</div></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Pending Setup</CardTitle>
-            <DollarSign className="h-4 w-4 text-warning" />
-          </CardHeader>
-          <CardContent><div className="text-2xl font-bold font-mono text-warning">{formatCurrency(pendingSetup)}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold font-mono">{formatCurrency(totalInvestments)}</div></CardContent>
         </Card>
       </div>
 
-      {/* Revenue Chart */}
+      {/* Revenue vs Expenses Chart */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Monthly Revenue (2026)</CardTitle>
+          <CardTitle className="text-lg">Revenue vs Expenses (2026)</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-64">
+          <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlyRevenue}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(0 0% 18%)" />
-                <XAxis dataKey="month" stroke="hsl(0 0% 55%)" fontSize={12} />
-                <YAxis stroke="hsl(0 0% 55%)" fontSize={12} tickFormatter={(v) => `$${v / 1000}k`} />
+              <ComposedChart data={monthlyData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `$${v / 1000}k`} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: "hsl(0 0% 10%)", border: "1px solid hsl(0 0% 18%)", borderRadius: "6px" }}
-                  labelStyle={{ color: "hsl(0 0% 100%)" }}
-                  formatter={(value: number) => [formatCurrency(value), "Revenue"]}
+                  contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "6px", color: "hsl(var(--foreground))" }}
+                  formatter={(value: number, name: string) => [formatCurrency(value), name.charAt(0).toUpperCase() + name.slice(1)]}
                 />
-                <Bar dataKey="revenue" fill="hsl(225 100% 61%)" radius={[4, 4, 0, 0]} />
-              </BarChart>
+                <Legend />
+                <Bar dataKey="revenue" fill="hsl(142 71% 45%)" radius={[4, 4, 0, 0]} name="Revenue" />
+                <Bar dataKey="expenses" fill="hsl(0 84% 60%)" radius={[4, 4, 0, 0]} name="Expenses" />
+                <Line type="monotone" dataKey="profit" stroke="hsl(225 100% 61%)" strokeWidth={2} name="Profit" dot={{ r: 3 }} />
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
         </CardContent>
       </Card>
 
-      {/* Expenses Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Monthly Expenses</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Expense Type</TableHead>
-                <TableHead className="text-right">Monthly Amount</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {expenses.map((e) => (
-                <TableRow key={e.type}>
-                  <TableCell>{e.type}</TableCell>
-                  <TableCell className="text-right font-mono">{formatCurrency(e.monthly)}</TableCell>
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Expenses Breakdown by Month */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Expense Breakdown by Month</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Expense Type</TableHead>
+                    {MONTHS.slice(0, 6).map((m) => (
+                      <TableHead key={m} className="text-right">{m}</TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {expenseTypes.map((type) => (
+                    <TableRow key={type}>
+                      <TableCell className="whitespace-nowrap">{type}</TableCell>
+                      {MONTHS.slice(0, 6).map((_, i) => {
+                        const val = (expenses ?? [])
+                          .filter((e) => e.type === type && e.expense_month === i + 1 && e.expense_year === 2026)
+                          .reduce((s, e) => s + Number(e.amount), 0);
+                        return (
+                          <TableCell key={i} className="text-right font-mono">
+                            {val > 0 ? formatCurrency(val) : "—"}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  ))}
+                  <TableRow className="font-bold border-t-2 border-border">
+                    <TableCell>Total</TableCell>
+                    {MONTHS.slice(0, 6).map((_, i) => {
+                      const total = (expenses ?? [])
+                        .filter((e) => e.expense_month === i + 1 && e.expense_year === 2026)
+                        .reduce((s, e) => s + Number(e.amount), 0);
+                      return (
+                        <TableCell key={i} className="text-right font-mono">
+                          {total > 0 ? formatCurrency(total) : "—"}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Owner Investments */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Owner Investments</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Owner</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Notes</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
                 </TableRow>
-              ))}
-              <TableRow className="font-bold border-t-2 border-border">
-                <TableCell>Total</TableCell>
-                <TableCell className="text-right font-mono">{formatCurrency(totalMonthlyExpenses)}</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              </TableHeader>
+              <TableBody>
+                {(investments ?? []).map((inv) => (
+                  <TableRow key={inv.id}>
+                    <TableCell className="font-medium">{inv.owner_name}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {inv.investment_date ? new Date(inv.investment_date).toLocaleDateString() : "—"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{inv.notes ?? "—"}</TableCell>
+                    <TableCell className="text-right font-mono">{formatCurrency(Number(inv.amount))}</TableCell>
+                  </TableRow>
+                ))}
+                <TableRow className="font-bold border-t-2 border-border">
+                  <TableCell colSpan={3}>Total</TableCell>
+                  <TableCell className="text-right font-mono">{formatCurrency(totalInvestments)}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Payment History */}
       <Card>
