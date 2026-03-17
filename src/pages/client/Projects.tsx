@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle, Circle, Clock, Pause, Calendar, Target } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { CheckCircle2, Circle, Clock, Pause, Calendar, Target, Rocket } from "lucide-react";
 
 const PHASE_LABELS: Record<string, string> = {
   discovery: "Discovery",
@@ -13,28 +14,36 @@ const PHASE_LABELS: Record<string, string> = {
   launch: "Launch",
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  not_started: "Not Started",
-  in_progress: "In Progress",
-  completed: "Completed",
-  on_hold: "On Hold",
+const PHASE_DESCRIPTIONS: Record<string, string> = {
+  discovery: "Understanding your goals, audience, and brand identity",
+  design: "Creating visual concepts and layouts for your approval",
+  development: "Building and implementing the final product",
+  review: "Fine-tuning details based on your feedback",
+  launch: "Final QA and going live",
 };
 
-const statusBadgeVariant = (status: string) => {
-  switch (status) {
-    case "completed": return "default" as const;
-    case "in_progress": return "secondary" as const;
-    case "on_hold": return "outline" as const;
-    default: return "outline" as const;
-  }
+const STATUS_BADGES: Record<string, { label: string; className: string }> = {
+  not_started: { label: "Not Started", className: "bg-muted text-muted-foreground" },
+  in_progress: { label: "In Progress", className: "bg-primary/15 text-primary border-primary/30" },
+  completed: { label: "Completed", className: "bg-success/15 text-success border-success/30" },
+  on_hold: { label: "On Hold", className: "bg-warning/15 text-warning border-warning/30" },
 };
 
 const phaseIcon = (status: string) => {
   switch (status) {
-    case "completed": return <CheckCircle className="h-5 w-5 text-emerald-500" />;
-    case "in_progress": return <Clock className="h-5 w-5 text-primary animate-pulse" />;
-    case "on_hold": return <Pause className="h-5 w-5 text-warning" />;
-    default: return <Circle className="h-5 w-5 text-muted-foreground/40" />;
+    case "completed":
+      return <CheckCircle2 className="h-5 w-5 text-success" />;
+    case "in_progress":
+      return (
+        <div className="relative">
+          <Clock className="h-5 w-5 text-primary" />
+          <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary animate-pulse" />
+        </div>
+      );
+    case "on_hold":
+      return <Pause className="h-5 w-5 text-warning" />;
+    default:
+      return <Circle className="h-5 w-5 text-muted-foreground/30" />;
   }
 };
 
@@ -42,7 +51,6 @@ export default function ClientProjects() {
   const { data: projects, isLoading } = useQuery({
     queryKey: ["client-projects"],
     queryFn: async () => {
-      // RLS now filters to only the logged-in client's projects
       const { data, error } = await supabase
         .from("projects")
         .select("*, clients(name), project_phases(*)")
@@ -55,101 +63,146 @@ export default function ClientProjects() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="text-sm text-muted-foreground">Loading projects…</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Your Projects</h1>
-        <p className="text-muted-foreground">Track progress across all your active projects.</p>
+        <p className="text-muted-foreground mt-1">Track progress across every phase of your creative projects.</p>
       </div>
 
       {(projects ?? []).length === 0 ? (
-        <Card className="p-12 text-center">
-          <p className="text-muted-foreground">No projects yet. Your team will set up your project soon!</p>
+        <Card className="border-dashed border-2 border-border">
+          <CardContent className="py-16 flex flex-col items-center text-center gap-4">
+            <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <Rocket className="h-8 w-8 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold">No projects yet</h3>
+              <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                Your project workspace is being prepared. We'll notify you once everything is ready.
+              </p>
+            </div>
+          </CardContent>
         </Card>
       ) : (
         <div className="space-y-6">
           {(projects ?? []).map((project) => {
-            const phases = (project.project_phases as Array<{ id: string; phase: string; status: string; sort_order: number; started_at: string | null; completed_at: string | null }>) ?? [];
+            const phases = (project.project_phases as Array<{
+              id: string; phase: string; status: string; sort_order: number;
+              started_at: string | null; completed_at: string | null; notes: string | null;
+            }>) ?? [];
             const sortedPhases = [...phases].sort((a, b) => a.sort_order - b.sort_order);
             const completedPhases = sortedPhases.filter((p) => p.status === "completed").length;
+            const badge = STATUS_BADGES[project.status] ?? STATUS_BADGES.not_started;
 
             return (
               <Card key={project.id} className="overflow-hidden">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg">{project.name}</CardTitle>
+                <CardHeader className="pb-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <CardTitle className="text-xl">{project.name}</CardTitle>
                       {project.description && (
-                        <p className="text-sm text-muted-foreground mt-1">{project.description}</p>
+                        <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">{project.description}</p>
                       )}
                     </div>
-                    <Badge variant={statusBadgeVariant(project.status)}>
-                      {STATUS_LABELS[project.status]}
+                    <Badge variant="outline" className={badge.className}>
+                      {badge.label}
                     </Badge>
                   </div>
                 </CardHeader>
+
                 <CardContent className="space-y-6">
-                  {/* Progress bar */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Overall Progress</span>
-                      <span className="font-mono font-semibold">{project.progress}%</span>
+                  {/* Progress overview */}
+                  <div className="rounded-xl bg-muted/30 border border-border p-5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Overall Progress</span>
+                      <span className="text-lg font-mono font-bold text-primary">{project.progress}%</span>
                     </div>
                     <Progress value={project.progress} className="h-3" />
                     <p className="text-xs text-muted-foreground">
-                      {completedPhases} of {sortedPhases.length} phases complete · Currently in {PHASE_LABELS[project.current_phase]}
+                      {completedPhases} of {sortedPhases.length} phases complete
+                      {project.current_phase && ` · Currently in ${PHASE_LABELS[project.current_phase]}`}
                     </p>
                   </div>
 
                   {/* Phase timeline */}
-                  <div className="space-y-1">
-                    {sortedPhases.map((phase, index) => (
-                      <div key={phase.id} className="flex items-center gap-4">
-                        {/* Timeline connector */}
-                        <div className="flex flex-col items-center">
-                          {phaseIcon(phase.status)}
-                          {index < sortedPhases.length - 1 && (
-                            <div className={`w-0.5 h-6 ${phase.status === "completed" ? "bg-emerald-500" : "bg-border"}`} />
-                          )}
-                        </div>
-                        {/* Phase info */}
-                        <div className="flex-1 flex items-center justify-between py-1">
-                          <div>
-                            <span className={`text-sm font-medium ${phase.status === "not_started" ? "text-muted-foreground" : ""}`}>
-                              {PHASE_LABELS[phase.phase]}
-                            </span>
-                          </div>
-                          <span className="text-xs text-muted-foreground">
-                            {phase.status === "completed" && phase.completed_at && `Completed ${new Date(phase.completed_at).toLocaleDateString()}`}
-                            {phase.status === "in_progress" && phase.started_at && `Started ${new Date(phase.started_at).toLocaleDateString()}`}
-                            {phase.status === "not_started" && "Upcoming"}
-                          </span>
-                        </div>
+                  {sortedPhases.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Project Timeline</p>
+                      <div className="space-y-0">
+                        {sortedPhases.map((phase, index) => {
+                          const isActive = phase.status === "in_progress";
+                          const isCompleted = phase.status === "completed";
+
+                          return (
+                            <div key={phase.id} className="flex gap-4">
+                              {/* Timeline line + icon */}
+                              <div className="flex flex-col items-center">
+                                <div className={`shrink-0 ${isActive ? "scale-110" : ""} transition-transform`}>
+                                  {phaseIcon(phase.status)}
+                                </div>
+                                {index < sortedPhases.length - 1 && (
+                                  <div className={`w-0.5 flex-1 min-h-[2rem] ${isCompleted ? "bg-success/50" : "bg-border"}`} />
+                                )}
+                              </div>
+
+                              {/* Phase content */}
+                              <div className={`flex-1 pb-6 ${!isActive && !isCompleted ? "opacity-50" : ""}`}>
+                                <div className="flex items-center justify-between">
+                                  <p className={`text-sm font-semibold ${isActive ? "text-primary" : ""}`}>
+                                    {PHASE_LABELS[phase.phase]}
+                                  </p>
+                                  <span className="text-xs text-muted-foreground">
+                                    {isCompleted && phase.completed_at &&
+                                      new Date(phase.completed_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                    {isActive && phase.started_at &&
+                                      `Started ${new Date(phase.started_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
+                                    {phase.status === "not_started" && "Upcoming"}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  {PHASE_DESCRIPTIONS[phase.phase]}
+                                </p>
+                                {phase.notes && isActive && (
+                                  <p className="text-xs mt-2 p-2 rounded-md bg-primary/5 border border-primary/10 text-foreground">
+                                    {phase.notes}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
 
                   {/* Dates */}
                   {(project.start_date || project.target_date) && (
-                    <div className="flex gap-6 pt-2 border-t border-border">
-                      {project.start_date && (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Calendar className="h-3.5 w-3.5" />
-                          Started {new Date(project.start_date).toLocaleDateString()}
-                        </div>
-                      )}
-                      {project.target_date && (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Target className="h-3.5 w-3.5" />
-                          Target {new Date(project.target_date).toLocaleDateString()}
-                        </div>
-                      )}
-                    </div>
+                    <>
+                      <Separator />
+                      <div className="flex gap-8">
+                        {project.start_date && (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Calendar className="h-4 w-4" />
+                            <span>Started {new Date(project.start_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span>
+                          </div>
+                        )}
+                        {project.target_date && (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Target className="h-4 w-4" />
+                            <span>Target {new Date(project.target_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span>
+                          </div>
+                        )}
+                      </div>
+                    </>
                   )}
                 </CardContent>
               </Card>
