@@ -18,6 +18,7 @@ function formatCurrency(val: number) {
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export default function AdminFinancials() {
+  const [chartView, setChartView] = useState<"actual" | "projected" | "all">("all");
   const { data: payments } = useQuery({
     queryKey: ["all-payments"],
     queryFn: async () => {
