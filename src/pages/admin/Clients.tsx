@@ -38,7 +38,7 @@ function parseNotes(notes: string | null): { services?: string; deliverables?: s
 
   const servicesMatch = notes.match(/Services:\s*(.+?)(?=Deliverables:|Current Status:|$)/s);
   const deliverablesMatch = notes.match(/Deliverables:\s*(.+?)(?=Current Status:|$)/s);
-  const statusMatch = notes.match(/(?:Current Status:|(?:^|\.\s)(?=[A-Z][^.]*(?:progress|established|optimistic|schedule|underway|project|waiting)))/s);
+  
 
   if (servicesMatch) parts.services = servicesMatch[1].trim().replace(/\.$/, "");
   if (deliverablesMatch) parts.deliverables = deliverablesMatch[1].trim().replace(/\.$/, "");
