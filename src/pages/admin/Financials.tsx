@@ -85,8 +85,6 @@ export default function AdminFinancials() {
   // Group expenses by type
   const expenseTypes = [...new Set((expenses ?? []).map((e) => e.type))];
 
-  // Group expenses by type across all months for the table
-  const expenseTypes = [...new Set((expenses ?? []).map((e) => e.type))];
 
   const exportCSV = () => {
     if (!payments?.length) return;
