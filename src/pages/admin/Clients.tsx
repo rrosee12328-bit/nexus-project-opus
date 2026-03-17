@@ -88,6 +88,22 @@ export default function AdminClients() {
     },
   });
 
+  const { data: clientCosts } = useQuery({
+    queryKey: ["client-costs"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("client_costs").select("*");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const costsByClient = (clientCosts ?? []).reduce<Record<string, typeof clientCosts>>((acc, c) => {
+    const key = c.client_id;
+    if (!acc[key]) acc[key] = [];
+    acc[key]!.push(c);
+    return acc;
+  }, {});
+
   const ytdByClient = (payments ?? []).reduce<Record<string, number>>((acc, p) => {
     acc[p.client_id] = (acc[p.client_id] ?? 0) + Number(p.amount);
     return acc;
