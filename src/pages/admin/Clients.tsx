@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Users, UserCheck, UserPlus, DollarSign, PhoneCall } from "lucide-react";
+import { UserCheck, UserPlus, DollarSign, PhoneCall } from "lucide-react";
 
 const statusColor: Record<string, string> = {
   active: "bg-success/20 text-success border-success/30",
