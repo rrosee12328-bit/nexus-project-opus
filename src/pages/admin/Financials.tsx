@@ -82,12 +82,8 @@ export default function AdminFinancials() {
   const pendingSetup = (clients ?? []).reduce((s, c) => s + (c.balance_due ?? 0), 0);
   const totalInvestments = (investments ?? []).reduce((s, inv) => s + Number(inv.amount), 0);
 
-  // Group expenses by type for current month
-  const currentMonth = new Date().getMonth() + 1;
-  const currentMonthExpenses = (expenses ?? []).filter(
-    (e) => e.expense_month === currentMonth && e.expense_year === 2026
-  );
-  const totalCurrentMonthExpenses = currentMonthExpenses.reduce((s, e) => s + Number(e.amount), 0);
+  // Group expenses by type
+  const expenseTypes = [...new Set((expenses ?? []).map((e) => e.type))];
 
   // Group expenses by type across all months for the table
   const expenseTypes = [...new Set((expenses ?? []).map((e) => e.type))];
