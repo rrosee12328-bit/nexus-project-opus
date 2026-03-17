@@ -369,6 +369,13 @@ export default function AdminClients() {
                               </>
                             );
                           })()}
+
+                          {parsed.raw && (
+                            <p className="text-sm leading-relaxed">{parsed.raw}</p>
+                          )}
+
+                          {!hasNotes && !(costsByClient[client.id]?.length) && (
+                            <p className="text-sm text-muted-foreground italic">No summary added yet. Edit this client to add services, deliverables, and notes.</p>
                           )}
                         </div>
                       </div>
