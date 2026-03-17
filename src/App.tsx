@@ -25,6 +25,13 @@ import OpsTasks from "./pages/ops/Tasks";
 import OpsSops from "./pages/ops/SOPs";
 import OpsSettings from "./pages/ops/Settings";
 
+import ClientLayout from "./layouts/ClientLayout";
+import ClientDashboard from "./pages/client/Dashboard";
+import ClientProjects from "./pages/client/Projects";
+import ClientAssets from "./pages/client/Assets";
+import ClientMessages from "./pages/client/Messages";
+import ClientSettings from "./pages/client/Settings";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -71,7 +78,16 @@ const App = () => (
               <Route path="settings" element={<OpsSettings />} />
             </Route>
 
-            {/* Client / Home */}
+            {/* Client Portal */}
+            <Route path="/portal" element={<ClientLayout />}>
+              <Route index element={<ClientDashboard />} />
+              <Route path="projects" element={<ClientProjects />} />
+              <Route path="assets" element={<ClientAssets />} />
+              <Route path="messages" element={<ClientMessages />} />
+              <Route path="settings" element={<ClientSettings />} />
+            </Route>
+
+            {/* Home - redirects based on role */}
             <Route path="/" element={<Index />} />
 
             <Route path="*" element={<NotFound />} />
