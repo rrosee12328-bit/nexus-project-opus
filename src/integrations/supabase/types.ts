@@ -103,6 +103,63 @@ export type Database = {
         }
         Relationships: []
       }
+      expenses: {
+        Row: {
+          amount: number
+          created_at: string
+          expense_month: number
+          expense_year: number
+          id: string
+          notes: string | null
+          type: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          expense_month: number
+          expense_year?: number
+          id?: string
+          notes?: string | null
+          type: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          expense_month?: number
+          expense_year?: number
+          id?: string
+          notes?: string | null
+          type?: string
+        }
+        Relationships: []
+      }
+      investments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          investment_date: string | null
+          notes: string | null
+          owner_name: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          investment_date?: string | null
+          notes?: string | null
+          owner_name: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          investment_date?: string | null
+          notes?: string | null
+          owner_name?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
