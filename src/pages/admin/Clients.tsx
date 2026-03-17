@@ -312,12 +312,63 @@ export default function AdminClients() {
                             </div>
                           )}
 
-                          {parsed.raw && (
-                            <p className="text-sm leading-relaxed">{parsed.raw}</p>
-                          )}
+                          {/* Profitability breakdown */}
+                          {(() => {
+                            const costs = costsByClient[client.id] ?? [];
+                            if (costs.length === 0) return null;
+                            const totalCosts = costs.reduce((s, c) => s + Number(c.amount), 0);
+                            const revenue = Number(client.monthly_fee ?? 0);
+                            const profit = revenue - totalCosts;
+                            const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
+                            const isMonthly = costs.some((c) => c.is_monthly);
 
-                          {!hasNotes && (
-                            <p className="text-sm text-muted-foreground italic">No summary added yet. Edit this client to add services, deliverables, and notes.</p>
+                            return (
+                              <>
+                                <Separator />
+                                <div>
+                                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                                    {isMonthly ? "Monthly" : "Project"} Cost Breakdown
+                                  </p>
+                                  <div className="space-y-1.5">
+                                    {costs.map((cost) => (
+                                      <div key={cost.id} className="flex items-center justify-between text-sm">
+                                        <div>
+                                          <span>{cost.category}</span>
+                                          {cost.details && (
+                                            <span className="text-xs text-muted-foreground ml-2">— {cost.details}</span>
+                                          )}
+                                        </div>
+                                        <span className="font-mono shrink-0">{formatCurrency(Number(cost.amount))}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <Separator className="my-3" />
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                    <div>
+                                      <p className="text-xs text-muted-foreground mb-1">{isMonthly ? "Monthly" : "Project"} Revenue</p>
+                                      <p className="font-mono font-semibold">{formatCurrency(revenue)}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs text-muted-foreground mb-1">Direct Costs</p>
+                                      <p className="font-mono font-semibold text-destructive">{formatCurrency(totalCosts)}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs text-muted-foreground mb-1">Contribution Profit</p>
+                                      <p className={`font-mono font-semibold ${profit >= 0 ? "text-success" : "text-destructive"}`}>
+                                        {formatCurrency(profit)}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs text-muted-foreground mb-1">Margin</p>
+                                      <p className={`font-mono font-semibold ${margin >= 0 ? "text-success" : "text-destructive"}`}>
+                                        {margin.toFixed(1)}%
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </>
+                            );
+                          })()}
                           )}
                         </div>
                       </div>
