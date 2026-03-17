@@ -63,6 +63,24 @@ export default function AdminFinancials() {
     },
   });
 
+  const { data: clientCosts } = useQuery({
+    queryKey: ["client-costs"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("client_costs").select("*, clients(name, monthly_fee, status)");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: overhead } = useQuery({
+    queryKey: ["business-overhead"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("business_overhead").select("*");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Split payments into actual vs projected
   const actualPayments = (payments ?? []).filter((p) => p.notes !== "Projected");
   const projectedPayments = (payments ?? []).filter((p) => p.notes === "Projected");
