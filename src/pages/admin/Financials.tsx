@@ -11,6 +11,14 @@ import { Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Line, C
 import { Badge } from "@/components/ui/badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
+const statusColor: Record<string, string> = {
+  active: "bg-success/20 text-success border-success/30",
+  onboarding: "bg-warning/20 text-warning border-warning/30",
+  closed: "bg-muted text-muted-foreground border-border",
+  prospect: "bg-primary/20 text-primary border-primary/30",
+  lead: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+};
+
 function formatCurrency(val: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(val);
 }
