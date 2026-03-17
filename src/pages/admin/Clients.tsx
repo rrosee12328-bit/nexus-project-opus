@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Users, UserCheck, UserPlus, DollarSign } from "lucide-react";
+import { Users, UserCheck, UserPlus, DollarSign, PhoneCall } from "lucide-react";
 
 const statusColor: Record<string, string> = {
   active: "bg-success/20 text-success border-success/30",
@@ -54,15 +54,17 @@ export default function AdminClients() {
     return acc;
   }, {});
 
-  const activeClients = clients?.filter((c) => c.status === "active") ?? [];
-  const onboardingClients = clients?.filter((c) => c.status === "onboarding") ?? [];
+  const actualClients = clients?.filter((c) => c.status !== "lead") ?? [];
+  const leads = clients?.filter((c) => c.status === "lead") ?? [];
+  const activeClients = actualClients.filter((c) => c.status === "active");
+  const onboardingClients = actualClients.filter((c) => c.status === "onboarding");
   const mrr = activeClients.reduce((s, c) => s + (c.monthly_fee ?? 0), 0);
-  const pendingSetup = (clients ?? []).reduce((s, c) => s + (c.balance_due ?? 0), 0);
+  const pendingSetup = actualClients.reduce((s, c) => s + (c.balance_due ?? 0), 0);
 
   const stats = [
-    { label: "Total Clients", value: clients?.length ?? 0, icon: Users },
-    { label: "Active", value: activeClients.length, icon: UserCheck },
+    { label: "Active Clients", value: activeClients.length, icon: UserCheck },
     { label: "Onboarding", value: onboardingClients.length, icon: UserPlus },
+    { label: "Leads", value: leads.length, icon: PhoneCall },
     { label: "Monthly Recurring", value: formatCurrency(mrr), icon: DollarSign },
   ];
 
@@ -87,9 +89,10 @@ export default function AdminClients() {
         ))}
       </div>
 
+      {/* Clients Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">All Clients</CardTitle>
+          <CardTitle className="text-lg">Clients</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -112,7 +115,7 @@ export default function AdminClients() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(clients ?? []).map((client) => (
+                  {actualClients.map((client) => (
                     <TableRow key={client.id}>
                       <TableCell className="font-medium">{client.name}</TableCell>
                       <TableCell className="text-muted-foreground">{client.type ?? "—"}</TableCell>
@@ -155,6 +158,38 @@ export default function AdminClients() {
           </CardContent>
         </Card>
       )}
+
+      {/* Leads Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <PhoneCall className="h-5 w-5 text-purple-400" />
+            <CardTitle className="text-lg">Leads</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {leads.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">No leads yet.</p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {leads.map((lead) => (
+                <div
+                  key={lead.id}
+                  className="flex items-center gap-3 rounded-lg border border-border bg-surface p-4 transition-colors hover:bg-surface-hover"
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-purple-500/20 text-sm font-bold text-purple-400">
+                    {lead.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{lead.name}</p>
+                    <p className="text-xs text-muted-foreground">{lead.type ?? "No type set"}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
