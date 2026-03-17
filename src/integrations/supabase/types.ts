@@ -187,6 +187,97 @@ export type Database = {
         }
         Relationships: []
       }
+      project_phases: {
+        Row: {
+          completed_at: string | null
+          id: string
+          notes: string | null
+          phase: Database["public"]["Enums"]["project_phase"]
+          project_id: string
+          sort_order: number
+          started_at: string | null
+          status: Database["public"]["Enums"]["project_status"]
+        }
+        Insert: {
+          completed_at?: string | null
+          id?: string
+          notes?: string | null
+          phase: Database["public"]["Enums"]["project_phase"]
+          project_id: string
+          sort_order?: number
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["project_status"]
+        }
+        Update: {
+          completed_at?: string | null
+          id?: string
+          notes?: string | null
+          phase?: Database["public"]["Enums"]["project_phase"]
+          project_id?: string
+          sort_order?: number
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["project_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_phases_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          client_id: string
+          created_at: string
+          current_phase: Database["public"]["Enums"]["project_phase"]
+          description: string | null
+          id: string
+          name: string
+          progress: number
+          start_date: string | null
+          status: Database["public"]["Enums"]["project_status"]
+          target_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          current_phase?: Database["public"]["Enums"]["project_phase"]
+          description?: string | null
+          id?: string
+          name: string
+          progress?: number
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["project_status"]
+          target_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          current_phase?: Database["public"]["Enums"]["project_phase"]
+          description?: string | null
+          id?: string
+          name?: string
+          progress?: number
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["project_status"]
+          target_date?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           assigned_to: string | null
@@ -278,6 +369,13 @@ export type Database = {
     Enums: {
       app_role: "admin" | "ops" | "client"
       client_status: "active" | "onboarding" | "closed" | "prospect" | "lead"
+      project_phase:
+        | "discovery"
+        | "design"
+        | "development"
+        | "review"
+        | "launch"
+      project_status: "not_started" | "in_progress" | "completed" | "on_hold"
       task_priority: "low" | "medium" | "high" | "urgent"
       task_status: "todo" | "in_progress" | "review" | "done"
     }
@@ -409,6 +507,8 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "ops", "client"],
       client_status: ["active", "onboarding", "closed", "prospect", "lead"],
+      project_phase: ["discovery", "design", "development", "review", "launch"],
+      project_status: ["not_started", "in_progress", "completed", "on_hold"],
       task_priority: ["low", "medium", "high", "urgent"],
       task_status: ["todo", "in_progress", "review", "done"],
     },
