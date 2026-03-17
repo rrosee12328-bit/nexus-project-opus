@@ -63,6 +63,24 @@ export default function AdminFinancials() {
     },
   });
 
+  const { data: clientCosts } = useQuery({
+    queryKey: ["client-costs"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("client_costs").select("*, clients(name, monthly_fee, status)");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: overhead } = useQuery({
+    queryKey: ["business-overhead"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("business_overhead").select("*");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Split payments into actual vs projected
   const actualPayments = (payments ?? []).filter((p) => p.notes !== "Projected");
   const projectedPayments = (payments ?? []).filter((p) => p.notes === "Projected");
@@ -306,6 +324,123 @@ export default function AdminFinancials() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Client Profitability */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Client Profitability</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Client</TableHead>
+                  <TableHead className="text-right">Revenue</TableHead>
+                  <TableHead className="text-right">Direct Costs</TableHead>
+                  <TableHead className="text-right">Profit</TableHead>
+                  <TableHead className="text-right">Margin</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(() => {
+                  // Group costs by client
+                  const grouped: Record<string, { name: string; revenue: number; costs: number; status: string }> = {};
+                  for (const cost of clientCosts ?? []) {
+                    const client = cost.clients as { name: string; monthly_fee: number | null; status: string } | null;
+                    if (!client) continue;
+                    if (!grouped[cost.client_id]) {
+                      grouped[cost.client_id] = {
+                        name: client.name,
+                        revenue: Number(client.monthly_fee ?? 0),
+                        costs: 0,
+                        status: client.status,
+                      };
+                    }
+                    grouped[cost.client_id].costs += Number(cost.amount);
+                  }
+                  const entries = Object.values(grouped).sort((a, b) => (b.revenue - b.costs) - (a.revenue - a.costs));
+                  const totalRev = entries.reduce((s, e) => s + e.revenue, 0);
+                  const totalCost = entries.reduce((s, e) => s + e.costs, 0);
+
+                  return (
+                    <>
+                      {entries.map((e) => {
+                        const profit = e.revenue - e.costs;
+                        const margin = e.revenue > 0 ? (profit / e.revenue) * 100 : 0;
+                        return (
+                          <TableRow key={e.name}>
+                            <TableCell className="font-medium">
+                              {e.name}
+                              {e.status === "closed" && <span className="text-xs text-muted-foreground ml-2">(closed)</span>}
+                            </TableCell>
+                            <TableCell className="text-right font-mono">{formatCurrency(e.revenue)}</TableCell>
+                            <TableCell className="text-right font-mono text-destructive">{formatCurrency(e.costs)}</TableCell>
+                            <TableCell className={`text-right font-mono ${profit >= 0 ? "text-emerald-500" : "text-destructive"}`}>
+                              {formatCurrency(profit)}
+                            </TableCell>
+                            <TableCell className={`text-right font-mono ${margin >= 0 ? "text-emerald-500" : "text-destructive"}`}>
+                              {margin.toFixed(1)}%
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      <TableRow className="font-bold border-t-2 border-border">
+                        <TableCell>Total</TableCell>
+                        <TableCell className="text-right font-mono">{formatCurrency(totalRev)}</TableCell>
+                        <TableCell className="text-right font-mono text-destructive">{formatCurrency(totalCost)}</TableCell>
+                        <TableCell className={`text-right font-mono ${totalRev - totalCost >= 0 ? "text-emerald-500" : "text-destructive"}`}>
+                          {formatCurrency(totalRev - totalCost)}
+                        </TableCell>
+                        <TableCell className={`text-right font-mono ${totalRev > 0 && (totalRev - totalCost) / totalRev >= 0 ? "text-emerald-500" : "text-destructive"}`}>
+                          {totalRev > 0 ? (((totalRev - totalCost) / totalRev) * 100).toFixed(1) : "0.0"}%
+                        </TableCell>
+                      </TableRow>
+                    </>
+                  );
+                })()}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Business Overhead */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Business Overhead</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Category</TableHead>
+                <TableHead>Item</TableHead>
+                <TableHead>Details</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(overhead ?? []).map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell>
+                    <Badge variant="outline">{item.category}</Badge>
+                  </TableCell>
+                  <TableCell className="font-medium">{item.name}</TableCell>
+                  <TableCell className="text-muted-foreground text-sm">{item.details ?? "—"}</TableCell>
+                  <TableCell className="text-right font-mono">{formatCurrency(Number(item.amount))}</TableCell>
+                </TableRow>
+              ))}
+              <TableRow className="font-bold border-t-2 border-border">
+                <TableCell colSpan={3}>Total Monthly Overhead</TableCell>
+                <TableCell className="text-right font-mono">
+                  {formatCurrency((overhead ?? []).reduce((s, o) => s + Number(o.amount), 0))}
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       {/* Payment History */}
       <Card>
