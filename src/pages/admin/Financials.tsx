@@ -62,16 +62,30 @@ export default function AdminFinancials() {
     },
   });
 
-  // Monthly revenue & expense chart data
+  // Split payments into actual vs projected
+  const actualPayments = (payments ?? []).filter((p) => p.notes !== "Projected");
+  const projectedPayments = (payments ?? []).filter((p) => p.notes === "Projected");
+
+  // Monthly chart data with actual/projected split
   const monthlyData = MONTHS.map((label, i) => {
     const month = i + 1;
-    const revenue = (payments ?? [])
+    const actualRev = actualPayments
+      .filter((p) => p.payment_month === month && p.payment_year === 2026)
+      .reduce((s, p) => s + Number(p.amount), 0);
+    const projectedRev = projectedPayments
       .filter((p) => p.payment_month === month && p.payment_year === 2026)
       .reduce((s, p) => s + Number(p.amount), 0);
     const expense = (expenses ?? [])
       .filter((e) => e.expense_month === month && e.expense_year === 2026)
       .reduce((s, e) => s + Number(e.amount), 0);
-    return { month: label, revenue, expenses: expense, profit: revenue - expense };
+    return {
+      month: label,
+      actualRevenue: actualRev,
+      projectedRevenue: projectedRev,
+      expenses: expense,
+      actualProfit: actualRev - expense,
+      totalProfit: actualRev + projectedRev - expense,
+    };
   });
 
   const ytdRevenue = (payments ?? []).reduce((s, p) => s + Number(p.amount), 0);
