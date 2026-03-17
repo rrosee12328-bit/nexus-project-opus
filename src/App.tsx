@@ -67,7 +67,7 @@ const App = () => (
             <Route
               path="/ops"
               element={
-                <ProtectedRoute allowedRoles={["ops"]}>
+                <ProtectedRoute allowedRoles={["admin", "ops"]}>
                   <OpsLayout />
                 </ProtectedRoute>
               }
