@@ -24,8 +24,6 @@ export default function ClientLayout() {
   }
 
   if (!user) return <Navigate to="/login" replace />;
-  if (role === "admin") return <Navigate to="/admin" replace />;
-  if (role === "ops") return <Navigate to="/ops" replace />;
 
   return (
     <div className="min-h-screen flex flex-col">
