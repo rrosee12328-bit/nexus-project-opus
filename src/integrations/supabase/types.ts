@@ -68,6 +68,7 @@ export type Database = {
           status: Database["public"]["Enums"]["client_status"]
           type: string | null
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           balance_due?: number | null
@@ -84,6 +85,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["client_status"]
           type?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           balance_due?: number | null
@@ -100,6 +102,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["client_status"]
           type?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -354,6 +357,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_client_id_for_user: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]

@@ -132,9 +132,10 @@ export default function AdminClients() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Client</TableHead>
+                     <TableHead>Client</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Portal</TableHead>
                     <TableHead>Start Date</TableHead>
                     <TableHead className="text-right">Setup Fee</TableHead>
                     <TableHead className="text-right">Balance</TableHead>
@@ -150,6 +151,13 @@ export default function AdminClients() {
                       <TableCell className="text-muted-foreground">{client.type ?? "—"}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={statusColor[client.status] ?? ""}>{client.status}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {client.user_id ? (
+                          <Badge variant="secondary" className="text-xs">Linked</Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell className="font-mono text-sm text-muted-foreground">{client.start_date ?? "—"}</TableCell>
                       <TableCell className="text-right font-mono">{formatCurrency(client.setup_fee)}</TableCell>

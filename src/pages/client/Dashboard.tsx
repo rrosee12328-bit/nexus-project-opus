@@ -20,6 +20,7 @@ export default function ClientDashboard() {
   const { data: projects } = useQuery({
     queryKey: ["client-projects"],
     queryFn: async () => {
+      // RLS now filters to only the logged-in client's projects
       const { data, error } = await supabase
         .from("projects")
         .select("*, clients(name)")
