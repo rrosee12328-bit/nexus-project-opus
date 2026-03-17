@@ -3,8 +3,27 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Index from "./pages/Index.tsx";
-import NotFound from "./pages/NotFound.tsx";
+import { AuthProvider } from "@/hooks/useAuth";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+
+import Index from "./pages/Index";
+import NotFound from "./pages/NotFound";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+
+import AdminLayout from "./layouts/AdminLayout";
+import AdminDashboard from "./pages/admin/Dashboard";
+import AdminClients from "./pages/admin/Clients";
+import AdminProjects from "./pages/admin/Projects";
+import AdminMessages from "./pages/admin/Messages";
+import AdminFinancials from "./pages/admin/Financials";
+import AdminSettings from "./pages/admin/Settings";
+
+import OpsLayout from "./layouts/OpsLayout";
+import OpsDashboard from "./pages/ops/Dashboard";
+import OpsTasks from "./pages/ops/Tasks";
+import OpsSops from "./pages/ops/SOPs";
+import OpsSettings from "./pages/ops/Settings";
 
 const queryClient = new QueryClient();
 
@@ -14,11 +33,50 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            {/* Public */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+
+            {/* Admin Portal */}
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <AdminLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<AdminDashboard />} />
+              <Route path="clients" element={<AdminClients />} />
+              <Route path="projects" element={<AdminProjects />} />
+              <Route path="messages" element={<AdminMessages />} />
+              <Route path="financials" element={<AdminFinancials />} />
+              <Route path="settings" element={<AdminSettings />} />
+            </Route>
+
+            {/* Ops Portal */}
+            <Route
+              path="/ops"
+              element={
+                <ProtectedRoute allowedRoles={["ops"]}>
+                  <OpsLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<OpsDashboard />} />
+              <Route path="tasks" element={<OpsTasks />} />
+              <Route path="sops" element={<OpsSops />} />
+              <Route path="settings" element={<OpsSettings />} />
+            </Route>
+
+            {/* Client / Home */}
+            <Route path="/" element={<Index />} />
+
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
