@@ -14,6 +14,74 @@ export type Database = {
   }
   public: {
     Tables: {
+      business_overhead: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          details: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          amount?: number
+          category: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      client_costs: {
+        Row: {
+          amount: number
+          category: string
+          client_id: string
+          created_at: string
+          details: string | null
+          id: string
+          is_monthly: boolean
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          category: string
+          client_id: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          is_monthly?: boolean
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          client_id?: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          is_monthly?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_costs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_payments: {
         Row: {
           amount: number
