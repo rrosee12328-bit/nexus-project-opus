@@ -15,14 +15,5 @@ export default function Index() {
   if (!user) return <Navigate to="/login" replace />;
   if (role === "admin") return <Navigate to="/admin" replace />;
   if (role === "ops") return <Navigate to="/ops" replace />;
-
-  // Client portal placeholder
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center space-y-4">
-        <h1 className="text-3xl font-bold tracking-tight">Welcome to Vektiss</h1>
-        <p className="text-muted-foreground">Client portal coming soon.</p>
-      </div>
-    </div>
-  );
+  return <Navigate to="/portal" replace />;
 }

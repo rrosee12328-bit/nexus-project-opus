@@ -1,16 +1,21 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { UserCheck, UserPlus, DollarSign, PhoneCall } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { UserCheck, UserPlus, DollarSign, PhoneCall, Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { ClientFormDialog } from "@/components/ClientFormDialog";
+import { DeleteClientDialog } from "@/components/DeleteClientDialog";
+import type { Database } from "@/integrations/supabase/types";
+
+type Client = Database["public"]["Tables"]["clients"]["Row"];
 
 const statusColor: Record<string, string> = {
   active: "bg-success/20 text-success border-success/30",
@@ -26,13 +31,14 @@ function formatCurrency(val: number | null) {
 }
 
 export default function AdminClients() {
+  const [formOpen, setFormOpen] = useState(false);
+  const [editClient, setEditClient] = useState<Client | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
+
   const { data: clients, isLoading } = useQuery({
     queryKey: ["clients"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("clients")
-        .select("*")
-        .order("created_at");
+      const { data, error } = await supabase.from("clients").select("*").order("created_at");
       if (error) throw error;
       return data;
     },
@@ -41,9 +47,7 @@ export default function AdminClients() {
   const { data: payments } = useQuery({
     queryKey: ["client-payments-summary"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("client_payments")
-        .select("client_id, amount");
+      const { data, error } = await supabase.from("client_payments").select("client_id, amount");
       if (error) throw error;
       return data;
     },
@@ -68,11 +72,35 @@ export default function AdminClients() {
     { label: "Monthly Recurring", value: formatCurrency(mrr), icon: DollarSign },
   ];
 
+  const openEdit = (c: Client) => { setEditClient(c); setFormOpen(true); };
+  const openAdd = () => { setEditClient(null); setFormOpen(true); };
+
+  const ActionMenu = ({ client }: { client: Client }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8">
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => openEdit(client)}>
+          <Pencil className="mr-2 h-4 w-4" /> Edit
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setDeleteTarget(client)} className="text-destructive focus:text-destructive">
+          <Trash2 className="mr-2 h-4 w-4" /> Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Client Management</h1>
-        <p className="text-muted-foreground">View and manage all clients, payments, and services.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Client Management</h1>
+          <p className="text-muted-foreground">View and manage all clients, payments, and services.</p>
+        </div>
+        <Button onClick={openAdd}><Plus className="mr-2 h-4 w-4" /> Add Client</Button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -112,6 +140,7 @@ export default function AdminClients() {
                     <TableHead className="text-right">Balance</TableHead>
                     <TableHead className="text-right">Monthly Fee</TableHead>
                     <TableHead className="text-right">YTD Payments</TableHead>
+                    <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -120,25 +149,16 @@ export default function AdminClients() {
                       <TableCell className="font-medium">{client.name}</TableCell>
                       <TableCell className="text-muted-foreground">{client.type ?? "—"}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={statusColor[client.status] ?? ""}>
-                          {client.status}
-                        </Badge>
+                        <Badge variant="outline" className={statusColor[client.status] ?? ""}>{client.status}</Badge>
                       </TableCell>
-                      <TableCell className="font-mono text-sm text-muted-foreground">
-                        {client.start_date ?? "—"}
-                      </TableCell>
+                      <TableCell className="font-mono text-sm text-muted-foreground">{client.start_date ?? "—"}</TableCell>
                       <TableCell className="text-right font-mono">{formatCurrency(client.setup_fee)}</TableCell>
                       <TableCell className="text-right font-mono">
-                        {(client.balance_due ?? 0) > 0 ? (
-                          <span className="text-warning">{formatCurrency(client.balance_due)}</span>
-                        ) : (
-                          "—"
-                        )}
+                        {(client.balance_due ?? 0) > 0 ? <span className="text-warning">{formatCurrency(client.balance_due)}</span> : "—"}
                       </TableCell>
                       <TableCell className="text-right font-mono">{formatCurrency(client.monthly_fee)}</TableCell>
-                      <TableCell className="text-right font-mono">
-                        {formatCurrency(ytdByClient[client.id] ?? 0)}
-                      </TableCell>
+                      <TableCell className="text-right font-mono">{formatCurrency(ytdByClient[client.id] ?? 0)}</TableCell>
+                      <TableCell><ActionMenu client={client} /></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -162,9 +182,14 @@ export default function AdminClients() {
       {/* Leads Section */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <PhoneCall className="h-5 w-5 text-purple-400" />
-            <CardTitle className="text-lg">Leads</CardTitle>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <PhoneCall className="h-5 w-5 text-purple-400" />
+              <CardTitle className="text-lg">Leads</CardTitle>
+            </div>
+            <Button variant="outline" size="sm" onClick={openAdd}>
+              <Plus className="mr-1 h-3 w-3" /> Add Lead
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -175,14 +200,17 @@ export default function AdminClients() {
               {leads.map((lead) => (
                 <div
                   key={lead.id}
-                  className="flex items-center gap-3 rounded-lg border border-border bg-surface p-4 transition-colors hover:bg-surface-hover"
+                  className="group flex items-center gap-3 rounded-lg border border-border bg-surface p-4 transition-colors hover:bg-surface-hover"
                 >
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-purple-500/20 text-sm font-bold text-purple-400">
                     {lead.name.charAt(0).toUpperCase()}
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{lead.name}</p>
                     <p className="text-xs text-muted-foreground">{lead.type ?? "No type set"}</p>
+                  </div>
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <ActionMenu client={lead} />
                   </div>
                 </div>
               ))}
@@ -190,6 +218,22 @@ export default function AdminClients() {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialogs */}
+      <ClientFormDialog
+        key={editClient?.id ?? "new"}
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        client={editClient}
+      />
+      {deleteTarget && (
+        <DeleteClientDialog
+          open={!!deleteTarget}
+          onOpenChange={(open) => !open && setDeleteTarget(null)}
+          clientId={deleteTarget.id}
+          clientName={deleteTarget.name}
+        />
+      )}
     </div>
   );
 }
