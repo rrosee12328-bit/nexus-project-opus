@@ -152,6 +152,13 @@ export default function AdminClients() {
                       <TableCell>
                         <Badge variant="outline" className={statusColor[client.status] ?? ""}>{client.status}</Badge>
                       </TableCell>
+                      <TableCell>
+                        {client.user_id ? (
+                          <Badge variant="secondary" className="text-xs">Linked</Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
                       <TableCell className="font-mono text-sm text-muted-foreground">{client.start_date ?? "—"}</TableCell>
                       <TableCell className="text-right font-mono">{formatCurrency(client.setup_fee)}</TableCell>
                       <TableCell className="text-right font-mono">
