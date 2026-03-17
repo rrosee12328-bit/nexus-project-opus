@@ -177,8 +177,13 @@ export default function AdminFinancials() {
 
       {/* Revenue vs Expenses Chart */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Revenue vs Expenses (2026)</CardTitle>
+          <ToggleGroup type="single" value={chartView} onValueChange={(v) => v && setChartView(v as typeof chartView)} size="sm">
+            <ToggleGroupItem value="actual" className="text-xs px-3">Actual</ToggleGroupItem>
+            <ToggleGroupItem value="projected" className="text-xs px-3">Projected</ToggleGroupItem>
+            <ToggleGroupItem value="all" className="text-xs px-3">All</ToggleGroupItem>
+          </ToggleGroup>
         </CardHeader>
         <CardContent>
           <div className="h-72">
@@ -189,12 +194,25 @@ export default function AdminFinancials() {
                 <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `$${v / 1000}k`} />
                 <Tooltip
                   contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "6px", color: "hsl(var(--foreground))" }}
-                  formatter={(value: number, name: string) => [formatCurrency(value), name.charAt(0).toUpperCase() + name.slice(1)]}
+                  formatter={(value: number, name: string) => [formatCurrency(value), name]}
                 />
                 <Legend />
-                <Bar dataKey="revenue" fill="hsl(142 71% 45%)" radius={[4, 4, 0, 0]} name="Revenue" />
+                {(chartView === "actual" || chartView === "all") && (
+                  <Bar dataKey="actualRevenue" fill="hsl(142 71% 45%)" radius={[4, 4, 0, 0]} name="Actual Revenue" stackId="revenue" />
+                )}
+                {(chartView === "projected" || chartView === "all") && (
+                  <Bar dataKey="projectedRevenue" fill="hsl(142 71% 45% / 0.4)" radius={[4, 4, 0, 0]} name="Projected Revenue" stackId="revenue" />
+                )}
                 <Bar dataKey="expenses" fill="hsl(0 84% 60%)" radius={[4, 4, 0, 0]} name="Expenses" />
-                <Line type="monotone" dataKey="profit" stroke="hsl(225 100% 61%)" strokeWidth={2} name="Profit" dot={{ r: 3 }} />
+                <Line
+                  type="monotone"
+                  dataKey={chartView === "actual" ? "actualProfit" : "totalProfit"}
+                  stroke="hsl(225 100% 61%)"
+                  strokeWidth={2}
+                  name="Profit"
+                  dot={{ r: 3 }}
+                  strokeDasharray={chartView === "projected" ? "5 5" : undefined}
+                />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
