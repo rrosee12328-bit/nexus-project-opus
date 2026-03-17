@@ -284,21 +284,32 @@ export default function AdminFinancials() {
                 <TableRow>
                   <TableHead>Client</TableHead>
                   <TableHead>Month</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(payments ?? []).map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-medium">
-                      {(p.clients as { name: string } | null)?.name ?? "Unknown"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {MONTHS[p.payment_month - 1]} {p.payment_year}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">{formatCurrency(Number(p.amount))}</TableCell>
-                  </TableRow>
-                ))}
+                {(payments ?? []).map((p) => {
+                  const isProjected = p.notes === "Projected";
+                  return (
+                    <TableRow key={p.id} className={isProjected ? "opacity-70" : ""}>
+                      <TableCell className="font-medium">
+                        {(p.clients as { name: string } | null)?.name ?? "Unknown"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {MONTHS[p.payment_month - 1]} {p.payment_year}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={isProjected ? "outline" : "default"} className={isProjected ? "border-dashed text-muted-foreground" : ""}>
+                          {isProjected ? "Projected" : "Actual"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className={`text-right font-mono ${isProjected ? "italic text-muted-foreground" : ""}`}>
+                        {formatCurrency(Number(p.amount))}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
