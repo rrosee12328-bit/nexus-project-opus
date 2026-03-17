@@ -79,7 +79,11 @@ const App = () => (
             </Route>
 
             {/* Client Portal */}
-            <Route path="/portal" element={<ClientLayout />}>
+            <Route path="/portal" element={
+              <ProtectedRoute allowedRoles={["admin", "client"]}>
+                <ClientLayout />
+              </ProtectedRoute>
+            }>
               <Route index element={<ClientDashboard />} />
               <Route path="projects" element={<ClientProjects />} />
               <Route path="assets" element={<ClientAssets />} />
