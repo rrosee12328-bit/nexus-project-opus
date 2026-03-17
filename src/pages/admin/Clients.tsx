@@ -5,12 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { UserCheck, UserPlus, DollarSign, PhoneCall, Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import {
+  Collapsible, CollapsibleContent, CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Separator } from "@/components/ui/separator";
+import { UserCheck, UserPlus, DollarSign, PhoneCall, Plus, MoreHorizontal, Pencil, Trash2, ChevronDown, ChevronRight, FileText, Calendar, Briefcase } from "lucide-react";
 import { ClientFormDialog } from "@/components/ClientFormDialog";
 import { DeleteClientDialog } from "@/components/DeleteClientDialog";
 import type { Database } from "@/integrations/supabase/types";
@@ -30,10 +31,44 @@ function formatCurrency(val: number | null) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(val);
 }
 
+/** Parse notes into structured sections (Services:, Deliverables:, etc.) */
+function parseNotes(notes: string | null): { services?: string; deliverables?: string; status?: string; raw?: string } {
+  if (!notes) return {};
+  const parts: Record<string, string> = {};
+
+  const servicesMatch = notes.match(/Services:\s*(.+?)(?=Deliverables:|Current Status:|$)/s);
+  const deliverablesMatch = notes.match(/Deliverables:\s*(.+?)(?=Current Status:|$)/s);
+  
+
+  if (servicesMatch) parts.services = servicesMatch[1].trim().replace(/\.$/, "");
+  if (deliverablesMatch) parts.deliverables = deliverablesMatch[1].trim().replace(/\.$/, "");
+
+  // Extract status note — last sentence(s) of notes
+  const sentences = notes.split(". ").filter(Boolean);
+  const statusSentences = sentences.filter((s) =>
+    /progress|established|optimistic|schedule|underway|project|waiting|active|closed|campaign|ended/i.test(s)
+  );
+  if (statusSentences.length > 0) parts.status = statusSentences.join(". ").trim();
+
+  if (!parts.services && !parts.deliverables) parts.raw = notes;
+
+  return parts;
+}
+
 export default function AdminClients() {
   const [formOpen, setFormOpen] = useState(false);
   const [editClient, setEditClient] = useState<Client | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
+  const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
+
+  const toggleExpanded = (id: string) => {
+    setExpandedClients((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const { data: clients, isLoading } = useQuery({
     queryKey: ["clients"],
@@ -117,60 +152,163 @@ export default function AdminClients() {
         ))}
       </div>
 
-      {/* Clients Table */}
+      {/* Clients with expandable summaries */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Clients</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-0 p-0">
           {isLoading ? (
             <div className="flex justify-center py-8">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             </div>
+          ) : actualClients.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">No clients yet.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                     <TableHead>Client</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Portal</TableHead>
-                    <TableHead>Start Date</TableHead>
-                    <TableHead className="text-right">Setup Fee</TableHead>
-                    <TableHead className="text-right">Balance</TableHead>
-                    <TableHead className="text-right">Monthly Fee</TableHead>
-                    <TableHead className="text-right">YTD Payments</TableHead>
-                    <TableHead className="w-10" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {actualClients.map((client) => (
-                    <TableRow key={client.id}>
-                      <TableCell className="font-medium">{client.name}</TableCell>
-                      <TableCell className="text-muted-foreground">{client.type ?? "—"}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={statusColor[client.status] ?? ""}>{client.status}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        {client.user_id ? (
-                          <Badge variant="secondary" className="text-xs">Linked</Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
+            <div className="divide-y divide-border">
+              {actualClients.map((client) => {
+                const isExpanded = expandedClients.has(client.id);
+                const parsed = parseNotes(client.notes);
+                const hasNotes = !!client.notes;
+
+                return (
+                  <Collapsible key={client.id} open={isExpanded} onOpenChange={() => toggleExpanded(client.id)}>
+                    {/* Header row */}
+                    <div className="flex items-center gap-4 px-6 py-4 hover:bg-accent/50 transition-colors">
+                      <CollapsibleTrigger asChild>
+                        <button className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          )}
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/20 text-sm font-bold text-primary">
+                            {client.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium truncate">{client.name}</p>
+                            <p className="text-xs text-muted-foreground">{client.type ?? "No type set"}</p>
+                          </div>
+                        </button>
+                      </CollapsibleTrigger>
+
+                      <Badge variant="outline" className={`shrink-0 ${statusColor[client.status] ?? ""}`}>
+                        {client.status}
+                      </Badge>
+
+                      <div className="hidden md:flex items-center gap-6 shrink-0 text-sm">
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground">Monthly</p>
+                          <p className="font-mono font-medium">{formatCurrency(client.monthly_fee)}</p>
+                        </div>
+                        {(client.balance_due ?? 0) > 0 && (
+                          <div className="text-right">
+                            <p className="text-xs text-muted-foreground">Balance</p>
+                            <p className="font-mono font-medium text-warning">{formatCurrency(client.balance_due)}</p>
+                          </div>
                         )}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm text-muted-foreground">{client.start_date ?? "—"}</TableCell>
-                      <TableCell className="text-right font-mono">{formatCurrency(client.setup_fee)}</TableCell>
-                      <TableCell className="text-right font-mono">
-                        {(client.balance_due ?? 0) > 0 ? <span className="text-warning">{formatCurrency(client.balance_due)}</span> : "—"}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">{formatCurrency(client.monthly_fee)}</TableCell>
-                      <TableCell className="text-right font-mono">{formatCurrency(ytdByClient[client.id] ?? 0)}</TableCell>
-                      <TableCell><ActionMenu client={client} /></TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground">YTD</p>
+                          <p className="font-mono font-medium">{formatCurrency(ytdByClient[client.id] ?? 0)}</p>
+                        </div>
+                      </div>
+
+                      {hasNotes && (
+                        <FileText className="h-4 w-4 text-muted-foreground/50 shrink-0" />
+                      )}
+
+                      <ActionMenu client={client} />
+                    </div>
+
+                    {/* Expanded detail panel */}
+                    <CollapsibleContent>
+                      <div className="px-6 pb-5 pt-1 ml-[3.25rem]">
+                        <div className="rounded-lg border border-border bg-muted/30 p-5 space-y-4">
+                          {/* Financial summary row */}
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">Monthly Fee</p>
+                              <p className="font-mono font-semibold">{formatCurrency(client.monthly_fee)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">Setup Fee</p>
+                              <p className="font-mono font-semibold">{formatCurrency(client.setup_fee)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">Setup Paid</p>
+                              <p className="font-mono font-semibold">{formatCurrency(client.setup_paid)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">Balance Due</p>
+                              <p className={`font-mono font-semibold ${(client.balance_due ?? 0) > 0 ? "text-warning" : ""}`}>
+                                {formatCurrency(client.balance_due)}
+                              </p>
+                            </div>
+                          </div>
+
+                          <Separator />
+
+                          {/* Dates */}
+                          <div className="flex items-center gap-6 text-sm">
+                            {client.start_date && (
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <Calendar className="h-3.5 w-3.5" />
+                                <span>Started {new Date(client.start_date + "T00:00:00").toLocaleDateString()}</span>
+                              </div>
+                            )}
+                            {client.email && (
+                              <span className="text-muted-foreground">{client.email}</span>
+                            )}
+                            {client.phone && (
+                              <span className="text-muted-foreground">{client.phone}</span>
+                            )}
+                          </div>
+
+                          {/* Services & Deliverables */}
+                          {parsed.services && (
+                            <div>
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <Briefcase className="h-3.5 w-3.5 text-primary" />
+                                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Services</p>
+                              </div>
+                              <p className="text-sm leading-relaxed">{parsed.services}</p>
+                            </div>
+                          )}
+
+                          {parsed.deliverables && (
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Deliverables</p>
+                              <ul className="text-sm space-y-1 leading-relaxed">
+                                {parsed.deliverables.split(/,\s*(?=[A-Z])/).map((item, i) => (
+                                  <li key={i} className="flex items-start gap-2">
+                                    <span className="text-primary mt-1.5 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                                    <span>{item.trim()}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {parsed.status && (
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Current Status</p>
+                              <p className="text-sm leading-relaxed text-muted-foreground italic">{parsed.status}</p>
+                            </div>
+                          )}
+
+                          {parsed.raw && (
+                            <p className="text-sm leading-relaxed">{parsed.raw}</p>
+                          )}
+
+                          {!hasNotes && (
+                            <p className="text-sm text-muted-foreground italic">No summary added yet. Edit this client to add services, deliverables, and notes.</p>
+                          )}
+                        </div>
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                );
+              })}
             </div>
           )}
         </CardContent>
