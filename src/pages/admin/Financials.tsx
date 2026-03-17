@@ -442,6 +442,135 @@ export default function AdminFinancials() {
         </CardContent>
       </Card>
 
+      {/* Revenue Projection Summary */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Revenue Projection & Net Profit Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Client</TableHead>
+                  <TableHead className="text-center">Status</TableHead>
+                  {MONTHS.slice(0, 6).map((m) => (
+                    <TableHead key={m} className="text-right">{m}</TableHead>
+                  ))}
+                  <TableHead className="text-right">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(() => {
+                  const clientMap = new Map((clients ?? []).map((c) => [c.id, c]));
+                  const allPayments = payments ?? [];
+                  // Group by client
+                  const byClient: Record<string, { name: string; status: string; months: number[] }> = {};
+                  for (const p of allPayments) {
+                    if (p.payment_year !== 2026 || p.payment_month < 1 || p.payment_month > 6) continue;
+                    const client = clientMap.get(p.client_id);
+                    const name = (p.clients as { name: string } | null)?.name ?? "Unknown";
+                    if (!byClient[p.client_id]) {
+                      byClient[p.client_id] = { name, status: client?.status ?? "", months: [0,0,0,0,0,0] };
+                    }
+                    byClient[p.client_id].months[p.payment_month - 1] += Number(p.amount);
+                  }
+                  const entries = Object.values(byClient).sort((a, b) => {
+                    const totalA = a.months.reduce((s, v) => s + v, 0);
+                    const totalB = b.months.reduce((s, v) => s + v, 0);
+                    return totalB - totalA;
+                  });
+                  const monthTotals = [0,0,0,0,0,0];
+                  entries.forEach((e) => e.months.forEach((v, i) => { monthTotals[i] += v; }));
+                  const grandTotal = monthTotals.reduce((s, v) => s + v, 0);
+
+                  return (
+                    <>
+                      {entries.map((e) => {
+                        const total = e.months.reduce((s, v) => s + v, 0);
+                        return (
+                          <TableRow key={e.name}>
+                            <TableCell className="font-medium whitespace-nowrap">{e.name}</TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant="outline" className={`text-xs ${statusColor[e.status] ?? ""}`}>{e.status}</Badge>
+                            </TableCell>
+                            {e.months.map((v, i) => (
+                              <TableCell key={i} className={`text-right font-mono text-sm ${i >= 3 ? "italic text-muted-foreground" : ""}`}>
+                                {v > 0 ? formatCurrency(v) : "—"}
+                              </TableCell>
+                            ))}
+                            <TableCell className="text-right font-mono font-semibold">{formatCurrency(total)}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      <TableRow className="font-bold border-t-2 border-border">
+                        <TableCell colSpan={2}>Monthly Totals</TableCell>
+                        {monthTotals.map((v, i) => (
+                          <TableCell key={i} className={`text-right font-mono ${i >= 3 ? "italic" : ""}`}>{formatCurrency(v)}</TableCell>
+                        ))}
+                        <TableCell className="text-right font-mono">{formatCurrency(grandTotal)}</TableCell>
+                      </TableRow>
+                    </>
+                  );
+                })()}
+              </TableBody>
+            </Table>
+            <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-foreground" /> Actual (Jan–Mar)</span>
+              <span className="flex items-center gap-1.5 italic"><span className="h-2 w-2 rounded-full bg-muted-foreground" /> Projected (Apr–Jun)</span>
+            </div>
+          </div>
+
+          {/* Net Profit Summary */}
+          {(() => {
+            const allP = payments ?? [];
+            const allE = expenses ?? [];
+            const ytdActualRev = allP.filter((p) => p.payment_year === 2026 && p.payment_month <= 3).reduce((s, p) => s + Number(p.amount), 0);
+            const ytdActualExp = allE.filter((e) => e.expense_year === 2026 && e.expense_month <= 3).reduce((s, e) => s + Number(e.amount), 0);
+            const projRev = allP.filter((p) => p.payment_year === 2026 && p.payment_month >= 4 && p.payment_month <= 6 && p.notes === "Projected").reduce((s, p) => s + Number(p.amount), 0);
+            const projExp = allE.filter((e) => e.expense_year === 2026 && e.expense_month >= 4 && e.expense_month <= 6).reduce((s, e) => s + Number(e.amount), 0);
+            const combinedRev = ytdActualRev + projRev;
+            const combinedExp = ytdActualExp + projExp;
+            const rows = [
+              { label: "YTD Actual (Jan–Mar)", rev: ytdActualRev, exp: ytdActualExp },
+              { label: "90-Day Projected (Apr–Jun)", rev: projRev, exp: projExp },
+              { label: "Combined (Jan–Jun)", rev: combinedRev, exp: combinedExp },
+            ];
+            return (
+              <div className="mt-6">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Net Profit Summary</p>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Period</TableHead>
+                      <TableHead className="text-right">Revenue</TableHead>
+                      <TableHead className="text-right">Expenses</TableHead>
+                      <TableHead className="text-right">Net Profit</TableHead>
+                      <TableHead className="text-right">Margin</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((r) => {
+                      const profit = r.rev - r.exp;
+                      const margin = r.rev > 0 ? (profit / r.rev) * 100 : 0;
+                      return (
+                        <TableRow key={r.label} className={r.label.includes("Combined") ? "font-bold border-t-2 border-border" : ""}>
+                          <TableCell>{r.label}</TableCell>
+                          <TableCell className="text-right font-mono">{formatCurrency(r.rev)}</TableCell>
+                          <TableCell className="text-right font-mono text-destructive">{formatCurrency(r.exp)}</TableCell>
+                          <TableCell className={`text-right font-mono ${profit >= 0 ? "text-emerald-500" : "text-destructive"}`}>{formatCurrency(profit)}</TableCell>
+                          <TableCell className={`text-right font-mono ${margin >= 0 ? "text-emerald-500" : "text-destructive"}`}>{margin.toFixed(1)}%</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            );
+          })()}
+        </CardContent>
+      </Card>
+
       {/* Payment History */}
       <Card>
         <CardHeader>
