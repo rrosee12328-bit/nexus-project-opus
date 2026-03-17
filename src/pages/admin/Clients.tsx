@@ -132,9 +132,10 @@ export default function AdminClients() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Client</TableHead>
+                     <TableHead>Client</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Portal</TableHead>
                     <TableHead>Start Date</TableHead>
                     <TableHead className="text-right">Setup Fee</TableHead>
                     <TableHead className="text-right">Balance</TableHead>

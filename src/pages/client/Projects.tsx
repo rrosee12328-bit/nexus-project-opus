@@ -42,6 +42,7 @@ export default function ClientProjects() {
   const { data: projects, isLoading } = useQuery({
     queryKey: ["client-projects"],
     queryFn: async () => {
+      // RLS now filters to only the logged-in client's projects
       const { data, error } = await supabase
         .from("projects")
         .select("*, clients(name), project_phases(*)")
