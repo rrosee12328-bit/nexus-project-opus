@@ -17,6 +17,7 @@ const statusColor: Record<string, string> = {
   onboarding: "bg-warning/20 text-warning border-warning/30",
   closed: "bg-muted text-muted-foreground border-border",
   prospect: "bg-primary/20 text-primary border-primary/30",
+  lead: "bg-purple-500/20 text-purple-400 border-purple-500/30",
 };
 
 function formatCurrency(val: number | null) {
