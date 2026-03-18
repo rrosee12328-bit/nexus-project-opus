@@ -30,6 +30,7 @@ import ClientDashboard from "./pages/client/Dashboard";
 import ClientProjects from "./pages/client/Projects";
 import ClientAssets from "./pages/client/Assets";
 import ClientMessages from "./pages/client/Messages";
+import ClientPayments from "./pages/client/Payments";
 import ClientSettings from "./pages/client/Settings";
 
 const queryClient = new QueryClient();
