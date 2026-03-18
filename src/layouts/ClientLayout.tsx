@@ -8,6 +8,7 @@ import {
   FolderKanban,
   Upload,
   MessageSquare,
+  CreditCard,
   Settings,
   LogOut,
   Menu,
@@ -20,6 +21,7 @@ const navItems = [
   { title: "Projects", url: "/portal/projects", icon: FolderKanban },
   { title: "Assets", url: "/portal/assets", icon: Upload },
   { title: "Messages", url: "/portal/messages", icon: MessageSquare },
+  { title: "Payments", url: "/portal/payments", icon: CreditCard },
   { title: "Settings", url: "/portal/settings", icon: Settings },
 ];
 
