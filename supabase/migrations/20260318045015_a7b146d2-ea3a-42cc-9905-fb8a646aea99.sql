@@ -1,0 +1,1 @@
+UPDATE public.clients SET user_id = '26373841-de04-4bca-8841-448826094953', email = 'rrosee12328@gmail.com' WHERE id = 'fcb079f1-c8d6-48da-8dd1-5eea414aa8d9';
