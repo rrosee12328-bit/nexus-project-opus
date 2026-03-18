@@ -8,6 +8,7 @@ import {
   FolderKanban,
   Upload,
   MessageSquare,
+  CreditCard,
   Settings,
   LogOut,
   Menu,
