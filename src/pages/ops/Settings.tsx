@@ -76,6 +76,29 @@ export default function OpsSettings() {
       toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
+  const changePassword = useMutation({
+    mutationFn: async () => {
+      if (!newPassword || !confirmPassword) throw new Error("Please fill in all password fields");
+      if (newPassword.length < 6) throw new Error("New password must be at least 6 characters");
+      if (newPassword !== confirmPassword) throw new Error("Passwords do not match");
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user!.email!,
+        password: currentPassword,
+      });
+      if (signInError) throw new Error("Current password is incorrect");
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      toast({ title: "Password updated successfully" });
+    },
+    onError: (err: Error) =>
+      toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
   const initials = (displayName || user?.email || "U")
     .split(" ")
     .map((w) => w[0])
