@@ -156,16 +156,16 @@ export default function ClientAssets() {
     try {
       const { data, error } = await supabase.storage
         .from("client-assets")
-        .download(asset.file_path);
+        .createSignedUrl(asset.file_path, 60 * 60);
+
       if (error) throw error;
-      const url = URL.createObjectURL(data);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = asset.file_name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+
+      const separator = data.signedUrl.includes("?") ? "&" : "?";
+      window.open(
+        `${data.signedUrl}${separator}download=${encodeURIComponent(asset.file_name)}`,
+        "_blank",
+        "noopener,noreferrer"
+      );
     } catch {
       toast.error("Failed to download file");
     }
