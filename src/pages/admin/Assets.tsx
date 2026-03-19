@@ -54,13 +54,20 @@ function isPreviewable(fileType: string | null) {
   return fileType.startsWith("image") || fileType === "application/pdf";
 }
 
+type Asset = Tables<"assets">;
+
 export default function AdminAssets() {
+  const openDownload = (assetId: string) => {
+    const downloadPath = `/download/${assetId}`;
+    const popup = window.open(downloadPath, "_blank", "noopener,noreferrer");
+    if (!popup) window.location.assign(downloadPath);
+  };
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [uploadCategory, setUploadCategory] = useState<string>("deliverable");
-  const [previewAsset, setPreviewAsset] = useState<any>(null);
+  const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
 
   const { data: clients = [] } = useQuery({
     queryKey: ["admin-asset-clients"],
