@@ -39,17 +39,6 @@ function isPreviewable(fileType: string | null) {
 
 type Asset = Tables<"assets">;
 
-type SaveFilePickerHandle = {
-  createWritable: () => Promise<{
-    write: (data: Blob) => Promise<void>;
-    close: () => Promise<void>;
-  }>;
-};
-
-type SaveFilePickerWindow = Window & {
-  showSaveFilePicker?: (options?: { suggestedName?: string }) => Promise<SaveFilePickerHandle>;
-};
-
 export default function ClientAssets() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -139,37 +128,21 @@ export default function ClientAssets() {
     handleFiles(e.dataTransfer.files);
   }, []);
 
-  const handleDownload = async (asset: Asset) => {
-    try {
-      const { data, error } = await supabase.storage
-        .from("client-assets")
-        .download(asset.file_path);
+  const handleDownloadUrl = async (asset: Asset) => {
+    const { data, error } = await supabase.storage
+      .from("client-assets")
+      .createSignedUrl(asset.file_path, 3600, {
+        download: asset.file_name,
+      });
 
-      if (error) throw error;
+    if (error) throw error;
 
-      const pickerWindow = window as SaveFilePickerWindow;
+    const signedPath = data.signedUrl;
+    if (!signedPath) throw new Error("Missing signed download URL");
 
-      if (pickerWindow.showSaveFilePicker) {
-        const handle = await pickerWindow.showSaveFilePicker({
-          suggestedName: asset.file_name,
-        });
-        const writable = await handle.createWritable();
-        await writable.write(data);
-        await writable.close();
-        return;
-      }
-
-      const blobUrl = URL.createObjectURL(data);
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = asset.file_name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-    } catch {
-      toast.error("Failed to download file");
-    }
+    return signedPath.startsWith("http")
+      ? signedPath
+      : `${import.meta.env.VITE_SUPABASE_URL}/storage/v1${signedPath}`;
   };
 
   const uploads = assets.filter((a) => a.category === "upload");
@@ -202,7 +175,14 @@ export default function ClientAssets() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => handleDownload(asset)}
+              onClick={async () => {
+                try {
+                  const downloadUrl = await handleDownloadUrl(asset);
+                  window.location.assign(downloadUrl);
+                } catch {
+                  toast.error("Failed to download file");
+                }
+              }}
               title="Download"
             >
               <Download className="h-4 w-4" />
@@ -326,7 +306,7 @@ export default function ClientAssets() {
       <AssetPreviewDialog
         asset={previewAsset}
         open={!!previewAsset}
-        onDownload={handleDownload}
+        getDownloadUrl={handleDownloadUrl}
         onOpenChange={(open) => {
           if (!open) setPreviewAsset(null);
         }}
