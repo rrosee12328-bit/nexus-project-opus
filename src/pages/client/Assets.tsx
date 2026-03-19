@@ -132,36 +132,42 @@ export default function ClientAssets() {
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-  const getFileBlob = async (filePath: string) => {
-    const { data, error } = await supabase.storage
-      .from("client-assets")
-      .download(filePath);
-    if (error) throw error;
-    return data;
+  const getPublicAssetUrl = (filePath: string, downloadName?: string) => {
+    const { data } = supabase.storage.from("client-assets").getPublicUrl(filePath);
+    const url = new URL(data.publicUrl);
+
+    if (downloadName) {
+      url.searchParams.set("download", downloadName);
+    }
+
+    return url.toString();
   };
 
-  const handleDownload = async (filePath: string, fileName: string) => {
+  const handleDownload = (filePath: string, fileName: string) => {
     try {
-      const blob = await getFileBlob(filePath);
-      const blobUrl = URL.createObjectURL(blob);
+      const url = getPublicAssetUrl(filePath, fileName);
       const a = document.createElement("a");
-      a.href = blobUrl;
+      a.href = url;
       a.download = fileName;
+      a.rel = "noopener noreferrer";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
     } catch {
       toast.error("Failed to download file");
     }
   };
 
-  const handlePreview = async (asset: any) => {
+  const handlePreview = (asset: any) => {
     try {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-      const blob = await getFileBlob(asset.file_path);
-      const blobUrl = URL.createObjectURL(blob);
-      setPreviewUrl(blobUrl);
+      const url = getPublicAssetUrl(asset.file_path);
+
+      if (asset.file_type === "application/pdf") {
+        window.open(url, "_blank", "noopener,noreferrer");
+        return;
+      }
+
+      setPreviewUrl(url);
       setPreviewAsset(asset);
     } catch {
       toast.error("Failed to load preview");
