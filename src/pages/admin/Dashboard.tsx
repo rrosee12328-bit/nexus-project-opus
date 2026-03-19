@@ -264,8 +264,14 @@ export default function AdminDashboard() {
             )}
           </CardContent>
         </Card>
+        </motion.div>
 
         {/* Recent Messages */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.6 }}
+        >
         <Card className="flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">
@@ -306,8 +312,14 @@ export default function AdminDashboard() {
             )}
           </CardContent>
         </Card>
+        </motion.div>
 
         {/* Quick Actions & Alerts */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.7 }}
+        >
         <Card className="flex flex-col">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
