@@ -190,7 +190,7 @@ export default function ClientAssets() {
           </div>
           <div className="flex gap-1">
             {canPreview && (
-              <Button variant="ghost" size="icon" onClick={() => setPreviewAsset(asset)} title="Preview">
+              <Button variant="ghost" size="icon" onClick={() => handlePreview(asset)} title="Preview">
                 <Eye className="h-4 w-4" />
               </Button>
             )}
