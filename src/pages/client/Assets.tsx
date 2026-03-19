@@ -146,13 +146,7 @@ export default function ClientAssets() {
   const handleDownload = (filePath: string, fileName: string) => {
     try {
       const url = getPublicAssetUrl(filePath, fileName);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      a.rel = "noopener noreferrer";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      window.location.assign(url);
     } catch {
       toast.error("Failed to download file");
     }
@@ -163,7 +157,7 @@ export default function ClientAssets() {
       const url = getPublicAssetUrl(asset.file_path);
 
       if (asset.file_type === "application/pdf") {
-        window.open(url, "_blank", "noopener,noreferrer");
+        window.location.assign(url);
         return;
       }
 
