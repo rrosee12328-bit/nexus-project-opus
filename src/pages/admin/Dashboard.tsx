@@ -393,6 +393,7 @@ export default function AdminDashboard() {
             </div>
           </CardContent>
         </Card>
+        </motion.div>
       </div>
     </div>
   );
