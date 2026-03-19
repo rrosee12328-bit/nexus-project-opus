@@ -1,15 +1,11 @@
 import { useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { AssetPreviewDialog } from "@/components/assets/AssetPreviewDialog";
 import {
   Upload,
   FileImage,
@@ -41,14 +37,26 @@ function isPreviewable(fileType: string | null) {
   return fileType.startsWith("image") || fileType === "application/pdf";
 }
 
+type Asset = Tables<"assets">;
+
+type SaveFilePickerHandle = {
+  createWritable: () => Promise<{
+    write: (data: Blob) => Promise<void>;
+    close: () => Promise<void>;
+  }>;
+};
+
+type SaveFilePickerWindow = Window & {
+  showSaveFilePicker?: (options?: { suggestedName?: string }) => Promise<SaveFilePickerHandle>;
+};
+
 export default function ClientAssets() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
-  const [previewAsset, setPreviewAsset] = useState<any>(null);
+  const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
 
-  // Get client_id
   const { data: clientId } = useQuery({
     queryKey: ["my-client-id", user?.id],
     queryFn: async () => {
@@ -60,7 +68,6 @@ export default function ClientAssets() {
     enabled: !!user?.id,
   });
 
-  // Fetch assets
   const { data: assets = [], isLoading } = useQuery({
     queryKey: ["client-assets", clientId],
     queryFn: async () => {
@@ -71,21 +78,23 @@ export default function ClientAssets() {
         .eq("client_id", clientId)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+      return data as Asset[];
     },
     enabled: !!clientId,
   });
 
-  // Upload mutation
   const uploadMutation = useMutation({
     mutationFn: async (files: File[]) => {
       if (!clientId || !user?.id) throw new Error("Not linked to a client");
+
       for (const file of files) {
         const filePath = `${clientId}/${Date.now()}-${file.name}`;
         const { error: uploadError } = await supabase.storage
           .from("client-assets")
           .upload(filePath, file);
+
         if (uploadError) throw uploadError;
+
         const { error: insertError } = await supabase.from("assets").insert({
           client_id: clientId,
           uploaded_by: user.id,
@@ -95,6 +104,7 @@ export default function ClientAssets() {
           file_type: file.type,
           category: "upload",
         });
+
         if (insertError) throw insertError;
       }
     },
@@ -105,9 +115,8 @@ export default function ClientAssets() {
     onError: (err: Error) => toast.error(`Upload failed: ${err.message}`),
   });
 
-  // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: async (asset: { id: string; file_path: string }) => {
+    mutationFn: async (asset: Pick<Asset, "id" | "file_path">) => {
       await supabase.storage.from("client-assets").remove([asset.file_path]);
       const { error } = await supabase.from("assets").delete().eq("id", asset.id);
       if (error) throw error;
@@ -128,52 +137,48 @@ export default function ClientAssets() {
     e.preventDefault();
     setDragging(false);
     handleFiles(e.dataTransfer.files);
-  }, [clientId, user?.id]);
+  }, []);
 
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-
-  const getPublicAssetUrl = (filePath: string, downloadName?: string) => {
-    const { data } = supabase.storage.from("client-assets").getPublicUrl(filePath);
-    const url = new URL(data.publicUrl);
-
-    if (downloadName) {
-      url.searchParams.set("download", downloadName);
-    }
-
-    return url.toString();
-  };
-
-  const handleDownload = (filePath: string, fileName: string) => {
+  const handleDownload = async (asset: Asset) => {
     try {
-      const url = getPublicAssetUrl(filePath, fileName);
-      window.location.assign(url);
-    } catch {
-      toast.error("Failed to download file");
-    }
-  };
+      const { data, error } = await supabase.storage
+        .from("client-assets")
+        .download(asset.file_path);
 
-  const handlePreview = (asset: any) => {
-    try {
-      const url = getPublicAssetUrl(asset.file_path);
+      if (error) throw error;
 
-      if (asset.file_type === "application/pdf") {
-        window.location.assign(url);
+      const pickerWindow = window as SaveFilePickerWindow;
+
+      if (pickerWindow.showSaveFilePicker) {
+        const handle = await pickerWindow.showSaveFilePicker({
+          suggestedName: asset.file_name,
+        });
+        const writable = await handle.createWritable();
+        await writable.write(data);
+        await writable.close();
         return;
       }
 
-      setPreviewUrl(url);
-      setPreviewAsset(asset);
+      const blobUrl = URL.createObjectURL(data);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = asset.file_name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
     } catch {
-      toast.error("Failed to load preview");
+      toast.error("Failed to download file");
     }
   };
 
   const uploads = assets.filter((a) => a.category === "upload");
   const deliverables = assets.filter((a) => a.category === "deliverable");
 
-  const AssetCard = ({ asset, variant }: { asset: any; variant: "deliverable" | "upload" }) => {
+  const AssetCard = ({ asset, variant }: { asset: Asset; variant: "deliverable" | "upload" }) => {
     const Icon = getFileIcon(asset.file_type);
     const canPreview = isPreviewable(asset.file_type);
+
     return (
       <Card className="hover:border-primary/20 transition-colors">
         <CardContent className="pt-4 pb-4 flex items-center gap-3">
@@ -190,14 +195,14 @@ export default function ClientAssets() {
           </div>
           <div className="flex gap-1">
             {canPreview && (
-              <Button variant="ghost" size="icon" onClick={() => handlePreview(asset)} title="Preview">
+              <Button variant="ghost" size="icon" onClick={() => setPreviewAsset(asset)} title="Preview">
                 <Eye className="h-4 w-4" />
               </Button>
             )}
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => handleDownload(asset.file_path, asset.file_name)}
+              onClick={() => handleDownload(asset)}
               title="Download"
             >
               <Download className="h-4 w-4" />
@@ -225,7 +230,6 @@ export default function ClientAssets() {
         <p className="text-muted-foreground mt-1">Upload files for your projects and access completed deliverables.</p>
       </div>
 
-      {/* Upload zone */}
       <Card
         className={`border-dashed border-2 transition-colors cursor-pointer group ${
           dragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"
@@ -277,7 +281,6 @@ export default function ClientAssets() {
         onChange={(e) => handleFiles(e.target.files)}
       />
 
-      {/* Deliverables from team */}
       {deliverables.length > 0 && (
         <div className="space-y-3">
           <h2 className="text-lg font-semibold">Deliverables from your team</h2>
@@ -289,7 +292,6 @@ export default function ClientAssets() {
         </div>
       )}
 
-      {/* Uploaded files */}
       {uploads.length > 0 && (
         <div className="space-y-3">
           <h2 className="text-lg font-semibold">Your uploads</h2>
@@ -301,7 +303,6 @@ export default function ClientAssets() {
         </div>
       )}
 
-      {/* Empty state */}
       {!isLoading && assets.length === 0 && (
         <Card className="bg-card/50">
           <CardContent className="py-12 flex flex-col items-center text-center gap-3">
@@ -322,31 +323,14 @@ export default function ClientAssets() {
         </div>
       )}
 
-      {/* Preview Dialog */}
-      <Dialog open={!!previewAsset} onOpenChange={(open) => { if (!open) { setPreviewAsset(null); setPreviewUrl(null); } }}>
-        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col" aria-describedby={undefined}>
-          <DialogHeader>
-            <DialogTitle className="truncate pr-8">{previewAsset?.file_name}</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-auto min-h-0">
-            {previewUrl && previewAsset?.file_type?.startsWith("image") && (
-              <img
-                src={previewUrl}
-                alt={previewAsset.file_name}
-                className="w-full h-auto rounded-lg"
-              />
-            )}
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              variant="outline"
-              onClick={() => previewAsset && handleDownload(previewAsset.file_path, previewAsset.file_name)}
-            >
-              <Download className="h-4 w-4 mr-2" /> Download
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <AssetPreviewDialog
+        asset={previewAsset}
+        open={!!previewAsset}
+        onDownload={handleDownload}
+        onOpenChange={(open) => {
+          if (!open) setPreviewAsset(null);
+        }}
+      />
     </div>
   );
 }
