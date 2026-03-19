@@ -428,6 +428,36 @@ export type Database = {
           },
         ]
       }
+      sops: {
+        Row: {
+          category: Database["public"]["Enums"]["sop_category"]
+          content: string
+          created_at: string
+          id: string
+          tags: string[]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["sop_category"]
+          content?: string
+          created_at?: string
+          id?: string
+          tags?: string[]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["sop_category"]
+          content?: string
+          created_at?: string
+          id?: string
+          tags?: string[]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           assigned_to: string | null
@@ -527,6 +557,14 @@ export type Database = {
         | "review"
         | "launch"
       project_status: "not_started" | "in_progress" | "completed" | "on_hold"
+      sop_category:
+        | "onboarding"
+        | "operations"
+        | "development"
+        | "design"
+        | "communication"
+        | "finance"
+        | "general"
       task_priority: "low" | "medium" | "high" | "urgent"
       task_status: "todo" | "in_progress" | "review" | "done"
     }
@@ -660,6 +698,15 @@ export const Constants = {
       client_status: ["active", "onboarding", "closed", "prospect", "lead"],
       project_phase: ["discovery", "design", "development", "review", "launch"],
       project_status: ["not_started", "in_progress", "completed", "on_hold"],
+      sop_category: [
+        "onboarding",
+        "operations",
+        "development",
+        "design",
+        "communication",
+        "finance",
+        "general",
+      ],
       task_priority: ["low", "medium", "high", "urgent"],
       task_status: ["todo", "in_progress", "review", "done"],
     },
