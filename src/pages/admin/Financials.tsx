@@ -290,8 +290,11 @@ export default function AdminFinancials() {
       >
         {/* Expenses Breakdown by Month */}
         <Card className="hover:border-primary/20 transition-colors">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Expense Breakdown by Month</CardTitle>
+            <Button variant="outline" size="sm" onClick={() => { setEditingExpense(null); setExpenseOpen(true); }}>
+              <Plus className="h-4 w-4 mr-1" /> Add
+            </Button>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
