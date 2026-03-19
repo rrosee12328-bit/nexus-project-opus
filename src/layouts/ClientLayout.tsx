@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { NavLink } from "@/components/NavLink";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { NotificationBell } from "@/components/NotificationBell";
 import { Badge } from "@/components/ui/badge";
 import {
   LayoutDashboard,
@@ -143,7 +144,8 @@ export default function ClientLayout() {
           </nav>
 
           {/* User section */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <NotificationBell />
             <div className="hidden sm:flex flex-col items-end mr-1">
               <span className="text-xs font-medium">{displayName}</span>
               <span className="text-[10px] text-muted-foreground">{user.email}</span>
