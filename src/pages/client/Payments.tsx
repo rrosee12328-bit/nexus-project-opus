@@ -52,16 +52,45 @@ export default function ClientPayments() {
 
   return (
     <div className="space-y-8">
+  const exportCSV = () => {
+    if (!payments?.length) return;
+    const rows = [
+      ["Period", "Amount", "Notes", "Date Recorded"],
+      ...payments.map((p) => [
+        `${MONTH_NAMES[p.payment_month - 1]} ${p.payment_year}`,
+        Number(p.amount).toFixed(2),
+        p.notes || "",
+        new Date(p.created_at).toLocaleDateString(),
+      ]),
+    ];
+    const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `vektiss-payments-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
       >
-        <h1 className="text-2xl font-bold tracking-tight">Payment History</h1>
-        <p className="text-muted-foreground mt-1">
-          View all your payments and billing history with Vektiss.
-        </p>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Payment History</h1>
+          <p className="text-muted-foreground mt-1">
+            View all your payments and billing history with Vektiss.
+          </p>
+        </div>
+        {(payments ?? []).length > 0 && (
+          <Button variant="outline" size="sm" onClick={exportCSV} className="gap-2 shrink-0">
+            <Download className="h-4 w-4" /> Export CSV
+          </Button>
+        )}
       </motion.div>
 
       {/* Summary cards */}
