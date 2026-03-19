@@ -46,6 +46,7 @@ export function PdfPreview({ file, fileName }: PdfPreviewProps) {
             canvas.height = Math.floor(viewport.height * outputScale);
 
             await page.render({
+              canvas,
               canvasContext: context,
               viewport,
               transform: outputScale === 1 ? undefined : [outputScale, 0, 0, outputScale, 0, 0],
