@@ -299,7 +299,7 @@ export default function ClientAssets() {
       <AssetPreviewDialog
         asset={previewAsset}
         open={!!previewAsset}
-        onDownload={handleDownload}
+        getDownloadUrl={handleDownloadUrl}
         onOpenChange={(open) => {
           if (!open) setPreviewAsset(null);
         }}
