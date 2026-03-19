@@ -38,7 +38,7 @@ function isPreviewable(fileType: string | null) {
 }
 
 type Asset = Tables<"assets">;
-type AssetLinks = Record<string, { previewUrl: string; downloadUrl: string }>;
+type AssetLinks = Record<string, { previewUrl: string }>;
 
 export default function ClientAssets() {
   const { user } = useAuth();
