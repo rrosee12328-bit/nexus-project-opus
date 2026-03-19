@@ -24,7 +24,7 @@ type Asset = Tables<"assets">;
 interface AssetPreviewDialogProps {
   asset: Asset | null;
   open: boolean;
-  getDownloadUrl: (asset: Asset) => Promise<string>;
+  getDownloadUrl: (asset: Asset) => string;
   onOpenChange: (open: boolean) => void;
 }
 
@@ -165,18 +165,7 @@ export function AssetPreviewDialog({
         <div className="flex justify-end gap-2 pt-2">
           {asset && (
             <Button variant="outline" asChild>
-              <a
-                href="#"
-                onClick={async (event) => {
-                  event.preventDefault();
-                  try {
-                    const downloadUrl = await getDownloadUrl(asset);
-                    window.location.assign(downloadUrl);
-                  } catch {
-                    toast.error("Failed to download file");
-                  }
-                }}
-              >
+              <a href={getDownloadUrl(asset)} download={asset.file_name}>
                 <Download className="h-4 w-4 mr-2" /> Download
               </a>
             </Button>
