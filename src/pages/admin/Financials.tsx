@@ -1,16 +1,20 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { DollarSign, TrendingUp, TrendingDown, Download, Wallet } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Download, Wallet, Plus, Pencil, Trash2 } from "lucide-react";
 import { Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Line, ComposedChart, Legend } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
+import ExpenseCrudDialog from "@/components/financials/ExpenseCrudDialog";
+import InvestmentCrudDialog from "@/components/financials/InvestmentCrudDialog";
+import OverheadCrudDialog from "@/components/financials/OverheadCrudDialog";
 
 const statusColor: Record<string, string> = {
   active: "bg-success/20 text-success border-success/30",
@@ -27,7 +31,41 @@ function formatCurrency(val: number) {
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export default function AdminFinancials() {
+  const queryClient = useQueryClient();
   const [chartView, setChartView] = useState<"actual" | "projected" | "all">("all");
+
+  // CRUD dialog state
+  const [expenseOpen, setExpenseOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<any>(null);
+  const [investmentOpen, setInvestmentOpen] = useState(false);
+  const [editingInvestment, setEditingInvestment] = useState<any>(null);
+  const [overheadOpen, setOverheadOpen] = useState(false);
+  const [editingOverhead, setEditingOverhead] = useState<any>(null);
+
+  const deleteExpense = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("expenses").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Expense deleted"); queryClient.invalidateQueries({ queryKey: ["expenses"] }); },
+    onError: () => toast.error("Failed to delete"),
+  });
+  const deleteInvestment = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("investments").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Investment deleted"); queryClient.invalidateQueries({ queryKey: ["investments"] }); },
+    onError: () => toast.error("Failed to delete"),
+  });
+  const deleteOverhead = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("business_overhead").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Overhead deleted"); queryClient.invalidateQueries({ queryKey: ["business-overhead"] }); },
+    onError: () => toast.error("Failed to delete"),
+  });
   const { data: payments } = useQuery({
     queryKey: ["all-payments"],
     queryFn: async () => {
@@ -252,8 +290,11 @@ export default function AdminFinancials() {
       >
         {/* Expenses Breakdown by Month */}
         <Card className="hover:border-primary/20 transition-colors">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Expense Breakdown by Month</CardTitle>
+            <Button variant="outline" size="sm" onClick={() => { setEditingExpense(null); setExpenseOpen(true); }}>
+              <Plus className="h-4 w-4 mr-1" /> Add
+            </Button>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -303,8 +344,11 @@ export default function AdminFinancials() {
 
         {/* Owner Investments */}
         <Card className="hover:border-primary/20 transition-colors">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Owner Investments</CardTitle>
+            <Button variant="outline" size="sm" onClick={() => { setEditingInvestment(null); setInvestmentOpen(true); }}>
+              <Plus className="h-4 w-4 mr-1" /> Add
+            </Button>
           </CardHeader>
           <CardContent>
             <Table>
@@ -314,6 +358,7 @@ export default function AdminFinancials() {
                   <TableHead>Date</TableHead>
                   <TableHead>Notes</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="text-right w-24">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -325,11 +370,20 @@ export default function AdminFinancials() {
                     </TableCell>
                     <TableCell className="text-muted-foreground">{inv.notes ?? "—"}</TableCell>
                     <TableCell className="text-right font-mono">{formatCurrency(Number(inv.amount))}</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingInvestment(inv); setInvestmentOpen(true); }}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteInvestment.mutate(inv.id)}>
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
                 <TableRow className="font-bold border-t-2 border-border">
                   <TableCell colSpan={3}>Total</TableCell>
                   <TableCell className="text-right font-mono">{formatCurrency(totalInvestments)}</TableCell>
+                  <TableCell />
                 </TableRow>
               </TableBody>
             </Table>
@@ -429,8 +483,11 @@ export default function AdminFinancials() {
         transition={{ duration: 0.5, delay: 0.7 }}
       >
       <Card className="hover:border-primary/20 transition-colors">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Business Overhead</CardTitle>
+          <Button variant="outline" size="sm" onClick={() => { setEditingOverhead(null); setOverheadOpen(true); }}>
+            <Plus className="h-4 w-4 mr-1" /> Add
+          </Button>
         </CardHeader>
         <CardContent>
           <Table>
@@ -440,6 +497,7 @@ export default function AdminFinancials() {
                 <TableHead>Item</TableHead>
                 <TableHead>Details</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="text-right w-24">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -451,6 +509,14 @@ export default function AdminFinancials() {
                   <TableCell className="font-medium">{item.name}</TableCell>
                   <TableCell className="text-muted-foreground text-sm">{item.details ?? "—"}</TableCell>
                   <TableCell className="text-right font-mono">{formatCurrency(Number(item.amount))}</TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingOverhead(item); setOverheadOpen(true); }}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteOverhead.mutate(item.id)}>
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
               <TableRow className="font-bold border-t-2 border-border">
@@ -458,6 +524,7 @@ export default function AdminFinancials() {
                 <TableCell className="text-right font-mono">
                   {formatCurrency((overhead ?? []).reduce((s, o) => s + Number(o.amount), 0))}
                 </TableCell>
+                <TableCell />
               </TableRow>
             </TableBody>
           </Table>
@@ -648,6 +715,11 @@ export default function AdminFinancials() {
         </CardContent>
       </Card>
       </motion.div>
+
+      {/* CRUD Dialogs */}
+      <ExpenseCrudDialog open={expenseOpen} onOpenChange={setExpenseOpen} editing={editingExpense} />
+      <InvestmentCrudDialog open={investmentOpen} onOpenChange={setInvestmentOpen} editing={editingInvestment} />
+      <OverheadCrudDialog open={overheadOpen} onOpenChange={setOverheadOpen} editing={editingOverhead} />
     </div>
   );
 }
