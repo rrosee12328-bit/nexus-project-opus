@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
+import { motion } from "framer-motion";
 
 function formatCurrency(val: number) {
   return new Intl.NumberFormat("en-US", {
