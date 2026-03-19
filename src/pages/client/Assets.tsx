@@ -246,7 +246,7 @@ export default function ClientAssets() {
         onClick={() => fileInputRef.current?.click()}
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
-        onDrop={handleDrop}
+        onDrop={(e) => { e.preventDefault(); setDragging(false); handleFiles(e.dataTransfer.files); }}
       >
         <CardContent className="py-12 flex flex-col items-center text-center gap-4">
           {uploadMutation.isPending ? (
