@@ -139,37 +139,21 @@ export default function ClientAssets() {
     handleFiles(e.dataTransfer.files);
   }, []);
 
-  const handleDownload = async (asset: Asset) => {
-    try {
-      const { data, error } = await supabase.storage
-        .from("client-assets")
-        .download(asset.file_path);
+  const handleDownloadUrl = async (asset: Asset) => {
+    const { data, error } = await supabase.storage
+      .from("client-assets")
+      .createSignedUrl(asset.file_path, 3600, {
+        download: asset.file_name,
+      });
 
-      if (error) throw error;
+    if (error) throw error;
 
-      const pickerWindow = window as SaveFilePickerWindow;
+    const signedPath = data.signedUrl ?? data.signedURL;
+    if (!signedPath) throw new Error("Missing signed download URL");
 
-      if (pickerWindow.showSaveFilePicker) {
-        const handle = await pickerWindow.showSaveFilePicker({
-          suggestedName: asset.file_name,
-        });
-        const writable = await handle.createWritable();
-        await writable.write(data);
-        await writable.close();
-        return;
-      }
-
-      const blobUrl = URL.createObjectURL(data);
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = asset.file_name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-    } catch {
-      toast.error("Failed to download file");
-    }
+    return signedPath.startsWith("http")
+      ? signedPath
+      : `${import.meta.env.VITE_SUPABASE_URL}/storage/v1${signedPath}`;
   };
 
   const uploads = assets.filter((a) => a.category === "upload");

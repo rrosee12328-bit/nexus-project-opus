@@ -24,7 +24,7 @@ type Asset = Tables<"assets">;
 interface AssetPreviewDialogProps {
   asset: Asset | null;
   open: boolean;
-  onDownload: (asset: Asset) => void | Promise<void>;
+  getDownloadUrl: (asset: Asset) => Promise<string>;
   onOpenChange: (open: boolean) => void;
 }
 
