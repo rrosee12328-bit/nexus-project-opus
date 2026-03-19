@@ -344,8 +344,11 @@ export default function AdminFinancials() {
 
         {/* Owner Investments */}
         <Card className="hover:border-primary/20 transition-colors">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Owner Investments</CardTitle>
+            <Button variant="outline" size="sm" onClick={() => { setEditingInvestment(null); setInvestmentOpen(true); }}>
+              <Plus className="h-4 w-4 mr-1" /> Add
+            </Button>
           </CardHeader>
           <CardContent>
             <Table>
