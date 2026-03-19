@@ -369,6 +369,14 @@ export default function AdminFinancials() {
                     </TableCell>
                     <TableCell className="text-muted-foreground">{inv.notes ?? "—"}</TableCell>
                     <TableCell className="text-right font-mono">{formatCurrency(Number(inv.amount))}</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingInvestment(inv); setInvestmentOpen(true); }}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteInvestment.mutate(inv.id)}>
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
                 <TableRow className="font-bold border-t-2 border-border">
