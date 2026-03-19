@@ -6,7 +6,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Upload,
   Download,
@@ -18,6 +30,7 @@ import {
   FolderOpen,
   Users,
   Package,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -34,14 +47,19 @@ function formatFileSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function isPreviewable(fileType: string | null) {
+  if (!fileType) return false;
+  return fileType.startsWith("image") || fileType === "application/pdf";
+}
+
 export default function AdminAssets() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [uploadCategory, setUploadCategory] = useState<string>("deliverable");
+  const [previewAsset, setPreviewAsset] = useState<any>(null);
 
-  // Fetch clients
   const { data: clients = [] } = useQuery({
     queryKey: ["admin-asset-clients"],
     queryFn: async () => {
@@ -55,7 +73,6 @@ export default function AdminAssets() {
     },
   });
 
-  // Fetch assets for selected client
   const { data: assets = [], isLoading } = useQuery({
     queryKey: ["admin-assets", selectedClientId],
     queryFn: async () => {
@@ -71,7 +88,6 @@ export default function AdminAssets() {
     enabled: !!selectedClientId,
   });
 
-  // Upload
   const uploadMutation = useMutation({
     mutationFn: async (files: File[]) => {
       if (!selectedClientId || !user?.id) throw new Error("No client selected");
@@ -81,7 +97,6 @@ export default function AdminAssets() {
           .from("client-assets")
           .upload(filePath, file);
         if (uploadError) throw uploadError;
-
         const { error: insertError } = await supabase.from("assets").insert({
           client_id: selectedClientId,
           uploaded_by: user.id,
@@ -101,7 +116,6 @@ export default function AdminAssets() {
     onError: (err: Error) => toast.error(`Upload failed: ${err.message}`),
   });
 
-  // Delete
   const deleteMutation = useMutation({
     mutationFn: async (asset: { id: string; file_path: string }) => {
       await supabase.storage.from("client-assets").remove([asset.file_path]);
@@ -120,6 +134,23 @@ export default function AdminAssets() {
     return data.publicUrl;
   };
 
+  const handleDownload = async (filePath: string, fileName: string) => {
+    try {
+      const { data, error } = await supabase.storage.from("client-assets").download(filePath);
+      if (error) throw error;
+      const url = URL.createObjectURL(data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Failed to download file");
+    }
+  };
+
   const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return;
     uploadMutation.mutate(Array.from(files));
@@ -128,6 +159,49 @@ export default function AdminAssets() {
   const selectedClient = clients.find((c) => c.id === selectedClientId);
   const uploads = assets.filter((a) => a.category === "upload");
   const deliverables = assets.filter((a) => a.category === "deliverable");
+
+  const AssetRow = ({ asset }: { asset: any }) => {
+    const Icon = getFileIcon(asset.file_type);
+    const canPreview = isPreviewable(asset.file_type);
+    return (
+      <Card>
+        <CardContent className="pt-3 pb-3 flex items-center gap-3">
+          <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${
+            asset.category === "deliverable" ? "bg-primary/10" : "bg-accent/50"
+          }`}>
+            <Icon className={`h-4 w-4 ${asset.category === "deliverable" ? "text-primary" : "text-muted-foreground"}`} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{asset.file_name}</p>
+            <p className="text-xs text-muted-foreground">{formatFileSize(asset.file_size)}</p>
+          </div>
+          <div className="flex gap-1">
+            {canPreview && (
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPreviewAsset(asset)}>
+                <Eye className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => handleDownload(asset.file_path, asset.file_name)}
+            >
+              <Download className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => deleteMutation.mutate({ id: asset.id, file_path: asset.file_path })}
+            >
+              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -217,87 +291,24 @@ export default function AdminAssets() {
                 </CardContent>
               </Card>
 
-              {/* Deliverables */}
               {deliverables.length > 0 && (
                 <div className="space-y-2">
                   <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Deliverables</h3>
                   <div className="grid gap-2 sm:grid-cols-2">
-                    {deliverables.map((asset) => {
-                      const Icon = getFileIcon(asset.file_type);
-                      return (
-                        <Card key={asset.id}>
-                          <CardContent className="pt-3 pb-3 flex items-center gap-3">
-                            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                              <Icon className="h-4 w-4 text-primary" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{asset.file_name}</p>
-                              <p className="text-xs text-muted-foreground">{formatFileSize(asset.file_size)}</p>
-                            </div>
-                            <div className="flex gap-1">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                                <a href={getPublicUrl(asset.file_path)} target="_blank" rel="noopener noreferrer">
-                                  <Download className="h-3.5 w-3.5" />
-                                </a>
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => deleteMutation.mutate({ id: asset.id, file_path: asset.file_path })}
-                              >
-                                <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
+                    {deliverables.map((asset) => <AssetRow key={asset.id} asset={asset} />)}
                   </div>
                 </div>
               )}
 
-              {/* Client uploads */}
               {uploads.length > 0 && (
                 <div className="space-y-2">
                   <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Client Uploads</h3>
                   <div className="grid gap-2 sm:grid-cols-2">
-                    {uploads.map((asset) => {
-                      const Icon = getFileIcon(asset.file_type);
-                      return (
-                        <Card key={asset.id}>
-                          <CardContent className="pt-3 pb-3 flex items-center gap-3">
-                            <div className="h-9 w-9 rounded-lg bg-accent/50 flex items-center justify-center shrink-0">
-                              <Icon className="h-4 w-4 text-muted-foreground" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{asset.file_name}</p>
-                              <p className="text-xs text-muted-foreground">{formatFileSize(asset.file_size)}</p>
-                            </div>
-                            <div className="flex gap-1">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                                <a href={getPublicUrl(asset.file_path)} target="_blank" rel="noopener noreferrer">
-                                  <Download className="h-3.5 w-3.5" />
-                                </a>
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => deleteMutation.mutate({ id: asset.id, file_path: asset.file_path })}
-                              >
-                                <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
+                    {uploads.map((asset) => <AssetRow key={asset.id} asset={asset} />)}
                   </div>
                 </div>
               )}
 
-              {/* Empty */}
               {!isLoading && assets.length === 0 && (
                 <Card className="bg-card/50">
                   <CardContent className="py-12 flex flex-col items-center text-center gap-3">
@@ -316,6 +327,39 @@ export default function AdminAssets() {
           )}
         </div>
       </div>
+
+      {/* Preview Dialog */}
+      <Dialog open={!!previewAsset} onOpenChange={(open) => { if (!open) setPreviewAsset(null); }}>
+        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="truncate pr-8">{previewAsset?.file_name}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto min-h-0">
+            {previewAsset?.file_type?.startsWith("image") && (
+              <img
+                src={getPublicUrl(previewAsset.file_path)}
+                alt={previewAsset.file_name}
+                className="w-full h-auto rounded-lg"
+              />
+            )}
+            {previewAsset?.file_type === "application/pdf" && (
+              <iframe
+                src={getPublicUrl(previewAsset.file_path)}
+                className="w-full h-[70vh] rounded-lg border-0"
+                title={previewAsset.file_name}
+              />
+            )}
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => previewAsset && handleDownload(previewAsset.file_path, previewAsset.file_name)}
+            >
+              <Download className="h-4 w-4 mr-2" /> Download
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
