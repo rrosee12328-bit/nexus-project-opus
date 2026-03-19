@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { User, Bell, Palette, Save, Mail, Shield } from "lucide-react";
+import { User, Bell, Palette, Save, Mail, Shield, Lock } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function OpsSettings() {
