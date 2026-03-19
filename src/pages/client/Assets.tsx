@@ -128,21 +128,12 @@ export default function ClientAssets() {
     handleFiles(e.dataTransfer.files);
   }, []);
 
-  const handleDownloadUrl = async (asset: Asset) => {
-    const { data, error } = await supabase.storage
-      .from("client-assets")
-      .createSignedUrl(asset.file_path, 3600, {
-        download: asset.file_name,
-      });
+  const handleDownloadUrl = (asset: Asset) => {
+    const { data } = supabase.storage.from("client-assets").getPublicUrl(asset.file_path, {
+      download: asset.file_name,
+    });
 
-    if (error) throw error;
-
-    const signedPath = data.signedUrl;
-    if (!signedPath) throw new Error("Missing signed download URL");
-
-    return signedPath.startsWith("http")
-      ? signedPath
-      : `${import.meta.env.VITE_SUPABASE_URL}/storage/v1${signedPath}`;
+    return data.publicUrl;
   };
 
   const uploads = assets.filter((a) => a.category === "upload");
@@ -172,20 +163,10 @@ export default function ClientAssets() {
                 <Eye className="h-4 w-4" />
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={async () => {
-                try {
-                  const downloadUrl = await handleDownloadUrl(asset);
-                  window.location.assign(downloadUrl);
-                } catch {
-                  toast.error("Failed to download file");
-                }
-              }}
-              title="Download"
-            >
-              <Download className="h-4 w-4" />
+            <Button variant="ghost" size="icon" asChild title="Download">
+              <a href={handleDownloadUrl(asset)} download={asset.file_name} aria-label={`Download ${asset.file_name}`}>
+                <Download className="h-4 w-4" />
+              </a>
             </Button>
             {variant === "upload" && (
               <Button
