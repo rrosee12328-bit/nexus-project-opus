@@ -38,6 +38,7 @@ function isPreviewable(fileType: string | null) {
 }
 
 type Asset = Tables<"assets">;
+type AssetLinks = Record<string, { previewUrl: string; downloadUrl: string }>;
 
 export default function ClientAssets() {
   const { user } = useAuth();
@@ -70,6 +71,35 @@ export default function ClientAssets() {
       return data as Asset[];
     },
     enabled: !!clientId,
+  });
+
+  const { data: assetLinks = {} } = useQuery({
+    queryKey: ["client-asset-links", assets.map((asset) => `${asset.id}:${asset.file_path}`).join("|")],
+    queryFn: async () => {
+      const entries = await Promise.all(
+        assets.map(async (asset) => {
+          const { data, error } = await supabase.storage
+            .from("client-assets")
+            .createSignedUrl(asset.file_path, 60 * 60);
+
+          if (error) throw error;
+
+          const separator = data.signedUrl.includes("?") ? "&" : "?";
+
+          return [
+            asset.id,
+            {
+              previewUrl: data.signedUrl,
+              downloadUrl: `${data.signedUrl}${separator}download=${encodeURIComponent(asset.file_name)}`,
+            },
+          ] as const;
+        })
+      );
+
+      return Object.fromEntries(entries) as AssetLinks;
+    },
+    enabled: assets.length > 0,
+    staleTime: 1000 * 60 * 30,
   });
 
   const uploadMutation = useMutation({
@@ -128,35 +158,13 @@ export default function ClientAssets() {
     handleFiles(e.dataTransfer.files);
   }, []);
 
-  const getAssetUrl = useCallback((asset: Asset, options?: { download?: boolean }) => {
-    const { data } = supabase.storage.from("client-assets").getPublicUrl(asset.file_path);
-
-    if (!options?.download) {
-      return data.publicUrl;
-    }
-
-    const separator = data.publicUrl.includes("?") ? "&" : "?";
-    return `${data.publicUrl}${separator}download=${encodeURIComponent(asset.file_name)}`;
-  }, []);
-
-  const handleDownload = async (asset: Asset) => {
-    const link = document.createElement("a");
-    link.href = getAssetUrl(asset, { download: true });
-    link.rel = "noopener noreferrer";
-    link.target = "_blank";
-    link.style.display = "none";
-
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-  };
-
   const uploads = assets.filter((a) => a.category === "upload");
   const deliverables = assets.filter((a) => a.category === "deliverable");
 
   const AssetCard = ({ asset, variant }: { asset: Asset; variant: "deliverable" | "upload" }) => {
     const Icon = getFileIcon(asset.file_type);
     const canPreview = isPreviewable(asset.file_type);
+    const urls = assetLinks[asset.id];
 
     return (
       <Card className="hover:border-primary/20 transition-colors">
@@ -174,25 +182,27 @@ export default function ClientAssets() {
           </div>
           <div className="flex gap-1">
             {canPreview && (
-              <Button variant="ghost" size="icon" onClick={() => setPreviewAsset(asset)} title="Preview">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setPreviewAsset(asset)}
+                title="Preview"
+                disabled={!urls?.previewUrl}
+              >
                 <Eye className="h-4 w-4" />
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="icon"
-              title="Download"
-              onClick={async () => {
-                try {
-                  await handleDownload(asset);
-                } catch (error) {
-                  console.error("Asset download failed", error);
-                  toast.error("Failed to download file");
-                }
-              }}
-            >
-              <Download className="h-4 w-4" />
-            </Button>
+            {urls?.downloadUrl ? (
+              <Button variant="ghost" size="icon" title="Download" asChild>
+                <a href={urls.downloadUrl} target="_blank" rel="noopener noreferrer">
+                  <Download className="h-4 w-4" />
+                </a>
+              </Button>
+            ) : (
+              <Button variant="ghost" size="icon" title="Download" disabled>
+                <Download className="h-4 w-4" />
+              </Button>
+            )}
             {variant === "upload" && (
               <Button
                 variant="ghost"
@@ -312,7 +322,8 @@ export default function ClientAssets() {
       <AssetPreviewDialog
         asset={previewAsset}
         open={!!previewAsset}
-        onDownload={handleDownload}
+        previewUrl={previewAsset ? assetLinks[previewAsset.id]?.previewUrl ?? null : null}
+        downloadUrl={previewAsset ? assetLinks[previewAsset.id]?.downloadUrl ?? null : null}
         onOpenChange={(open) => {
           if (!open) setPreviewAsset(null);
         }}

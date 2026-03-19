@@ -1,6 +1,5 @@
-import { Download } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 
-import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,28 +9,28 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
 
 type Asset = Tables<"assets">;
 
 interface AssetPreviewDialogProps {
   asset: Asset | null;
   open: boolean;
-  onDownload: (asset: Asset) => Promise<void>;
+  previewUrl: string | null;
+  downloadUrl: string | null;
   onOpenChange: (open: boolean) => void;
 }
 
 export function AssetPreviewDialog({
   asset,
   open,
-  onDownload,
+  previewUrl,
+  downloadUrl,
   onOpenChange,
 }: AssetPreviewDialogProps) {
-  const previewUrl = asset
-    ? supabase.storage.from("client-assets").getPublicUrl(asset.file_path).data.publicUrl
-    : null;
   const isImage = asset?.file_type?.startsWith("image") ?? false;
   const isPdf = asset?.file_type === "application/pdf";
+  const isPreviewable = isImage || isPdf;
+  const isWaitingForUrl = !!asset && isPreviewable && !previewUrl;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -44,11 +43,17 @@ export function AssetPreviewDialog({
         </DialogHeader>
 
         <div className="flex-1 overflow-auto min-h-0">
-          {asset && previewUrl && isImage && (
+          {isWaitingForUrl && (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
+
+          {!isWaitingForUrl && asset && previewUrl && isImage && (
             <img src={previewUrl} alt={asset.file_name} className="w-full h-auto rounded-lg" />
           )}
 
-          {asset && previewUrl && isPdf && (
+          {!isWaitingForUrl && asset && previewUrl && isPdf && (
             <iframe
               src={previewUrl}
               title={asset.file_name}
@@ -56,26 +61,28 @@ export function AssetPreviewDialog({
             />
           )}
 
-          {asset && !isImage && !isPdf && (
+          {!isWaitingForUrl && asset && !isPreviewable && (
             <div className="flex min-h-40 items-center justify-center rounded-lg border border-dashed px-6 text-center text-sm text-muted-foreground">
               Preview is not available for this file type.
+            </div>
+          )}
+
+          {!isWaitingForUrl && asset && isPreviewable && !previewUrl && (
+            <div className="flex min-h-40 items-center justify-center rounded-lg border border-dashed px-6 text-center text-sm text-muted-foreground">
+              Couldn&apos;t load a preview for this file.
             </div>
           )}
         </div>
 
         <div className="flex justify-end gap-2 pt-2">
-          {asset && (
-            <Button
-              variant="outline"
-              onClick={async () => {
-                try {
-                  await onDownload(asset);
-                } catch (error) {
-                  console.error("Asset download failed", error);
-                  toast.error("Failed to download file");
-                }
-              }}
-            >
+          {downloadUrl ? (
+            <Button variant="outline" asChild>
+              <a href={downloadUrl} target="_blank" rel="noopener noreferrer">
+                <Download className="h-4 w-4 mr-2" /> Download
+              </a>
+            </Button>
+          ) : (
+            <Button variant="outline" disabled>
               <Download className="h-4 w-4 mr-2" /> Download
             </Button>
           )}
