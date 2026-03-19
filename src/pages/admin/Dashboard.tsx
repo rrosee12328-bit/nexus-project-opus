@@ -213,8 +213,14 @@ export default function AdminDashboard() {
             )}
           </CardContent>
         </Card>
+        </motion.div>
 
         {/* Pending Tasks */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.5 }}
+        >
         <Card className="flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">
