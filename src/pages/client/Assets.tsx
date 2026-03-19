@@ -202,7 +202,7 @@ export default function ClientAssets() {
                 variant="ghost"
                 size="icon"
                 title="Download"
-                onClick={() => openDownload(urls.downloadUrl)}
+                onClick={() => openDownload(asset.id)}
               >
                 <Download className="h-4 w-4" />
               </Button>
