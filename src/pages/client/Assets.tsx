@@ -132,19 +132,17 @@ export default function ClientAssets() {
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-  const getSignedUrl = async (filePath: string) => {
+  const getFileBlob = async (filePath: string) => {
     const { data, error } = await supabase.storage
       .from("client-assets")
-      .createSignedUrl(filePath, 3600);
+      .download(filePath);
     if (error) throw error;
-    return data.signedUrl;
+    return data;
   };
 
   const handleDownload = async (filePath: string, fileName: string) => {
     try {
-      const url = await getSignedUrl(filePath);
-      const response = await fetch(url);
-      const blob = await response.blob();
+      const blob = await getFileBlob(filePath);
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = blobUrl;
@@ -152,7 +150,7 @@ export default function ClientAssets() {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(blobUrl);
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
     } catch {
       toast.error("Failed to download file");
     }
@@ -160,8 +158,10 @@ export default function ClientAssets() {
 
   const handlePreview = async (asset: any) => {
     try {
-      const url = await getSignedUrl(asset.file_path);
-      setPreviewUrl(url);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      const blob = await getFileBlob(asset.file_path);
+      const blobUrl = URL.createObjectURL(blob);
+      setPreviewUrl(blobUrl);
       setPreviewAsset(asset);
     } catch {
       toast.error("Failed to load preview");
