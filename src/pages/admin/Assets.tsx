@@ -2,6 +2,8 @@ import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { AssetPreviewDialog } from "@/components/assets/AssetPreviewDialog";
+import type { Tables } from "@/integrations/supabase/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,12 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   Upload,
   Download,
@@ -52,13 +48,20 @@ function isPreviewable(fileType: string | null) {
   return fileType.startsWith("image") || fileType === "application/pdf";
 }
 
+type Asset = Tables<"assets">;
+
 export default function AdminAssets() {
+  const openDownload = (assetId: string) => {
+    const downloadPath = `/download/${assetId}`;
+    const popup = window.open(downloadPath, "_blank", "noopener,noreferrer");
+    if (!popup) window.location.assign(downloadPath);
+  };
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [uploadCategory, setUploadCategory] = useState<string>("deliverable");
-  const [previewAsset, setPreviewAsset] = useState<any>(null);
+  const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
 
   const { data: clients = [] } = useQuery({
     queryKey: ["admin-asset-clients"],
@@ -129,27 +132,7 @@ export default function AdminAssets() {
     onError: () => toast.error("Failed to delete"),
   });
 
-  const getPublicUrl = (filePath: string) => {
-    const { data } = supabase.storage.from("client-assets").getPublicUrl(filePath);
-    return data.publicUrl;
-  };
-
-  const handleDownload = async (filePath: string, fileName: string) => {
-    try {
-      const { data, error } = await supabase.storage.from("client-assets").download(filePath);
-      if (error) throw error;
-      const url = URL.createObjectURL(data);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch {
-      toast.error("Failed to download file");
-    }
-  };
+  // Removed old blob-download; using standalone /download/:assetId route now
 
   const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -160,7 +143,7 @@ export default function AdminAssets() {
   const uploads = assets.filter((a) => a.category === "upload");
   const deliverables = assets.filter((a) => a.category === "deliverable");
 
-  const AssetRow = ({ asset }: { asset: any }) => {
+  const AssetRow = ({ asset }: { asset: Asset }) => {
     const Icon = getFileIcon(asset.file_type);
     const canPreview = isPreviewable(asset.file_type);
     return (
@@ -185,7 +168,7 @@ export default function AdminAssets() {
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={() => handleDownload(asset.file_path, asset.file_name)}
+              onClick={() => openDownload(asset.id)}
             >
               <Download className="h-3.5 w-3.5" />
             </Button>
@@ -328,38 +311,11 @@ export default function AdminAssets() {
         </div>
       </div>
 
-      {/* Preview Dialog */}
-      <Dialog open={!!previewAsset} onOpenChange={(open) => { if (!open) setPreviewAsset(null); }}>
-        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="truncate pr-8">{previewAsset?.file_name}</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-auto min-h-0">
-            {previewAsset?.file_type?.startsWith("image") && (
-              <img
-                src={getPublicUrl(previewAsset.file_path)}
-                alt={previewAsset.file_name}
-                className="w-full h-auto rounded-lg"
-              />
-            )}
-            {previewAsset?.file_type === "application/pdf" && (
-              <iframe
-                src={getPublicUrl(previewAsset.file_path)}
-                className="w-full h-[70vh] rounded-lg border-0"
-                title={previewAsset.file_name}
-              />
-            )}
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              variant="outline"
-              onClick={() => previewAsset && handleDownload(previewAsset.file_path, previewAsset.file_name)}
-            >
-              <Download className="h-4 w-4 mr-2" /> Download
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <AssetPreviewDialog
+        asset={previewAsset}
+        open={!!previewAsset}
+        onOpenChange={(open) => { if (!open) setPreviewAsset(null); }}
+      />
     </div>
   );
 }
