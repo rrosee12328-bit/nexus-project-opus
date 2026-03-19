@@ -197,10 +197,13 @@ export default function ClientAssets() {
               </Button>
             )}
             {urls?.downloadUrl ? (
-              <Button variant="ghost" size="icon" title="Download" asChild>
-                <a href={urls.downloadUrl}>
-                  <Download className="h-4 w-4" />
-                </a>
+              <Button
+                variant="ghost"
+                size="icon"
+                title="Download"
+                onClick={() => openDownload(urls.downloadUrl)}
+              >
+                <Download className="h-4 w-4" />
               </Button>
             ) : (
               <Button variant="ghost" size="icon" title="Download" disabled>

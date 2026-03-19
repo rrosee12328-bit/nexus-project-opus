@@ -147,10 +147,8 @@ export function AssetPreviewDialog({
 
         <div className="flex justify-end gap-2 pt-2">
           {downloadUrl ? (
-            <Button variant="outline" asChild>
-              <a href={downloadUrl}>
-                <Download className="h-4 w-4 mr-2" /> Download
-              </a>
+            <Button variant="outline" onClick={handleDownload}>
+              <Download className="h-4 w-4 mr-2" /> Download
             </Button>
           ) : (
             <Button variant="outline" disabled>
