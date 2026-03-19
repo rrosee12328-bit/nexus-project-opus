@@ -323,25 +323,30 @@ export default function ClientAssets() {
       )}
 
       {/* Preview Dialog */}
-      <Dialog open={!!previewAsset} onOpenChange={(open) => { if (!open) setPreviewAsset(null); }}>
+      <Dialog open={!!previewAsset} onOpenChange={(open) => { if (!open) { setPreviewAsset(null); setPreviewUrl(null); } }}>
         <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="truncate pr-8">{previewAsset?.file_name}</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-auto min-h-0">
-            {previewAsset?.file_type?.startsWith("image") && (
+            {previewUrl && previewAsset?.file_type?.startsWith("image") && (
               <img
-                src={getPublicUrl(previewAsset.file_path)}
+                src={previewUrl}
                 alt={previewAsset.file_name}
                 className="w-full h-auto rounded-lg"
               />
             )}
-            {previewAsset?.file_type === "application/pdf" && (
+            {previewUrl && previewAsset?.file_type === "application/pdf" && (
               <iframe
-                src={getPublicUrl(previewAsset.file_path)}
+                src={previewUrl}
                 className="w-full h-[70vh] rounded-lg border-0"
                 title={previewAsset.file_name}
               />
+            )}
+            {!previewUrl && (
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
             )}
           </div>
           <div className="flex justify-end gap-2 pt-2">
