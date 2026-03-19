@@ -30,6 +30,11 @@ export function AssetPreviewDialog({
   downloadUrl,
   onOpenChange,
 }: AssetPreviewDialogProps) {
+  const handleDownload = () => {
+    if (!downloadUrl) return;
+    const popup = window.open(downloadUrl, "_blank", "noopener,noreferrer");
+    if (!popup) window.location.assign(downloadUrl);
+  };
   const [resolvedPreviewUrl, setResolvedPreviewUrl] = useState<string | null>(null);
   const [resolvedPreviewFile, setResolvedPreviewFile] = useState<Blob | null>(null);
   const [previewKind, setPreviewKind] = useState<"image" | "pdf" | null>(null);
