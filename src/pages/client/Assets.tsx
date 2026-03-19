@@ -39,6 +39,17 @@ function isPreviewable(fileType: string | null) {
 
 type Asset = Tables<"assets">;
 
+type SaveFilePickerHandle = {
+  createWritable: () => Promise<{
+    write: (data: Blob) => Promise<void>;
+    close: () => Promise<void>;
+  }>;
+};
+
+type SaveFilePickerWindow = Window & {
+  showSaveFilePicker?: (options?: { suggestedName?: string }) => Promise<SaveFilePickerHandle>;
+};
+
 export default function ClientAssets() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
