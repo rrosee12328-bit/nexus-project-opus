@@ -134,7 +134,7 @@ export default function AdminMessages() {
             </p>
           </div>
           <ScrollArea className="flex-1">
-            <div className="p-1">
+            <div className="p-2 space-y-1">
               {clients.map((client) => {
                 const latest = getLatest(client.id);
                 const isSelected = client.id === selectedClientId;
