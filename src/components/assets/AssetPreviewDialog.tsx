@@ -27,13 +27,13 @@ interface AssetPreviewDialogProps {
 export function AssetPreviewDialog({
   asset,
   open,
-  downloadUrl,
   onOpenChange,
 }: AssetPreviewDialogProps) {
   const handleDownload = () => {
-    if (!downloadUrl) return;
-    const popup = window.open(downloadUrl, "_blank", "noopener,noreferrer");
-    if (!popup) window.location.assign(downloadUrl);
+    if (!asset?.id) return;
+    const downloadPath = `/download/${asset.id}`;
+    const popup = window.open(downloadPath, "_blank", "noopener,noreferrer");
+    if (!popup) window.location.assign(downloadPath);
   };
   const [resolvedPreviewUrl, setResolvedPreviewUrl] = useState<string | null>(null);
   const [resolvedPreviewFile, setResolvedPreviewFile] = useState<Blob | null>(null);
