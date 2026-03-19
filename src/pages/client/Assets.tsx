@@ -4,7 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Upload,
   FileImage,
@@ -14,14 +19,9 @@ import {
   Download,
   Trash2,
   Loader2,
-  File,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
-
-const FILE_ICONS: Record<string, typeof File> = {
-  image: FileImage,
-  video: FileVideo,
-};
 
 function getFileIcon(fileType: string | null) {
   if (!fileType) return FileText;
@@ -36,11 +36,17 @@ function formatFileSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function isPreviewable(fileType: string | null) {
+  if (!fileType) return false;
+  return fileType.startsWith("image") || fileType === "application/pdf";
+}
+
 export default function ClientAssets() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
+  const [previewAsset, setPreviewAsset] = useState<any>(null);
 
   // Get client_id
   const { data: clientId } = useQuery({
@@ -74,15 +80,12 @@ export default function ClientAssets() {
   const uploadMutation = useMutation({
     mutationFn: async (files: File[]) => {
       if (!clientId || !user?.id) throw new Error("Not linked to a client");
-
       for (const file of files) {
         const filePath = `${clientId}/${Date.now()}-${file.name}`;
-
         const { error: uploadError } = await supabase.storage
           .from("client-assets")
           .upload(filePath, file);
         if (uploadError) throw uploadError;
-
         const { error: insertError } = await supabase.from("assets").insert({
           client_id: clientId,
           uploaded_by: user.id,
@@ -132,8 +135,72 @@ export default function ClientAssets() {
     return data.publicUrl;
   };
 
+  const handleDownload = async (filePath: string, fileName: string) => {
+    try {
+      const { data, error } = await supabase.storage.from("client-assets").download(filePath);
+      if (error) throw error;
+      const url = URL.createObjectURL(data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Failed to download file");
+    }
+  };
+
   const uploads = assets.filter((a) => a.category === "upload");
   const deliverables = assets.filter((a) => a.category === "deliverable");
+
+  const AssetCard = ({ asset, variant }: { asset: any; variant: "deliverable" | "upload" }) => {
+    const Icon = getFileIcon(asset.file_type);
+    const canPreview = isPreviewable(asset.file_type);
+    return (
+      <Card className="hover:border-primary/20 transition-colors">
+        <CardContent className="pt-4 pb-4 flex items-center gap-3">
+          <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${
+            variant === "deliverable" ? "bg-primary/10" : "bg-accent/50"
+          }`}>
+            <Icon className={`h-5 w-5 ${variant === "deliverable" ? "text-primary" : "text-muted-foreground"}`} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{asset.file_name}</p>
+            <p className="text-xs text-muted-foreground">
+              {formatFileSize(asset.file_size)} · {new Date(asset.created_at).toLocaleDateString()}
+            </p>
+          </div>
+          <div className="flex gap-1">
+            {canPreview && (
+              <Button variant="ghost" size="icon" onClick={() => setPreviewAsset(asset)} title="Preview">
+                <Eye className="h-4 w-4" />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handleDownload(asset.file_path, asset.file_name)}
+              title="Download"
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+            {variant === "upload" && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => deleteMutation.mutate({ id: asset.id, file_path: asset.file_path })}
+                disabled={deleteMutation.isPending}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <div className="space-y-8">
@@ -199,29 +266,9 @@ export default function ClientAssets() {
         <div className="space-y-3">
           <h2 className="text-lg font-semibold">Deliverables from your team</h2>
           <div className="grid gap-3 sm:grid-cols-2">
-            {deliverables.map((asset) => {
-              const Icon = getFileIcon(asset.file_type);
-              return (
-                <Card key={asset.id} className="hover:border-primary/20 transition-colors">
-                  <CardContent className="pt-4 pb-4 flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <Icon className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{asset.file_name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatFileSize(asset.file_size)} · {new Date(asset.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <Button variant="ghost" size="icon" asChild>
-                      <a href={getPublicUrl(asset.file_path)} target="_blank" rel="noopener noreferrer">
-                        <Download className="h-4 w-4" />
-                      </a>
-                    </Button>
-                  </CardContent>
-                </Card>
-              );
-            })}
+            {deliverables.map((asset) => (
+              <AssetCard key={asset.id} asset={asset} variant="deliverable" />
+            ))}
           </div>
         </div>
       )}
@@ -231,39 +278,9 @@ export default function ClientAssets() {
         <div className="space-y-3">
           <h2 className="text-lg font-semibold">Your uploads</h2>
           <div className="grid gap-3 sm:grid-cols-2">
-            {uploads.map((asset) => {
-              const Icon = getFileIcon(asset.file_type);
-              return (
-                <Card key={asset.id} className="hover:border-primary/20 transition-colors">
-                  <CardContent className="pt-4 pb-4 flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-accent/50 flex items-center justify-center shrink-0">
-                      <Icon className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{asset.file_name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatFileSize(asset.file_size)} · {new Date(asset.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" asChild>
-                        <a href={getPublicUrl(asset.file_path)} target="_blank" rel="noopener noreferrer">
-                          <Download className="h-4 w-4" />
-                        </a>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => deleteMutation.mutate({ id: asset.id, file_path: asset.file_path })}
-                        disabled={deleteMutation.isPending}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+            {uploads.map((asset) => (
+              <AssetCard key={asset.id} asset={asset} variant="upload" />
+            ))}
           </div>
         </div>
       )}
@@ -288,6 +305,39 @@ export default function ClientAssets() {
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       )}
+
+      {/* Preview Dialog */}
+      <Dialog open={!!previewAsset} onOpenChange={(open) => { if (!open) setPreviewAsset(null); }}>
+        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="truncate pr-8">{previewAsset?.file_name}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto min-h-0">
+            {previewAsset?.file_type?.startsWith("image") && (
+              <img
+                src={getPublicUrl(previewAsset.file_path)}
+                alt={previewAsset.file_name}
+                className="w-full h-auto rounded-lg"
+              />
+            )}
+            {previewAsset?.file_type === "application/pdf" && (
+              <iframe
+                src={getPublicUrl(previewAsset.file_path)}
+                className="w-full h-[70vh] rounded-lg border-0"
+                title={previewAsset.file_name}
+              />
+            )}
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => previewAsset && handleDownload(previewAsset.file_path, previewAsset.file_name)}
+            >
+              <Download className="h-4 w-4 mr-2" /> Download
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
