@@ -11,8 +11,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { DollarSign, TrendingUp, Calendar, Receipt } from "lucide-react";
+import { DollarSign, TrendingUp, Calendar, Receipt, Download } from "lucide-react";
 import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
