@@ -208,6 +208,58 @@ export default function OpsSettings() {
                 </CardContent>
               </Card>
             </motion.div>
+
+            <motion.div {...anim(0.2)}>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Lock className="h-4 w-4 text-muted-foreground" /> Change Password
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label>Current Password</Label>
+                      <Input
+                        type="password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="••••••••"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>New Password</Label>
+                      <Input
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Min. 6 characters"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Confirm New Password</Label>
+                      <Input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="••••••••"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button
+                      onClick={() => changePassword.mutate()}
+                      disabled={changePassword.isPending || !currentPassword || !newPassword || !confirmPassword}
+                      variant="outline"
+                      className="gap-2"
+                    >
+                      <Lock className="h-4 w-4" />
+                      {changePassword.isPending ? "Updating..." : "Update Password"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
           </TabsContent>
 
           {/* Notifications Tab */}
