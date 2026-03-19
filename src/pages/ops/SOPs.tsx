@@ -433,11 +433,36 @@ export default function OpsSops() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Content *</Label>
+              <div className="flex items-center justify-between">
+                <Label>Content *</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-6 gap-1 text-xs text-muted-foreground">
+                      <HelpCircle className="h-3 w-3" /> Markdown Help
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 text-xs" side="left">
+                    <p className="font-semibold text-sm mb-2">Markdown Cheat Sheet</p>
+                    <div className="space-y-1.5 font-mono text-muted-foreground">
+                      <p><span className="text-foreground"># Heading 1</span></p>
+                      <p><span className="text-foreground">## Heading 2</span></p>
+                      <p><span className="text-foreground">**bold**</span> → <strong className="text-foreground">bold</strong></p>
+                      <p><span className="text-foreground">*italic*</span> → <em className="text-foreground">italic</em></p>
+                      <p><span className="text-foreground">- item</span> → bullet list</p>
+                      <p><span className="text-foreground">1. item</span> → numbered list</p>
+                      <p><span className="text-foreground">[text](url)</span> → link</p>
+                      <p><span className="text-foreground">`code`</span> → inline code</p>
+                      <p><span className="text-foreground">```code block```</span></p>
+                      <p><span className="text-foreground">---</span> → horizontal rule</p>
+                      <p><span className="text-foreground">| A | B |</span> → table</p>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
               <Textarea
                 value={formContent}
                 onChange={(e) => setFormContent(e.target.value)}
-                placeholder="Step-by-step procedure details..."
+                placeholder="Use markdown for formatting: # Heading, **bold**, - bullets..."
                 rows={8}
                 className="font-mono text-sm"
               />
