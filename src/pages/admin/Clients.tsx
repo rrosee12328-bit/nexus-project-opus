@@ -479,8 +479,8 @@ export default function AdminClients() {
         </motion.div>
       )}
 
-      <ClientFormDialog open={formOpen} onOpenChange={setFormOpen} editClient={editClient} />
-      <DeleteClientDialog client={deleteTarget} onClose={() => setDeleteTarget(null)} />
+      <ClientFormDialog open={formOpen} onOpenChange={setFormOpen} client={editClient} />
+      <DeleteClientDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)} clientId={deleteTarget?.id ?? ""} clientName={deleteTarget?.name ?? ""} />
     </div>
   );
 }
