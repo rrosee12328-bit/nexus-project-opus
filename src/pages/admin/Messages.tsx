@@ -127,7 +127,7 @@ export default function AdminMessages() {
 
       <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-4 h-[600px]">
         {/* Client list */}
-        <Card className="overflow-hidden flex flex-col">
+        <Card className="flex flex-col overflow-hidden">
           <div className="p-3 border-b border-border">
             <p className="text-sm font-semibold flex items-center gap-2">
               <Users className="h-4 w-4 text-primary" /> Clients
@@ -144,8 +144,8 @@ export default function AdminMessages() {
                     onClick={() => setSelectedClientId(client.id)}
                     className={`w-full text-left rounded-lg px-3 py-3 transition-colors ${
                       isSelected
-                        ? "bg-primary/10 border border-primary/20"
-                        : "hover:bg-accent/10 border border-transparent"
+                        ? "bg-primary/10 ring-1 ring-primary/20"
+                        : "hover:bg-accent/10"
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
