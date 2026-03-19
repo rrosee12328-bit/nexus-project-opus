@@ -205,17 +205,14 @@ export default function ClientAssets() {
                 <Eye className="h-4 w-4" />
               </Button>
             )}
-            {urls?.downloadUrl ? (
-              <Button variant="ghost" size="icon" title="Download" asChild>
-                <a href={urls.downloadUrl} target="_blank" rel="noopener noreferrer">
-                  <Download className="h-4 w-4" />
-                </a>
-              </Button>
-            ) : (
-              <Button variant="ghost" size="icon" title="Download" disabled>
-                <Download className="h-4 w-4" />
-              </Button>
-            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              title="Download"
+              onClick={() => handleDownload(asset)}
+            >
+              <Download className="h-4 w-4" />
+            </Button>
             {variant === "upload" && (
               <Button
                 variant="ghost"
