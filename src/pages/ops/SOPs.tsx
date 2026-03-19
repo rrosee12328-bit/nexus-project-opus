@@ -24,7 +24,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import {
   BookOpen, Search, Plus, Pencil, Trash2, ChevronDown, ChevronRight,
-  FileText, Users, Code, Palette, MessageCircle, DollarSign, Layers,
+  FileText, Users, Code, Palette, MessageCircle, DollarSign, Layers, HelpCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
