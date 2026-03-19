@@ -147,8 +147,10 @@ export default function ClientAssets() {
 
       if (error) throw error;
 
-      if ("showSaveFilePicker" in window) {
-        const handle = await window.showSaveFilePicker({
+      const pickerWindow = window as SaveFilePickerWindow;
+
+      if (pickerWindow.showSaveFilePicker) {
+        const handle = await pickerWindow.showSaveFilePicker({
           suggestedName: asset.file_name,
         });
         const writable = await handle.createWritable();
