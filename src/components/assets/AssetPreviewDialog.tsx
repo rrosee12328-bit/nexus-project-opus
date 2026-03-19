@@ -30,6 +30,11 @@ export function AssetPreviewDialog({
   downloadUrl,
   onOpenChange,
 }: AssetPreviewDialogProps) {
+  const handleDownload = () => {
+    if (!downloadUrl) return;
+    const popup = window.open(downloadUrl, "_blank", "noopener,noreferrer");
+    if (!popup) window.location.assign(downloadUrl);
+  };
   const [resolvedPreviewUrl, setResolvedPreviewUrl] = useState<string | null>(null);
   const [resolvedPreviewFile, setResolvedPreviewFile] = useState<Blob | null>(null);
   const [previewKind, setPreviewKind] = useState<"image" | "pdf" | null>(null);
@@ -142,10 +147,8 @@ export function AssetPreviewDialog({
 
         <div className="flex justify-end gap-2 pt-2">
           {downloadUrl ? (
-            <Button variant="outline" asChild>
-              <a href={downloadUrl}>
-                <Download className="h-4 w-4 mr-2" /> Download
-              </a>
+            <Button variant="outline" onClick={handleDownload}>
+              <Download className="h-4 w-4 mr-2" /> Download
             </Button>
           ) : (
             <Button variant="outline" disabled>

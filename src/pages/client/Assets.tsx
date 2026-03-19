@@ -41,6 +41,10 @@ type Asset = Tables<"assets">;
 type AssetLinks = Record<string, { previewUrl: string; downloadUrl: string }>;
 
 export default function ClientAssets() {
+  const openDownload = (downloadUrl: string) => {
+    const popup = window.open(downloadUrl, "_blank", "noopener,noreferrer");
+    if (!popup) window.location.assign(downloadUrl);
+  };
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -193,10 +197,13 @@ export default function ClientAssets() {
               </Button>
             )}
             {urls?.downloadUrl ? (
-              <Button variant="ghost" size="icon" title="Download" asChild>
-                <a href={urls.downloadUrl}>
-                  <Download className="h-4 w-4" />
-                </a>
+              <Button
+                variant="ghost"
+                size="icon"
+                title="Download"
+                onClick={() => openDownload(urls.downloadUrl)}
+              >
+                <Download className="h-4 w-4" />
               </Button>
             ) : (
               <Button variant="ghost" size="icon" title="Download" disabled>
