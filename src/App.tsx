@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import ResetPassword from "./pages/ResetPassword";
 import AssetDownload from "./pages/AssetDownload";
 
 import AdminLayout from "./layouts/AdminLayout";
