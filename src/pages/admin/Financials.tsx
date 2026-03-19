@@ -383,6 +383,7 @@ export default function AdminFinancials() {
                 <TableRow className="font-bold border-t-2 border-border">
                   <TableCell colSpan={3}>Total</TableCell>
                   <TableCell className="text-right font-mono">{formatCurrency(totalInvestments)}</TableCell>
+                  <TableCell />
                 </TableRow>
               </TableBody>
             </Table>
