@@ -128,13 +128,25 @@ export default function ClientAssets() {
     handleFiles(e.dataTransfer.files);
   }, []);
 
-  const handleDownloadUrl = (asset: Asset) => {
-    const { data } = supabase.storage.from("client-assets").getPublicUrl(asset.file_path);
-    const downloadParam = asset.file_name
-      ? `download=${encodeURIComponent(asset.file_name)}`
-      : "download";
+  const handleDownload = async (asset: Asset) => {
+    const { data, error } = await supabase.storage
+      .from("client-assets")
+      .download(asset.file_path);
 
-    return `${data.publicUrl}?${downloadParam}`;
+    if (error) throw error;
+
+    const objectUrl = URL.createObjectURL(data);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = asset.file_name;
+    link.rel = "noopener";
+    link.style.display = "none";
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
   };
 
   const uploads = assets.filter((a) => a.category === "upload");
@@ -164,10 +176,20 @@ export default function ClientAssets() {
                 <Eye className="h-4 w-4" />
               </Button>
             )}
-            <Button variant="ghost" size="icon" asChild title="Download">
-              <a href={handleDownloadUrl(asset)} download={asset.file_name} aria-label={`Download ${asset.file_name}`}>
-                <Download className="h-4 w-4" />
-              </a>
+            <Button
+              variant="ghost"
+              size="icon"
+              title="Download"
+              onClick={async () => {
+                try {
+                  await handleDownload(asset);
+                } catch (error) {
+                  console.error("Asset download failed", error);
+                  toast.error("Failed to download file");
+                }
+              }}
+            >
+              <Download className="h-4 w-4" />
             </Button>
             {variant === "upload" && (
               <Button
@@ -288,7 +310,7 @@ export default function ClientAssets() {
       <AssetPreviewDialog
         asset={previewAsset}
         open={!!previewAsset}
-        getDownloadUrl={handleDownloadUrl}
+        onDownload={handleDownload}
         onOpenChange={(open) => {
           if (!open) setPreviewAsset(null);
         }}

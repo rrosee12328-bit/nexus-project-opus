@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Download, Loader2 } from "lucide-react";
-import { getDocument, GlobalWorkerOptions } from "pdfjs-dist/legacy/build/pdf.mjs";
 
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -14,47 +13,42 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
-GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/legacy/build/pdf.worker.min.mjs",
-  import.meta.url,
-).toString();
-
 type Asset = Tables<"assets">;
 
 interface AssetPreviewDialogProps {
   asset: Asset | null;
   open: boolean;
-  getDownloadUrl: (asset: Asset) => string;
+  onDownload: (asset: Asset) => Promise<void>;
   onOpenChange: (open: boolean) => void;
 }
 
 export function AssetPreviewDialog({
   asset,
   open,
-  getDownloadUrl,
+  onDownload,
   onOpenChange,
 }: AssetPreviewDialogProps) {
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewKind, setPreviewKind] = useState<"image" | "pdf" | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [pdfPages, setPdfPages] = useState<string[]>([]);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
   useEffect(() => {
     let isActive = true;
-    let nextImageUrl: string | null = null;
+    let objectUrl: string | null = null;
 
     const loadPreview = async () => {
       if (!open || !asset) {
-        setImageUrl(null);
-        setPdfPages([]);
+        setPreviewUrl(null);
+        setPreviewKind(null);
         setPreviewError(null);
         setIsLoading(false);
         return;
       }
 
       setIsLoading(true);
-      setImageUrl(null);
-      setPdfPages([]);
+      setPreviewUrl(null);
+      setPreviewKind(null);
       setPreviewError(null);
 
       try {
@@ -64,46 +58,23 @@ export function AssetPreviewDialog({
 
         if (error) throw error;
 
-        if (asset.file_type?.startsWith("image")) {
-          nextImageUrl = URL.createObjectURL(data);
-          if (isActive) setImageUrl(nextImageUrl);
-          return;
-        }
+        if (asset.file_type?.startsWith("image") || asset.file_type === "application/pdf") {
+          objectUrl = URL.createObjectURL(data);
 
-        if (asset.file_type === "application/pdf") {
-          const pdf = await getDocument({ data: await data.arrayBuffer() }).promise;
-          const renderedPages: string[] = [];
-
-          for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-            const page = await pdf.getPage(pageNumber);
-            const viewport = page.getViewport({ scale: 1.2 });
-            const canvas = document.createElement("canvas");
-            const context = canvas.getContext("2d");
-
-            if (!context) {
-              throw new Error("Failed to create PDF preview canvas");
-            }
-
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-
-            await page.render({
-              canvas,
-              canvasContext: context,
-              viewport,
-            }).promise;
-
-            renderedPages.push(canvas.toDataURL("image/png"));
+          if (isActive) {
+            setPreviewUrl(objectUrl);
+            setPreviewKind(asset.file_type === "application/pdf" ? "pdf" : "image");
           }
 
-          if (isActive) setPdfPages(renderedPages);
           return;
         }
 
         if (isActive) {
           setPreviewError("Preview is not available for this file type.");
         }
-      } catch {
+      } catch (error) {
+        console.error("Asset preview failed", error);
+
         if (isActive) {
           setPreviewError("Couldn't load a preview for this file.");
           toast.error("Failed to load preview");
@@ -117,7 +88,7 @@ export function AssetPreviewDialog({
 
     return () => {
       isActive = false;
-      if (nextImageUrl) URL.revokeObjectURL(nextImageUrl);
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [asset, open]);
 
@@ -138,21 +109,16 @@ export function AssetPreviewDialog({
             </div>
           )}
 
-          {!isLoading && imageUrl && asset?.file_type?.startsWith("image") && (
-            <img src={imageUrl} alt={asset.file_name} className="w-full h-auto rounded-lg" />
+          {!isLoading && previewUrl && previewKind === "image" && asset && (
+            <img src={previewUrl} alt={asset.file_name} className="w-full h-auto rounded-lg" />
           )}
 
-          {!isLoading && pdfPages.length > 0 && (
-            <div className="space-y-4">
-              {pdfPages.map((page, index) => (
-                <img
-                  key={`${asset?.id ?? "asset"}-${index + 1}`}
-                  src={page}
-                  alt={`${asset?.file_name ?? "PDF preview"} page ${index + 1}`}
-                  className="w-full h-auto rounded-lg border"
-                />
-              ))}
-            </div>
+          {!isLoading && previewUrl && previewKind === "pdf" && asset && (
+            <iframe
+              src={previewUrl}
+              title={asset.file_name}
+              className="h-[70vh] w-full rounded-lg border"
+            />
           )}
 
           {!isLoading && previewError && (
@@ -164,10 +130,18 @@ export function AssetPreviewDialog({
 
         <div className="flex justify-end gap-2 pt-2">
           {asset && (
-            <Button variant="outline" asChild>
-              <a href={getDownloadUrl(asset)} download={asset.file_name}>
-                <Download className="h-4 w-4 mr-2" /> Download
-              </a>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                try {
+                  await onDownload(asset);
+                } catch (error) {
+                  console.error("Asset download failed", error);
+                  toast.error("Failed to download file");
+                }
+              }}
+            >
+              <Download className="h-4 w-4 mr-2" /> Download
             </Button>
           )}
         </div>
