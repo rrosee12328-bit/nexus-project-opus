@@ -21,6 +21,7 @@ import AdminMessages from "./pages/admin/Messages";
 import AdminFinancials from "./pages/admin/Financials";
 import AdminSettings from "./pages/admin/Settings";
 import AdminAssets from "./pages/admin/Assets";
+import AdminReports from "./pages/admin/Reports";
 
 import OpsLayout from "./layouts/OpsLayout";
 import OpsDashboard from "./pages/ops/Dashboard";
