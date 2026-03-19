@@ -1,4 +1,6 @@
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -385,8 +387,10 @@ export default function OpsSops() {
                                 className="overflow-hidden"
                               >
                                 <div className="mt-4 pl-7 border-l-2 border-border ml-0.5">
-                                  <div className="prose prose-sm prose-invert max-w-none whitespace-pre-wrap text-sm text-muted-foreground leading-relaxed">
-                                    {sop.content}
+                                  <div className="prose prose-sm prose-invert max-w-none text-sm text-muted-foreground leading-relaxed [&_h1]:text-foreground [&_h2]:text-foreground [&_h3]:text-foreground [&_a]:text-primary [&_a]:underline [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-xs [&_code]:font-mono [&_pre]:bg-muted [&_pre]:p-3 [&_pre]:rounded-md [&_li]:marker:text-muted-foreground">
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                      {sop.content}
+                                    </ReactMarkdown>
                                   </div>
                                   <p className="text-xs text-muted-foreground/60 mt-4">
                                     Last updated {new Date(sop.updated_at).toLocaleDateString()}
