@@ -132,36 +132,42 @@ export default function ClientAssets() {
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-  const getFileBlob = async (filePath: string) => {
-    const { data, error } = await supabase.storage
-      .from("client-assets")
-      .download(filePath);
-    if (error) throw error;
-    return data;
+  const getPublicAssetUrl = (filePath: string, downloadName?: string) => {
+    const { data } = supabase.storage.from("client-assets").getPublicUrl(filePath);
+    const url = new URL(data.publicUrl);
+
+    if (downloadName) {
+      url.searchParams.set("download", downloadName);
+    }
+
+    return url.toString();
   };
 
-  const handleDownload = async (filePath: string, fileName: string) => {
+  const handleDownload = (filePath: string, fileName: string) => {
     try {
-      const blob = await getFileBlob(filePath);
-      const blobUrl = URL.createObjectURL(blob);
+      const url = getPublicAssetUrl(filePath, fileName);
       const a = document.createElement("a");
-      a.href = blobUrl;
+      a.href = url;
       a.download = fileName;
+      a.rel = "noopener noreferrer";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
     } catch {
       toast.error("Failed to download file");
     }
   };
 
-  const handlePreview = async (asset: any) => {
+  const handlePreview = (asset: any) => {
     try {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-      const blob = await getFileBlob(asset.file_path);
-      const blobUrl = URL.createObjectURL(blob);
-      setPreviewUrl(blobUrl);
+      const url = getPublicAssetUrl(asset.file_path);
+
+      if (asset.file_type === "application/pdf") {
+        window.open(url, "_blank", "noopener,noreferrer");
+        return;
+      }
+
+      setPreviewUrl(url);
       setPreviewAsset(asset);
     } catch {
       toast.error("Failed to load preview");
@@ -324,7 +330,7 @@ export default function ClientAssets() {
 
       {/* Preview Dialog */}
       <Dialog open={!!previewAsset} onOpenChange={(open) => { if (!open) { setPreviewAsset(null); setPreviewUrl(null); } }}>
-        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle className="truncate pr-8">{previewAsset?.file_name}</DialogTitle>
           </DialogHeader>
@@ -335,18 +341,6 @@ export default function ClientAssets() {
                 alt={previewAsset.file_name}
                 className="w-full h-auto rounded-lg"
               />
-            )}
-            {previewUrl && previewAsset?.file_type === "application/pdf" && (
-              <iframe
-                src={previewUrl}
-                className="w-full h-[70vh] rounded-lg border-0"
-                title={previewAsset.file_name}
-              />
-            )}
-            {!previewUrl && (
-              <div className="flex justify-center py-12">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
             )}
           </div>
           <div className="flex justify-end gap-2 pt-2">
