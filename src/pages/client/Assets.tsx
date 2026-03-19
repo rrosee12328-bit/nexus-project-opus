@@ -352,10 +352,6 @@ export default function ClientAssets() {
             </Button>
           </div>
         </DialogContent>
-              <Download className="h-4 w-4 mr-2" /> Download
-            </Button>
-          </div>
-        </DialogContent>
       </Dialog>
     </div>
   );
