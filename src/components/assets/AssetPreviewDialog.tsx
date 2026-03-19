@@ -141,43 +141,17 @@ export function AssetPreviewDialog({
         </div>
 
         <div className="flex justify-end gap-2 pt-2">
-          <Button
-            variant="outline"
-            disabled={!resolvedPreviewFile && !resolvedPreviewUrl}
-            onClick={() => {
-              if (!asset) return;
-              const blob = resolvedPreviewFile || (resolvedPreviewUrl ? null : null);
-              if (!blob && !resolvedPreviewUrl) return;
-
-              const downloadBlob = async () => {
-                try {
-                  let file: Blob;
-                  if (resolvedPreviewFile) {
-                    file = resolvedPreviewFile;
-                  } else {
-                    const { data, error } = await supabase.storage
-                      .from("client-assets")
-                      .download(asset.file_path);
-                    if (error) throw error;
-                    file = data;
-                  }
-                  const url = URL.createObjectURL(file);
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = asset.file_name;
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                  URL.revokeObjectURL(url);
-                } catch {
-                  toast.error("Failed to download file");
-                }
-              };
-              void downloadBlob();
-            }}
-          >
-            <Download className="h-4 w-4 mr-2" /> Download
-          </Button>
+          {downloadUrl ? (
+            <Button variant="outline" asChild>
+              <a href={downloadUrl}>
+                <Download className="h-4 w-4 mr-2" /> Download
+              </a>
+            </Button>
+          ) : (
+            <Button variant="outline" disabled>
+              <Download className="h-4 w-4 mr-2" /> Download
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>

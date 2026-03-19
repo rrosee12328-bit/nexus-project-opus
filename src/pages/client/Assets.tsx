@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -38,7 +38,7 @@ function isPreviewable(fileType: string | null) {
 }
 
 type Asset = Tables<"assets">;
-type AssetLinks = Record<string, { previewUrl: string }>;
+type AssetLinks = Record<string, { previewUrl: string; downloadUrl: string }>;
 
 export default function ClientAssets() {
   const { user } = useAuth();
@@ -152,24 +152,11 @@ export default function ClientAssets() {
     uploadMutation.mutate(Array.from(files));
   };
 
-  const handleDownload = async (asset: Asset) => {
-    try {
-      const { data, error } = await supabase.storage
-        .from("client-assets")
-        .createSignedUrl(asset.file_path, 60 * 60);
-
-      if (error) throw error;
-
-      const separator = data.signedUrl.includes("?") ? "&" : "?";
-      window.open(
-        `${data.signedUrl}${separator}download=${encodeURIComponent(asset.file_name)}`,
-        "_blank",
-        "noopener,noreferrer"
-      );
-    } catch {
-      toast.error("Failed to download file");
-    }
-  };
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    handleFiles(e.dataTransfer.files);
+  }, []);
 
   const uploads = assets.filter((a) => a.category === "upload");
   const deliverables = assets.filter((a) => a.category === "deliverable");
@@ -205,14 +192,17 @@ export default function ClientAssets() {
                 <Eye className="h-4 w-4" />
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="icon"
-              title="Download"
-              onClick={() => handleDownload(asset)}
-            >
-              <Download className="h-4 w-4" />
-            </Button>
+            {urls?.downloadUrl ? (
+              <Button variant="ghost" size="icon" title="Download" asChild>
+                <a href={urls.downloadUrl}>
+                  <Download className="h-4 w-4" />
+                </a>
+              </Button>
+            ) : (
+              <Button variant="ghost" size="icon" title="Download" disabled>
+                <Download className="h-4 w-4" />
+              </Button>
+            )}
             {variant === "upload" && (
               <Button
                 variant="ghost"
@@ -243,7 +233,7 @@ export default function ClientAssets() {
         onClick={() => fileInputRef.current?.click()}
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
-        onDrop={(e) => { e.preventDefault(); setDragging(false); handleFiles(e.dataTransfer.files); }}
+        onDrop={handleDrop}
       >
         <CardContent className="py-12 flex flex-col items-center text-center gap-4">
           {uploadMutation.isPending ? (
