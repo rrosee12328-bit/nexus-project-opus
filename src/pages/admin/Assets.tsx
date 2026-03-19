@@ -149,7 +149,7 @@ export default function AdminAssets() {
   const uploads = assets.filter((a) => a.category === "upload");
   const deliverables = assets.filter((a) => a.category === "deliverable");
 
-  const AssetRow = ({ asset }: { asset: any }) => {
+  const AssetRow = ({ asset }: { asset: Asset }) => {
     const Icon = getFileIcon(asset.file_type);
     const canPreview = isPreviewable(asset.file_type);
     return (
@@ -174,7 +174,7 @@ export default function AdminAssets() {
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={() => handleDownload(asset.file_path, asset.file_name)}
+              onClick={() => openDownload(asset.id)}
             >
               <Download className="h-3.5 w-3.5" />
             </Button>
