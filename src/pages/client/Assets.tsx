@@ -175,7 +175,14 @@ export default function ClientAssets() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => handleDownload(asset)}
+              onClick={async () => {
+                try {
+                  const downloadUrl = await handleDownloadUrl(asset);
+                  window.location.assign(downloadUrl);
+                } catch {
+                  toast.error("Failed to download file");
+                }
+              }}
               title="Download"
             >
               <Download className="h-4 w-4" />
