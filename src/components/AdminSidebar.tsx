@@ -32,6 +32,7 @@ const navItems = [
   { title: "Assets", url: "/admin/assets", icon: Upload },
   { title: "Messages", url: "/admin/messages", icon: MessageSquare },
   { title: "Financial Tracking", url: "/admin/financials", icon: DollarSign },
+  { title: "Ops Portal", url: "/ops", icon: ClipboardList },
   { title: "Settings", url: "/admin/settings", icon: Settings },
 ];
 
