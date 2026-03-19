@@ -311,38 +311,11 @@ export default function AdminAssets() {
         </div>
       </div>
 
-      {/* Preview Dialog */}
-      <Dialog open={!!previewAsset} onOpenChange={(open) => { if (!open) setPreviewAsset(null); }}>
-        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="truncate pr-8">{previewAsset?.file_name}</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-auto min-h-0">
-            {previewAsset?.file_type?.startsWith("image") && (
-              <img
-                src={getPublicUrl(previewAsset.file_path)}
-                alt={previewAsset.file_name}
-                className="w-full h-auto rounded-lg"
-              />
-            )}
-            {previewAsset?.file_type === "application/pdf" && (
-              <iframe
-                src={getPublicUrl(previewAsset.file_path)}
-                className="w-full h-[70vh] rounded-lg border-0"
-                title={previewAsset.file_name}
-              />
-            )}
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              variant="outline"
-              onClick={() => previewAsset && handleDownload(previewAsset.file_path, previewAsset.file_name)}
-            >
-              <Download className="h-4 w-4 mr-2" /> Download
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <AssetPreviewDialog
+        asset={previewAsset}
+        open={!!previewAsset}
+        onOpenChange={(open) => { if (!open) setPreviewAsset(null); }}
+      />
     </div>
   );
 }
