@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageSquare, Send, Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
 
 export default function AdminMessages() {
   const { user } = useAuth();
@@ -18,7 +19,6 @@ export default function AdminMessages() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
-  // Fetch clients
   const { data: clients = [] } = useQuery({
     queryKey: ["admin-msg-clients"],
     queryFn: async () => {
@@ -32,7 +32,6 @@ export default function AdminMessages() {
     },
   });
 
-  // Fetch latest message per client for preview
   const { data: latestMessages = [] } = useQuery({
     queryKey: ["admin-latest-messages"],
     queryFn: async () => {
@@ -41,7 +40,6 @@ export default function AdminMessages() {
         .select("client_id, content, created_at")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      // Deduplicate — keep first (latest) per client
       const seen = new Set<string>();
       return (data ?? []).filter((m) => {
         if (seen.has(m.client_id)) return false;
@@ -51,7 +49,6 @@ export default function AdminMessages() {
     },
   });
 
-  // Fetch messages for selected client
   const { data: messages = [], isLoading: msgsLoading } = useQuery({
     queryKey: ["admin-messages", selectedClientId],
     queryFn: async () => {
@@ -67,7 +64,6 @@ export default function AdminMessages() {
     enabled: !!selectedClientId,
   });
 
-  // Realtime subscription
   useEffect(() => {
     const channel = supabase
       .channel("admin-messages-rt")
@@ -83,14 +79,12 @@ export default function AdminMessages() {
     return () => { supabase.removeChannel(channel); };
   }, [selectedClientId, queryClient]);
 
-  // Auto-scroll
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
 
-  // Send message
   const sendMutation = useMutation({
     mutationFn: async (content: string) => {
       if (!selectedClientId || !user?.id) throw new Error("No client selected");
@@ -120,12 +114,21 @@ export default function AdminMessages() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
         <h1 className="text-2xl font-bold tracking-tight">Messages</h1>
         <p className="text-muted-foreground">Real-time conversations with your clients.</p>
-      </div>
+      </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-4 h-[600px]">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+        className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-4 h-[600px]"
+      >
         {/* Client list */}
         <Card className="flex flex-col overflow-hidden">
           <div className="p-3 border-b border-border">
@@ -159,7 +162,12 @@ export default function AdminMessages() {
                 );
               })}
               {clients.length === 0 && (
-                <p className="text-xs text-muted-foreground text-center py-8">No active clients</p>
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+                    <Users className="h-6 w-6 text-primary/40" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">No active clients</p>
+                </div>
               )}
             </div>
           </ScrollArea>
@@ -170,7 +178,7 @@ export default function AdminMessages() {
           {!selectedClientId ? (
             <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
               <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-                <MessageSquare className="h-8 w-8 text-primary" />
+                <MessageSquare className="h-8 w-8 text-primary/40" />
               </div>
               <h3 className="font-semibold text-lg">Select a client</h3>
               <p className="text-sm text-muted-foreground mt-1">Choose a client from the list to start messaging.</p>
@@ -186,7 +194,7 @@ export default function AdminMessages() {
                 </Avatar>
                 <div>
                   <p className="font-semibold text-sm">{selectedClient?.name}</p>
-                  <p className="text-xs text-muted-foreground">{messages.length} messages</p>
+                  <p className="text-xs text-muted-foreground"><span className="font-mono">{messages.length}</span> messages</p>
                 </div>
               </div>
 
@@ -197,7 +205,10 @@ export default function AdminMessages() {
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : messages.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-center py-16">
+                  <div className="flex flex-col items-center justify-center h-full text-center py-16 gap-3">
+                    <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+                      <MessageSquare className="h-6 w-6 text-primary/40" />
+                    </div>
                     <p className="text-sm text-muted-foreground">No messages yet. Send the first one!</p>
                   </div>
                 ) : (
@@ -248,7 +259,7 @@ export default function AdminMessages() {
             </>
           )}
         </Card>
-      </div>
+      </motion.div>
     </div>
   );
 }

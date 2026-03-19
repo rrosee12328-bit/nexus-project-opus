@@ -10,6 +10,7 @@ import { DollarSign, TrendingUp, TrendingDown, Download, Wallet } from "lucide-r
 import { Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Line, ComposedChart, Legend } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { motion } from "framer-motion";
 
 const statusColor: Record<string, string> = {
   active: "bg-success/20 text-success border-success/30",
@@ -123,12 +124,10 @@ export default function AdminFinancials() {
   const activeMrr = (clients ?? [])
     .filter((c) => c.status === "active")
     .reduce((s, c) => s + (c.monthly_fee ?? 0), 0);
-  const pendingSetup = (clients ?? []).reduce((s, c) => s + (c.balance_due ?? 0), 0);
   const totalInvestments = (investments ?? []).reduce((s, inv) => s + Number(inv.amount), 0);
 
   // Group expenses by type
   const expenseTypes = [...new Set((expenses ?? []).map((e) => e.type))];
-
 
   const exportCSV = () => {
     if (!payments?.length) return;
@@ -147,9 +146,22 @@ export default function AdminFinancials() {
     URL.revokeObjectURL(url);
   };
 
+  const statCards = [
+    { label: "YTD Revenue", value: formatCurrency(ytdRevenue), icon: TrendingUp, color: "text-emerald-400" },
+    { label: "YTD Expenses", value: formatCurrency(ytdExpenses), icon: TrendingDown, color: "text-destructive" },
+    { label: "YTD Profit", value: formatCurrency(ytdProfit), icon: DollarSign, color: ytdProfit >= 0 ? "text-emerald-400" : "text-destructive" },
+    { label: "Monthly Recurring", value: formatCurrency(activeMrr), icon: DollarSign, color: "text-primary" },
+    { label: "Investments", value: formatCurrency(totalInvestments), icon: Wallet, color: "text-primary" },
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="flex items-center justify-between"
+      >
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Financial Tracking</h1>
           <p className="text-muted-foreground">Revenue, expenses, profit margins, and investment tracking.</p>
@@ -157,51 +169,37 @@ export default function AdminFinancials() {
         <Button variant="outline" onClick={exportCSV}>
           <Download className="mr-2 h-4 w-4" /> Export CSV
         </Button>
-      </div>
+      </motion.div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">YTD Revenue</CardTitle>
-            <TrendingUp className="h-4 w-4 text-emerald-500" />
-          </CardHeader>
-          <CardContent><div className="text-2xl font-bold font-mono">{formatCurrency(ytdRevenue)}</div></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">YTD Expenses</CardTitle>
-            <TrendingDown className="h-4 w-4 text-destructive" />
-          </CardHeader>
-          <CardContent><div className="text-2xl font-bold font-mono">{formatCurrency(ytdExpenses)}</div></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">YTD Profit</CardTitle>
-            <DollarSign className={`h-4 w-4 ${ytdProfit >= 0 ? "text-emerald-500" : "text-destructive"}`} />
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold font-mono ${ytdProfit >= 0 ? "text-emerald-500" : "text-destructive"}`}>
-              {formatCurrency(ytdProfit)}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Monthly Recurring</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent><div className="text-2xl font-bold font-mono">{formatCurrency(activeMrr)}</div></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Investments</CardTitle>
-            <Wallet className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent><div className="text-2xl font-bold font-mono">{formatCurrency(totalInvestments)}</div></CardContent>
-        </Card>
+        {statCards.map((s, i) => (
+          <motion.div
+            key={s.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 + i * 0.07 }}
+          >
+            <Card className="group hover:border-primary/20 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">{s.label}</CardTitle>
+                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <s.icon className={`h-4 w-4 ${s.color}`} />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold font-mono ${s.label === "YTD Profit" ? s.color : ""}`}>{s.value}</div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
       </div>
 
       {/* Revenue vs Expenses Chart */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.45 }}
+      >
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Revenue vs Expenses (2026)</CardTitle>
@@ -244,10 +242,16 @@ export default function AdminFinancials() {
           </div>
         </CardContent>
       </Card>
+      </motion.div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.55 }}
+        className="grid gap-4 lg:grid-cols-2"
+      >
         {/* Expenses Breakdown by Month */}
-        <Card>
+        <Card className="hover:border-primary/20 transition-colors">
           <CardHeader>
             <CardTitle className="text-lg">Expense Breakdown by Month</CardTitle>
           </CardHeader>
@@ -264,7 +268,7 @@ export default function AdminFinancials() {
                 </TableHeader>
                 <TableBody>
                   {expenseTypes.map((type) => (
-                    <TableRow key={type}>
+                    <TableRow key={type} className="hover:bg-muted/30 transition-colors">
                       <TableCell className="whitespace-nowrap">{type}</TableCell>
                       {MONTHS.slice(0, 6).map((_, i) => {
                         const val = (expenses ?? [])
@@ -298,7 +302,7 @@ export default function AdminFinancials() {
         </Card>
 
         {/* Owner Investments */}
-        <Card>
+        <Card className="hover:border-primary/20 transition-colors">
           <CardHeader>
             <CardTitle className="text-lg">Owner Investments</CardTitle>
           </CardHeader>
@@ -314,7 +318,7 @@ export default function AdminFinancials() {
               </TableHeader>
               <TableBody>
                 {(investments ?? []).map((inv) => (
-                  <TableRow key={inv.id}>
+                  <TableRow key={inv.id} className="hover:bg-muted/30 transition-colors">
                     <TableCell className="font-medium">{inv.owner_name}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {inv.investment_date ? new Date(inv.investment_date).toLocaleDateString() : "—"}
@@ -331,10 +335,15 @@ export default function AdminFinancials() {
             </Table>
           </CardContent>
         </Card>
-      </div>
+      </motion.div>
 
       {/* Client Profitability */}
-      <Card>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.65 }}
+      >
+      <Card className="hover:border-primary/20 transition-colors">
         <CardHeader>
           <CardTitle className="text-lg">Client Profitability</CardTitle>
         </CardHeader>
@@ -352,7 +361,6 @@ export default function AdminFinancials() {
               </TableHeader>
               <TableBody>
                 {(() => {
-                  // Group costs by client
                   const grouped: Record<string, { name: string; revenue: number; costs: number; status: string }> = {};
                   for (const cost of clientCosts ?? []) {
                     const client = cost.clients as { name: string; monthly_fee: number | null; status: string } | null;
@@ -377,7 +385,7 @@ export default function AdminFinancials() {
                         const profit = e.revenue - e.costs;
                         const margin = e.revenue > 0 ? (profit / e.revenue) * 100 : 0;
                         return (
-                          <TableRow key={e.name}>
+                          <TableRow key={e.name} className="hover:bg-muted/30 transition-colors">
                             <TableCell className="font-medium">
                               {e.name}
                               {e.status === "closed" && <span className="text-xs text-muted-foreground ml-2">(closed)</span>}
@@ -412,9 +420,15 @@ export default function AdminFinancials() {
           </div>
         </CardContent>
       </Card>
+      </motion.div>
 
       {/* Business Overhead */}
-      <Card>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.7 }}
+      >
+      <Card className="hover:border-primary/20 transition-colors">
         <CardHeader>
           <CardTitle className="text-lg">Business Overhead</CardTitle>
         </CardHeader>
@@ -430,7 +444,7 @@ export default function AdminFinancials() {
             </TableHeader>
             <TableBody>
               {(overhead ?? []).map((item) => (
-                <TableRow key={item.id}>
+                <TableRow key={item.id} className="hover:bg-muted/30 transition-colors">
                   <TableCell>
                     <Badge variant="outline">{item.category}</Badge>
                   </TableCell>
@@ -449,9 +463,15 @@ export default function AdminFinancials() {
           </Table>
         </CardContent>
       </Card>
+      </motion.div>
 
       {/* Revenue Projection Summary */}
-      <Card>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.75 }}
+      >
+      <Card className="hover:border-primary/20 transition-colors">
         <CardHeader>
           <CardTitle className="text-lg">Revenue Projection & Net Profit Summary</CardTitle>
         </CardHeader>
@@ -472,7 +492,6 @@ export default function AdminFinancials() {
                 {(() => {
                   const clientMap = new Map((clients ?? []).map((c) => [c.id, c]));
                   const allPayments = payments ?? [];
-                  // Group by client
                   const byClient: Record<string, { name: string; status: string; months: number[] }> = {};
                   for (const p of allPayments) {
                     if (p.payment_year !== 2026 || p.payment_month < 1 || p.payment_month > 6) continue;
@@ -497,7 +516,7 @@ export default function AdminFinancials() {
                       {entries.map((e) => {
                         const total = e.months.reduce((s, v) => s + v, 0);
                         return (
-                          <TableRow key={e.name}>
+                          <TableRow key={e.name} className="hover:bg-muted/30 transition-colors">
                             <TableCell className="font-medium whitespace-nowrap">{e.name}</TableCell>
                             <TableCell className="text-center">
                               <Badge variant="outline" className={`text-xs ${statusColor[e.status] ?? ""}`}>{e.status}</Badge>
@@ -562,7 +581,7 @@ export default function AdminFinancials() {
                       const profit = r.rev - r.exp;
                       const margin = r.rev > 0 ? (profit / r.rev) * 100 : 0;
                       return (
-                        <TableRow key={r.label} className={r.label.includes("Combined") ? "font-bold border-t-2 border-border" : ""}>
+                        <TableRow key={r.label} className={`hover:bg-muted/30 transition-colors ${r.label.includes("Combined") ? "font-bold border-t-2 border-border" : ""}`}>
                           <TableCell>{r.label}</TableCell>
                           <TableCell className="text-right font-mono">{formatCurrency(r.rev)}</TableCell>
                           <TableCell className="text-right font-mono text-destructive">{formatCurrency(r.exp)}</TableCell>
@@ -578,9 +597,15 @@ export default function AdminFinancials() {
           })()}
         </CardContent>
       </Card>
+      </motion.div>
 
       {/* Payment History */}
-      <Card>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.8 }}
+      >
+      <Card className="hover:border-primary/20 transition-colors">
         <CardHeader>
           <CardTitle className="text-lg">Payment History</CardTitle>
         </CardHeader>
@@ -599,7 +624,7 @@ export default function AdminFinancials() {
                 {(payments ?? []).map((p) => {
                   const isProjected = p.notes === "Projected";
                   return (
-                    <TableRow key={p.id} className={isProjected ? "opacity-70" : ""}>
+                    <TableRow key={p.id} className={`hover:bg-muted/30 transition-colors ${isProjected ? "opacity-70" : ""}`}>
                       <TableCell className="font-medium">
                         {(p.clients as { name: string } | null)?.name ?? "Unknown"}
                       </TableCell>
@@ -622,6 +647,7 @@ export default function AdminFinancials() {
           </div>
         </CardContent>
       </Card>
+      </motion.div>
     </div>
   );
 }
