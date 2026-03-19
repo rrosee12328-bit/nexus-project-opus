@@ -27,13 +27,13 @@ interface AssetPreviewDialogProps {
 export function AssetPreviewDialog({
   asset,
   open,
-  downloadUrl,
   onOpenChange,
 }: AssetPreviewDialogProps) {
   const handleDownload = () => {
-    if (!downloadUrl) return;
-    const popup = window.open(downloadUrl, "_blank", "noopener,noreferrer");
-    if (!popup) window.location.assign(downloadUrl);
+    if (!asset?.id) return;
+    const downloadPath = `/download/${asset.id}`;
+    const popup = window.open(downloadPath, "_blank", "noopener,noreferrer");
+    if (!popup) window.location.assign(downloadPath);
   };
   const [resolvedPreviewUrl, setResolvedPreviewUrl] = useState<string | null>(null);
   const [resolvedPreviewFile, setResolvedPreviewFile] = useState<Blob | null>(null);
@@ -146,7 +146,7 @@ export function AssetPreviewDialog({
         </div>
 
         <div className="flex justify-end gap-2 pt-2">
-          {downloadUrl ? (
+          {asset?.id ? (
             <Button variant="outline" onClick={handleDownload}>
               <Download className="h-4 w-4 mr-2" /> Download
             </Button>

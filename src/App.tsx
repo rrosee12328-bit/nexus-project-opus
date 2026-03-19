@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import AssetDownload from "./pages/AssetDownload";
 
 import AdminLayout from "./layouts/AdminLayout";
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -47,6 +48,14 @@ const App = () => (
             {/* Public */}
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route
+              path="/download/:assetId"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "ops", "client"]}>
+                  <AssetDownload />
+                </ProtectedRoute>
+              }
+            />
 
             {/* Admin Portal */}
             <Route
