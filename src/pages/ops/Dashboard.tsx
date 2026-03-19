@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, GripVertical, CheckSquare, Clock, AlertTriangle, TrendingUp } from "lucide-react";
+import { motion } from "framer-motion";
 import type { Database } from "@/integrations/supabase/types";
 
 type Task = Database["public"]["Tables"]["tasks"]["Row"];
@@ -99,27 +100,43 @@ export default function OpsDashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
         <h1 className="text-2xl font-bold tracking-tight">Ops Dashboard</h1>
         <p className="text-muted-foreground">Your team's task overview and project status.</p>
-      </div>
+      </motion.div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats_icons.map((s, i) => (
-          <Card key={s.label}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{s.label}</CardTitle>
-              <s.icon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold font-mono">{statValues[i]}</div>
-            </CardContent>
-          </Card>
+          <motion.div
+            key={s.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 + i * 0.07 }}
+          >
+            <Card className="hover:border-primary/20 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">{s.label}</CardTitle>
+                <s.icon className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold font-mono">{statValues[i]}</div>
+              </CardContent>
+            </Card>
+          </motion.div>
         ))}
       </div>
 
       {/* Kanban Board */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.4 }}
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+      >
         {columns.map((col) => (
           <div key={col.key} className="flex flex-col">
             <div className="flex items-center justify-between mb-3 px-1">
@@ -136,7 +153,7 @@ export default function OpsDashboard() {
             </div>
             <div className="flex flex-col gap-2 min-h-[200px] rounded-lg border border-border bg-surface/50 p-2">
               {tasksByStatus(col.key).map((task) => (
-                <Card key={task.id} className="cursor-default">
+                <Card key={task.id} className="cursor-default hover:border-primary/20 transition-colors">
                   <CardContent className="p-3 space-y-2">
                     <div className="flex items-start gap-2">
                       <GripVertical className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
@@ -177,7 +194,7 @@ export default function OpsDashboard() {
             </div>
           </div>
         ))}
-      </div>
+      </motion.div>
 
       {/* Add Task Dialog */}
       <Dialog open={!!addColumn} onOpenChange={(open) => !open && setAddColumn(null)}>
