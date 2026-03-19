@@ -23,6 +23,11 @@ export default function OpsSettings() {
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
 
+  // Password state
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
   // Notification preferences (local state — no DB table for these yet)
   const [notifTaskAssigned, setNotifTaskAssigned] = useState(true);
   const [notifTaskCompleted, setNotifTaskCompleted] = useState(true);
