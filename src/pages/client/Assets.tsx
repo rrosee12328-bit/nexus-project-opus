@@ -330,7 +330,7 @@ export default function ClientAssets() {
 
       {/* Preview Dialog */}
       <Dialog open={!!previewAsset} onOpenChange={(open) => { if (!open) { setPreviewAsset(null); setPreviewUrl(null); } }}>
-        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle className="truncate pr-8">{previewAsset?.file_name}</DialogTitle>
           </DialogHeader>
@@ -342,24 +342,16 @@ export default function ClientAssets() {
                 className="w-full h-auto rounded-lg"
               />
             )}
-            {previewUrl && previewAsset?.file_type === "application/pdf" && (
-              <iframe
-                src={previewUrl}
-                className="w-full h-[70vh] rounded-lg border-0"
-                title={previewAsset.file_name}
-              />
-            )}
-            {!previewUrl && (
-              <div className="flex justify-center py-12">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            )}
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button
               variant="outline"
               onClick={() => previewAsset && handleDownload(previewAsset.file_path, previewAsset.file_name)}
             >
+              <Download className="h-4 w-4 mr-2" /> Download
+            </Button>
+          </div>
+        </DialogContent>
               <Download className="h-4 w-4 mr-2" /> Download
             </Button>
           </div>
