@@ -50,8 +50,6 @@ export default function ClientPayments() {
     );
   }
 
-  return (
-    <div className="space-y-8">
   const exportCSV = () => {
     if (!payments?.length) return;
     const rows = [
@@ -73,6 +71,8 @@ export default function ClientPayments() {
     URL.revokeObjectURL(url);
   };
 
+  return (
+    <div className="space-y-8">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
