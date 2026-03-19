@@ -129,11 +129,12 @@ export default function ClientAssets() {
   }, []);
 
   const handleDownloadUrl = (asset: Asset) => {
-    const { data } = supabase.storage.from("client-assets").getPublicUrl(asset.file_path, {
-      download: asset.file_name,
-    });
+    const { data } = supabase.storage.from("client-assets").getPublicUrl(asset.file_path);
+    const downloadParam = asset.file_name
+      ? `download=${encodeURIComponent(asset.file_name)}`
+      : "download";
 
-    return data.publicUrl;
+    return `${data.publicUrl}?${downloadParam}`;
   };
 
   const uploads = assets.filter((a) => a.category === "upload");
