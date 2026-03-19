@@ -1,16 +1,20 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { DollarSign, TrendingUp, TrendingDown, Download, Wallet } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Download, Wallet, Plus, Pencil, Trash2 } from "lucide-react";
 import { Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Line, ComposedChart, Legend } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
+import ExpenseCrudDialog from "@/components/financials/ExpenseCrudDialog";
+import InvestmentCrudDialog from "@/components/financials/InvestmentCrudDialog";
+import OverheadCrudDialog from "@/components/financials/OverheadCrudDialog";
 
 const statusColor: Record<string, string> = {
   active: "bg-success/20 text-success border-success/30",
