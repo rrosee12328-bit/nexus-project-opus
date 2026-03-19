@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
+import { motion } from "framer-motion";
 
 function formatCurrency(val: number) {
   return new Intl.NumberFormat("en-US", {
@@ -130,31 +131,47 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
         <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground">Overview of your agency operations.</p>
-      </div>
+      </motion.div>
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((s) => (
-          <Card key={s.label} className="group hover:border-primary/20 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{s.label}</CardTitle>
-              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <s.icon className={`h-4 w-4 ${s.color}`} />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold font-mono">{s.value}</div>
-            </CardContent>
-          </Card>
+        {stats.map((s, i) => (
+          <motion.div
+            key={s.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 + i * 0.07 }}
+          >
+            <Card className="group hover:border-primary/20 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">{s.label}</CardTitle>
+                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <s.icon className={`h-4 w-4 ${s.color}`} />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold font-mono">{s.value}</div>
+              </CardContent>
+            </Card>
+          </motion.div>
         ))}
       </div>
 
       {/* Main content grid */}
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Active Projects */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+        >
         <Card className="flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">
@@ -196,8 +213,14 @@ export default function AdminDashboard() {
             )}
           </CardContent>
         </Card>
+        </motion.div>
 
         {/* Pending Tasks */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.5 }}
+        >
         <Card className="flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">
@@ -241,8 +264,14 @@ export default function AdminDashboard() {
             )}
           </CardContent>
         </Card>
+        </motion.div>
 
         {/* Recent Messages */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.6 }}
+        >
         <Card className="flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">
@@ -283,8 +312,14 @@ export default function AdminDashboard() {
             )}
           </CardContent>
         </Card>
+        </motion.div>
 
         {/* Quick Actions & Alerts */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.7 }}
+        >
         <Card className="flex flex-col">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -358,6 +393,7 @@ export default function AdminDashboard() {
             </div>
           </CardContent>
         </Card>
+        </motion.div>
       </div>
     </div>
   );
