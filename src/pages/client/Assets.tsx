@@ -128,25 +128,27 @@ export default function ClientAssets() {
     handleFiles(e.dataTransfer.files);
   }, []);
 
+  const getAssetUrl = useCallback((asset: Asset, options?: { download?: boolean }) => {
+    const { data } = supabase.storage.from("client-assets").getPublicUrl(asset.file_path);
+
+    if (!options?.download) {
+      return data.publicUrl;
+    }
+
+    const separator = data.publicUrl.includes("?") ? "&" : "?";
+    return `${data.publicUrl}${separator}download=${encodeURIComponent(asset.file_name)}`;
+  }, []);
+
   const handleDownload = async (asset: Asset) => {
-    const { data, error } = await supabase.storage
-      .from("client-assets")
-      .download(asset.file_path);
-
-    if (error) throw error;
-
-    const objectUrl = URL.createObjectURL(data);
     const link = document.createElement("a");
-    link.href = objectUrl;
-    link.download = asset.file_name;
-    link.rel = "noopener";
+    link.href = getAssetUrl(asset, { download: true });
+    link.rel = "noopener noreferrer";
+    link.target = "_blank";
     link.style.display = "none";
 
     document.body.appendChild(link);
     link.click();
     link.remove();
-
-    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
   };
 
   const uploads = assets.filter((a) => a.category === "upload");
