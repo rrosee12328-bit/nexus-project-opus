@@ -483,8 +483,11 @@ export default function AdminFinancials() {
         transition={{ duration: 0.5, delay: 0.7 }}
       >
       <Card className="hover:border-primary/20 transition-colors">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Business Overhead</CardTitle>
+          <Button variant="outline" size="sm" onClick={() => { setEditingOverhead(null); setOverheadOpen(true); }}>
+            <Plus className="h-4 w-4 mr-1" /> Add
+          </Button>
         </CardHeader>
         <CardContent>
           <Table>
@@ -494,6 +497,7 @@ export default function AdminFinancials() {
                 <TableHead>Item</TableHead>
                 <TableHead>Details</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="text-right w-24">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -505,6 +509,14 @@ export default function AdminFinancials() {
                   <TableCell className="font-medium">{item.name}</TableCell>
                   <TableCell className="text-muted-foreground text-sm">{item.details ?? "—"}</TableCell>
                   <TableCell className="text-right font-mono">{formatCurrency(Number(item.amount))}</TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingOverhead(item); setOverheadOpen(true); }}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteOverhead.mutate(item.id)}>
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
               <TableRow className="font-bold border-t-2 border-border">
@@ -512,6 +524,7 @@ export default function AdminFinancials() {
                 <TableCell className="text-right font-mono">
                   {formatCurrency((overhead ?? []).reduce((s, o) => s + Number(o.amount), 0))}
                 </TableCell>
+                <TableCell />
               </TableRow>
             </TableBody>
           </Table>
