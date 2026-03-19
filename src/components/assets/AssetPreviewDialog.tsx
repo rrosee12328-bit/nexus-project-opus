@@ -4,6 +4,7 @@ import { Download, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
+import { PdfPreview } from "@/components/assets/PdfPreview";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +31,7 @@ export function AssetPreviewDialog({
   onOpenChange,
 }: AssetPreviewDialogProps) {
   const [resolvedPreviewUrl, setResolvedPreviewUrl] = useState<string | null>(null);
+  const [resolvedPreviewFile, setResolvedPreviewFile] = useState<Blob | null>(null);
   const [previewKind, setPreviewKind] = useState<"image" | "pdf" | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -41,6 +43,7 @@ export function AssetPreviewDialog({
     const loadPreview = async () => {
       if (!open || !asset) {
         setResolvedPreviewUrl(null);
+        setResolvedPreviewFile(null);
         setPreviewKind(null);
         setPreviewError(null);
         setIsLoading(false);
@@ -52,6 +55,7 @@ export function AssetPreviewDialog({
 
       if (!isImage && !isPdf) {
         setResolvedPreviewUrl(null);
+        setResolvedPreviewFile(null);
         setPreviewKind(null);
         setPreviewError("Preview is not available for this file type.");
         setIsLoading(false);
@@ -60,6 +64,7 @@ export function AssetPreviewDialog({
 
       setIsLoading(true);
       setResolvedPreviewUrl(null);
+      setResolvedPreviewFile(null);
       setPreviewKind(null);
       setPreviewError(null);
 
@@ -70,16 +75,21 @@ export function AssetPreviewDialog({
 
         if (error) throw error;
 
-        objectUrl = URL.createObjectURL(
-          new Blob([data], {
-            type: asset.file_type || data.type || "application/octet-stream",
-          })
-        );
+        const previewBlob = data.type
+          ? data
+          : new Blob([data], {
+              type: asset.file_type || "application/octet-stream",
+            });
 
         if (!isActive) return;
 
-        setResolvedPreviewUrl(objectUrl);
+        setResolvedPreviewFile(previewBlob);
         setPreviewKind(isPdf ? "pdf" : "image");
+
+        if (isImage) {
+          objectUrl = URL.createObjectURL(previewBlob);
+          setResolvedPreviewUrl(objectUrl);
+        }
       } catch (error) {
         console.error("Asset preview failed", error);
         if (!isActive) return;
@@ -90,7 +100,7 @@ export function AssetPreviewDialog({
       }
     };
 
-    loadPreview();
+    void loadPreview();
 
     return () => {
       isActive = false;
@@ -119,12 +129,8 @@ export function AssetPreviewDialog({
             <img src={resolvedPreviewUrl} alt={asset.file_name} className="w-full h-auto rounded-lg" />
           )}
 
-          {!isLoading && resolvedPreviewUrl && previewKind === "pdf" && asset && (
-            <iframe
-              src={resolvedPreviewUrl}
-              title={asset.file_name}
-              className="h-[70vh] w-full rounded-lg border"
-            />
+          {!isLoading && resolvedPreviewFile && previewKind === "pdf" && asset && (
+            <PdfPreview file={resolvedPreviewFile} fileName={asset.file_name} />
           )}
 
           {!isLoading && previewError && (
