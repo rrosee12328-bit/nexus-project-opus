@@ -152,11 +152,24 @@ export default function ClientAssets() {
     uploadMutation.mutate(Array.from(files));
   };
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragging(false);
-    handleFiles(e.dataTransfer.files);
-  }, []);
+  const handleDownload = async (asset: Asset) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from("client-assets")
+        .download(asset.file_path);
+      if (error) throw error;
+      const url = URL.createObjectURL(data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = asset.file_name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Failed to download file");
+    }
+  };
 
   const uploads = assets.filter((a) => a.category === "upload");
   const deliverables = assets.filter((a) => a.category === "deliverable");
