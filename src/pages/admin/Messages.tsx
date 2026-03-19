@@ -125,7 +125,7 @@ export default function AdminMessages() {
         <p className="text-muted-foreground">Real-time conversations with your clients.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4 h-[600px]">
+      <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-4 h-[600px]">
         {/* Client list */}
         <Card className="overflow-hidden flex flex-col">
           <div className="p-3 border-b border-border">
