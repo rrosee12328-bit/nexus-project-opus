@@ -715,6 +715,11 @@ export default function AdminFinancials() {
         </CardContent>
       </Card>
       </motion.div>
+
+      {/* CRUD Dialogs */}
+      <ExpenseCrudDialog open={expenseOpen} onOpenChange={setExpenseOpen} editing={editingExpense} />
+      <InvestmentCrudDialog open={investmentOpen} onOpenChange={setInvestmentOpen} editing={editingInvestment} />
+      <OverheadCrudDialog open={overheadOpen} onOpenChange={setOverheadOpen} editing={editingOverhead} />
     </div>
   );
 }
