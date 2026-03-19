@@ -31,7 +31,7 @@ interface AssetPreviewDialogProps {
 export function AssetPreviewDialog({
   asset,
   open,
-  onDownload,
+  getDownloadUrl,
   onOpenChange,
 }: AssetPreviewDialogProps) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
