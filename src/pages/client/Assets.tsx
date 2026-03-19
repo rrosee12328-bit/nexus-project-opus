@@ -18,6 +18,7 @@ import {
   Eye,
 } from "lucide-react";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
 
 function getFileIcon(fileType: string | null) {
   if (!fileType) return FileText;
@@ -86,11 +87,8 @@ export default function ClientAssets() {
           const { data, error } = await supabase.storage
             .from("client-assets")
             .createSignedUrl(asset.file_path, 60 * 60);
-
           if (error) throw error;
-
           const separator = data.signedUrl.includes("?") ? "&" : "?";
-
           return [
             asset.id,
             {
@@ -100,7 +98,6 @@ export default function ClientAssets() {
           ] as const;
         })
       );
-
       return Object.fromEntries(entries) as AssetLinks;
     },
     enabled: assets.length > 0,
@@ -110,15 +107,12 @@ export default function ClientAssets() {
   const uploadMutation = useMutation({
     mutationFn: async (files: File[]) => {
       if (!clientId || !user?.id) throw new Error("Not linked to a client");
-
       for (const file of files) {
         const filePath = `${clientId}/${Date.now()}-${file.name}`;
         const { error: uploadError } = await supabase.storage
           .from("client-assets")
           .upload(filePath, file);
-
         if (uploadError) throw uploadError;
-
         const { error: insertError } = await supabase.from("assets").insert({
           client_id: clientId,
           uploaded_by: user.id,
@@ -128,7 +122,6 @@ export default function ClientAssets() {
           file_type: file.type,
           category: "upload",
         });
-
         if (insertError) throw insertError;
       }
     },
@@ -182,28 +175,17 @@ export default function ClientAssets() {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{asset.file_name}</p>
             <p className="text-xs text-muted-foreground">
-              {formatFileSize(asset.file_size)} · {new Date(asset.created_at).toLocaleDateString()}
+              <span className="font-mono">{formatFileSize(asset.file_size)}</span> · {new Date(asset.created_at).toLocaleDateString()}
             </p>
           </div>
           <div className="flex gap-1">
             {canPreview && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setPreviewAsset(asset)}
-                title="Preview"
-                disabled={!urls?.previewUrl}
-              >
+              <Button variant="ghost" size="icon" onClick={() => setPreviewAsset(asset)} title="Preview" disabled={!urls?.previewUrl}>
                 <Eye className="h-4 w-4" />
               </Button>
             )}
             {urls?.downloadUrl ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                title="Download"
-                onClick={() => openDownload(asset.id)}
-              >
+              <Button variant="ghost" size="icon" title="Download" onClick={() => openDownload(asset.id)}>
                 <Download className="h-4 w-4" />
               </Button>
             ) : (
@@ -229,53 +211,63 @@ export default function ClientAssets() {
 
   return (
     <div className="space-y-8">
-      <div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
         <h1 className="text-2xl font-bold tracking-tight">Assets & Deliverables</h1>
         <p className="text-muted-foreground mt-1">Upload files for your projects and access completed deliverables.</p>
-      </div>
+      </motion.div>
 
-      <Card
-        className={`border-dashed border-2 transition-colors cursor-pointer group ${
-          dragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"
-        }`}
-        onClick={() => fileInputRef.current?.click()}
-        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={handleDrop}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
       >
-        <CardContent className="py-12 flex flex-col items-center text-center gap-4">
-          {uploadMutation.isPending ? (
-            <>
-              <Loader2 className="h-10 w-10 animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground">Uploading…</p>
-            </>
-          ) : (
-            <>
-              <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                <Upload className="h-7 w-7 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Drag & drop files here</h3>
-                <p className="text-sm text-muted-foreground mt-1">or click to browse</p>
-              </div>
-              <div className="flex gap-6 text-muted-foreground/50 mt-1">
-                <div className="flex flex-col items-center gap-1">
-                  <FileImage className="h-5 w-5" />
-                  <span className="text-xs">Images</span>
+        <Card
+          className={`border-dashed border-2 transition-colors cursor-pointer group ${
+            dragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"
+          }`}
+          onClick={() => fileInputRef.current?.click()}
+          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={handleDrop}
+        >
+          <CardContent className="py-12 flex flex-col items-center text-center gap-4">
+            {uploadMutation.isPending ? (
+              <>
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">Uploading…</p>
+              </>
+            ) : (
+              <>
+                <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                  <Upload className="h-7 w-7 text-primary" />
                 </div>
-                <div className="flex flex-col items-center gap-1">
-                  <FileVideo className="h-5 w-5" />
-                  <span className="text-xs">Videos</span>
+                <div>
+                  <h3 className="font-semibold">Drag & drop files here</h3>
+                  <p className="text-sm text-muted-foreground mt-1">or click to browse</p>
                 </div>
-                <div className="flex flex-col items-center gap-1">
-                  <FileText className="h-5 w-5" />
-                  <span className="text-xs">Documents</span>
+                <div className="flex gap-6 text-muted-foreground/50 mt-1">
+                  <div className="flex flex-col items-center gap-1">
+                    <FileImage className="h-5 w-5" />
+                    <span className="text-xs">Images</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <FileVideo className="h-5 w-5" />
+                    <span className="text-xs">Videos</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <FileText className="h-5 w-5" />
+                    <span className="text-xs">Documents</span>
+                  </div>
                 </div>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
 
       <input
         ref={fileInputRef}
@@ -286,39 +278,57 @@ export default function ClientAssets() {
       />
 
       {deliverables.length > 0 && (
-        <div className="space-y-3">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+          className="space-y-3"
+        >
           <h2 className="text-lg font-semibold">Deliverables from your team</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {deliverables.map((asset) => (
               <AssetCard key={asset.id} asset={asset} variant="deliverable" />
             ))}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {uploads.length > 0 && (
-        <div className="space-y-3">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.25 }}
+          className="space-y-3"
+        >
           <h2 className="text-lg font-semibold">Your uploads</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {uploads.map((asset) => (
               <AssetCard key={asset.id} asset={asset} variant="upload" />
             ))}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {!isLoading && assets.length === 0 && (
-        <Card className="bg-card/50">
-          <CardContent className="py-12 flex flex-col items-center text-center gap-3">
-            <FolderOpen className="h-10 w-10 text-muted-foreground/30" />
-            <div>
-              <p className="font-medium text-muted-foreground">No files yet</p>
-              <p className="text-sm text-muted-foreground/70 mt-0.5">
-                Upload your first file to get started. Your team can also share deliverables here.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+        >
+          <Card className="border-dashed border-2 border-border">
+            <CardContent className="py-16 flex flex-col items-center text-center gap-4">
+              <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <FolderOpen className="h-8 w-8 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">No files yet</h3>
+                <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                  Upload your first file to get started. Your team can also share deliverables here.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
       )}
 
       {isLoading && (

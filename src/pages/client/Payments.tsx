@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DollarSign, TrendingUp, Calendar, Receipt } from "lucide-react";
+import { motion } from "framer-motion";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -51,116 +52,117 @@ export default function ClientPayments() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
         <h1 className="text-2xl font-bold tracking-tight">Payment History</h1>
         <p className="text-muted-foreground mt-1">
           View all your payments and billing history with Vektiss.
         </p>
-      </div>
+      </motion.div>
 
       {/* Summary cards */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="border-border">
-          <CardContent className="pt-6 flex items-center gap-4">
-            <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <DollarSign className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total Paid</p>
-              <p className="text-2xl font-bold tracking-tight">
-                ${totalPaid.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border">
-          <CardContent className="pt-6 flex items-center gap-4">
-            <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <TrendingUp className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">{currentYear} Total</p>
-              <p className="text-2xl font-bold tracking-tight">
-                ${thisYearTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border">
-          <CardContent className="pt-6 flex items-center gap-4">
-            <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <Calendar className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Payments Made</p>
-              <p className="text-2xl font-bold tracking-tight">{(payments ?? []).length}</p>
-            </div>
-          </CardContent>
-        </Card>
+        {[
+          { icon: DollarSign, label: "Total Paid", value: `$${totalPaid.toLocaleString("en-US", { minimumFractionDigits: 2 })}` },
+          { icon: TrendingUp, label: `${currentYear} Total`, value: `$${thisYearTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}` },
+          { icon: Calendar, label: "Payments Made", value: String((payments ?? []).length) },
+        ].map((card, i) => (
+          <motion.div
+            key={card.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 + i * 0.07 }}
+          >
+            <Card className="border-border hover:border-primary/20 transition-colors">
+              <CardContent className="pt-6 flex items-center gap-4">
+                <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <card.icon className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">{card.label}</p>
+                  <p className="text-2xl font-bold tracking-tight font-mono">{card.value}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
       </div>
 
       {/* Payment table */}
       {(payments ?? []).length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Receipt className="h-5 w-5 text-primary" />
-              All Payments
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Period</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead className="hidden sm:table-cell">Notes</TableHead>
-                  <TableHead className="text-right">Date Recorded</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {payments!.map((payment) => (
-                  <TableRow key={payment.id}>
-                    <TableCell className="font-medium">
-                      {MONTH_NAMES[payment.payment_month - 1]} {payment.payment_year}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="font-mono font-semibold">
-                        ${Number(payment.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell text-muted-foreground text-sm">
-                      {payment.notes || "—"}
-                    </TableCell>
-                    <TableCell className="text-right text-sm text-muted-foreground">
-                      {new Date(payment.created_at).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
-                    </TableCell>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.35 }}
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Receipt className="h-5 w-5 text-primary" />
+                All Payments
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Period</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead className="hidden sm:table-cell">Notes</TableHead>
+                    <TableHead className="text-right">Date Recorded</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                </TableHeader>
+                <TableBody>
+                  {payments!.map((payment) => (
+                    <TableRow key={payment.id} className="hover:bg-muted/30 transition-colors">
+                      <TableCell className="font-medium">
+                        {MONTH_NAMES[payment.payment_month - 1]} {payment.payment_year}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="font-mono font-semibold">
+                          ${Number(payment.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell text-muted-foreground text-sm">
+                        {payment.notes || "—"}
+                      </TableCell>
+                      <TableCell className="text-right text-sm text-muted-foreground">
+                        {new Date(payment.created_at).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </motion.div>
       ) : (
-        <Card className="border-dashed border-2 border-border">
-          <CardContent className="py-16 flex flex-col items-center text-center gap-4">
-            <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <Receipt className="h-8 w-8 text-primary" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold">No payments yet</h3>
-              <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-                Your payment history will appear here once billing begins.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+        >
+          <Card className="border-dashed border-2 border-border">
+            <CardContent className="py-16 flex flex-col items-center text-center gap-4">
+              <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <Receipt className="h-8 w-8 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">No payments yet</h3>
+                <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                  Your payment history will appear here once billing begins.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
       )}
     </div>
   );

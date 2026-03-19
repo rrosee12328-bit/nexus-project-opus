@@ -16,6 +16,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 
 const PHASE_LABELS: Record<string, string> = {
   discovery: "Discovery",
@@ -78,7 +79,12 @@ export default function ClientDashboard() {
   return (
     <div className="space-y-8">
       {/* Hero greeting */}
-      <div className="rounded-2xl border border-border bg-gradient-to-br from-primary/5 via-card to-card p-8">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="rounded-2xl border border-border bg-gradient-to-br from-primary/5 via-card to-card p-8"
+      >
         <div className="flex items-start justify-between">
           <div>
             <p className="text-muted-foreground text-sm mb-1">{greeting},</p>
@@ -91,61 +97,47 @@ export default function ClientDashboard() {
             <Sparkles className="h-12 w-12 text-primary/20" />
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Quick action cards */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card
-          className="group cursor-pointer border-border hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
-          onClick={() => navigate("/portal/projects")}
-        >
-          <CardContent className="pt-6 flex flex-col items-center text-center gap-3">
-            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-              <FolderKanban className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <p className="font-semibold">Projects</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {activeProjects.length} active · {completedProjects.length} completed
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card
-          className="group cursor-pointer border-border hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
-          onClick={() => navigate("/portal/assets")}
-        >
-          <CardContent className="pt-6 flex flex-col items-center text-center gap-3">
-            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-              <Upload className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <p className="font-semibold">Assets</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Upload files & deliverables</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card
-          className="group cursor-pointer border-border hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
-          onClick={() => navigate("/portal/messages")}
-        >
-          <CardContent className="pt-6 flex flex-col items-center text-center gap-3">
-            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-              <MessageSquare className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <p className="font-semibold">Messages</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Talk to your team</p>
-            </div>
-          </CardContent>
-        </Card>
+        {[
+          { icon: FolderKanban, label: "Projects", sub: `${activeProjects.length} active · ${completedProjects.length} completed`, path: "/portal/projects" },
+          { icon: Upload, label: "Assets", sub: "Upload files & deliverables", path: "/portal/assets" },
+          { icon: MessageSquare, label: "Messages", sub: "Talk to your team", path: "/portal/messages" },
+        ].map((item, i) => (
+          <motion.div
+            key={item.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.15 + i * 0.07 }}
+          >
+            <Card
+              className="group cursor-pointer border-border hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
+              onClick={() => navigate(item.path)}
+            >
+              <CardContent className="pt-6 flex flex-col items-center text-center gap-3">
+                <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                  <item.icon className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold">{item.label}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{item.sub}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
       </div>
 
       {/* Active projects */}
       {activeProjects.length > 0 && (
-        <div className="space-y-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.4 }}
+          className="space-y-4"
+        >
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <Clock className="h-5 w-5 text-primary" />
@@ -157,57 +149,68 @@ export default function ClientDashboard() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            {activeProjects.slice(0, 4).map((project) => (
-              <Card
+            {activeProjects.slice(0, 4).map((project, i) => (
+              <motion.div
                 key={project.id}
-                className="cursor-pointer hover:border-primary/30 transition-all duration-300"
-                onClick={() => navigate("/portal/projects")}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.5 + i * 0.07 }}
               >
-                <CardContent className="pt-5 space-y-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold truncate">{project.name}</h3>
-                      {project.description && (
-                        <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">{project.description}</p>
-                      )}
+                <Card
+                  className="cursor-pointer hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
+                  onClick={() => navigate("/portal/projects")}
+                >
+                  <CardContent className="pt-5 space-y-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold truncate">{project.name}</h3>
+                        {project.description && (
+                          <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">{project.description}</p>
+                        )}
+                      </div>
+                      <Badge variant="secondary" className="shrink-0 gap-1">
+                        <span>{PHASE_ICONS[project.current_phase] ?? "📋"}</span>
+                        {PHASE_LABELS[project.current_phase]}
+                      </Badge>
                     </div>
-                    <Badge variant="secondary" className="shrink-0 gap-1">
-                      <span>{PHASE_ICONS[project.current_phase] ?? "📋"}</span>
-                      {PHASE_LABELS[project.current_phase]}
-                    </Badge>
-                  </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Progress</span>
-                      <span className="font-mono font-semibold text-primary">{project.progress}%</span>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Progress</span>
+                        <span className="font-mono font-semibold text-primary">{project.progress}%</span>
+                      </div>
+                      <Progress value={project.progress} className="h-2" />
                     </div>
-                    <Progress value={project.progress} className="h-2" />
-                  </div>
 
-                  {project.target_date && (
-                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                      <Rocket className="h-3 w-3" />
-                      Target launch: {new Date(project.target_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
+                    {project.target_date && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                        <Rocket className="h-3 w-3" />
+                        Target launch: {new Date(project.target_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
             ))}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Completed projects */}
       {completedProjects.length > 0 && (
-        <div className="space-y-3">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.55 }}
+          className="space-y-3"
+        >
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-success" />
             Completed
           </h2>
           <div className="grid gap-3 md:grid-cols-2">
             {completedProjects.map((project) => (
-              <Card key={project.id} className="bg-card/50 border-border/50">
+              <Card key={project.id} className="bg-card/50 border-border/50 hover:border-primary/20 transition-colors">
                 <CardContent className="pt-4 pb-4 flex items-center justify-between">
                   <div>
                     <h3 className="font-medium text-sm">{project.name}</h3>
@@ -220,24 +223,30 @@ export default function ClientDashboard() {
               </Card>
             ))}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Empty state */}
       {(projects ?? []).length === 0 && (
-        <Card className="border-dashed border-2 border-border">
-          <CardContent className="py-16 flex flex-col items-center text-center gap-4">
-            <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <Rocket className="h-8 w-8 text-primary" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold">Your projects are being set up</h3>
-              <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-                Your Vektiss team is preparing your project workspace. You'll see your projects here once they're ready.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+        >
+          <Card className="border-dashed border-2 border-border">
+            <CardContent className="py-16 flex flex-col items-center text-center gap-4">
+              <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <Rocket className="h-8 w-8 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Your projects are being set up</h3>
+                <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                  Your Vektiss team is preparing your project workspace. You'll see your projects here once they're ready.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
       )}
     </div>
   );
