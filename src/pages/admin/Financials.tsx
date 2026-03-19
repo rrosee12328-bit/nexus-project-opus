@@ -31,7 +31,41 @@ function formatCurrency(val: number) {
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export default function AdminFinancials() {
+  const queryClient = useQueryClient();
   const [chartView, setChartView] = useState<"actual" | "projected" | "all">("all");
+
+  // CRUD dialog state
+  const [expenseOpen, setExpenseOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<any>(null);
+  const [investmentOpen, setInvestmentOpen] = useState(false);
+  const [editingInvestment, setEditingInvestment] = useState<any>(null);
+  const [overheadOpen, setOverheadOpen] = useState(false);
+  const [editingOverhead, setEditingOverhead] = useState<any>(null);
+
+  const deleteExpense = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("expenses").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Expense deleted"); queryClient.invalidateQueries({ queryKey: ["expenses"] }); },
+    onError: () => toast.error("Failed to delete"),
+  });
+  const deleteInvestment = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("investments").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Investment deleted"); queryClient.invalidateQueries({ queryKey: ["investments"] }); },
+    onError: () => toast.error("Failed to delete"),
+  });
+  const deleteOverhead = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("business_overhead").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Overhead deleted"); queryClient.invalidateQueries({ queryKey: ["business-overhead"] }); },
+    onError: () => toast.error("Failed to delete"),
+  });
   const { data: payments } = useQuery({
     queryKey: ["all-payments"],
     queryFn: async () => {
