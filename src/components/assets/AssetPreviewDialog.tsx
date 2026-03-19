@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 
+import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,28 +11,92 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 type Asset = Tables<"assets">;
 
 interface AssetPreviewDialogProps {
   asset: Asset | null;
   open: boolean;
-  previewUrl: string | null;
-  downloadUrl: string | null;
+  previewUrl?: string | null;
+  downloadUrl?: string | null;
   onOpenChange: (open: boolean) => void;
 }
 
 export function AssetPreviewDialog({
   asset,
   open,
-  previewUrl,
   downloadUrl,
   onOpenChange,
 }: AssetPreviewDialogProps) {
-  const isImage = asset?.file_type?.startsWith("image") ?? false;
-  const isPdf = asset?.file_type === "application/pdf";
-  const isPreviewable = isImage || isPdf;
-  const isWaitingForUrl = !!asset && isPreviewable && !previewUrl;
+  const [resolvedPreviewUrl, setResolvedPreviewUrl] = useState<string | null>(null);
+  const [previewKind, setPreviewKind] = useState<"image" | "pdf" | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isActive = true;
+    let objectUrl: string | null = null;
+
+    const loadPreview = async () => {
+      if (!open || !asset) {
+        setResolvedPreviewUrl(null);
+        setPreviewKind(null);
+        setPreviewError(null);
+        setIsLoading(false);
+        return;
+      }
+
+      const isImage = asset.file_type?.startsWith("image") ?? false;
+      const isPdf = asset.file_type === "application/pdf";
+
+      if (!isImage && !isPdf) {
+        setResolvedPreviewUrl(null);
+        setPreviewKind(null);
+        setPreviewError("Preview is not available for this file type.");
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setResolvedPreviewUrl(null);
+      setPreviewKind(null);
+      setPreviewError(null);
+
+      try {
+        const { data, error } = await supabase.storage
+          .from("client-assets")
+          .download(asset.file_path);
+
+        if (error) throw error;
+
+        objectUrl = URL.createObjectURL(
+          new Blob([data], {
+            type: asset.file_type || data.type || "application/octet-stream",
+          })
+        );
+
+        if (!isActive) return;
+
+        setResolvedPreviewUrl(objectUrl);
+        setPreviewKind(isPdf ? "pdf" : "image");
+      } catch (error) {
+        console.error("Asset preview failed", error);
+        if (!isActive) return;
+        setPreviewError("Couldn't load a preview for this file.");
+        toast.error("Failed to load preview");
+      } finally {
+        if (isActive) setIsLoading(false);
+      }
+    };
+
+    loadPreview();
+
+    return () => {
+      isActive = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [asset, open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -43,33 +109,27 @@ export function AssetPreviewDialog({
         </DialogHeader>
 
         <div className="flex-1 overflow-auto min-h-0">
-          {isWaitingForUrl && (
+          {isLoading && (
             <div className="flex justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           )}
 
-          {!isWaitingForUrl && asset && previewUrl && isImage && (
-            <img src={previewUrl} alt={asset.file_name} className="w-full h-auto rounded-lg" />
+          {!isLoading && resolvedPreviewUrl && previewKind === "image" && asset && (
+            <img src={resolvedPreviewUrl} alt={asset.file_name} className="w-full h-auto rounded-lg" />
           )}
 
-          {!isWaitingForUrl && asset && previewUrl && isPdf && (
+          {!isLoading && resolvedPreviewUrl && previewKind === "pdf" && asset && (
             <iframe
-              src={previewUrl}
+              src={resolvedPreviewUrl}
               title={asset.file_name}
               className="h-[70vh] w-full rounded-lg border"
             />
           )}
 
-          {!isWaitingForUrl && asset && !isPreviewable && (
+          {!isLoading && previewError && (
             <div className="flex min-h-40 items-center justify-center rounded-lg border border-dashed px-6 text-center text-sm text-muted-foreground">
-              Preview is not available for this file type.
-            </div>
-          )}
-
-          {!isWaitingForUrl && asset && isPreviewable && !previewUrl && (
-            <div className="flex min-h-40 items-center justify-center rounded-lg border border-dashed px-6 text-center text-sm text-muted-foreground">
-              Couldn&apos;t load a preview for this file.
+              {previewError}
             </div>
           )}
         </div>
