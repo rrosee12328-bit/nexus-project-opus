@@ -358,6 +358,7 @@ export default function AdminFinancials() {
                   <TableHead>Date</TableHead>
                   <TableHead>Notes</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="text-right w-24">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
