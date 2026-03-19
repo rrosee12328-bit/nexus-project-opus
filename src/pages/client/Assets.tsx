@@ -137,7 +137,7 @@ export default function ClientAssets() {
 
     if (error) throw error;
 
-    const signedPath = data.signedUrl ?? data.signedURL;
+    const signedPath = data.signedUrl;
     if (!signedPath) throw new Error("Missing signed download URL");
 
     return signedPath.startsWith("http")
