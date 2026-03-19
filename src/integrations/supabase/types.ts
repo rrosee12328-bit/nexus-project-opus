@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      assets: {
+        Row: {
+          category: string
+          client_id: string
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string | null
+          id: string
+          uploaded_by: string
+        }
+        Insert: {
+          category?: string
+          client_id: string
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number
+          file_type?: string | null
+          id?: string
+          uploaded_by: string
+        }
+        Update: {
+          category?: string
+          client_id?: string
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          file_type?: string | null
+          id?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assets_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_overhead: {
         Row: {
           amount: number
