@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { User, Bell, Palette, Save, Mail, Shield } from "lucide-react";
+import { User, Bell, Palette, Save, Mail, Shield, Lock } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function OpsSettings() {
@@ -22,6 +22,11 @@ export default function OpsSettings() {
   // Profile state
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+
+  // Password state
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   // Notification preferences (local state — no DB table for these yet)
   const [notifTaskAssigned, setNotifTaskAssigned] = useState(true);
@@ -66,6 +71,29 @@ export default function OpsSettings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile", user?.id] });
       toast({ title: "Profile updated" });
+    },
+    onError: (err: Error) =>
+      toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const changePassword = useMutation({
+    mutationFn: async () => {
+      if (!newPassword || !confirmPassword) throw new Error("Please fill in all password fields");
+      if (newPassword.length < 6) throw new Error("New password must be at least 6 characters");
+      if (newPassword !== confirmPassword) throw new Error("Passwords do not match");
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user!.email!,
+        password: currentPassword,
+      });
+      if (signInError) throw new Error("Current password is incorrect");
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      toast({ title: "Password updated successfully" });
     },
     onError: (err: Error) =>
       toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -175,6 +203,58 @@ export default function OpsSettings() {
                     >
                       <Save className="h-4 w-4" />
                       {updateProfile.isPending ? "Saving..." : "Save Changes"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            <motion.div {...anim(0.2)}>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Lock className="h-4 w-4 text-muted-foreground" /> Change Password
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label>Current Password</Label>
+                      <Input
+                        type="password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="••••••••"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>New Password</Label>
+                      <Input
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Min. 6 characters"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Confirm New Password</Label>
+                      <Input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="••••••••"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button
+                      onClick={() => changePassword.mutate()}
+                      disabled={changePassword.isPending || !currentPassword || !newPassword || !confirmPassword}
+                      variant="outline"
+                      className="gap-2"
+                    >
+                      <Lock className="h-4 w-4" />
+                      {changePassword.isPending ? "Updating..." : "Update Password"}
                     </Button>
                   </div>
                 </CardContent>
