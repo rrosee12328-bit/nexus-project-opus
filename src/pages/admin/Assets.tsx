@@ -138,27 +138,7 @@ export default function AdminAssets() {
     onError: () => toast.error("Failed to delete"),
   });
 
-  const getPublicUrl = (filePath: string) => {
-    const { data } = supabase.storage.from("client-assets").getPublicUrl(filePath);
-    return data.publicUrl;
-  };
-
-  const handleDownload = async (filePath: string, fileName: string) => {
-    try {
-      const { data, error } = await supabase.storage.from("client-assets").download(filePath);
-      if (error) throw error;
-      const url = URL.createObjectURL(data);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch {
-      toast.error("Failed to download file");
-    }
-  };
+  // Removed old blob-download; using standalone /download/:assetId route now
 
   const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return;
