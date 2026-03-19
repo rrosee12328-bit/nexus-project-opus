@@ -29,6 +29,7 @@ import {
   Eye,
 } from "lucide-react";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
 
 function getFileIcon(fileType: string | null) {
   if (!fileType) return FileText;
@@ -132,8 +133,6 @@ export default function AdminAssets() {
     onError: () => toast.error("Failed to delete"),
   });
 
-  // Removed old blob-download; using standalone /download/:assetId route now
-
   const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return;
     uploadMutation.mutate(Array.from(files));
@@ -147,7 +146,7 @@ export default function AdminAssets() {
     const Icon = getFileIcon(asset.file_type);
     const canPreview = isPreviewable(asset.file_type);
     return (
-      <Card>
+      <Card className="hover:border-primary/20 transition-colors">
         <CardContent className="pt-3 pb-3 flex items-center gap-3">
           <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${
             asset.category === "deliverable" ? "bg-primary/10" : "bg-accent/50"
@@ -156,7 +155,7 @@ export default function AdminAssets() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{asset.file_name}</p>
-            <p className="text-xs text-muted-foreground">{formatFileSize(asset.file_size)}</p>
+            <p className="text-xs text-muted-foreground font-mono">{formatFileSize(asset.file_size)}</p>
           </div>
           <div className="flex gap-1">
             {canPreview && (
@@ -188,12 +187,21 @@ export default function AdminAssets() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
         <h1 className="text-2xl font-bold tracking-tight">Asset Management</h1>
         <p className="text-muted-foreground">Upload deliverables and view client uploads.</p>
-      </div>
+      </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+        className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-4"
+      >
         {/* Client list */}
         <Card className="flex flex-col overflow-hidden">
           <div className="p-3 border-b border-border">
@@ -229,7 +237,9 @@ export default function AdminAssets() {
           {!selectedClientId ? (
             <Card className="h-[400px] flex items-center justify-center">
               <div className="text-center">
-                <FolderOpen className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+                <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                  <FolderOpen className="h-8 w-8 text-primary/40" />
+                </div>
                 <p className="font-semibold">Select a client</p>
                 <p className="text-sm text-muted-foreground mt-1">Choose a client to manage their assets.</p>
               </div>
@@ -237,7 +247,7 @@ export default function AdminAssets() {
           ) : (
             <>
               {/* Upload controls */}
-              <Card>
+              <Card className="hover:border-primary/20 transition-colors">
                 <CardContent className="pt-4 pb-4 flex flex-wrap items-center gap-3">
                   <div className="flex items-center gap-2 flex-1 min-w-[200px]">
                     <Package className="h-4 w-4 text-primary" />
@@ -293,10 +303,15 @@ export default function AdminAssets() {
               )}
 
               {!isLoading && assets.length === 0 && (
-                <Card className="bg-card/50">
-                  <CardContent className="py-12 flex flex-col items-center text-center gap-3">
-                    <FolderOpen className="h-10 w-10 text-muted-foreground/30" />
-                    <p className="text-sm text-muted-foreground">No assets for this client yet.</p>
+                <Card className="border-dashed border-2">
+                  <CardContent className="py-16 flex flex-col items-center text-center gap-3">
+                    <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                      <FolderOpen className="h-8 w-8 text-primary/40" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">No assets yet</p>
+                      <p className="text-sm text-muted-foreground mt-1">Upload your first file to get started.</p>
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -309,7 +324,7 @@ export default function AdminAssets() {
             </>
           )}
         </div>
-      </div>
+      </motion.div>
 
       <AssetPreviewDialog
         asset={previewAsset}

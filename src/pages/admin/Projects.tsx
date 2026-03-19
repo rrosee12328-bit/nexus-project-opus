@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,7 @@ import {
   Circle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
 import { Constants } from "@/integrations/supabase/types";
 
 const PHASE_LABELS: Record<string, string> = {
@@ -55,8 +56,8 @@ const STATUS_LABELS: Record<string, string> = {
 const STATUS_COLORS: Record<string, string> = {
   not_started: "bg-muted text-muted-foreground",
   in_progress: "bg-primary/10 text-primary",
-  completed: "bg-green-500/10 text-green-600",
-  on_hold: "bg-yellow-500/10 text-yellow-700",
+  completed: "bg-success/20 text-success",
+  on_hold: "bg-warning/20 text-warning",
 };
 
 const STATUS_ICONS: Record<string, typeof Circle> = {
@@ -182,7 +183,6 @@ export default function AdminProjects() {
   // Delete project
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      // Phases cascade-delete via FK
       const { error } = await supabase.from("projects").delete().eq("id", id);
       if (error) throw error;
     },
@@ -245,9 +245,21 @@ export default function AdminProjects() {
     return acc;
   }, {});
 
+  const statItems = [
+    { label: "Total", value: projects.length, color: "text-foreground" },
+    { label: "In Progress", value: projects.filter((p) => p.status === "in_progress").length, color: "text-primary" },
+    { label: "Completed", value: projects.filter((p) => p.status === "completed").length, color: "text-success" },
+    { label: "On Hold", value: projects.filter((p) => p.status === "on_hold").length, color: "text-warning" },
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="flex items-center justify-between"
+      >
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Project Management</h1>
           <p className="text-muted-foreground">Create, edit, and track project phases.</p>
@@ -255,22 +267,24 @@ export default function AdminProjects() {
         <Button onClick={openCreate}>
           <Plus className="h-4 w-4 mr-2" /> New Project
         </Button>
-      </div>
+      </motion.div>
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-4">
-        {[
-          { label: "Total", value: projects.length, color: "text-foreground" },
-          { label: "In Progress", value: projects.filter((p) => p.status === "in_progress").length, color: "text-primary" },
-          { label: "Completed", value: projects.filter((p) => p.status === "completed").length, color: "text-green-600" },
-          { label: "On Hold", value: projects.filter((p) => p.status === "on_hold").length, color: "text-yellow-600" },
-        ].map((s) => (
-          <Card key={s.label}>
-            <CardContent className="pt-4 pb-4 text-center">
-              <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-              <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
-            </CardContent>
-          </Card>
+        {statItems.map((s, i) => (
+          <motion.div
+            key={s.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 + i * 0.07 }}
+          >
+            <Card className="hover:border-primary/20 transition-colors">
+              <CardContent className="pt-4 pb-4 text-center">
+                <p className={`text-2xl font-bold font-mono ${s.color}`}>{s.value}</p>
+                <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
+              </CardContent>
+            </Card>
+          </motion.div>
         ))}
       </div>
 
@@ -281,8 +295,14 @@ export default function AdminProjects() {
       )}
 
       {/* Projects grouped by client */}
-      {Object.entries(groupedByClient).map(([clientName, clientProjects]) => (
-        <div key={clientName} className="space-y-3">
+      {Object.entries(groupedByClient).map(([clientName, clientProjects], groupIdx) => (
+        <motion.div
+          key={clientName}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 + groupIdx * 0.08 }}
+          className="space-y-3"
+        >
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{clientName}</h2>
           <div className="grid gap-3">
             {clientProjects.map((project) => {
@@ -339,22 +359,30 @@ export default function AdminProjects() {
               );
             })}
           </div>
-        </div>
+        </motion.div>
       ))}
 
       {!isLoading && projects.length === 0 && (
-        <Card className="border-dashed border-2">
-          <CardContent className="py-16 flex flex-col items-center text-center gap-4">
-            <FolderKanban className="h-12 w-12 text-muted-foreground/30" />
-            <div>
-              <h3 className="font-semibold text-lg">No projects yet</h3>
-              <p className="text-sm text-muted-foreground mt-1">Create your first project to get started.</p>
-            </div>
-            <Button onClick={openCreate}>
-              <Plus className="h-4 w-4 mr-2" /> New Project
-            </Button>
-          </CardContent>
-        </Card>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+        >
+          <Card className="border-dashed border-2">
+            <CardContent className="py-16 flex flex-col items-center text-center gap-4">
+              <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <FolderKanban className="h-8 w-8 text-primary/40" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg">No projects yet</h3>
+                <p className="text-sm text-muted-foreground mt-1">Create your first project to get started.</p>
+              </div>
+              <Button onClick={openCreate}>
+                <Plus className="h-4 w-4 mr-2" /> New Project
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
       )}
 
       {/* Create/Edit Dialog */}
@@ -408,7 +436,7 @@ export default function AdminProjects() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Progress: {form.progress}%</Label>
+              <Label>Progress: <span className="font-mono">{form.progress}%</span></Label>
               <Slider
                 value={[form.progress]}
                 onValueChange={([v]) => setForm({ ...form, progress: v })}
@@ -447,25 +475,23 @@ export default function AdminProjects() {
             {phases.map((phase) => {
               const StatusIcon = STATUS_ICONS[phase.status] || Circle;
               return (
-                <div key={phase.id} className="flex items-center gap-3 rounded-lg border border-border p-3">
+                <div key={phase.id} className="flex items-center gap-3 rounded-lg border border-border p-3 hover:border-primary/20 transition-colors">
                   <StatusIcon className={`h-5 w-5 shrink-0 ${
-                    phase.status === "completed" ? "text-green-600" :
+                    phase.status === "completed" ? "text-success" :
                     phase.status === "in_progress" ? "text-primary" : "text-muted-foreground"
                   }`} />
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm">{PHASE_LABELS[phase.phase]}</p>
-                    {phase.started_at && (
-                      <p className="text-xs text-muted-foreground">Started {new Date(phase.started_at).toLocaleDateString()}</p>
-                    )}
-                    {phase.completed_at && (
-                      <p className="text-xs text-green-600">Completed {new Date(phase.completed_at).toLocaleDateString()}</p>
-                    )}
+                    <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
+                      {phase.started_at && <span>Started: {new Date(phase.started_at).toLocaleDateString()}</span>}
+                      {phase.completed_at && <span>Done: {new Date(phase.completed_at).toLocaleDateString()}</span>}
+                    </div>
                   </div>
                   <Select
                     value={phase.status}
                     onValueChange={(v) => updatePhaseMutation.mutate({ id: phase.id, status: v })}
                   >
-                    <SelectTrigger className="w-[130px]">
+                    <SelectTrigger className="w-[130px] h-8 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -477,30 +503,22 @@ export default function AdminProjects() {
                 </div>
               );
             })}
-            {phases.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-4">No phases found for this project.</p>
-            )}
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
+      {/* Delete Dialog */}
       <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
-        <DialogContent>
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Delete Project</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Are you sure? This will permanently delete this project and all its phases. This action cannot be undone.
+          <p className="text-sm text-muted-foreground py-2">
+            This will permanently delete this project and all its phases. This action cannot be undone.
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
-            <Button
-              variant="destructive"
-              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+            <Button variant="destructive" onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget)}>
               Delete
             </Button>
           </DialogFooter>

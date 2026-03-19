@@ -11,9 +11,10 @@ import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
-import { UserCheck, UserPlus, DollarSign, PhoneCall, Plus, MoreHorizontal, Pencil, Trash2, ChevronDown, ChevronRight, FileText, Calendar, Briefcase } from "lucide-react";
+import { UserCheck, UserPlus, DollarSign, PhoneCall, Plus, MoreHorizontal, Pencil, Trash2, ChevronDown, ChevronRight, FileText, Calendar, Briefcase, Users } from "lucide-react";
 import { ClientFormDialog } from "@/components/ClientFormDialog";
 import { DeleteClientDialog } from "@/components/DeleteClientDialog";
+import { motion } from "framer-motion";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
@@ -117,10 +118,10 @@ export default function AdminClients() {
   const pendingSetup = actualClients.reduce((s, c) => s + (c.balance_due ?? 0), 0);
 
   const stats = [
-    { label: "Active Clients", value: activeClients.length, icon: UserCheck },
-    { label: "Onboarding", value: onboardingClients.length, icon: UserPlus },
-    { label: "Leads", value: leads.length, icon: PhoneCall },
-    { label: "Monthly Recurring", value: formatCurrency(mrr), icon: DollarSign },
+    { label: "Active Clients", value: activeClients.length, icon: UserCheck, color: "text-primary" },
+    { label: "Onboarding", value: onboardingClients.length, icon: UserPlus, color: "text-warning" },
+    { label: "Leads", value: leads.length, icon: PhoneCall, color: "text-purple-400" },
+    { label: "Monthly Recurring", value: formatCurrency(mrr), icon: DollarSign, color: "text-emerald-400" },
   ];
 
   const openEdit = (c: Client) => { setEditClient(c); setFormOpen(true); };
@@ -146,32 +147,54 @@ export default function AdminClients() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="flex items-center justify-between"
+      >
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Client Management</h1>
           <p className="text-muted-foreground">View and manage all clients, payments, and services.</p>
         </div>
         <Button onClick={openAdd}><Plus className="mr-2 h-4 w-4" /> Add Client</Button>
-      </div>
+      </motion.div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((s) => (
-          <Card key={s.label}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{s.label}</CardTitle>
-              <s.icon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold font-mono">{s.value}</div>
-            </CardContent>
-          </Card>
+        {stats.map((s, i) => (
+          <motion.div
+            key={s.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 + i * 0.07 }}
+          >
+            <Card className="group hover:border-primary/20 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">{s.label}</CardTitle>
+                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <s.icon className={`h-4 w-4 ${s.color}`} />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold font-mono">{s.value}</div>
+              </CardContent>
+            </Card>
+          </motion.div>
         ))}
       </div>
 
       {/* Clients with expandable summaries */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.4 }}
+      >
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Clients</CardTitle>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" />
+            Clients
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-0 p-0">
           {isLoading ? (
@@ -179,7 +202,16 @@ export default function AdminClients() {
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             </div>
           ) : actualClients.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">No clients yet.</p>
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <Users className="h-8 w-8 text-primary/40" />
+              </div>
+              <div className="text-center">
+                <p className="font-semibold">No clients yet</p>
+                <p className="text-sm text-muted-foreground mt-1">Add your first client to get started.</p>
+              </div>
+              <Button onClick={openAdd} size="sm"><Plus className="mr-2 h-4 w-4" /> Add Client</Button>
+            </div>
           ) : (
             <div className="divide-y divide-border">
               {actualClients.map((client) => {
@@ -360,7 +392,7 @@ export default function AdminClients() {
                                     </div>
                                     <div>
                                       <p className="text-xs text-muted-foreground mb-1">Margin</p>
-                                      <p className={`font-mono font-semibold ${margin >= 0 ? "text-success" : "text-destructive"}`}>
+                                      <p className={`font-mono font-semibold ${margin >= 50 ? "text-success" : margin >= 20 ? "text-warning" : "text-destructive"}`}>
                                         {margin.toFixed(1)}%
                                       </p>
                                     </div>
@@ -371,11 +403,10 @@ export default function AdminClients() {
                           })()}
 
                           {parsed.raw && (
-                            <p className="text-sm leading-relaxed">{parsed.raw}</p>
-                          )}
-
-                          {!hasNotes && !(costsByClient[client.id]?.length) && (
-                            <p className="text-sm text-muted-foreground italic">No summary added yet. Edit this client to add services, deliverables, and notes.</p>
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Notes</p>
+                              <p className="text-sm leading-relaxed text-muted-foreground">{parsed.raw}</p>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -387,73 +418,69 @@ export default function AdminClients() {
           )}
         </CardContent>
       </Card>
+      </motion.div>
 
-      {pendingSetup > 0 && (
-        <Card className="border-warning/30">
-          <CardContent className="flex items-center gap-3 py-4">
-            <DollarSign className="h-5 w-5 text-warning" />
-            <span className="text-sm text-warning">
-              Pending setup payments: <span className="font-mono font-bold">{formatCurrency(pendingSetup)}</span>
-            </span>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Leads Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+      {/* Leads */}
+      {leads.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.5 }}
+        >
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
               <PhoneCall className="h-5 w-5 text-purple-400" />
-              <CardTitle className="text-lg">Leads</CardTitle>
-            </div>
-            <Button variant="outline" size="sm" onClick={openAdd}>
-              <Plus className="mr-1 h-3 w-3" /> Add Lead
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {leads.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">No leads yet.</p>
-          ) : (
+              Leads
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {leads.map((lead) => (
-                <div
-                  key={lead.id}
-                  className="group flex items-center gap-3 rounded-lg border border-border bg-surface p-4 transition-colors hover:bg-surface-hover"
-                >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-purple-500/20 text-sm font-bold text-purple-400">
-                    {lead.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{lead.name}</p>
-                    <p className="text-xs text-muted-foreground">{lead.type ?? "No type set"}</p>
-                  </div>
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                    <ActionMenu client={lead} />
-                  </div>
-                </div>
+                <Card key={lead.id} className="hover:border-primary/20 transition-colors">
+                  <CardContent className="pt-4 pb-4">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-medium">{lead.name}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{lead.type ?? "No type"}</p>
+                        {lead.email && <p className="text-xs text-muted-foreground mt-1">{lead.email}</p>}
+                      </div>
+                      <ActionMenu client={lead} />
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Dialogs */}
-      <ClientFormDialog
-        key={editClient?.id ?? "new"}
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        client={editClient}
-      />
-      {deleteTarget && (
-        <DeleteClientDialog
-          open={!!deleteTarget}
-          onOpenChange={(open) => !open && setDeleteTarget(null)}
-          clientId={deleteTarget.id}
-          clientName={deleteTarget.name}
-        />
+          </CardContent>
+        </Card>
+        </motion.div>
       )}
+
+      {/* Pending Setup Alert */}
+      {pendingSetup > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.6 }}
+        >
+        <Card className="border-warning/30 bg-warning/5">
+          <CardContent className="pt-4 pb-4 flex items-center gap-4">
+            <div className="h-10 w-10 rounded-lg bg-warning/20 flex items-center justify-center shrink-0">
+              <DollarSign className="h-5 w-5 text-warning" />
+            </div>
+            <div>
+              <p className="font-semibold">Pending Setup Payments</p>
+              <p className="text-sm text-muted-foreground">
+                <span className="font-mono font-medium text-warning">{formatCurrency(pendingSetup)}</span> in outstanding setup fees across {actualClients.filter((c) => (c.balance_due ?? 0) > 0).length} clients
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+        </motion.div>
+      )}
+
+      <ClientFormDialog open={formOpen} onOpenChange={setFormOpen} editClient={editClient} />
+      <DeleteClientDialog client={deleteTarget} onClose={() => setDeleteTarget(null)} />
     </div>
   );
 }
