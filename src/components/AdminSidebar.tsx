@@ -6,6 +6,7 @@ import {
   DollarSign,
   Settings,
   LogOut,
+  Upload,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -28,6 +29,7 @@ const navItems = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
   { title: "Client Management", url: "/admin/clients", icon: Users },
   { title: "Project Management", url: "/admin/projects", icon: FolderKanban },
+  { title: "Assets", url: "/admin/assets", icon: Upload },
   { title: "Messages", url: "/admin/messages", icon: MessageSquare },
   { title: "Financial Tracking", url: "/admin/financials", icon: DollarSign },
   { title: "Settings", url: "/admin/settings", icon: Settings },
