@@ -25,6 +25,7 @@ import {
   TrendingUp, Pencil, Trash2, Filter, Calendar, ArrowUpDown,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import TaskDetailDialog from "@/components/tasks/TaskDetailDialog";
 import type { Database } from "@/integrations/supabase/types";
 
 type Task = Database["public"]["Tables"]["tasks"]["Row"];
