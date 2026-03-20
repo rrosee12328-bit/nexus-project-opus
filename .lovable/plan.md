@@ -1,55 +1,31 @@
 
 
-## Plan: Auto-Invite Client on First Payment
+## Plan: Read Receipts for Messages
 
-Instead of an admin manually clicking "Send Invite," the system automatically creates the client's account and sends the welcome email the moment their first payment is recorded.
+### What it does
+- When a client opens their Messages page, all unread messages from admins are automatically marked as read (`read_at` timestamp set)
+- Admin messages view shows read/unread indicators: a blue dot on unread messages, checkmark icons on read ones
+- Client list sidebar shows unread message count per client
 
-### How it works
+### Changes
 
-```text
-Admin records payment for a client (who has an email but no user_id)
-        ↓
-DB trigger detects: first payment + client has email + no user_id
-        ↓
-Trigger enqueues a message to invoke the invite-client edge function
-        ↓
-Edge function creates auth user, links user_id to client record
-        ↓
-Welcome email sent via Resend with "Set Your Password" link
-        ↓
-Client receives email → sets password → logs into portal
-```
+**1. Client Messages page (`src/pages/client/Messages.tsx`)**
+- Add a `useEffect` that fires when messages load: calls `UPDATE messages SET read_at = now() WHERE client_id = X AND sender_id != user.id AND read_at IS NULL`
+- This marks all admin-sent messages as read when the client views them
 
-### What gets built
+**2. Admin Messages page (`src/pages/admin/Messages.tsx`)**
+- Fetch unread counts per client (messages where `sender_id` is the client's `user_id` and `read_at IS NULL`)
+- Show unread count badge on client list items (blue dot or number)
+- On each message bubble from the client, show a subtle "read" or "unread" indicator (e.g., `CheckCheck` icon for read, or a blue dot for unread)
+- Add a query for unread counts grouped by `client_id`
+- When admin opens a client's chat, auto-mark client-sent messages as read (same pattern as client side)
 
-1. **Edge function: `invite-client`**
-   - Receives a `client_id`, looks up the client record
-   - Uses `auth.admin.createUser()` to create the auth user (email confirmed, random password)
-   - Updates `clients.user_id` with the new auth user ID
-   - Generates a recovery link via `auth.admin.generateLink({ type: 'recovery' })`
-   - Sends a branded "Welcome to Vektiss" email via the transactional queue with the password-set link
-   - Skips silently if the client already has a `user_id` (idempotent)
+**3. No database changes needed**
+- The `messages` table already has a `read_at` column
+- RLS already allows clients to UPDATE their messages and admins have ALL access
 
-2. **DB trigger: `auto_invite_on_first_payment`**
-   - Fires AFTER INSERT on `client_payments`
-   - Checks: does this client have an email but no `user_id`? Is this not a "Projected" payment?
-   - If yes, calls the `invite-client` edge function via `net.http_post` (using pg_net)
-   - If the client already has a `user_id`, does nothing
-
-3. **Welcome email template**
-   - Branded HTML: "Welcome to Vektiss"
-   - Explains the portal (projects, messages, payments, assets)
-   - CTA: "Set Your Password" linking to the recovery/reset flow
-   - Sent from `noreply@mail.vektiss.com` via Resend
-
-4. **Admin UI indicator**
-   - Show an "Invited" badge on client rows that have a `user_id` set
-   - No manual "Send Invite" button needed (but could add one later as a fallback)
-
-### Safety
-
-- The edge function is idempotent — if `user_id` already exists, it exits early
-- The `handle_new_user` trigger already creates the profile and assigns the `client` role
-- Only fires on real payments (skips "Projected" notes)
-- Uses `SUPABASE_SERVICE_ROLE_KEY` (already configured) for admin API calls
+### Technical details
+- Client-side mark-as-read: `supabase.from('messages').update({ read_at: new Date().toISOString() }).eq('client_id', clientId).neq('sender_id', user.id).is('read_at', null)`
+- Admin-side mark-as-read: same pattern but `.eq('sender_id', clientUserId)` to mark client-sent messages
+- Unread count query: `supabase.from('messages').select('client_id', { count: 'exact' }).is('read_at', null).neq('sender_id', user.id)` grouped client-side
 
