@@ -140,6 +140,8 @@ export default function AdminMessages() {
       setMessage("");
       queryClient.invalidateQueries({ queryKey: ["admin-messages", selectedClientId] });
       queryClient.invalidateQueries({ queryKey: ["admin-latest-messages"] });
+      const clientName = clients.find((c) => c.id === selectedClientId)?.name;
+      logActivity("sent_message", "message", selectedClientId ?? null, `Sent message to ${clientName ?? "client"}`);
     },
     onError: () => toast.error("Failed to send message"),
   });

@@ -194,9 +194,10 @@ export default function AdminProjects() {
       const { error } = await supabase.from("projects").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       toast.success("Project deleted");
       queryClient.invalidateQueries({ queryKey: ["admin-projects"] });
+      logActivity("deleted_project", "project", id, "Deleted a project");
       setDeleteTarget(null);
     },
     onError: () => toast.error("Failed to delete project"),

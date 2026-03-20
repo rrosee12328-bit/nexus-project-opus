@@ -165,9 +165,10 @@ export default function OpsTasks() {
       const { error } = await supabase.from("tasks").update({ status }).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ["ops-tasks"] });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      logActivity("changed_task_status", "task", vars.id, `Changed task status to ${vars.status}`);
     },
   });
 

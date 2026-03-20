@@ -128,9 +128,10 @@ export default function AdminAssets() {
       const { error } = await supabase.from("assets").delete().eq("id", asset.id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, asset) => {
       toast.success("File deleted");
       queryClient.invalidateQueries({ queryKey: ["admin-assets", selectedClientId] });
+      logActivity("deleted_asset", "asset", asset.id, `Deleted file "${asset.file_path.split('/').pop()}"`);
     },
     onError: () => toast.error("Failed to delete"),
   });

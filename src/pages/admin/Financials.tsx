@@ -63,7 +63,7 @@ export default function AdminFinancials() {
       const { error } = await supabase.from("business_overhead").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("Overhead deleted"); queryClient.invalidateQueries({ queryKey: ["business-overhead"] }); },
+    onSuccess: (_data, id) => { toast.success("Overhead deleted"); queryClient.invalidateQueries({ queryKey: ["business-overhead"] }); logActivity("deleted_overhead", "overhead", id, "Deleted an overhead item"); },
     onError: () => toast.error("Failed to delete"),
   });
   const { data: payments } = useQuery({

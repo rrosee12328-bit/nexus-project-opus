@@ -32,6 +32,7 @@ export function DeleteClientDialog({ open, onOpenChange, clientId, clientName }:
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
       toast({ title: "Client deleted" });
+      logActivity("deleted_client", "client", clientId, `Deleted client "${clientName}"`);
       onOpenChange(false);
     },
     onError: (err: Error) => {
