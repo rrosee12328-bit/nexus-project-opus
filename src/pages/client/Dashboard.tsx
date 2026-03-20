@@ -100,6 +100,9 @@ export default function ClientDashboard() {
         </div>
       </motion.div>
 
+      {/* Onboarding checklist */}
+      <OnboardingChecklist />
+
       {/* Quick action cards */}
       <div className="grid gap-4 sm:grid-cols-3">
         {[
