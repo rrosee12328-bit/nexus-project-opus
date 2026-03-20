@@ -157,6 +157,7 @@ export default function AdminSettings() {
             <TabsTrigger value="security" className="gap-2"><Shield className="h-4 w-4" /> Security</TabsTrigger>
             <TabsTrigger value="notifications" className="gap-2"><Bell className="h-4 w-4" /> Notifications</TabsTrigger>
             <TabsTrigger value="reminders" className="gap-2"><Clock className="h-4 w-4" /> Reminders</TabsTrigger>
+            <TabsTrigger value="onboarding" className="gap-2"><Rocket className="h-4 w-4" /> Onboarding</TabsTrigger>
           </TabsList>
         </motion.div>
 
