@@ -23,6 +23,7 @@ import {
   FileText,
   MessageSquarePlus,
   Loader2,
+  History,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -96,6 +97,7 @@ export default function ProjectDetailDialog({ projectId, onClose }: ProjectDetai
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["project-detail", projectId] });
       queryClient.invalidateQueries({ queryKey: ["admin-projects"] });
+      queryClient.invalidateQueries({ queryKey: ["project-activity", projectId] });
       setEditingPhaseId(null);
       toast.success("Note saved");
     },
@@ -110,6 +112,22 @@ export default function ProjectDetailDialog({ projectId, onClose }: ProjectDetai
         .select("*, clients(name), project_phases(*)")
         .eq("id", projectId!)
         .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!projectId,
+  });
+
+  // Fetch activity log
+  const { data: activityLog = [] } = useQuery({
+    queryKey: ["project-activity", projectId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("project_activity_log")
+        .select("*")
+        .eq("project_id", projectId!)
+        .order("created_at", { ascending: false })
+        .limit(20);
       if (error) throw error;
       return data;
     },
@@ -303,7 +321,43 @@ export default function ProjectDetailDialog({ projectId, onClose }: ProjectDetai
             </div>
           )}
 
-          {/* Dates */}
+          {/* Activity Log */}
+          {activityLog.length > 0 && (
+            <>
+              <Separator />
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <History className="h-4 w-4 text-muted-foreground" />
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Recent Activity
+                  </p>
+                </div>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {activityLog.map((entry) => {
+                    const actionIcons: Record<string, string> = {
+                      status_change: "🔄",
+                      phase_change: "📋",
+                      progress_update: "📊",
+                      phase_status_change: "✅",
+                      phase_note: "📝",
+                    };
+                    return (
+                      <div key={entry.id} className="flex items-start gap-3 text-xs py-1.5">
+                        <span className="shrink-0 mt-0.5">{actionIcons[entry.action] || "•"}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-foreground">{entry.details}</p>
+                          <p className="text-muted-foreground mt-0.5">
+                            {formatDistanceToNow(new Date(entry.created_at), { addSuffix: true })}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          )}
+
           {(project.start_date || project.target_date) && (
             <>
               <Separator />
