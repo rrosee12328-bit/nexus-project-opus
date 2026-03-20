@@ -245,6 +245,47 @@ export type Database = {
           },
         ]
       }
+      client_onboarding_steps: {
+        Row: {
+          client_id: string
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          id: string
+          sort_order: number
+          step_key: string
+          title: string
+        }
+        Insert: {
+          client_id: string
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          sort_order?: number
+          step_key: string
+          title: string
+        }
+        Update: {
+          client_id?: string
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          sort_order?: number
+          step_key?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_onboarding_steps_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_payments: {
         Row: {
           amount: number

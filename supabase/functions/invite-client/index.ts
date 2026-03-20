@@ -96,6 +96,107 @@ async function generateRecoveryLink(
   return data.properties?.action_link ?? "";
 }
 
+// ── Welcome project templates by client type ──
+interface ProjectTemplate {
+  name: string;
+  description: string;
+  phases: string[];
+}
+
+const PROJECT_TEMPLATES: Record<string, ProjectTemplate> = {
+  web_design: {
+    name: "Website Project",
+    description: "Your website design and development project with Vektiss.",
+    phases: ["discovery", "design", "development", "review", "launch"],
+  },
+  branding: {
+    name: "Brand Identity Project",
+    description: "Your brand identity and visual design project with Vektiss.",
+    phases: ["discovery", "design", "review", "launch"],
+  },
+  marketing: {
+    name: "Marketing Strategy",
+    description: "Your marketing strategy and campaign project with Vektiss.",
+    phases: ["discovery", "design", "development", "review", "launch"],
+  },
+  default: {
+    name: "Welcome Project",
+    description: "Your project with Vektiss — we'll update this with your specific deliverables.",
+    phases: ["discovery", "design", "development", "review", "launch"],
+  },
+};
+
+// ── Onboarding checklist steps ──
+const ONBOARDING_STEPS = [
+  { step_key: "set_password", title: "Set your password", description: "Create a secure password for your portal account", sort_order: 0 },
+  { step_key: "review_project", title: "Review your project", description: "Check out your project timeline and current phase", sort_order: 1 },
+  { step_key: "upload_assets", title: "Upload brand assets", description: "Share logos, fonts, and brand guidelines with your team", sort_order: 2 },
+  { step_key: "send_message", title: "Send your first message", description: "Introduce yourself or ask a question to your Vektiss team", sort_order: 3 },
+  { step_key: "review_payments", title: "Review payment history", description: "Check your payment records and billing status", sort_order: 4 },
+];
+
+async function createWelcomeProject(
+  supabase: ReturnType<typeof createClient>,
+  clientId: string,
+  clientType: string | null,
+) {
+  const template = PROJECT_TEMPLATES[clientType ?? ""] ?? PROJECT_TEMPLATES.default;
+
+  const { data: project, error: projectErr } = await supabase
+    .from("projects")
+    .insert({
+      client_id: clientId,
+      name: template.name,
+      description: template.description,
+      status: "in_progress",
+      current_phase: "discovery",
+      progress: 0,
+      start_date: new Date().toISOString().split("T")[0],
+    })
+    .select("id")
+    .single();
+
+  if (projectErr) {
+    console.error("Error creating welcome project:", projectErr);
+    return null;
+  }
+
+  // Create project phases
+  const phaseInserts = template.phases.map((phase, i) => ({
+    project_id: project.id,
+    phase,
+    sort_order: i,
+    status: i === 0 ? "in_progress" : "not_started",
+    started_at: i === 0 ? new Date().toISOString() : null,
+  }));
+
+  const { error: phaseErr } = await supabase.from("project_phases").insert(phaseInserts);
+  if (phaseErr) console.error("Error creating project phases:", phaseErr);
+
+  // Log activity
+  await supabase.from("project_activity_log").insert({
+    project_id: project.id,
+    action: "project_created",
+    details: "Welcome project created during onboarding",
+  });
+
+  return project.id;
+}
+
+async function createOnboardingSteps(
+  supabase: ReturnType<typeof createClient>,
+  clientId: string,
+) {
+  const steps = ONBOARDING_STEPS.map((step) => ({
+    client_id: clientId,
+    ...step,
+  }));
+
+  // Mark "set_password" as already completed since they're being invited
+  const { error } = await supabase.from("client_onboarding_steps").insert(steps);
+  if (error) console.error("Error creating onboarding steps:", error);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -119,7 +220,7 @@ Deno.serve(async (req) => {
 
     const { data: client, error: clientErr } = await supabase
       .from("clients")
-      .select("id, name, email, user_id, status")
+      .select("id, name, email, user_id, status, type")
       .eq("id", client_id)
       .single();
 
@@ -179,18 +280,22 @@ Deno.serve(async (req) => {
 
     const { error: updateErr } = await supabase
       .from("clients")
-      .update({ user_id: userId })
+      .update({ user_id: userId, status: "onboarding" })
       .eq("id", client_id);
     if (updateErr) console.error("Error linking user_id:", updateErr);
+
+    // Create welcome project and onboarding steps
+    const projectId = await createWelcomeProject(supabase, client_id, client.type);
+    await createOnboardingSteps(supabase, client_id);
 
     const actionLink = await generateRecoveryLink(supabase, client.email);
     const { html, plainText } = buildWelcomeEmail(client.name || "there", actionLink);
     await enqueueWelcomeEmail(supabase, client.email, html, plainText, client_id, userId);
 
-    console.log(`Invited client ${client.name} (${client.email}), user_id: ${userId}`);
+    console.log(`Invited client ${client.name} (${client.email}), user_id: ${userId}, project: ${projectId}`);
 
     return new Response(
-      JSON.stringify({ success: true, user_id: userId }),
+      JSON.stringify({ success: true, user_id: userId, project_id: projectId }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
