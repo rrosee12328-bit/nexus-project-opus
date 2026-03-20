@@ -51,6 +51,7 @@ export default function OverheadCrudDialog({ open, onOpenChange, editing }: Prop
     onSuccess: () => {
       toast.success(editing ? "Overhead updated" : "Overhead added");
       queryClient.invalidateQueries({ queryKey: ["business-overhead"] });
+      logActivity(editing ? "updated_overhead" : "created_overhead", "overhead", editing?.id ?? null, `${editing ? "Updated" : "Added"} overhead "${name}" ($${amount})`);
       onOpenChange(false);
     },
     onError: (err: Error) => toast.error(err.message),

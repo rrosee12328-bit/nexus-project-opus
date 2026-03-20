@@ -54,6 +54,7 @@ export default function ExpenseCrudDialog({ open, onOpenChange, editing }: Props
     onSuccess: () => {
       toast.success(editing ? "Expense updated" : "Expense added");
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      logActivity(editing ? "updated_expense" : "created_expense", "expense", editing?.id ?? null, `${editing ? "Updated" : "Added"} expense "${type}" ($${amount})`);
       onOpenChange(false);
     },
     onError: (err: Error) => toast.error(err.message),
