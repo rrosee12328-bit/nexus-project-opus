@@ -97,6 +97,7 @@ export default function ProjectDetailDialog({ projectId, onClose }: ProjectDetai
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["project-detail", projectId] });
       queryClient.invalidateQueries({ queryKey: ["admin-projects"] });
+      queryClient.invalidateQueries({ queryKey: ["project-activity", projectId] });
       setEditingPhaseId(null);
       toast.success("Note saved");
     },
