@@ -7,8 +7,8 @@ const corsHeaders = {
 };
 
 const PORTAL_URL = "https://nexus-project-opus.lovable.app";
-const FROM_EMAIL = "Vektiss <noreply@notify.vektiss.com>";
-const SENDER_DOMAIN = "notify.vektiss.com";
+const FROM_EMAIL = "Vektiss <noreply@mail.vektiss.com>";
+const SENDER_DOMAIN = "mail.vektiss.com";
 
 function buildReminderHtml(title: string, body: string, ctaLabel: string, ctaUrl: string): string {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
