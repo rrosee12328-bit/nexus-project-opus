@@ -201,6 +201,22 @@ const TOOLS = [
       parameters: { type: 'object', properties: {}, required: [], additionalProperties: false },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'query_recent_activity',
+      description: 'Get the admin\'s recent activity log — actions they\'ve taken across the platform (creating clients, updating projects, sending messages, etc.). Useful for context about what the admin has been working on.',
+      parameters: {
+        type: 'object',
+        properties: {
+          entity_type: { type: 'string', description: 'Optional filter: client, project, task, expense, investment, overhead, message, asset' },
+          limit: { type: 'number', description: 'Number of recent activities to return (default 20, max 50)' },
+        },
+        required: [],
+        additionalProperties: false,
+      },
+    },
+  },
 ]
 
 const SYSTEM_PROMPT = `You are an AI assistant for Vektiss, a digital agency. You help the admin manage clients, projects, finances, and tasks.
