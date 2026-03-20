@@ -37,10 +37,6 @@ export default function ClientPayments() {
     enabled: !!user?.id,
   });
 
-  const totalPaid = (payments ?? []).reduce((sum, p) => sum + Number(p.amount), 0);
-  const currentYear = new Date().getFullYear();
-  const thisYearPayments = (payments ?? []).filter((p) => p.payment_year === currentYear);
-  const thisYearTotal = thisYearPayments.reduce((sum, p) => sum + Number(p.amount), 0);
 
   if (isLoading) {
     return (

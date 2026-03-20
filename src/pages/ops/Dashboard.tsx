@@ -173,7 +173,7 @@ export default function OpsDashboard() {
                       )}
                     </div>
                     {/* Quick move buttons */}
-                    <div className="flex gap-1 pl-6 pt-1">
+                    <div className="flex gap-1 pl-6 pt-1 flex-wrap">
                       {columns
                         .filter((c) => c.key !== col.key)
                         .map((c) => (
@@ -181,7 +181,7 @@ export default function OpsDashboard() {
                             key={c.key}
                             variant="ghost"
                             size="sm"
-                            className="h-6 text-xs px-2"
+                            className="h-6 text-xs px-1.5 min-w-0"
                             onClick={() => moveTask.mutate({ id: task.id, status: c.key })}
                           >
                             → {c.label}
