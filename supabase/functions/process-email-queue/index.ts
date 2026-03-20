@@ -259,10 +259,9 @@ Deno.serve(async (req) => {
           unsubscribe_token: payload.unsubscribe_token,
           message_id: payload.message_id,
         }
-        // Only include run_id if present (auth emails have it, transactional don't)
-        if (payload.run_id) {
-          emailPayload.run_id = payload.run_id
-        }
+        // run_id is required by the API; auth emails get it from Supabase Auth,
+        // transactional emails generate one.
+        emailPayload.run_id = payload.run_id || crypto.randomUUID()
 
         await sendLovableEmail(
           emailPayload,
