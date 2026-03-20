@@ -97,6 +97,7 @@ export default function ClientDetail() {
   const [form, setForm] = useState<NoteForm>(emptyForm);
   const [deleteTarget, setDeleteTarget] = useState<ClientNote | null>(null);
   const [activeTab, setActiveTab] = useState<string>("all");
+  const [expandedNote, setExpandedNote] = useState<string | null>(null);
 
   const { data: client } = useQuery({
     queryKey: ["client-detail", clientId],
@@ -326,7 +327,10 @@ export default function ClientDetail() {
                   return (
                     <div
                       key={note.id}
-                      className="group relative flex gap-4 rounded-lg border border-border p-4 hover:bg-accent/30 transition-colors"
+                      className={`group relative flex gap-4 rounded-lg border p-4 transition-colors cursor-pointer ${
+                        expandedNote === note.id ? "border-primary/40 bg-accent/40" : "border-border hover:bg-accent/30"
+                      }`}
+                      onClick={() => setExpandedNote(expandedNote === note.id ? null : note.id)}
                     >
                       <div className={`h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 ${cfg.color}`}>
                         <Icon className="h-4 w-4" />
@@ -341,12 +345,13 @@ export default function ClientDetail() {
                                 <Badge
                                   variant="outline"
                                   className={`text-xs cursor-pointer ${STATUS_OPTIONS.find((s) => s.value === note.status)?.color ?? ""}`}
-                                  onClick={() =>
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     toggleActionStatus.mutate({
                                       id: note.id,
                                       status: note.status === "completed" ? "pending" : "completed",
-                                    })
-                                  }
+                                    });
+                                  }}
                                 >
                                   {note.status === "completed" && <CheckCircle2 className="h-3 w-3 mr-1" />}
                                   {STATUS_OPTIONS.find((s) => s.value === note.status)?.label ?? note.status}
@@ -361,10 +366,10 @@ export default function ClientDetail() {
                             </div>
                           </div>
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(note)}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openEdit(note); }}>
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteTarget(note)}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteTarget(note); }}>
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>
@@ -382,10 +387,18 @@ export default function ClientDetail() {
                           </p>
                         )}
 
-                        {note.content && (
-                          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap line-clamp-3">
+                        {note.content && expandedNote !== note.id && (
+                          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap line-clamp-2">
                             {note.content}
                           </p>
+                        )}
+
+                        {note.content && expandedNote === note.id && (
+                          <div className="mt-3 pt-3 border-t border-border">
+                            <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                              {note.content}
+                            </p>
+                          </div>
                         )}
 
                         {note.url && (
@@ -394,6 +407,7 @@ export default function ClientDetail() {
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-sm text-primary hover:underline flex items-center gap-1 mt-1"
+                            onClick={(e) => e.stopPropagation()}
                           >
                             <ExternalLink className="h-3 w-3" /> {note.url.length > 60 ? note.url.slice(0, 60) + "..." : note.url}
                           </a>
@@ -401,6 +415,9 @@ export default function ClientDetail() {
 
                         <p className="text-xs text-muted-foreground/60 pt-1">
                           {formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}
+                          {expandedNote !== note.id && note.content && note.content.length > 150 && (
+                            <span className="ml-2 text-primary">Click to read full entry</span>
+                          )}
                         </p>
                       </div>
                     </div>
