@@ -526,6 +526,9 @@ export default function AdminProjects() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Project Detail Dialog */}
+      <ProjectDetailDialog projectId={detailId} onClose={() => setDetailId(null)} />
     </div>
   );
 }
