@@ -142,7 +142,7 @@ export default function ClientDetail() {
         const { error } = await supabase.from("client_notes").update(payload).eq("id", editingId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("client_notes" as any).insert(payload);
+        const { error } = await supabase.from("client_notes").insert(payload);
         if (error) throw error;
       }
     },
