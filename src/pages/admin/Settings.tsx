@@ -13,7 +13,8 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { User, Lock, Bell, Save, Shield, Clock, RefreshCw, Send } from "lucide-react";
+import { User, Lock, Bell, Save, Shield, Clock, RefreshCw, Send, Rocket } from "lucide-react";
+import { OnboardingTemplatesManager } from "@/components/admin/OnboardingTemplatesManager";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 
