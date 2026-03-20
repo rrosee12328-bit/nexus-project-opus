@@ -210,6 +210,7 @@ export default function OpsTasks() {
       priority: task.priority,
       due_date: task.due_date ?? "",
       client_id: task.client_id ?? "",
+      assigned_to: task.assigned_to ?? "",
     });
     setFormOpen(true);
   };
