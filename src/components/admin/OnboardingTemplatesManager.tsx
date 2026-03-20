@@ -33,7 +33,7 @@ import {
   Save,
   X,
   GripVertical,
-  Layers,
+  
   Star,
 } from "lucide-react";
 import { motion } from "framer-motion";
