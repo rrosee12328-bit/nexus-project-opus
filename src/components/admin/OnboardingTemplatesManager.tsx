@@ -38,8 +38,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-
-const AVAILABLE_PHASES = ["discovery", "design", "development", "review", "launch"];
+import { MAIN_PHASES, ALL_PHASE_KEYS, PHASE_LABELS } from "@/lib/phaseConfig";
 
 interface OnboardingStep {
   step_key: string;
