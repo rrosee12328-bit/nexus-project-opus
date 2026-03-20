@@ -29,6 +29,16 @@ const statuses: { value: ClientStatus; label: string }[] = [
   { value: "closed", label: "Closed" },
 ];
 
+const pipelineStages = [
+  { value: "new", label: "New Lead" },
+  { value: "discovery_call", label: "Discovery Call" },
+  { value: "due_diligence", label: "Due Diligence" },
+  { value: "proposal", label: "Proposal Sent" },
+  { value: "negotiation", label: "Negotiation" },
+  { value: "won", label: "Won" },
+  { value: "lost", label: "Lost" },
+];
+
 interface ClientFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
