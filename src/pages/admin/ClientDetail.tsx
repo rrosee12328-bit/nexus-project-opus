@@ -112,7 +112,7 @@ export default function ClientDetail() {
     queryKey: ["client-notes", clientId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("client_notes" as any)
+        .from("client_notes")
         .select("*")
         .eq("client_id", clientId!)
         .order("created_at", { ascending: false });
@@ -139,10 +139,10 @@ export default function ClientDetail() {
       };
       if (editingId) {
         delete payload.created_by;
-        const { error } = await supabase.from("client_notes" as any).update(payload).eq("id", editingId);
+        const { error } = await supabase.from("client_notes").update(payload).eq("id", editingId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("client_notes" as any).insert(payload);
+        const { error } = await supabase.from("client_notes").insert(payload);
         if (error) throw error;
       }
     },
@@ -163,7 +163,7 @@ export default function ClientDetail() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("client_notes" as any).delete().eq("id", id);
+      const { error } = await supabase.from("client_notes").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -177,7 +177,7 @@ export default function ClientDetail() {
 
   const toggleActionStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await supabase.from("client_notes" as any).update({ status }).eq("id", id);
+      const { error } = await supabase.from("client_notes").update({ status }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
