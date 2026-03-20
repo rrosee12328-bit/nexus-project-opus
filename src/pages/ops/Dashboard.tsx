@@ -56,6 +56,7 @@ export default function OpsDashboard() {
   const [newTitle, setNewTitle] = useState("");
   const [newPriority, setNewPriority] = useState<TaskPriority>("medium");
   const [newDescription, setNewDescription] = useState("");
+  const [newAssignedTo, setNewAssignedTo] = useState("");
   const [selectedTask, setSelectedTask] = useState<TaskWithClient | null>(null);
 
   const { data: tasks } = useQuery({
