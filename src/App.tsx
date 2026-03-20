@@ -101,6 +101,7 @@ const App = () => (
               <Route path="tasks" element={<OpsTasks />} />
               <Route path="timesheets" element={<OpsTimesheets />} />
               <Route path="sops" element={<OpsSops />} />
+              <Route path="agent" element={<OpsAgent />} />
               <Route path="settings" element={<OpsSettings />} />
             </Route>
 
