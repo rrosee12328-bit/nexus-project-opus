@@ -82,6 +82,10 @@ interface ProjectDetailDialogProps {
 }
 
 export default function ProjectDetailDialog({ projectId, onClose }: ProjectDetailDialogProps) {
+  const queryClient = useQueryClient();
+  const [editingPhaseId, setEditingPhaseId] = useState<string | null>(null);
+  const [noteText, setNoteText] = useState("");
+
   const { data: project } = useQuery({
     queryKey: ["project-detail", projectId],
     queryFn: async () => {
