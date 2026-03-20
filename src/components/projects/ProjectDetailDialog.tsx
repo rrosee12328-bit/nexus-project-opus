@@ -21,8 +21,12 @@ import {
   Target,
   Activity,
   FileText,
+  MessageSquarePlus,
+  Loader2,
+  X,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
 
 const PHASE_LABELS: Record<string, string> = {
   discovery: "Discovery",
