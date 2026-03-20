@@ -161,6 +161,7 @@ export function OnboardingTemplatesManager() {
         title: s.title,
         description: s.description,
         sort_order: s.sort_order,
+        ...(s.category ? { category: s.category } : {}),
       }));
       const payload = {
         client_type: formType.trim().toLowerCase().replace(/\s+/g, "_"),
