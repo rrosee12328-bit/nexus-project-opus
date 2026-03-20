@@ -103,6 +103,7 @@ export default function ProjectDetailDialog({ projectId, onClose }: ProjectDetai
     onError: () => toast.error("Failed to save note"),
   });
 
+  const { data: project } = useQuery({
     queryKey: ["project-detail", projectId],
     queryFn: async () => {
       const { data, error } = await supabase
