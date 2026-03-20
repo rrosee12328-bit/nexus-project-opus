@@ -9,13 +9,6 @@ import { motion } from "framer-motion";
 
 import { PHASE_LABELS, PHASE_DESCRIPTIONS } from "@/lib/phaseConfig";
 
-const PHASE_DESCRIPTIONS: Record<string, string> = {
-  discovery: "Understanding your goals, audience, and brand identity",
-  design: "Creating visual concepts and layouts for your approval",
-  development: "Building and implementing the final product",
-  review: "Fine-tuning details based on your feedback",
-  launch: "Final QA and going live",
-};
 
 const STATUS_BADGES: Record<string, { label: string; className: string }> = {
   not_started: { label: "Not Started", className: "bg-muted text-muted-foreground" },

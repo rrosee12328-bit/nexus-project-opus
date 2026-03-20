@@ -40,13 +40,7 @@ import { motion } from "framer-motion";
 import { Constants } from "@/integrations/supabase/types";
 import ProjectDetailDialog from "@/components/projects/ProjectDetailDialog";
 
-const PHASE_LABELS: Record<string, string> = {
-  discovery: "Discovery",
-  design: "Design",
-  development: "Development",
-  review: "Review",
-  launch: "Launch",
-};
+import { PHASE_LABELS } from "@/lib/phaseConfig";
 
 const STATUS_LABELS: Record<string, string> = {
   not_started: "Not Started",

@@ -39,21 +39,7 @@ import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
 
-const PHASE_LABELS: Record<string, string> = {
-  discovery: "Discovery",
-  design: "Design",
-  development: "Development",
-  review: "Review",
-  launch: "Launch",
-};
-
-const PHASE_DESCRIPTIONS: Record<string, string> = {
-  discovery: "Understanding goals, audience, and brand identity",
-  design: "Creating visual concepts and layouts",
-  development: "Building and implementing the final product",
-  review: "Fine-tuning details based on feedback",
-  launch: "Final QA and going live",
-};
+import { PHASE_LABELS, PHASE_DESCRIPTIONS } from "@/lib/phaseConfig";
 
 const STATUS_LABELS: Record<string, string> = {
   not_started: "Not Started",
