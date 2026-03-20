@@ -1,0 +1,1 @@
+ALTER TABLE public.clients ADD COLUMN pipeline_stage text DEFAULT NULL;
