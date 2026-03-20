@@ -97,6 +97,7 @@ export default function AdminProjects() {
   const [form, setForm] = useState<ProjectForm>(emptyForm);
   const [phaseDialogId, setPhaseDialogId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   // Fetch projects with client names
   const { data: projects = [], isLoading } = useQuery({
