@@ -7,3 +7,5 @@ project_id = "xtftehtsfnxsdsfmwkew"
     verify_jwt = true
   [functions.send-transactional-email]
     verify_jwt = false
+  [functions.send-reminders]
+    verify_jwt = true
