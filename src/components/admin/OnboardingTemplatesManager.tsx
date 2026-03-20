@@ -384,7 +384,13 @@ export function OnboardingTemplatesManager() {
                   <div className="pt-2.5 text-muted-foreground/40">
                     <GripVertical className="h-4 w-4" />
                   </div>
-                  <div className="flex-1 grid gap-2 sm:grid-cols-2">
+                  <div className="flex-1 grid gap-2 sm:grid-cols-3">
+                    <Input
+                      value={step.category || ""}
+                      onChange={(e) => updateStep(idx, "category" as keyof OnboardingStep, e.target.value)}
+                      placeholder="Category"
+                      className="text-sm h-8"
+                    />
                     <Input
                       value={step.title}
                       onChange={(e) => updateStep(idx, "title", e.target.value)}
