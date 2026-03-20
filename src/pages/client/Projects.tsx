@@ -7,13 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { CheckCircle2, Circle, Clock, Pause, Calendar, Target, Rocket } from "lucide-react";
 import { motion } from "framer-motion";
 
-const PHASE_LABELS: Record<string, string> = {
-  discovery: "Discovery",
-  design: "Design",
-  development: "Development",
-  review: "Review",
-  launch: "Launch",
-};
+import { PHASE_LABELS, PHASE_DESCRIPTIONS } from "@/lib/phaseConfig";
 
 const PHASE_DESCRIPTIONS: Record<string, string> = {
   discovery: "Understanding your goals, audience, and brand identity",
