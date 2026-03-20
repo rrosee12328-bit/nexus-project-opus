@@ -558,6 +558,8 @@ export default function OpsTasks() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {/* Task Detail Dialog */}
+      <TaskDetailDialog task={selectedTask} open={!!selectedTask} onClose={() => setSelectedTask(null)} />
     </div>
   );
 }
