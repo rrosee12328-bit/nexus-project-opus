@@ -112,7 +112,7 @@ export default function ClientDetail() {
     queryKey: ["client-notes", clientId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("client_notes" as any)
+        .from("client_notes")
         .select("*")
         .eq("client_id", clientId!)
         .order("created_at", { ascending: false });
