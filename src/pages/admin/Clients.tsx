@@ -60,6 +60,7 @@ function parseNotes(notes: string | null): { services?: string; deliverables?: s
 }
 
 export default function AdminClients() {
+  const navigate = useNavigate();
   const [formOpen, setFormOpen] = useState(false);
   const [editClient, setEditClient] = useState<Client | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
