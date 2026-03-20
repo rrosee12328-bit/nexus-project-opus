@@ -73,7 +73,7 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
   const mutation = useMutation({
     mutationFn: async () => {
       if (!form.name?.trim()) throw new Error("Name is required");
-      const payload: ClientInsert = {
+      const payload: any = {
         name: form.name.trim(),
         type: form.type?.trim() || null,
         status: form.status ?? "lead",
@@ -85,6 +85,7 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
         email: form.email?.trim() || null,
         phone: form.phone?.trim() || null,
         notes: form.notes?.trim() || null,
+        pipeline_stage: showPipeline ? (form.pipeline_stage || "new") : null,
       };
 
       if (isEdit) {
