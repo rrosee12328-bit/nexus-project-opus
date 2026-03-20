@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   Pencil, Trash2, Calendar, User, ExternalLink, LinkIcon, Paperclip,
-  Plus, FileText, Upload, Loader2, Download, CheckSquare, Clock, AlertTriangle, TrendingUp,
+  Plus, FileText, Upload, Loader2, Download, CheckSquare, Clock, AlertTriangle, TrendingUp, Star,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
