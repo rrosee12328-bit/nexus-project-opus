@@ -959,6 +959,7 @@ export type Database = {
           assigned_to: string | null
           client_id: string | null
           created_at: string
+          daily_focus: boolean
           description: string | null
           due_date: string | null
           id: string
@@ -972,6 +973,7 @@ export type Database = {
           assigned_to?: string | null
           client_id?: string | null
           created_at?: string
+          daily_focus?: boolean
           description?: string | null
           due_date?: string | null
           id?: string
@@ -985,6 +987,7 @@ export type Database = {
           assigned_to?: string | null
           client_id?: string | null
           created_at?: string
+          daily_focus?: boolean
           description?: string | null
           due_date?: string | null
           id?: string
