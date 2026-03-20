@@ -74,6 +74,7 @@ const App = () => (
             >
               <Route index element={<AdminDashboard />} />
               <Route path="clients" element={<AdminClients />} />
+              <Route path="clients/:clientId" element={<AdminClientDetail />} />
               <Route path="projects" element={<AdminProjects />} />
               <Route path="messages" element={<AdminMessages />} />
               <Route path="assets" element={<AdminAssets />} />
