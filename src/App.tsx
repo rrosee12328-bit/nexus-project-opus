@@ -32,6 +32,7 @@ import OpsTasks from "./pages/ops/Tasks";
 import OpsSops from "./pages/ops/SOPs";
 import OpsTimesheets from "./pages/ops/Timesheets";
 import OpsSettings from "./pages/ops/Settings";
+import OpsAgent from "./pages/ops/Agent";
 
 import ClientLayout from "./layouts/ClientLayout";
 import ClientDashboard from "./pages/client/Dashboard";
