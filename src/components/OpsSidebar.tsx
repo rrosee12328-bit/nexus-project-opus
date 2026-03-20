@@ -36,7 +36,7 @@ export function OpsSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
-  const { signOut } = useAuth();
+  const { signOut, role } = useAuth();
 
   const isActive = (url: string) =>
     url === "/ops"
