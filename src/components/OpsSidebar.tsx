@@ -5,6 +5,7 @@ import {
   Clock,
   Settings,
   LogOut,
+  ArrowLeft,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -35,7 +36,7 @@ export function OpsSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
-  const { signOut } = useAuth();
+  const { signOut, role } = useAuth();
 
   const isActive = (url: string) =>
     url === "/ops"
@@ -78,6 +79,16 @@ export function OpsSidebar() {
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border p-2">
         <SidebarMenu>
+          {role === "admin" && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild className="hover:bg-sidebar-accent">
+                <NavLink to="/admin" className="hover:bg-sidebar-accent" activeClassName="">
+                  <ArrowLeft className="h-4 w-4" />
+                  {!collapsed && <span>Back to Admin</span>}
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
           <SidebarMenuItem>
             <SidebarMenuButton onClick={signOut} className="hover:bg-sidebar-accent">
               <LogOut className="h-4 w-4" />
