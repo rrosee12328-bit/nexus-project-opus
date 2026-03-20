@@ -113,9 +113,11 @@ export default function AdminAssets() {
         if (insertError) throw insertError;
       }
     },
-    onSuccess: () => {
+    onSuccess: (_data, files) => {
       toast.success("Files uploaded");
       queryClient.invalidateQueries({ queryKey: ["admin-assets", selectedClientId] });
+      const clientName = clients.find((c) => c.id === selectedClientId)?.name;
+      logActivity("uploaded_asset", "asset", selectedClientId ?? null, `Uploaded ${files.length} file(s) for ${clientName ?? "client"}`);
     },
     onError: (err: Error) => toast.error(`Upload failed: ${err.message}`),
   });
