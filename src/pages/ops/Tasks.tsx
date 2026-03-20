@@ -150,10 +150,11 @@ export default function OpsTasks() {
       const { error } = await supabase.from("tasks").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       toast.success("Task deleted");
       queryClient.invalidateQueries({ queryKey: ["ops-tasks"] });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      logActivity("deleted_task", "task", id, "Deleted a task");
       setDeleteTarget(null);
     },
     onError: () => toast.error("Failed to delete task"),
