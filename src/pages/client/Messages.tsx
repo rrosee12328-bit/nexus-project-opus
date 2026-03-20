@@ -57,6 +57,22 @@ export default function ClientMessages() {
     return () => { supabase.removeChannel(channel); };
   }, [clientId, queryClient]);
 
+  // Mark incoming (admin-sent) messages as read
+  useEffect(() => {
+    if (!clientId || !user?.id || messages.length === 0) return;
+    const unread = messages.filter((m) => m.sender_id !== user.id && !m.read_at);
+    if (unread.length === 0) return;
+    supabase
+      .from("messages")
+      .update({ read_at: new Date().toISOString() })
+      .eq("client_id", clientId)
+      .neq("sender_id", user.id)
+      .is("read_at", null)
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ["client-messages", clientId] });
+      });
+  }, [clientId, user?.id, messages, queryClient]);
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;

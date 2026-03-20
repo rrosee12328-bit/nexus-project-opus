@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageSquare, Send, Loader2, Users } from "lucide-react";
+import { MessageSquare, Send, Loader2, Users, CheckCheck, Check } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -24,7 +24,7 @@ export default function AdminMessages() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("clients")
-        .select("id, name, status")
+        .select("id, name, status, user_id")
         .in("status", ["active", "onboarding"])
         .order("name");
       if (error) throw error;
@@ -49,6 +49,26 @@ export default function AdminMessages() {
     },
   });
 
+  // Fetch unread counts per client (messages sent by clients that admin hasn't read)
+  const { data: unreadCounts = {} } = useQuery({
+    queryKey: ["admin-unread-counts"],
+    queryFn: async () => {
+      if (!user?.id) return {};
+      const { data, error } = await supabase
+        .from("messages")
+        .select("client_id, id")
+        .is("read_at", null)
+        .neq("sender_id", user.id);
+      if (error) throw error;
+      const counts: Record<string, number> = {};
+      (data ?? []).forEach((m) => {
+        counts[m.client_id] = (counts[m.client_id] || 0) + 1;
+      });
+      return counts;
+    },
+    enabled: !!user?.id,
+  });
+
   const { data: messages = [], isLoading: msgsLoading } = useQuery({
     queryKey: ["admin-messages", selectedClientId],
     queryFn: async () => {
@@ -64,6 +84,26 @@ export default function AdminMessages() {
     enabled: !!selectedClientId,
   });
 
+  // Auto-mark client-sent messages as read when admin opens chat
+  useEffect(() => {
+    if (!selectedClientId || !user?.id || messages.length === 0) return;
+    const selectedClient = clients.find((c) => c.id === selectedClientId);
+    const clientUserId = selectedClient?.user_id;
+    if (!clientUserId) return;
+    const unread = messages.filter((m) => m.sender_id === clientUserId && !m.read_at);
+    if (unread.length === 0) return;
+    supabase
+      .from("messages")
+      .update({ read_at: new Date().toISOString() })
+      .eq("client_id", selectedClientId)
+      .eq("sender_id", clientUserId)
+      .is("read_at", null)
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ["admin-messages", selectedClientId] });
+        queryClient.invalidateQueries({ queryKey: ["admin-unread-counts"] });
+      });
+  }, [selectedClientId, user?.id, messages, clients, queryClient]);
+
   useEffect(() => {
     const channel = supabase
       .channel("admin-messages-rt")
@@ -73,6 +113,7 @@ export default function AdminMessages() {
         () => {
           queryClient.invalidateQueries({ queryKey: ["admin-messages", selectedClientId] });
           queryClient.invalidateQueries({ queryKey: ["admin-latest-messages"] });
+          queryClient.invalidateQueries({ queryKey: ["admin-unread-counts"] });
         }
       )
       .subscribe();
@@ -141,6 +182,7 @@ export default function AdminMessages() {
               {clients.map((client) => {
                 const latest = getLatest(client.id);
                 const isSelected = client.id === selectedClientId;
+                const unread = unreadCounts[client.id] || 0;
                 return (
                   <button
                     key={client.id}
@@ -152,8 +194,15 @@ export default function AdminMessages() {
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium text-sm truncate">{client.name}</span>
-                      <Badge variant="outline" className="text-[10px] shrink-0">{client.status}</Badge>
+                      <span className={`font-medium text-sm truncate ${unread > 0 ? "font-bold" : ""}`}>{client.name}</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {unread > 0 && (
+                          <Badge className="text-[10px] h-5 min-w-[20px] flex items-center justify-center px-1.5">
+                            {unread}
+                          </Badge>
+                        )}
+                        <Badge variant="outline" className="text-[10px]">{client.status}</Badge>
+                      </div>
                     </div>
                     {latest && (
                       <p className="text-xs text-muted-foreground mt-1 truncate">{latest.content}</p>
@@ -230,9 +279,16 @@ export default function AdminMessages() {
                             }`}
                           >
                             <p>{msg.content}</p>
-                            <p className={`text-[10px] mt-1 ${isAdmin ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
-                              {new Date(msg.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
-                            </p>
+                            <div className={`flex items-center gap-1 mt-1 ${isAdmin ? "justify-end" : ""}`}>
+                              <p className={`text-[10px] ${isAdmin ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
+                                {new Date(msg.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                              </p>
+                              {isAdmin && (
+                                msg.read_at
+                                  ? <CheckCheck className="h-3 w-3 text-primary-foreground/60" />
+                                  : <Check className="h-3 w-3 text-primary-foreground/40" />
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
