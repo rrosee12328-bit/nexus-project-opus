@@ -247,6 +247,7 @@ export type Database = {
       }
       client_onboarding_steps: {
         Row: {
+          category: string | null
           client_id: string
           completed_at: string | null
           created_at: string
@@ -257,6 +258,7 @@ export type Database = {
           title: string
         }
         Insert: {
+          category?: string | null
           client_id: string
           completed_at?: string | null
           created_at?: string
@@ -267,6 +269,7 @@ export type Database = {
           title: string
         }
         Update: {
+          category?: string | null
           client_id?: string
           completed_at?: string | null
           created_at?: string
