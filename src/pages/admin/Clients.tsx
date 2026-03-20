@@ -244,6 +244,12 @@ export default function AdminClients() {
                         {client.status}
                       </Badge>
 
+                      {client.user_id && (
+                        <Badge variant="outline" className="shrink-0 bg-primary/10 text-primary border-primary/20 text-xs">
+                          Invited
+                        </Badge>
+                      )}
+
                       <div className="hidden md:flex items-center gap-6 shrink-0 text-sm">
                         <div className="text-right">
                           <p className="text-xs text-muted-foreground">Monthly</p>
