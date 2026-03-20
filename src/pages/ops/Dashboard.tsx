@@ -13,7 +13,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, GripVertical, CheckSquare, Clock, AlertTriangle, TrendingUp, Calendar } from "lucide-react";
+import { Plus, GripVertical, CheckSquare, Clock, AlertTriangle, TrendingUp, Calendar, Star } from "lucide-react";
 import { motion } from "framer-motion";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { format } from "date-fns";
