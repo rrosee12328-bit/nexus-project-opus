@@ -454,6 +454,16 @@ async function executeTool(supabase: ReturnType<typeof createClient>, name: stri
       if (error) return { error: error.message }
       return { activities: data ?? [], count: data?.length ?? 0 }
     }
+    case 'query_client_notes': {
+      const limit = Math.min(Number(args.limit) || 20, 50)
+      let query = supabase.from('client_notes').select('*')
+        .eq('client_id', args.client_id as string)
+        .order('created_at', { ascending: false }).limit(limit)
+      if (args.type) query = query.eq('type', args.type as string)
+      const { data, error } = await query
+      if (error) return { error: error.message }
+      return { notes: data ?? [], count: data?.length ?? 0 }
+    }
     default:
       return { error: `Unknown tool: ${name}` }
   }
