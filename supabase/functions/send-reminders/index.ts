@@ -70,6 +70,7 @@ Deno.serve(async (req) => {
           subject,
           html,
           text: plainText,
+          purpose: "transactional",
           label: `reminder_${type}`,
           message_id: msgId,
           queued_at: new Date().toISOString(),
