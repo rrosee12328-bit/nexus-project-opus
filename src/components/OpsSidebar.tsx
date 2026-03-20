@@ -79,6 +79,16 @@ export function OpsSidebar() {
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border p-2">
         <SidebarMenu>
+          {role === "admin" && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild className="hover:bg-sidebar-accent">
+                <NavLink to="/admin" className="hover:bg-sidebar-accent" activeClassName="">
+                  <ArrowLeft className="h-4 w-4" />
+                  {!collapsed && <span>Back to Admin</span>}
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
           <SidebarMenuItem>
             <SidebarMenuButton onClick={signOut} className="hover:bg-sidebar-accent">
               <LogOut className="h-4 w-4" />
