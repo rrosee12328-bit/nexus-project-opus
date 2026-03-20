@@ -392,7 +392,7 @@ export default function OpsTasks() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <Select
                             value={task.status}
                             onValueChange={(v) => statusMutation.mutate({ id: task.id, status: v as TaskStatus })}
