@@ -23,9 +23,14 @@ export default function AgentPage() {
   const [activeConvoId, setActiveConvoId] = useState<string | null>(null);
   const [loadingConvos, setLoadingConvos] = useState(true);
   const [isListening, setIsListening] = useState(false);
+  const [audioLevels, setAudioLevels] = useState<number[]>(new Array(24).fill(0));
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load conversation list
