@@ -165,7 +165,7 @@ export function OnboardingTemplatesManager() {
         project_name: formName.trim(),
         project_description: formDesc.trim(),
         phases: orderedPhases,
-        onboarding_steps: stepsJson as unknown as Record<string, unknown>[],
+        onboarding_steps: JSON.parse(JSON.stringify(stepsJson)),
       };
 
       if (editing) {
