@@ -42,7 +42,7 @@ export function OpsSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
+      <SidebarHeader className="border-b border-sidebar-border px-4 py-2">
         {!collapsed && (
           <img src="/vektiss-logo.png" alt="Vektiss" className="h-20 object-contain" />
         )}
