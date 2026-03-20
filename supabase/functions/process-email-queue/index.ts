@@ -347,7 +347,9 @@ Deno.serve(async (req) => {
           )
         }
 
-        if (isForbidden(error)) {
+        // Only treat 403 as "emails disabled" for auth emails (Lovable API).
+        // Resend 403 means domain not verified — let it retry/DLQ normally.
+        if (isForbidden(error) && queue === 'auth_emails') {
           await moveToDlq(supabase, queue, msg, 'Emails disabled for this project')
           return new Response(
             JSON.stringify({ processed: totalProcessed, stopped: 'emails_disabled' }),
