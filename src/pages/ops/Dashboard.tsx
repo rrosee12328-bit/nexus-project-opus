@@ -68,6 +68,22 @@ export default function OpsDashboard() {
     },
   });
 
+  const { data: teamMembers = [] } = useQuery({
+    queryKey: ["team-members"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("user_id, role, profiles!inner(display_name)")
+        .in("role", ["admin", "ops"]);
+      if (error) throw error;
+      return (data ?? []).map((r: any) => ({
+        id: r.user_id,
+        name: r.profiles?.display_name ?? r.user_id.slice(0, 8),
+        role: r.role,
+      }));
+    },
+  });
+
   const addTask = useMutation({
     mutationFn: async () => {
       if (!newTitle.trim()) throw new Error("Title required");
