@@ -116,6 +116,7 @@ const App = () => (
               <Route path="assets" element={<ClientAssets />} />
               <Route path="messages" element={<ClientMessages />} />
               <Route path="payments" element={<ClientPayments />} />
+              <Route path="agent" element={<ClientAgent />} />
               <Route path="settings" element={<ClientSettings />} />
             </Route>
 
