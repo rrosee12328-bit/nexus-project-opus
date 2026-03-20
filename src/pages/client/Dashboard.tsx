@@ -19,21 +19,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
-const PHASE_LABELS: Record<string, string> = {
-  discovery: "Discovery",
-  design: "Design",
-  development: "Development",
-  review: "Review",
-  launch: "Launch",
-};
-
-const PHASE_ICONS: Record<string, string> = {
-  discovery: "🔍",
-  design: "🎨",
-  development: "⚙️",
-  review: "👀",
-  launch: "🚀",
-};
+import { PHASE_LABELS, PHASE_ICONS } from "@/lib/phaseConfig";
 
 export default function ClientDashboard() {
   const navigate = useNavigate();
