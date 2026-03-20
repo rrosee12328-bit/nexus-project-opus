@@ -60,6 +60,7 @@ type TaskForm = {
   priority: TaskPriority;
   due_date: string;
   client_id: string;
+  assigned_to: string;
 };
 
 const emptyForm: TaskForm = {
@@ -69,6 +70,7 @@ const emptyForm: TaskForm = {
   priority: "medium",
   due_date: "",
   client_id: "",
+  assigned_to: "",
 };
 
 export default function OpsTasks() {
@@ -113,6 +115,22 @@ export default function OpsTasks() {
     },
   });
 
+  const { data: teamMembers = [] } = useQuery({
+    queryKey: ["team-members"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("user_id, role, profiles!inner(display_name)")
+        .in("role", ["admin", "ops"]);
+      if (error) throw error;
+      return (data ?? []).map((r: any) => ({
+        id: r.user_id,
+        name: r.profiles?.display_name ?? r.user_id.slice(0, 8),
+        role: r.role,
+      }));
+    },
+  });
+
   // Mutations
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -124,6 +142,7 @@ export default function OpsTasks() {
         priority: form.priority,
         due_date: form.due_date || null,
         client_id: form.client_id || null,
+        assigned_to: form.assigned_to || null,
       };
       if (editId) {
         const { error } = await supabase.from("tasks").update(payload).eq("id", editId);
@@ -191,6 +210,7 @@ export default function OpsTasks() {
       priority: task.priority,
       due_date: task.due_date ?? "",
       client_id: task.client_id ?? "",
+      assigned_to: task.assigned_to ?? "",
     });
     setFormOpen(true);
   };
@@ -509,13 +529,26 @@ export default function OpsTasks() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Due Date</Label>
-                <Input
-                  type="date"
-                  value={form.due_date}
-                  onChange={(e) => setForm({ ...form, due_date: e.target.value })}
-                />
+                <Label>Assign To</Label>
+                <Select value={form.assigned_to || "none"} onValueChange={(v) => setForm({ ...form, assigned_to: v === "none" ? "" : v })}>
+                  <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Unassigned</SelectItem>
+                    {teamMembers.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>{m.name} ({m.role})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Due Date</Label>
+              <Input
+                type="date"
+                value={form.due_date}
+                onChange={(e) => setForm({ ...form, due_date: e.target.value })}
+              />
             </div>
 
             <div className="space-y-2">

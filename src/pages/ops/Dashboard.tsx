@@ -56,6 +56,7 @@ export default function OpsDashboard() {
   const [newTitle, setNewTitle] = useState("");
   const [newPriority, setNewPriority] = useState<TaskPriority>("medium");
   const [newDescription, setNewDescription] = useState("");
+  const [newAssignedTo, setNewAssignedTo] = useState("");
   const [selectedTask, setSelectedTask] = useState<TaskWithClient | null>(null);
 
   const { data: tasks } = useQuery({
@@ -67,6 +68,22 @@ export default function OpsDashboard() {
     },
   });
 
+  const { data: teamMembers = [] } = useQuery({
+    queryKey: ["team-members"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("user_id, role, profiles!inner(display_name)")
+        .in("role", ["admin", "ops"]);
+      if (error) throw error;
+      return (data ?? []).map((r: any) => ({
+        id: r.user_id,
+        name: r.profiles?.display_name ?? r.user_id.slice(0, 8),
+        role: r.role,
+      }));
+    },
+  });
+
   const addTask = useMutation({
     mutationFn: async () => {
       if (!newTitle.trim()) throw new Error("Title required");
@@ -75,6 +92,7 @@ export default function OpsDashboard() {
         description: newDescription.trim() || null,
         status: addColumn!,
         priority: newPriority,
+        assigned_to: newAssignedTo || null,
       });
       if (error) throw error;
     },
@@ -85,6 +103,7 @@ export default function OpsDashboard() {
       setNewTitle("");
       setNewDescription("");
       setNewPriority("medium");
+      setNewAssignedTo("");
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
@@ -242,6 +261,18 @@ export default function OpsDashboard() {
             <div className="space-y-2">
               <Label>Description</Label>
               <Textarea value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="Optional description..." maxLength={1000} rows={3} />
+            </div>
+            <div className="space-y-2">
+              <Label>Assign To</Label>
+              <Select value={newAssignedTo || "none"} onValueChange={(v) => setNewAssignedTo(v === "none" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Unassigned</SelectItem>
+                  {teamMembers.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.name} ({m.role})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
