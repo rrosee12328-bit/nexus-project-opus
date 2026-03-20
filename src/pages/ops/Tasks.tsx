@@ -60,6 +60,7 @@ type TaskForm = {
   priority: TaskPriority;
   due_date: string;
   client_id: string;
+  assigned_to: string;
 };
 
 const emptyForm: TaskForm = {
@@ -69,6 +70,7 @@ const emptyForm: TaskForm = {
   priority: "medium",
   due_date: "",
   client_id: "",
+  assigned_to: "",
 };
 
 export default function OpsTasks() {
