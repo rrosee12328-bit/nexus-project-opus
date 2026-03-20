@@ -18,7 +18,6 @@ import { DeleteClientDialog } from "@/components/DeleteClientDialog";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
-import { formatDistanceToNow } from "date-fns";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
