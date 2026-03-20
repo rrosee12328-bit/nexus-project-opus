@@ -151,7 +151,7 @@ export default function OpsDashboard() {
                 <Plus className="h-3 w-3" />
               </Button>
             </div>
-            <div className="flex flex-col gap-2 min-h-[200px] rounded-lg border border-border bg-surface/50 p-2">
+            <div className="flex flex-col gap-2 min-h-[200px] rounded-lg border border-border bg-surface/50 p-2 overflow-hidden">
               {tasksByStatus(col.key).map((task) => (
                 <Card key={task.id} className="cursor-default hover:border-primary/20 transition-colors">
                   <CardContent className="p-3 space-y-2">
@@ -173,7 +173,7 @@ export default function OpsDashboard() {
                       )}
                     </div>
                     {/* Quick move buttons */}
-                    <div className="flex gap-1 pl-6 pt-1">
+                    <div className="flex gap-1 pl-6 pt-1 flex-wrap">
                       {columns
                         .filter((c) => c.key !== col.key)
                         .map((c) => (
@@ -181,7 +181,7 @@ export default function OpsDashboard() {
                             key={c.key}
                             variant="ghost"
                             size="sm"
-                            className="h-6 text-xs px-2"
+                            className="h-6 text-xs px-1.5 min-w-0"
                             onClick={() => moveTask.mutate({ id: task.id, status: c.key })}
                           >
                             → {c.label}

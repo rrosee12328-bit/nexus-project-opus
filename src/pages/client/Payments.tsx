@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { DollarSign, TrendingUp, Calendar, Receipt, Download } from "lucide-react";
+import { Calendar, Receipt, Download } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 
@@ -37,10 +37,6 @@ export default function ClientPayments() {
     enabled: !!user?.id,
   });
 
-  const totalPaid = (payments ?? []).reduce((sum, p) => sum + Number(p.amount), 0);
-  const currentYear = new Date().getFullYear();
-  const thisYearPayments = (payments ?? []).filter((p) => p.payment_year === currentYear);
-  const thisYearTotal = thisYearPayments.reduce((sum, p) => sum + Number(p.amount), 0);
 
   if (isLoading) {
     return (
@@ -93,33 +89,24 @@ export default function ClientPayments() {
         )}
       </motion.div>
 
-      {/* Summary cards */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        {[
-          { icon: DollarSign, label: "Total Paid", value: `$${totalPaid.toLocaleString("en-US", { minimumFractionDigits: 2 })}` },
-          { icon: TrendingUp, label: `${currentYear} Total`, value: `$${thisYearTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}` },
-          { icon: Calendar, label: "Payments Made", value: String((payments ?? []).length) },
-        ].map((card, i) => (
-          <motion.div
-            key={card.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.1 + i * 0.07 }}
-          >
-            <Card className="border-border hover:border-primary/20 transition-colors">
-              <CardContent className="pt-6 flex items-center gap-4">
-                <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                  <card.icon className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">{card.label}</p>
-                  <p className="text-2xl font-bold tracking-tight font-mono">{card.value}</p>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
+      {/* Summary card */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.15 }}
+      >
+        <Card className="border-border hover:border-primary/20 transition-colors">
+          <CardContent className="pt-6 flex items-center gap-4">
+            <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Calendar className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Payments Made</p>
+              <p className="text-2xl font-bold tracking-tight font-mono">{(payments ?? []).length}</p>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Payment table */}
       {(payments ?? []).length > 0 ? (
