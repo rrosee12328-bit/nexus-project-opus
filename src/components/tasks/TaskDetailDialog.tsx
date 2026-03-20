@@ -269,6 +269,18 @@ export default function TaskDetailDialog({ task, open, onClose }: TaskDetailDial
               <span>{editMode ? "Edit Task" : "Task Details"}</span>
               {!editMode && (
                 <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    title={(task as any).daily_focus ? "Remove from today's focus" : "Add to today's focus"}
+                    onClick={async () => {
+                      await supabase.from("tasks").update({ daily_focus: !(task as any).daily_focus } as any).eq("id", task.id);
+                      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+                    }}
+                  >
+                    <Star className={`h-3.5 w-3.5 ${(task as any).daily_focus ? "text-primary fill-primary" : "text-muted-foreground"}`} />
+                  </Button>
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { initEditForm(task); setEditMode(true); }}>
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
