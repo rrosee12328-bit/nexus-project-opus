@@ -146,6 +146,19 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
               <Input type="date" value={form.start_date ?? ""} onChange={(e) => set("start_date", e.target.value)} />
             </div>
           </div>
+          {showPipeline && (
+            <div className="space-y-2">
+              <Label>Pipeline Stage</Label>
+              <Select value={form.pipeline_stage ?? "new"} onValueChange={(v) => set("pipeline_stage", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {pipelineStages.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Email</Label>
