@@ -167,6 +167,9 @@ export default function OpsDashboard() {
         ))}
       </div>
 
+      {/* Today's Focus */}
+      <TodayFocusPanel tasks={tasks ?? []} teamMembers={teamMembers} onTaskClick={setSelectedTask} />
+
       {/* Kanban */}
       <DragDropContext onDragEnd={handleDragEnd}>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.4 }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
