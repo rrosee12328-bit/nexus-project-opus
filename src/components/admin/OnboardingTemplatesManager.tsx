@@ -109,7 +109,7 @@ export function OnboardingTemplatesManager() {
     setFormType("");
     setFormName("");
     setFormDesc("");
-    setFormPhases(["discovery", "design", "development", "review", "launch"]);
+    setFormPhases([...ALL_PHASE_KEYS]);
     setFormSteps([...DEFAULT_STEPS]);
   };
 
