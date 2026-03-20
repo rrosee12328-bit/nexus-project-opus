@@ -30,6 +30,7 @@ import OpsLayout from "./layouts/OpsLayout";
 import OpsDashboard from "./pages/ops/Dashboard";
 import OpsTasks from "./pages/ops/Tasks";
 import OpsSops from "./pages/ops/SOPs";
+import OpsTimesheets from "./pages/ops/Timesheets";
 import OpsSettings from "./pages/ops/Settings";
 
 import ClientLayout from "./layouts/ClientLayout";
@@ -96,6 +97,7 @@ const App = () => (
             >
               <Route index element={<OpsDashboard />} />
               <Route path="tasks" element={<OpsTasks />} />
+              <Route path="timesheets" element={<OpsTimesheets />} />
               <Route path="sops" element={<OpsSops />} />
               <Route path="settings" element={<OpsSettings />} />
             </Route>

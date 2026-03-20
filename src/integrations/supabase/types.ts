@@ -877,6 +877,48 @@ export type Database = {
           },
         ]
       }
+      time_entries: {
+        Row: {
+          category: Database["public"]["Enums"]["time_entry_category"]
+          created_at: string
+          day_of_week: string
+          description: string
+          end_time: string
+          entry_date: string
+          hours: number
+          id: string
+          start_time: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["time_entry_category"]
+          created_at?: string
+          day_of_week?: string
+          description?: string
+          end_time: string
+          entry_date?: string
+          hours?: number
+          id?: string
+          start_time: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["time_entry_category"]
+          created_at?: string
+          day_of_week?: string
+          description?: string
+          end_time?: string
+          entry_date?: string
+          hours?: number
+          id?: string
+          start_time?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -961,6 +1003,14 @@ export type Database = {
         | "general"
       task_priority: "low" | "medium" | "high" | "urgent"
       task_status: "todo" | "in_progress" | "review" | "done"
+      time_entry_category:
+        | "client_work"
+        | "sales"
+        | "admin"
+        | "vektiss"
+        | "break"
+        | "meeting"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1103,6 +1153,15 @@ export const Constants = {
       ],
       task_priority: ["low", "medium", "high", "urgent"],
       task_status: ["todo", "in_progress", "review", "done"],
+      time_entry_category: [
+        "client_work",
+        "sales",
+        "admin",
+        "vektiss",
+        "break",
+        "meeting",
+        "other",
+      ],
     },
   },
 } as const

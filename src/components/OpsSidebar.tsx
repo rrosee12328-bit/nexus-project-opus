@@ -2,6 +2,7 @@ import {
   LayoutDashboard,
   CheckSquare,
   BookOpen,
+  Clock,
   Settings,
   LogOut,
 } from "lucide-react";
@@ -25,6 +26,7 @@ import {
 const navItems = [
   { title: "Dashboard", url: "/ops", icon: LayoutDashboard },
   { title: "Tasks", url: "/ops/tasks", icon: CheckSquare },
+  { title: "Timesheets", url: "/ops/timesheets", icon: Clock },
   { title: "SOPs", url: "/ops/sops", icon: BookOpen },
   { title: "Settings", url: "/ops/settings", icon: Settings },
 ];
