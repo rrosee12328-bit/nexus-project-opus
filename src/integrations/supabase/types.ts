@@ -337,6 +337,7 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          pipeline_stage: string | null
           setup_fee: number | null
           setup_paid: number | null
           start_date: string | null
@@ -354,6 +355,7 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
+          pipeline_stage?: string | null
           setup_fee?: number | null
           setup_paid?: number | null
           start_date?: string | null
@@ -371,6 +373,7 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          pipeline_stage?: string | null
           setup_fee?: number | null
           setup_paid?: number | null
           start_date?: string | null

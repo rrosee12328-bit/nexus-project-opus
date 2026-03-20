@@ -29,6 +29,16 @@ const statuses: { value: ClientStatus; label: string }[] = [
   { value: "closed", label: "Closed" },
 ];
 
+const pipelineStages = [
+  { value: "new", label: "New Lead" },
+  { value: "discovery_call", label: "Discovery Call" },
+  { value: "due_diligence", label: "Due Diligence" },
+  { value: "proposal", label: "Proposal Sent" },
+  { value: "negotiation", label: "Negotiation" },
+  { value: "won", label: "Won" },
+  { value: "lost", label: "Lost" },
+];
+
 interface ClientFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -40,7 +50,7 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [form, setForm] = useState<Partial<ClientInsert>>({
+  const [form, setForm] = useState<Partial<ClientInsert> & { pipeline_stage?: string }>({
     name: client?.name ?? "",
     type: client?.type ?? "",
     status: client?.status ?? "lead",
@@ -52,15 +62,18 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
     email: client?.email ?? "",
     phone: client?.phone ?? "",
     notes: client?.notes ?? "",
+    pipeline_stage: (client as any)?.pipeline_stage ?? "new",
   });
 
-  const set = (key: keyof ClientInsert, value: string | number) =>
+  const set = (key: string, value: string | number) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  const showPipeline = form.status === "lead" || form.status === "prospect";
 
   const mutation = useMutation({
     mutationFn: async () => {
       if (!form.name?.trim()) throw new Error("Name is required");
-      const payload: ClientInsert = {
+      const payload: any = {
         name: form.name.trim(),
         type: form.type?.trim() || null,
         status: form.status ?? "lead",
@@ -72,6 +85,7 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
         email: form.email?.trim() || null,
         phone: form.phone?.trim() || null,
         notes: form.notes?.trim() || null,
+        pipeline_stage: showPipeline ? (form.pipeline_stage || "new") : null,
       };
 
       if (isEdit) {
@@ -132,6 +146,19 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
               <Input type="date" value={form.start_date ?? ""} onChange={(e) => set("start_date", e.target.value)} />
             </div>
           </div>
+          {showPipeline && (
+            <div className="space-y-2">
+              <Label>Pipeline Stage</Label>
+              <Select value={form.pipeline_stage ?? "new"} onValueChange={(v) => set("pipeline_stage", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {pipelineStages.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Email</Label>
