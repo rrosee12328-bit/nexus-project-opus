@@ -37,6 +37,7 @@ import {
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Constants } from "@/integrations/supabase/types";
+import ProjectDetailDialog from "@/components/projects/ProjectDetailDialog";
 
 const PHASE_LABELS: Record<string, string> = {
   discovery: "Discovery",
@@ -96,6 +97,7 @@ export default function AdminProjects() {
   const [form, setForm] = useState<ProjectForm>(emptyForm);
   const [phaseDialogId, setPhaseDialogId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   // Fetch projects with client names
   const { data: projects = [], isLoading } = useQuery({
@@ -308,7 +310,7 @@ export default function AdminProjects() {
             {clientProjects.map((project) => {
               const StatusIcon = STATUS_ICONS[project.status] || Circle;
               return (
-                <Card key={project.id} className="hover:border-primary/20 transition-colors">
+                <Card key={project.id} className="hover:border-primary/20 transition-colors cursor-pointer" onClick={() => setDetailId(project.id)}>
                   <CardContent className="pt-4 pb-4">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                       {/* Info */}
@@ -342,7 +344,7 @@ export default function AdminProjects() {
                       </div>
 
                       {/* Actions */}
-                      <div className="flex gap-1 shrink-0">
+                      <div className="flex gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="sm" onClick={() => setPhaseDialogId(project.id)}>
                           Phases
                         </Button>
@@ -524,6 +526,9 @@ export default function AdminProjects() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Project Detail Dialog */}
+      <ProjectDetailDialog projectId={detailId} onClose={() => setDetailId(null)} />
     </div>
   );
 }
