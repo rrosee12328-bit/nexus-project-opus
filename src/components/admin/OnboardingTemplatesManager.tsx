@@ -152,7 +152,7 @@ export function OnboardingTemplatesManager() {
       if (!formName.trim()) throw new Error("Project name is required");
       if (formPhases.length === 0) throw new Error("At least one phase is required");
 
-      const orderedPhases = AVAILABLE_PHASES.filter((p) => formPhases.includes(p));
+      const orderedPhases = ALL_PHASE_KEYS.filter((p) => formPhases.includes(p));
       const stepsJson = formSteps.filter((s) => s.title.trim()).map((s) => ({
         step_key: s.step_key,
         title: s.title,
