@@ -96,38 +96,8 @@ async function generateRecoveryLink(
   return data.properties?.action_link ?? "";
 }
 
-// ── Welcome project templates by client type ──
-interface ProjectTemplate {
-  name: string;
-  description: string;
-  phases: string[];
-}
-
-const PROJECT_TEMPLATES: Record<string, ProjectTemplate> = {
-  web_design: {
-    name: "Website Project",
-    description: "Your website design and development project with Vektiss.",
-    phases: ["discovery", "design", "development", "review", "launch"],
-  },
-  branding: {
-    name: "Brand Identity Project",
-    description: "Your brand identity and visual design project with Vektiss.",
-    phases: ["discovery", "design", "review", "launch"],
-  },
-  marketing: {
-    name: "Marketing Strategy",
-    description: "Your marketing strategy and campaign project with Vektiss.",
-    phases: ["discovery", "design", "development", "review", "launch"],
-  },
-  default: {
-    name: "Welcome Project",
-    description: "Your project with Vektiss — we'll update this with your specific deliverables.",
-    phases: ["discovery", "design", "development", "review", "launch"],
-  },
-};
-
-// ── Onboarding checklist steps ──
-const ONBOARDING_STEPS = [
+// ── Onboarding checklist default steps ──
+const DEFAULT_STEPS = [
   { step_key: "set_password", title: "Set your password", description: "Create a secure password for your portal account", sort_order: 0 },
   { step_key: "review_project", title: "Review your project", description: "Check out your project timeline and current phase", sort_order: 1 },
   { step_key: "upload_assets", title: "Upload brand assets", description: "Share logos, fonts, and brand guidelines with your team", sort_order: 2 },
@@ -135,19 +105,42 @@ const ONBOARDING_STEPS = [
   { step_key: "review_payments", title: "Review payment history", description: "Check your payment records and billing status", sort_order: 4 },
 ];
 
+async function getTemplate(supabase: ReturnType<typeof createClient>, clientType: string | null) {
+  // Try client-type-specific template first
+  if (clientType) {
+    const { data } = await supabase
+      .from("onboarding_templates")
+      .select("*")
+      .eq("client_type", clientType)
+      .maybeSingle();
+    if (data) return data;
+  }
+  // Fall back to default template
+  const { data } = await supabase
+    .from("onboarding_templates")
+    .select("*")
+    .eq("is_default", true)
+    .maybeSingle();
+  return data;
+}
+
 async function createWelcomeProject(
   supabase: ReturnType<typeof createClient>,
   clientId: string,
   clientType: string | null,
 ) {
-  const template = PROJECT_TEMPLATES[clientType ?? ""] ?? PROJECT_TEMPLATES.default;
+  const template = await getTemplate(supabase, clientType);
+
+  const projectName = template?.project_name ?? "Welcome Project";
+  const projectDesc = template?.project_description ?? "Your project with Vektiss.";
+  const phases = template?.phases ?? ["discovery", "design", "development", "review", "launch"];
 
   const { data: project, error: projectErr } = await supabase
     .from("projects")
     .insert({
       client_id: clientId,
-      name: template.name,
-      description: template.description,
+      name: projectName,
+      description: projectDesc,
       status: "in_progress",
       current_phase: "discovery",
       progress: 0,
@@ -161,8 +154,7 @@ async function createWelcomeProject(
     return null;
   }
 
-  // Create project phases
-  const phaseInserts = template.phases.map((phase, i) => ({
+  const phaseInserts = phases.map((phase: string, i: number) => ({
     project_id: project.id,
     phase,
     sort_order: i,
@@ -173,7 +165,6 @@ async function createWelcomeProject(
   const { error: phaseErr } = await supabase.from("project_phases").insert(phaseInserts);
   if (phaseErr) console.error("Error creating project phases:", phaseErr);
 
-  // Log activity
   await supabase.from("project_activity_log").insert({
     project_id: project.id,
     action: "project_created",
@@ -186,13 +177,18 @@ async function createWelcomeProject(
 async function createOnboardingSteps(
   supabase: ReturnType<typeof createClient>,
   clientId: string,
+  clientType: string | null,
 ) {
-  const steps = ONBOARDING_STEPS.map((step) => ({
+  const template = await getTemplate(supabase, clientType);
+  const templateSteps = (template?.onboarding_steps as Array<{ step_key: string; title: string; description: string; sort_order: number }>) ?? null;
+  const steps = (templateSteps && templateSteps.length > 0 ? templateSteps : DEFAULT_STEPS).map((step) => ({
     client_id: clientId,
-    ...step,
+    step_key: step.step_key,
+    title: step.title,
+    description: step.description,
+    sort_order: step.sort_order,
   }));
 
-  // Mark "set_password" as already completed since they're being invited
   const { error } = await supabase.from("client_onboarding_steps").insert(steps);
   if (error) console.error("Error creating onboarding steps:", error);
 }
