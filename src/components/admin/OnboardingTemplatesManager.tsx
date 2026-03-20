@@ -154,12 +154,18 @@ export function OnboardingTemplatesManager() {
       if (formPhases.length === 0) throw new Error("At least one phase is required");
 
       const orderedPhases = AVAILABLE_PHASES.filter((p) => formPhases.includes(p));
+      const stepsJson = formSteps.filter((s) => s.title.trim()).map((s) => ({
+        step_key: s.step_key,
+        title: s.title,
+        description: s.description,
+        sort_order: s.sort_order,
+      }));
       const payload = {
         client_type: formType.trim().toLowerCase().replace(/\s+/g, "_"),
         project_name: formName.trim(),
         project_description: formDesc.trim(),
         phases: orderedPhases,
-        onboarding_steps: formSteps.filter((s) => s.title.trim()),
+        onboarding_steps: stepsJson as unknown as Record<string, unknown>[],
       };
 
       if (editing) {
@@ -171,7 +177,7 @@ export function OnboardingTemplatesManager() {
       } else {
         const { error } = await supabase
           .from("onboarding_templates")
-          .insert(payload);
+          .insert([payload]);
         if (error) throw error;
       }
     },
