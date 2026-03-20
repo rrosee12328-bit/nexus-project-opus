@@ -132,6 +132,7 @@ export function OnboardingTemplatesManager() {
   };
 
   const addStep = () => {
+    const lastCategory = formSteps.length > 0 ? formSteps[formSteps.length - 1].category : undefined;
     setFormSteps((prev) => [
       ...prev,
       {
@@ -139,6 +140,7 @@ export function OnboardingTemplatesManager() {
         title: "",
         description: "",
         sort_order: prev.length,
+        category: lastCategory,
       },
     ]);
   };
