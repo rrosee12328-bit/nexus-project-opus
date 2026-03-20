@@ -213,10 +213,24 @@ export default function OpsDashboard() {
                                   <p className="text-xs text-muted-foreground pl-6 line-clamp-2">{task.description}</p>
                                 )}
                                 <div className="flex items-center justify-between pl-6">
-                                  <Badge variant="outline" className={`text-xs ${priorityColor[task.priority]}`}>{task.priority}</Badge>
-                                  {task.clients?.name && (
-                                    <span className="text-xs text-muted-foreground truncate max-w-[100px]">{task.clients.name}</span>
-                                  )}
+                                  <div className="flex items-center gap-1.5">
+                                    <Badge variant="outline" className={`text-xs ${priorityColor[task.priority]}`}>{task.priority}</Badge>
+                                    {task.clients?.name && (
+                                      <span className="text-xs text-muted-foreground truncate max-w-[100px]">{task.clients.name}</span>
+                                    )}
+                                  </div>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      supabase.from("tasks").update({ daily_focus: !(task as any).daily_focus } as any).eq("id", task.id).then(() => {
+                                        queryClient.invalidateQueries({ queryKey: ["tasks"] });
+                                      });
+                                    }}
+                                    className="p-0.5 rounded hover:bg-accent transition-colors"
+                                    title={(task as any).daily_focus ? "Remove from today's focus" : "Add to today's focus"}
+                                  >
+                                    <Star className={`h-3.5 w-3.5 ${(task as any).daily_focus ? "text-primary fill-primary" : "text-muted-foreground/40"}`} />
+                                  </button>
                                 </div>
                                 {task.due_date && (
                                   <p className="text-xs text-muted-foreground pl-6 flex items-center gap-1">
