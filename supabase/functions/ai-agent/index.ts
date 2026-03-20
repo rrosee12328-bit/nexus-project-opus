@@ -217,6 +217,23 @@ const TOOLS = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'query_client_notes',
+      description: 'Get knowledge base entries for a client — meeting notes, documents/links, action items, and general notes. Use this to understand what\'s been happening with a client.',
+      parameters: {
+        type: 'object',
+        properties: {
+          client_id: { type: 'string', description: 'Client ID to get notes for' },
+          type: { type: 'string', enum: ['meeting', 'document', 'action_item', 'note'], description: 'Optional type filter' },
+          limit: { type: 'number', description: 'Number of entries to return (default 20)' },
+        },
+        required: ['client_id'],
+        additionalProperties: false,
+      },
+    },
+  },
 ]
 
 const SYSTEM_PROMPT = `You are an AI assistant for Vektiss, a digital agency. You help the admin manage clients, projects, finances, and tasks.
