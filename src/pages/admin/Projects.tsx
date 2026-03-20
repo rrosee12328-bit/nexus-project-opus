@@ -310,7 +310,7 @@ export default function AdminProjects() {
             {clientProjects.map((project) => {
               const StatusIcon = STATUS_ICONS[project.status] || Circle;
               return (
-                <Card key={project.id} className="hover:border-primary/20 transition-colors">
+                <Card key={project.id} className="hover:border-primary/20 transition-colors cursor-pointer" onClick={() => setDetailId(project.id)}>
                   <CardContent className="pt-4 pb-4">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                       {/* Info */}
