@@ -92,6 +92,7 @@ export default function OpsDashboard() {
         description: newDescription.trim() || null,
         status: addColumn!,
         priority: newPriority,
+        assigned_to: newAssignedTo || null,
       });
       if (error) throw error;
     },
