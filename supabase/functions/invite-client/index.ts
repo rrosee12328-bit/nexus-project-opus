@@ -133,7 +133,7 @@ async function createWelcomeProject(
 
   const projectName = template?.project_name ?? "Welcome Project";
   const projectDesc = template?.project_description ?? "Your project with Vektiss.";
-  const phases = template?.phases ?? ["discovery", "design", "development", "review", "launch"];
+  const phases = template?.phases ?? ["discovery", "design", "development", "review", "launch", "deploy"];
 
   const { data: project, error: projectErr } = await supabase
     .from("projects")
