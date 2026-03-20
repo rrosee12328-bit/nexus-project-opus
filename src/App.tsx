@@ -23,6 +23,7 @@ import AdminSettings from "./pages/admin/Settings";
 import AdminAssets from "./pages/admin/Assets";
 import AdminReports from "./pages/admin/Reports";
 import AdminEmails from "./pages/admin/Emails";
+import AdminAgent from "./pages/admin/Agent";
 
 import OpsLayout from "./layouts/OpsLayout";
 import OpsDashboard from "./pages/ops/Dashboard";
