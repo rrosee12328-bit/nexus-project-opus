@@ -190,9 +190,51 @@ export default function AgentPage() {
     }
   };
 
+  const startAudioVisualizer = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const audioContext = new AudioContext();
+      audioContextRef.current = audioContext;
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 64;
+      analyser.smoothingTimeConstant = 0.7;
+      source.connect(analyser);
+      analyserRef.current = analyser;
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const updateLevels = () => {
+        analyser.getByteFrequencyData(dataArray);
+        const bars = 24;
+        const levels: number[] = [];
+        const step = Math.floor(dataArray.length / bars);
+        for (let i = 0; i < bars; i++) {
+          levels.push(dataArray[i * step] / 255);
+        }
+        setAudioLevels(levels);
+        animFrameRef.current = requestAnimationFrame(updateLevels);
+      };
+      updateLevels();
+    } catch {
+      // mic access denied — visualizer just won't show
+    }
+  }, []);
+
+  const stopAudioVisualizer = useCallback(() => {
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    audioContextRef.current?.close();
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    audioContextRef.current = null;
+    analyserRef.current = null;
+    streamRef.current = null;
+    setAudioLevels(new Array(24).fill(0));
+  }, []);
+
   const toggleVoice = useCallback(() => {
     if (isListening) {
       recognitionRef.current?.stop();
+      stopAudioVisualizer();
       setIsListening(false);
       return;
     }
@@ -229,21 +271,25 @@ export default function AgentPage() {
       if (event.error !== "aborted") {
         toast.error("Microphone error: " + event.error);
       }
+      stopAudioVisualizer();
       setIsListening(false);
     };
 
     recognition.onend = () => {
+      stopAudioVisualizer();
       setIsListening(false);
     };
 
     recognition.start();
+    startAudioVisualizer();
     setIsListening(true);
-  }, [isListening]);
+  }, [isListening, startAudioVisualizer, stopAudioVisualizer]);
 
-  // Cleanup recognition on unmount
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       recognitionRef.current?.stop();
+      stopAudioVisualizer();
     };
   }, []);
 
