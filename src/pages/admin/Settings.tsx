@@ -10,9 +10,12 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { User, Lock, Bell, Save, Shield } from "lucide-react";
+import { User, Lock, Bell, Save, Shield, Clock, RefreshCw, Send } from "lucide-react";
 import { motion } from "framer-motion";
+import { format } from "date-fns";
 
 export default function AdminSettings() {
   const { user } = useAuth();
@@ -37,6 +40,19 @@ export default function AdminSettings() {
       return data;
     },
     enabled: !!user?.id,
+  });
+
+  const { data: reminderLogs, isLoading: remindersLoading } = useQuery({
+    queryKey: ["reminder-log"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("reminder_log")
+        .select("*")
+        .order("sent_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data;
+    },
   });
 
   useEffect(() => {
@@ -83,12 +99,42 @@ export default function AdminSettings() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const triggerReminders = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("send-reminders");
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["reminder-log"] });
+      toast.success(`Reminders processed: ${data?.reminders_enqueued ?? 0} enqueued`);
+    },
+    onError: (err: Error) => toast.error("Failed to trigger reminders: " + err.message),
+  });
+
   const initials = (displayName || user?.email || "A")
     .split(" ")
     .map((w) => w[0])
     .join("")
     .toUpperCase()
     .slice(0, 2);
+
+  const typeLabels: Record<string, string> = {
+    unread_message: "Unread Messages",
+    task_review: "Task Review",
+    project_review: "Project Review",
+    unpaid_invoice: "Unpaid Invoice",
+    task_deadline: "Task Deadline",
+  };
+
+  const typeBadgeVariant = (type: string) => {
+    switch (type) {
+      case "task_deadline": return "destructive" as const;
+      case "unpaid_invoice": return "destructive" as const;
+      case "task_review": return "secondary" as const;
+      default: return "outline" as const;
+    }
+  };
 
   const anim = (delay: number) => ({
     initial: { opacity: 0, y: 20 } as const,
@@ -109,6 +155,7 @@ export default function AdminSettings() {
             <TabsTrigger value="profile" className="gap-2"><User className="h-4 w-4" /> Profile</TabsTrigger>
             <TabsTrigger value="security" className="gap-2"><Shield className="h-4 w-4" /> Security</TabsTrigger>
             <TabsTrigger value="notifications" className="gap-2"><Bell className="h-4 w-4" /> Notifications</TabsTrigger>
+            <TabsTrigger value="reminders" className="gap-2"><Clock className="h-4 w-4" /> Reminders</TabsTrigger>
           </TabsList>
         </motion.div>
 
@@ -132,9 +179,7 @@ export default function AdminSettings() {
                     <p className="text-sm text-muted-foreground">{user?.email}</p>
                   </div>
                 </div>
-
                 <Separator />
-
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Display Name</Label>
@@ -145,13 +190,11 @@ export default function AdminSettings() {
                     <Input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="https://..." maxLength={500} />
                   </div>
                 </div>
-
                 <div className="space-y-2">
                   <Label className="text-muted-foreground">Email</Label>
                   <Input value={user?.email ?? ""} disabled className="opacity-60" />
                   <p className="text-xs text-muted-foreground">Email cannot be changed here.</p>
                 </div>
-
                 <div className="flex justify-end">
                   <Button onClick={() => updateProfile.mutate()} disabled={updateProfile.isPending || isLoading} className="gap-2">
                     <Save className="h-4 w-4" />
@@ -226,6 +269,72 @@ export default function AdminSettings() {
                   </div>
                 ))}
                 <p className="text-xs text-muted-foreground pt-2">Notification delivery is coming soon — preferences are saved locally.</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </TabsContent>
+
+        <TabsContent value="reminders">
+          <motion.div {...anim(0.15)} className="space-y-6">
+            <Card className="hover:border-primary/20 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-primary" /> Automated Reminders
+                </CardTitle>
+                <Button
+                  onClick={() => triggerReminders.mutate()}
+                  disabled={triggerReminders.isPending}
+                  size="sm"
+                  className="gap-2"
+                >
+                  {triggerReminders.isPending ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                  {triggerReminders.isPending ? "Sending..." : "Send Now"}
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Reminders run automatically every day at 9:00 AM UTC. They check for unread messages, tasks awaiting review, tasks due within 24 hours, projects needing feedback, and unpaid invoices. Each reminder is only sent once per 24-hour window.
+                </p>
+                <Separator />
+                <div>
+                  <h3 className="text-sm font-semibold mb-3">Recent Reminder Log</h3>
+                  {remindersLoading ? (
+                    <p className="text-sm text-muted-foreground">Loading...</p>
+                  ) : !reminderLogs?.length ? (
+                    <p className="text-sm text-muted-foreground">No reminders have been sent yet. Click "Send Now" to trigger a check.</p>
+                  ) : (
+                    <div className="rounded-md border overflow-auto max-h-[400px]">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Recipient</TableHead>
+                            <TableHead>Sent At</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {reminderLogs.map((log) => (
+                            <TableRow key={log.id}>
+                              <TableCell>
+                                <Badge variant={typeBadgeVariant(log.reminder_type)}>
+                                  {typeLabels[log.reminder_type] ?? log.reminder_type}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-sm">{log.recipient_email}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {format(new Date(log.sent_at), "MMM d, yyyy h:mm a")}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </motion.div>
