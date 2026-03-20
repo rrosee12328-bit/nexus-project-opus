@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const { client_id } = await req.json();
+    const { client_id, resend } = await req.json();
     if (!client_id) {
       return new Response(JSON.stringify({ error: "client_id required" }), {
         status: 400,
@@ -42,10 +42,44 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Idempotent: skip if already invited
-    if (client.user_id) {
+    // If client already has an account and this isn't a resend, skip
+    if (client.user_id && !resend) {
       return new Response(
         JSON.stringify({ message: "Client already has an account", user_id: client.user_id }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // For resend: generate a fresh recovery link and send the welcome email again
+    if (client.user_id && resend) {
+      if (!client.email) {
+        return new Response(JSON.stringify({ error: "Client has no email" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: linkData, error: linkErr } =
+        await supabase.auth.admin.generateLink({
+          type: "recovery",
+          email: client.email,
+          options: {
+            redirectTo: "https://nexus-project-opus.lovable.app/reset-password",
+          },
+        });
+
+      if (linkErr) {
+        return new Response(JSON.stringify({ error: linkErr.message }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const actionLink = linkData.properties?.action_link ?? "";
+      const clientName = client.name || "there";
+      const { html, plainText } = buildWelcomeEmail(clientName, actionLink);
+      await enqueueWelcomeEmail(supabase, client.email, html, plainText, client_id, client.user_id);
+
+      return new Response(
+        JSON.stringify({ success: true, resent: true }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

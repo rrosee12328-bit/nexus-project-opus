@@ -11,7 +11,7 @@ import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
-import { UserCheck, UserPlus, DollarSign, PhoneCall, Plus, MoreHorizontal, Pencil, Trash2, ChevronDown, ChevronRight, FileText, Calendar, Briefcase, Users, Send } from "lucide-react";
+import { UserCheck, UserPlus, DollarSign, PhoneCall, Plus, MoreHorizontal, Pencil, Trash2, ChevronDown, ChevronRight, FileText, Calendar, Briefcase, Users, Send, RefreshCw } from "lucide-react";
 import { ClientFormDialog } from "@/components/ClientFormDialog";
 import { DeleteClientDialog } from "@/components/DeleteClientDialog";
 import { motion } from "framer-motion";
