@@ -256,7 +256,7 @@ export function OnboardingTemplatesManager() {
                       <div className="flex items-center gap-1.5 flex-wrap">
                         {t.phases.map((p) => (
                           <Badge key={p} variant="secondary" className="text-[10px] px-1.5 py-0">
-                            {p.replace("_", " ")}
+                            {PHASE_LABELS[p] || p.replace("_", " ")}
                           </Badge>
                         ))}
                       </div>
