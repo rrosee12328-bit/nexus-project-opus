@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Dialog,
   DialogContent,
@@ -9,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
@@ -24,6 +26,11 @@ import {
   MessageSquarePlus,
   Loader2,
   History,
+  Link2,
+  Plus,
+  Trash2,
+  ExternalLink,
+  Paperclip,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -82,9 +89,13 @@ interface ProjectDetailDialogProps {
 }
 
 export default function ProjectDetailDialog({ projectId, onClose }: ProjectDetailDialogProps) {
+  const { user, role } = useAuth();
   const queryClient = useQueryClient();
   const [editingPhaseId, setEditingPhaseId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState("");
+  const [showAddAttachment, setShowAddAttachment] = useState(false);
+  const [attachTitle, setAttachTitle] = useState("");
+  const [attachUrl, setAttachUrl] = useState("");
 
   const saveNoteMutation = useMutation({
     mutationFn: async (args: { id: string; notes: string }) => {
@@ -118,7 +129,6 @@ export default function ProjectDetailDialog({ projectId, onClose }: ProjectDetai
     enabled: !!projectId,
   });
 
-  // Fetch activity log
   const { data: activityLog = [] } = useQuery({
     queryKey: ["project-activity", projectId],
     queryFn: async () => {
@@ -134,6 +144,53 @@ export default function ProjectDetailDialog({ projectId, onClose }: ProjectDetai
     enabled: !!projectId,
   });
 
+  const { data: attachments = [] } = useQuery({
+    queryKey: ["project-attachments", projectId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("project_attachments")
+        .select("*")
+        .eq("project_id", projectId!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!projectId,
+  });
+
+  const addAttachmentMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("project_attachments").insert({
+        project_id: projectId!,
+        title: attachTitle.trim(),
+        type: "link",
+        url: attachUrl.trim(),
+        created_by: user!.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["project-attachments", projectId] });
+      setAttachTitle("");
+      setAttachUrl("");
+      setShowAddAttachment(false);
+      toast.success("Attachment added");
+    },
+    onError: () => toast.error("Failed to add attachment"),
+  });
+
+  const deleteAttachmentMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("project_attachments").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["project-attachments", projectId] });
+      toast.success("Attachment removed");
+    },
+    onError: () => toast.error("Failed to remove attachment"),
+  });
+
   if (!project) return null;
 
   const phases = (project.project_phases as Array<{
@@ -144,7 +201,6 @@ export default function ProjectDetailDialog({ projectId, onClose }: ProjectDetai
   const completedPhases = sortedPhases.filter((p) => p.status === "completed").length;
   const badge = STATUS_COLORS[project.status] ?? STATUS_COLORS.not_started;
 
-  // Find the most recent activity across phases
   const allDates = sortedPhases
     .flatMap((p) => [p.started_at, p.completed_at])
     .filter(Boolean) as string[];
@@ -159,6 +215,8 @@ export default function ProjectDetailDialog({ projectId, onClose }: ProjectDetai
       const dateB = b.completed_at || b.started_at || "";
       return new Date(dateB).getTime() - new Date(dateA).getTime();
     })[0];
+
+  const canManage = role === "admin";
 
   return (
     <Dialog open={!!projectId} onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -222,6 +280,101 @@ export default function ProjectDetailDialog({ projectId, onClose }: ProjectDetai
             </p>
           </div>
 
+          {/* Documents & Links */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Paperclip className="h-4 w-4 text-muted-foreground" />
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Documents & Links
+                </p>
+              </div>
+              {canManage && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs gap-1"
+                  onClick={() => setShowAddAttachment(!showAddAttachment)}
+                >
+                  <Plus className="h-3 w-3" />
+                  Add
+                </Button>
+              )}
+            </div>
+
+            {showAddAttachment && (
+              <div className="rounded-lg border border-border p-3 mb-3 space-y-2">
+                <Input
+                  placeholder="Title (e.g. Brand Guidelines)"
+                  value={attachTitle}
+                  onChange={(e) => setAttachTitle(e.target.value)}
+                  className="h-8 text-sm"
+                />
+                <Input
+                  placeholder="URL (e.g. https://drive.google.com/...)"
+                  value={attachUrl}
+                  onChange={(e) => setAttachUrl(e.target.value)}
+                  className="h-8 text-sm"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs"
+                    disabled={!attachTitle.trim() || !attachUrl.trim() || addAttachmentMutation.isPending}
+                    onClick={() => addAttachmentMutation.mutate()}
+                  >
+                    {addAttachmentMutation.isPending && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
+                    Add Link
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs"
+                    onClick={() => { setShowAddAttachment(false); setAttachTitle(""); setAttachUrl(""); }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {attachments.length === 0 && !showAddAttachment ? (
+              <p className="text-xs text-muted-foreground py-2">No documents or links attached yet.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {attachments.map((att) => (
+                  <div
+                    key={att.id}
+                    className="group flex items-center gap-3 rounded-md border border-border px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
+                  >
+                    <Link2 className="h-4 w-4 text-primary shrink-0" />
+                    <span className="flex-1 truncate font-medium">{att.title}</span>
+                    <div className="flex items-center gap-1">
+                      {att.url && (
+                        <a
+                          href={att.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                      {canManage && (
+                        <button
+                          className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
+                          onClick={() => deleteAttachmentMutation.mutate(att.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Phase Timeline */}
           {sortedPhases.length > 0 && (
             <div>
@@ -265,7 +418,6 @@ export default function ProjectDetailDialog({ projectId, onClose }: ProjectDetai
                             {phase.notes}
                           </p>
                         )}
-                        {/* Inline note editor */}
                         {editingPhaseId === phase.id ? (
                           <div className="mt-2 space-y-2">
                             <Textarea
@@ -297,16 +449,18 @@ export default function ProjectDetailDialog({ projectId, onClose }: ProjectDetai
                             </div>
                           </div>
                         ) : (
-                          <button
-                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary mt-1.5 transition-colors"
-                            onClick={() => {
-                              setEditingPhaseId(phase.id);
-                              setNoteText(phase.notes || "");
-                            }}
-                          >
-                            <MessageSquarePlus className="h-3 w-3" />
-                            {phase.notes ? "Edit note" : "Add note"}
-                          </button>
+                          canManage && (
+                            <button
+                              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary mt-1.5 transition-colors"
+                              onClick={() => {
+                                setEditingPhaseId(phase.id);
+                                setNoteText(phase.notes || "");
+                              }}
+                            >
+                              <MessageSquarePlus className="h-3 w-3" />
+                              {phase.notes ? "Edit note" : "Add note"}
+                            </button>
+                          )
                         )}
                         {isCompleted && phase.started_at && phase.completed_at && (
                           <p className="text-xs text-muted-foreground mt-1">
