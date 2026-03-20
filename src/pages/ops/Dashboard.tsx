@@ -18,6 +18,7 @@ import { motion } from "framer-motion";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { format } from "date-fns";
 import TaskDetailDialog from "@/components/tasks/TaskDetailDialog";
+import TodayFocusPanel from "@/components/tasks/TodayFocusPanel";
 import type { Database } from "@/integrations/supabase/types";
 
 type Task = Database["public"]["Tables"]["tasks"]["Row"];
