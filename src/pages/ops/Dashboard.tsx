@@ -262,6 +262,18 @@ export default function OpsDashboard() {
               <Label>Description</Label>
               <Textarea value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="Optional description..." maxLength={1000} rows={3} />
             </div>
+            <div className="space-y-2">
+              <Label>Assign To</Label>
+              <Select value={newAssignedTo || "none"} onValueChange={(v) => setNewAssignedTo(v === "none" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Unassigned</SelectItem>
+                  {teamMembers.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.name} ({m.role})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddColumn(null)}>Cancel</Button>
