@@ -434,6 +434,30 @@ export default function AgentPage() {
 
           {/* Input */}
           <div className="border-t border-border p-3">
+            {/* Waveform visualizer */}
+            <AnimatePresence>
+              {isListening && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 48, opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex items-center justify-center gap-[3px] mb-3 overflow-hidden"
+                >
+                  {audioLevels.map((level, i) => (
+                    <motion.div
+                      key={i}
+                      className="w-[3px] rounded-full bg-primary"
+                      animate={{ height: Math.max(4, level * 40) }}
+                      transition={{ duration: 0.05 }}
+                    />
+                  ))}
+                  <span className="ml-3 text-xs text-destructive font-medium animate-pulse">
+                    Listening...
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
             <div className="flex gap-2 items-end">
               <Textarea
                 ref={textareaRef}
@@ -448,7 +472,7 @@ export default function AgentPage() {
                 onClick={toggleVoice}
                 variant={isListening ? "destructive" : "outline"}
                 size="icon"
-                className="h-[44px] w-[44px] shrink-0"
+                className={`h-[44px] w-[44px] shrink-0 ${isListening ? "animate-pulse" : ""}`}
                 title={isListening ? "Stop listening" : "Voice input"}
               >
                 {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
