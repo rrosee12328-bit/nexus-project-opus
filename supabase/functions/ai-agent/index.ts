@@ -428,6 +428,15 @@ async function executeTool(supabase: ReturnType<typeof createClient>, name: stri
         stale_projects: { items: staleProjects ?? [], count: staleProjects?.length ?? 0 },
       }
     }
+    case 'query_recent_activity': {
+      const limit = Math.min(Number(args.limit) || 20, 50)
+      let query = supabase.from('admin_activity_log').select('*')
+        .order('created_at', { ascending: false }).limit(limit)
+      if (args.entity_type) query = query.eq('entity_type', args.entity_type as string)
+      const { data, error } = await query
+      if (error) return { error: error.message }
+      return { activities: data ?? [], count: data?.length ?? 0 }
+    }
     default:
       return { error: `Unknown tool: ${name}` }
   }
