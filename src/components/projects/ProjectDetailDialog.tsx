@@ -86,7 +86,23 @@ export default function ProjectDetailDialog({ projectId, onClose }: ProjectDetai
   const [editingPhaseId, setEditingPhaseId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState("");
 
-  const { data: project } = useQuery({
+  const saveNoteMutation = useMutation({
+    mutationFn: async (args: { id: string; notes: string }) => {
+      const { error } = await supabase
+        .from("project_phases")
+        .update({ notes: args.notes || null })
+        .eq("id", args.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["project-detail", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-projects"] });
+      setEditingPhaseId(null);
+      toast.success("Note saved");
+    },
+    onError: () => toast.error("Failed to save note"),
+  });
+
     queryKey: ["project-detail", projectId],
     queryFn: async () => {
       const { data, error } = await supabase
