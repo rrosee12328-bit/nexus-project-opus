@@ -608,6 +608,53 @@ export type Database = {
           },
         ]
       }
+      project_attachments: {
+        Row: {
+          created_at: string
+          created_by: string
+          file_name: string | null
+          file_path: string | null
+          file_size: number | null
+          id: string
+          project_id: string
+          title: string
+          type: string
+          url: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          file_name?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          id?: string
+          project_id: string
+          title: string
+          type?: string
+          url?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          file_name?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          id?: string
+          project_id?: string
+          title?: string
+          type?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_attachments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_phases: {
         Row: {
           completed_at: string | null
