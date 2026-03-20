@@ -32,6 +32,7 @@ import OpsTasks from "./pages/ops/Tasks";
 import OpsSops from "./pages/ops/SOPs";
 import OpsTimesheets from "./pages/ops/Timesheets";
 import OpsSettings from "./pages/ops/Settings";
+import OpsAgent from "./pages/ops/Agent";
 
 import ClientLayout from "./layouts/ClientLayout";
 import ClientDashboard from "./pages/client/Dashboard";
@@ -40,6 +41,7 @@ import ClientAssets from "./pages/client/Assets";
 import ClientMessages from "./pages/client/Messages";
 import ClientPayments from "./pages/client/Payments";
 import ClientSettings from "./pages/client/Settings";
+import ClientAgent from "./pages/client/Agent";
 
 const queryClient = new QueryClient();
 
@@ -99,6 +101,7 @@ const App = () => (
               <Route path="tasks" element={<OpsTasks />} />
               <Route path="timesheets" element={<OpsTimesheets />} />
               <Route path="sops" element={<OpsSops />} />
+              <Route path="agent" element={<OpsAgent />} />
               <Route path="settings" element={<OpsSettings />} />
             </Route>
 
@@ -113,6 +116,7 @@ const App = () => (
               <Route path="assets" element={<ClientAssets />} />
               <Route path="messages" element={<ClientMessages />} />
               <Route path="payments" element={<ClientPayments />} />
+              <Route path="agent" element={<ClientAgent />} />
               <Route path="settings" element={<ClientSettings />} />
             </Route>
 
