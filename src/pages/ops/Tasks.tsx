@@ -134,6 +134,12 @@ export default function OpsTasks() {
       toast.success(editId ? "Task updated" : "Task created");
       queryClient.invalidateQueries({ queryKey: ["ops-tasks"] });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      logActivity(
+        editId ? "updated_task" : "created_task",
+        "task",
+        editId,
+        editId ? `Updated task "${form.title}"` : `Created task "${form.title}"`,
+      );
       closeForm();
     },
     onError: (err: Error) => toast.error(err.message),
