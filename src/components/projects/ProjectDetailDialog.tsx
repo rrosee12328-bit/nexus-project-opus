@@ -117,6 +117,22 @@ export default function ProjectDetailDialog({ projectId, onClose }: ProjectDetai
     enabled: !!projectId,
   });
 
+  // Fetch activity log
+  const { data: activityLog = [] } = useQuery({
+    queryKey: ["project-activity", projectId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("project_activity_log")
+        .select("*")
+        .eq("project_id", projectId!)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!projectId,
+  });
+
   if (!project) return null;
 
   const phases = (project.project_phases as Array<{
