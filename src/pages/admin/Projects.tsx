@@ -344,7 +344,7 @@ export default function AdminProjects() {
                       </div>
 
                       {/* Actions */}
-                      <div className="flex gap-1 shrink-0">
+                      <div className="flex gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="sm" onClick={() => setPhaseDialogId(project.id)}>
                           Phases
                         </Button>
