@@ -162,6 +162,9 @@ export default function AdminClients() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => navigate(`/admin/clients/${client.id}`)}>
+          <Eye className="mr-2 h-4 w-4" /> View Details
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => openEdit(client)}>
           <Pencil className="mr-2 h-4 w-4" /> Edit
         </DropdownMenuItem>
