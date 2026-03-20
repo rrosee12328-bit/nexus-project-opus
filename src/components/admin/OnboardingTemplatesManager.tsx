@@ -337,21 +337,30 @@ export function OnboardingTemplatesManager() {
 
             <div className="space-y-2">
               <Label>Project Phases</Label>
-              <div className="flex gap-2 flex-wrap">
-                {AVAILABLE_PHASES.map((phase) => (
-                  <Badge
-                    key={phase}
-                    variant={formPhases.includes(phase) ? "default" : "outline"}
-                    className={cn(
-                      "cursor-pointer select-none transition-colors",
-                      formPhases.includes(phase)
-                        ? ""
-                        : "opacity-50 hover:opacity-100"
-                    )}
-                    onClick={() => togglePhase(phase)}
-                  >
-                    {phase.replace("_", " ")}
-                  </Badge>
+              <div className="space-y-3">
+                {MAIN_PHASES.map((main) => (
+                  <div key={main.key} className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      {main.icon} {main.label}
+                    </p>
+                    <div className="flex gap-2 flex-wrap pl-4">
+                      {main.subPhases.map((sub) => (
+                        <Badge
+                          key={sub.key}
+                          variant={formPhases.includes(sub.key) ? "default" : "outline"}
+                          className={cn(
+                            "cursor-pointer select-none transition-colors",
+                            formPhases.includes(sub.key)
+                              ? ""
+                              : "opacity-50 hover:opacity-100"
+                          )}
+                          onClick={() => togglePhase(sub.key)}
+                        >
+                          {sub.label}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
