@@ -103,6 +103,7 @@ export default function OpsDashboard() {
       setNewTitle("");
       setNewDescription("");
       setNewPriority("medium");
+      setNewAssignedTo("");
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
