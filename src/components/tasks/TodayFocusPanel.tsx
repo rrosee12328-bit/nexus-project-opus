@@ -63,7 +63,23 @@ export default function TodayFocusPanel({ tasks, teamMembers, onTaskClick }: Tod
     return teamMembers.find((m) => m.id === userId)?.name ?? null;
   };
 
-  if (focusTasks.length === 0) return null;
+  if (focusTasks.length === 0) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.25 }}>
+        <Card className="border-dashed border-primary/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Star className="h-4 w-4 text-primary fill-primary" />
+              <h2 className="text-sm font-semibold">Today's Focus</h2>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              No tasks focused for today. Star tasks on the board below or set due dates to auto-populate this section.
+            </p>
+          </CardContent>
+        </Card>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.25 }}>
