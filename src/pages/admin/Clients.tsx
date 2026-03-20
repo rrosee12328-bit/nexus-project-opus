@@ -62,6 +62,8 @@ export default function AdminClients() {
   const [editClient, setEditClient] = useState<Client | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
+  const [invitingIds, setInvitingIds] = useState<Set<string>>(new Set());
+  const queryClient = useQueryClient();
 
   const toggleExpanded = (id: string) => {
     setExpandedClients((prev) => {
