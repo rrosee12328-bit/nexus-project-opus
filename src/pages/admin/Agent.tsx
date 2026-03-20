@@ -23,9 +23,14 @@ export default function AgentPage() {
   const [activeConvoId, setActiveConvoId] = useState<string | null>(null);
   const [loadingConvos, setLoadingConvos] = useState(true);
   const [isListening, setIsListening] = useState(false);
+  const [audioLevels, setAudioLevels] = useState<number[]>(new Array(24).fill(0));
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load conversation list
@@ -185,9 +190,51 @@ export default function AgentPage() {
     }
   };
 
+  const startAudioVisualizer = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const audioContext = new AudioContext();
+      audioContextRef.current = audioContext;
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 64;
+      analyser.smoothingTimeConstant = 0.7;
+      source.connect(analyser);
+      analyserRef.current = analyser;
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const updateLevels = () => {
+        analyser.getByteFrequencyData(dataArray);
+        const bars = 24;
+        const levels: number[] = [];
+        const step = Math.floor(dataArray.length / bars);
+        for (let i = 0; i < bars; i++) {
+          levels.push(dataArray[i * step] / 255);
+        }
+        setAudioLevels(levels);
+        animFrameRef.current = requestAnimationFrame(updateLevels);
+      };
+      updateLevels();
+    } catch {
+      // mic access denied — visualizer just won't show
+    }
+  }, []);
+
+  const stopAudioVisualizer = useCallback(() => {
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    audioContextRef.current?.close();
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    audioContextRef.current = null;
+    analyserRef.current = null;
+    streamRef.current = null;
+    setAudioLevels(new Array(24).fill(0));
+  }, []);
+
   const toggleVoice = useCallback(() => {
     if (isListening) {
       recognitionRef.current?.stop();
+      stopAudioVisualizer();
       setIsListening(false);
       return;
     }
@@ -224,21 +271,25 @@ export default function AgentPage() {
       if (event.error !== "aborted") {
         toast.error("Microphone error: " + event.error);
       }
+      stopAudioVisualizer();
       setIsListening(false);
     };
 
     recognition.onend = () => {
+      stopAudioVisualizer();
       setIsListening(false);
     };
 
     recognition.start();
+    startAudioVisualizer();
     setIsListening(true);
-  }, [isListening]);
+  }, [isListening, startAudioVisualizer, stopAudioVisualizer]);
 
-  // Cleanup recognition on unmount
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       recognitionRef.current?.stop();
+      stopAudioVisualizer();
     };
   }, []);
 
@@ -383,6 +434,30 @@ export default function AgentPage() {
 
           {/* Input */}
           <div className="border-t border-border p-3">
+            {/* Waveform visualizer */}
+            <AnimatePresence>
+              {isListening && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 48, opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex items-center justify-center gap-[3px] mb-3 overflow-hidden"
+                >
+                  {audioLevels.map((level, i) => (
+                    <motion.div
+                      key={i}
+                      className="w-[3px] rounded-full bg-primary"
+                      animate={{ height: Math.max(4, level * 40) }}
+                      transition={{ duration: 0.05 }}
+                    />
+                  ))}
+                  <span className="ml-3 text-xs text-destructive font-medium animate-pulse">
+                    Listening...
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
             <div className="flex gap-2 items-end">
               <Textarea
                 ref={textareaRef}
@@ -397,7 +472,7 @@ export default function AgentPage() {
                 onClick={toggleVoice}
                 variant={isListening ? "destructive" : "outline"}
                 size="icon"
-                className="h-[44px] w-[44px] shrink-0"
+                className={`h-[44px] w-[44px] shrink-0 ${isListening ? "animate-pulse" : ""}`}
                 title={isListening ? "Stop listening" : "Voice input"}
               >
                 {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
