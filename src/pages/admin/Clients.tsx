@@ -454,6 +454,17 @@ export default function AdminClients() {
                               <p className="text-sm leading-relaxed text-muted-foreground">{parsed.raw}</p>
                             </div>
                           )}
+
+                          <Separator />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/admin/clients/${client.id}`)}
+                            className="w-full"
+                          >
+                            <Eye className="h-3.5 w-3.5 mr-2" />
+                            View Knowledge Base
+                          </Button>
                         </div>
                       </div>
                     </CollapsibleContent>
