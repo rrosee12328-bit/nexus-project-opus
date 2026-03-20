@@ -30,6 +30,7 @@ const navItems = [
   { title: "Tasks", url: "/ops/tasks", icon: CheckSquare },
   { title: "Timesheets", url: "/ops/timesheets", icon: Clock },
   { title: "SOPs", url: "/ops/sops", icon: BookOpen },
+  { title: "AI Assistant", url: "/ops/agent", icon: Bot },
   { title: "Settings", url: "/ops/settings", icon: Settings },
 ];
 
