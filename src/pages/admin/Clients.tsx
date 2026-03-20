@@ -11,7 +11,7 @@ import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
-import { UserCheck, UserPlus, DollarSign, PhoneCall, Plus, MoreHorizontal, Pencil, Trash2, ChevronDown, ChevronRight, FileText, Calendar, Briefcase, Users, Send } from "lucide-react";
+import { UserCheck, UserPlus, DollarSign, PhoneCall, Plus, MoreHorizontal, Pencil, Trash2, ChevronDown, ChevronRight, FileText, Calendar, Briefcase, Users, Send, RefreshCw } from "lucide-react";
 import { ClientFormDialog } from "@/components/ClientFormDialog";
 import { DeleteClientDialog } from "@/components/DeleteClientDialog";
 import { motion } from "framer-motion";
@@ -130,15 +130,16 @@ export default function AdminClients() {
   const openEdit = (c: Client) => { setEditClient(c); setFormOpen(true); };
   const openAdd = () => { setEditClient(null); setFormOpen(true); };
 
-  const handleSendInvite = async (client: Client) => {
-    if (!client.email || client.user_id) return;
+  const handleSendInvite = async (client: Client, resend = false) => {
+    if (!client.email) return;
+    if (!resend && client.user_id) return;
     setInvitingIds((prev) => new Set(prev).add(client.id));
     try {
-      const { data, error } = await supabase.functions.invoke("invite-client", {
-        body: { client_id: client.id },
+      const { error } = await supabase.functions.invoke("invite-client", {
+        body: { client_id: client.id, resend },
       });
       if (error) throw error;
-      toast.success(`Invite sent to ${client.email}`);
+      toast.success(resend ? `Invite resent to ${client.email}` : `Invite sent to ${client.email}`);
       queryClient.invalidateQueries({ queryKey: ["clients"] });
     } catch (err: any) {
       toast.error(err?.message || "Failed to send invite");
@@ -165,6 +166,11 @@ export default function AdminClients() {
         {client.email && !client.user_id && (
           <DropdownMenuItem onClick={() => handleSendInvite(client)}>
             <Send className="mr-2 h-4 w-4" /> Send Invite
+          </DropdownMenuItem>
+        )}
+        {client.email && client.user_id && (
+          <DropdownMenuItem onClick={() => handleSendInvite(client, true)}>
+            <RefreshCw className="mr-2 h-4 w-4" /> Resend Invite
           </DropdownMenuItem>
         )}
         <DropdownMenuItem onClick={() => setDeleteTarget(client)} className="text-destructive focus:text-destructive">
