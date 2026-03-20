@@ -139,7 +139,7 @@ export default function ClientDetail() {
       };
       if (editingId) {
         delete payload.created_by;
-        const { error } = await supabase.from("client_notes" as any).update(payload).eq("id", editingId);
+        const { error } = await supabase.from("client_notes").update(payload).eq("id", editingId);
         if (error) throw error;
       } else {
         const { error } = await supabase.from("client_notes" as any).insert(payload);
