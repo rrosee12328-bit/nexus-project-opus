@@ -37,6 +37,7 @@ const navItems = [
   { title: "Financial Tracking", url: "/admin/financials", icon: DollarSign },
   { title: "Reports", url: "/admin/reports", icon: BarChart3 },
   { title: "Ops Portal", url: "/ops", icon: ClipboardList },
+  { title: "Email Dashboard", url: "/admin/emails", icon: Mail },
   { title: "Settings", url: "/admin/settings", icon: Settings },
 ];
 
