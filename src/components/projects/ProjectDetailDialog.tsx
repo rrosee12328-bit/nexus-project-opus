@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,9 +31,13 @@ import {
   Trash2,
   ExternalLink,
   Paperclip,
+  Upload,
+  Download,
+  File,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { logActivity } from "@/lib/activityLogger";
 
 const PHASE_LABELS: Record<string, string> = {
   discovery: "Discovery",
@@ -83,6 +87,12 @@ const phaseIcon = (status: string) => {
   }
 };
 
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 interface ProjectDetailDialogProps {
   projectId: string | null;
   onClose: () => void;
@@ -91,6 +101,7 @@ interface ProjectDetailDialogProps {
 export default function ProjectDetailDialog({ projectId, onClose }: ProjectDetailDialogProps) {
   const { user, role } = useAuth();
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [editingPhaseId, setEditingPhaseId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState("");
   const [showAddAttachment, setShowAddAttachment] = useState(false);
@@ -171,25 +182,81 @@ export default function ProjectDetailDialog({ projectId, onClose }: ProjectDetai
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["project-attachments", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["project-activity", projectId] });
+      logActivity("added_project_attachment", "project_attachment", projectId, `Added link "${attachTitle.trim()}" to project`);
       setAttachTitle("");
       setAttachUrl("");
       setShowAddAttachment(false);
-      toast.success("Attachment added");
+      toast.success("Link added");
     },
     onError: () => toast.error("Failed to add attachment"),
   });
 
-  const deleteAttachmentMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("project_attachments").delete().eq("id", id);
-      if (error) throw error;
+  const uploadFileMutation = useMutation({
+    mutationFn: async (file: globalThis.File) => {
+      const filePath = `projects/${projectId}/${Date.now()}_${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from("client-assets")
+        .upload(filePath, file);
+      if (uploadError) throw uploadError;
+
+      const { error: dbError } = await supabase.from("project_attachments").insert({
+        project_id: projectId!,
+        title: file.name,
+        type: "file",
+        file_path: filePath,
+        file_name: file.name,
+        file_size: file.size,
+        created_by: user!.id,
+      });
+      if (dbError) throw dbError;
     },
-    onSuccess: () => {
+    onSuccess: (_data, file) => {
       queryClient.invalidateQueries({ queryKey: ["project-attachments", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["project-activity", projectId] });
+      logActivity("uploaded_project_file", "project_attachment", projectId, `Uploaded file "${file.name}" to project`);
+      toast.success("File uploaded");
+    },
+    onError: () => toast.error("Failed to upload file"),
+  });
+
+  const deleteAttachmentMutation = useMutation({
+    mutationFn: async (att: { id: string; type: string; file_path: string | null; title: string }) => {
+      if (att.type === "file" && att.file_path) {
+        await supabase.storage.from("client-assets").remove([att.file_path]);
+      }
+      const { error } = await supabase.from("project_attachments").delete().eq("id", att.id);
+      if (error) throw error;
+      return att;
+    },
+    onSuccess: (_data, att) => {
+      queryClient.invalidateQueries({ queryKey: ["project-attachments", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["project-activity", projectId] });
+      logActivity("removed_project_attachment", "project_attachment", projectId, `Removed "${att.title}" from project`);
       toast.success("Attachment removed");
     },
     onError: () => toast.error("Failed to remove attachment"),
   });
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files?.length) return;
+    for (let i = 0; i < files.length; i++) {
+      uploadFileMutation.mutate(files[i]);
+    }
+    e.target.value = "";
+  };
+
+  const handleDownload = async (filePath: string, fileName: string) => {
+    const { data, error } = await supabase.storage
+      .from("client-assets")
+      .createSignedUrl(filePath, 60 * 5, { download: fileName });
+    if (error || !data?.signedUrl) {
+      toast.error("Failed to generate download link");
+      return;
+    }
+    window.open(data.signedUrl, "_blank");
+  };
 
   if (!project) return null;
 
@@ -290,15 +357,34 @@ export default function ProjectDetailDialog({ projectId, onClose }: ProjectDetai
                 </p>
               </div>
               {canManage && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs gap-1"
-                  onClick={() => setShowAddAttachment(!showAddAttachment)}
-                >
-                  <Plus className="h-3 w-3" />
-                  Add
-                </Button>
+                <div className="flex items-center gap-1">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    multiple
+                    onChange={handleFileSelect}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadFileMutation.isPending}
+                  >
+                    {uploadFileMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+                    Upload
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => setShowAddAttachment(!showAddAttachment)}
+                  >
+                    <Plus className="h-3 w-3" />
+                    Link
+                  </Button>
+                </div>
               )}
             </div>
 
@@ -347,10 +433,27 @@ export default function ProjectDetailDialog({ projectId, onClose }: ProjectDetai
                     key={att.id}
                     className="group flex items-center gap-3 rounded-md border border-border px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
                   >
-                    <Link2 className="h-4 w-4 text-primary shrink-0" />
-                    <span className="flex-1 truncate font-medium">{att.title}</span>
+                    {att.type === "file" ? (
+                      <File className="h-4 w-4 text-muted-foreground shrink-0" />
+                    ) : (
+                      <Link2 className="h-4 w-4 text-primary shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <span className="truncate font-medium block">{att.title}</span>
+                      {att.type === "file" && att.file_size && (
+                        <span className="text-xs text-muted-foreground">{formatFileSize(Number(att.file_size))}</span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-1">
-                      {att.url && (
+                      {att.type === "file" && att.file_path && (
+                        <button
+                          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
+                          onClick={() => handleDownload(att.file_path!, att.file_name || att.title)}
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      {att.type === "link" && att.url && (
                         <a
                           href={att.url}
                           target="_blank"
@@ -363,7 +466,12 @@ export default function ProjectDetailDialog({ projectId, onClose }: ProjectDetai
                       {canManage && (
                         <button
                           className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
-                          onClick={() => deleteAttachmentMutation.mutate(att.id)}
+                          onClick={() => deleteAttachmentMutation.mutate({
+                            id: att.id,
+                            type: att.type,
+                            file_path: att.file_path,
+                            title: att.title,
+                          })}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -494,6 +602,8 @@ export default function ProjectDetailDialog({ projectId, onClose }: ProjectDetai
                       progress_update: "📊",
                       phase_status_change: "✅",
                       phase_note: "📝",
+                      attachment_added: "📎",
+                      attachment_removed: "🗑️",
                     };
                     return (
                       <div key={entry.id} className="flex items-start gap-3 text-xs py-1.5">

@@ -33,7 +33,6 @@ Deno.serve(async (req) => {
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     let totalEnqueued = 0;
 
-    // Helper: check if reminder was already sent in last 24h
     async function wasRecentlySent(type: string, refId: string): Promise<boolean> {
       const { data } = await supabase
         .from("reminder_log")
@@ -46,82 +45,54 @@ Deno.serve(async (req) => {
     }
 
     async function logAndEnqueue(
-      type: string,
-      refId: string,
-      email: string,
-      userId: string | null,
-      subject: string,
-      html: string,
-      plainText: string
+      type: string, refId: string, email: string, userId: string | null,
+      subject: string, html: string, plainText: string
     ) {
       const msgId = crypto.randomUUID();
       await supabase.from("reminder_log").insert({
-        reminder_type: type,
-        reference_id: refId,
-        recipient_email: email,
-        recipient_user_id: userId,
+        reminder_type: type, reference_id: refId,
+        recipient_email: email, recipient_user_id: userId,
       });
       await supabase.rpc("enqueue_email", {
         queue_name: "transactional_emails",
         payload: {
-          to: email,
-          from: FROM_EMAIL,
-          sender_domain: SENDER_DOMAIN,
-          subject,
-          html,
-          text: plainText,
-          purpose: "transactional",
-          run_id: msgId,
-          label: `reminder_${type}`,
-          message_id: msgId,
-          queued_at: new Date().toISOString(),
+          to: email, from: FROM_EMAIL, sender_domain: SENDER_DOMAIN,
+          subject, html, text: plainText, purpose: "transactional",
+          run_id: msgId, label: `reminder_${type}`,
+          message_id: msgId, queued_at: new Date().toISOString(),
         },
       });
       totalEnqueued++;
     }
 
-    // ── 1. UNREAD MESSAGES (client has unread messages from staff for 24h+) ──
+    // ── 1. UNREAD MESSAGES ──
     const { data: unreadClients } = await supabase
-      .from("messages")
-      .select("client_id")
-      .is("read_at", null)
-      .lt("created_at", cutoff);
+      .from("messages").select("client_id")
+      .is("read_at", null).lt("created_at", cutoff);
 
     if (unreadClients?.length) {
       const uniqueClientIds = [...new Set(unreadClients.map((m) => m.client_id))];
       for (const clientId of uniqueClientIds) {
         if (await wasRecentlySent("unread_message", clientId)) continue;
         const { data: client } = await supabase
-          .from("clients")
-          .select("email, name, user_id")
-          .eq("id", clientId)
-          .single();
+          .from("clients").select("email, name, user_id")
+          .eq("id", clientId).single();
         if (!client?.email) continue;
 
-        // Check sender is staff (not the client themselves)
         const { data: unreadFromStaff } = await supabase
-          .from("messages")
-          .select("id")
-          .eq("client_id", clientId)
-          .is("read_at", null)
-          .lt("created_at", cutoff)
-          .neq("sender_id", client.user_id ?? "")
+          .from("messages").select("id")
+          .eq("client_id", clientId).is("read_at", null)
+          .lt("created_at", cutoff).neq("sender_id", client.user_id ?? "")
           .limit(1);
         if (!unreadFromStaff?.length) continue;
 
         const html = buildReminderHtml(
           "You have unread messages",
           `Hi ${client.name ?? "there"}, you have unread messages from your Vektiss team waiting for your review.`,
-          "View Messages",
-          `${PORTAL_URL}/portal/messages`
+          "View Messages", `${PORTAL_URL}/portal/messages`
         );
-        await logAndEnqueue(
-          "unread_message",
-          clientId,
-          client.email,
-          client.user_id,
-          "Reminder: You have unread messages from Vektiss",
-          html,
+        await logAndEnqueue("unread_message", clientId, client.email, client.user_id,
+          "Reminder: You have unread messages from Vektiss", html,
           `Hi ${client.name ?? "there"}, you have unread messages from your Vektiss team.`
         );
       }
@@ -129,49 +100,28 @@ Deno.serve(async (req) => {
 
     // ── 2. TASKS AWAITING REVIEW ──
     const { data: reviewTasks } = await supabase
-      .from("tasks")
-      .select("id, title, assigned_to, updated_at")
-      .eq("status", "review")
-      .lt("updated_at", cutoff);
+      .from("tasks").select("id, title, assigned_to, updated_at")
+      .eq("status", "review").lt("updated_at", cutoff);
 
     if (reviewTasks?.length) {
-      // Get all admin users to notify
       const { data: adminRoles } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "admin");
+        .from("user_roles").select("user_id").eq("role", "admin");
       const adminUserIds = adminRoles?.map((r) => r.user_id) ?? [];
 
       for (const task of reviewTasks) {
         for (const adminId of adminUserIds) {
           const refId = `${task.id}_${adminId}`;
           if (await wasRecentlySent("task_review", refId)) continue;
-
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("display_name")
-            .eq("user_id", adminId)
-            .single();
-
-          // Get admin email from auth - use profiles or user_roles
-          // We need a way to get the email - check if there's a client with that user_id, otherwise skip
-          // Actually for admins, we need their email from auth. We'll use the service role to get it.
           const { data: { user } } = await supabase.auth.admin.getUserById(adminId);
           if (!user?.email) continue;
 
           const html = buildReminderHtml(
             "Task awaiting your review",
-            `The task "<strong>${task.title}</strong>" is waiting for review. Please take a look when you get a chance.`,
-            "View Tasks",
-            `${PORTAL_URL}/admin`
+            `The task "<strong>${task.title}</strong>" is waiting for review.`,
+            "View Tasks", `${PORTAL_URL}/admin`
           );
-          await logAndEnqueue(
-            "task_review",
-            refId,
-            user.email,
-            adminId,
-            `Reminder: "${task.title}" needs review`,
-            html,
+          await logAndEnqueue("task_review", refId, user.email, adminId,
+            `Reminder: "${task.title}" needs review`, html,
             `The task "${task.title}" is waiting for review.`
           );
         }
@@ -180,69 +130,85 @@ Deno.serve(async (req) => {
 
     // ── 3. PROJECTS IN REVIEW PHASE ──
     const { data: reviewProjects } = await supabase
-      .from("projects")
-      .select("id, name, client_id, updated_at")
-      .eq("current_phase", "review")
-      .eq("status", "in_progress")
+      .from("projects").select("id, name, client_id, updated_at")
+      .eq("current_phase", "review").eq("status", "in_progress")
       .lt("updated_at", cutoff);
 
     if (reviewProjects?.length) {
       for (const project of reviewProjects) {
-        const refId = project.id;
-        if (await wasRecentlySent("project_review", refId)) continue;
-
+        if (await wasRecentlySent("project_review", project.id)) continue;
         const { data: client } = await supabase
-          .from("clients")
-          .select("email, name, user_id")
-          .eq("id", project.client_id)
-          .single();
+          .from("clients").select("email, name, user_id")
+          .eq("id", project.client_id).single();
         if (!client?.email) continue;
 
         const html = buildReminderHtml(
           "Your project needs your feedback",
-          `Hi ${client.name ?? "there"}, your project "<strong>${project.name}</strong>" is in the review phase and needs your feedback to move forward.`,
-          "View Project",
-          `${PORTAL_URL}/portal/projects`
+          `Hi ${client.name ?? "there"}, your project "<strong>${project.name}</strong>" is in the review phase and needs your feedback.`,
+          "View Project", `${PORTAL_URL}/portal/projects`
         );
-        await logAndEnqueue(
-          "project_review",
-          refId,
-          client.email,
-          client.user_id,
-          `Reminder: "${project.name}" needs your feedback`,
-          html,
+        await logAndEnqueue("project_review", project.id, client.email, client.user_id,
+          `Reminder: "${project.name}" needs your feedback`, html,
           `Your project "${project.name}" is in the review phase and needs your feedback.`
         );
       }
     }
 
-    // ── 4. UNPAID INVOICES (clients with balance_due > 0) ──
+    // ── 4. UNPAID INVOICES ──
     const { data: owingClients } = await supabase
-      .from("clients")
-      .select("id, name, email, user_id, balance_due")
-      .gt("balance_due", 0)
-      .eq("status", "active");
+      .from("clients").select("id, name, email, user_id, balance_due")
+      .gt("balance_due", 0).eq("status", "active");
 
     if (owingClients?.length) {
       for (const client of owingClients) {
         if (!client.email) continue;
-        const refId = client.id;
-        if (await wasRecentlySent("unpaid_invoice", refId)) continue;
+        if (await wasRecentlySent("unpaid_invoice", client.id)) continue;
 
         const html = buildReminderHtml(
           "Payment reminder",
-          `Hi ${client.name ?? "there"}, you have an outstanding balance of <strong>$${Number(client.balance_due).toLocaleString()}</strong>. Please review your payment details at your earliest convenience.`,
-          "View Payments",
-          `${PORTAL_URL}/portal/payments`
+          `Hi ${client.name ?? "there"}, you have an outstanding balance of <strong>$${Number(client.balance_due).toLocaleString()}</strong>.`,
+          "View Payments", `${PORTAL_URL}/portal/payments`
         );
-        await logAndEnqueue(
-          "unpaid_invoice",
-          refId,
-          client.email,
-          client.user_id,
-          "Reminder: You have an outstanding balance with Vektiss",
-          html,
-          `Hi ${client.name ?? "there"}, you have an outstanding balance of $${client.balance_due}. Please review your payment details.`
+        await logAndEnqueue("unpaid_invoice", client.id, client.email, client.user_id,
+          "Reminder: You have an outstanding balance with Vektiss", html,
+          `Hi ${client.name ?? "there"}, you have an outstanding balance of $${client.balance_due}.`
+        );
+      }
+    }
+
+    // ── 5. TASKS DUE WITHIN 24 HOURS ──
+    const now = new Date();
+    const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    const today = now.toISOString().split("T")[0];
+
+    const { data: dueSoonTasks } = await supabase
+      .from("tasks").select("id, title, due_date, assigned_to")
+      .gte("due_date", today).lte("due_date", in24h)
+      .neq("status", "done");
+
+    if (dueSoonTasks?.length) {
+      for (const task of dueSoonTasks) {
+        const targetUserId = task.assigned_to;
+        if (!targetUserId) continue;
+        const refId = `deadline_${task.id}_${targetUserId}`;
+        if (await wasRecentlySent("task_deadline", refId)) continue;
+
+        const { data: { user } } = await supabase.auth.admin.getUserById(targetUserId);
+        if (!user?.email) continue;
+
+        // Determine portal link based on user role
+        const { data: roleData } = await supabase
+          .from("user_roles").select("role").eq("user_id", targetUserId).single();
+        const portalPath = roleData?.role === "admin" ? "/admin" : "/ops/tasks";
+
+        const html = buildReminderHtml(
+          "Task due soon",
+          `The task "<strong>${task.title}</strong>" is due on <strong>${task.due_date}</strong>. Please make sure it's completed on time.`,
+          "View Tasks", `${PORTAL_URL}${portalPath}`
+        );
+        await logAndEnqueue("task_deadline", refId, user.email, targetUserId,
+          `Reminder: "${task.title}" is due ${task.due_date === today ? "today" : "tomorrow"}`, html,
+          `The task "${task.title}" is due on ${task.due_date}.`
         );
       }
     }
