@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { logActivity } from "@/lib/activityLogger";
 import { useAuth } from "@/hooks/useAuth";
 import { AssetPreviewDialog } from "@/components/assets/AssetPreviewDialog";
 import type { Tables } from "@/integrations/supabase/types";
@@ -113,9 +114,11 @@ export default function AdminAssets() {
         if (insertError) throw insertError;
       }
     },
-    onSuccess: () => {
+    onSuccess: (_data, files) => {
       toast.success("Files uploaded");
       queryClient.invalidateQueries({ queryKey: ["admin-assets", selectedClientId] });
+      const clientName = clients.find((c) => c.id === selectedClientId)?.name;
+      logActivity("uploaded_asset", "asset", selectedClientId ?? null, `Uploaded ${files.length} file(s) for ${clientName ?? "client"}`);
     },
     onError: (err: Error) => toast.error(`Upload failed: ${err.message}`),
   });
@@ -126,9 +129,10 @@ export default function AdminAssets() {
       const { error } = await supabase.from("assets").delete().eq("id", asset.id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, asset) => {
       toast.success("File deleted");
       queryClient.invalidateQueries({ queryKey: ["admin-assets", selectedClientId] });
+      logActivity("deleted_asset", "asset", asset.id, `Deleted file "${asset.file_path.split('/').pop()}"`);
     },
     onError: () => toast.error("Failed to delete"),
   });

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { logActivity } from "@/lib/activityLogger";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -177,6 +178,12 @@ export default function AdminProjects() {
     onSuccess: () => {
       toast.success(editingId ? "Project updated" : "Project created");
       queryClient.invalidateQueries({ queryKey: ["admin-projects"] });
+      logActivity(
+        editingId ? "updated_project" : "created_project",
+        "project",
+        editingId,
+        editingId ? `Updated project "${form.name}"` : `Created project "${form.name}"`,
+      );
       closeForm();
     },
     onError: (err: Error) => toast.error(err.message),
@@ -188,9 +195,10 @@ export default function AdminProjects() {
       const { error } = await supabase.from("projects").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       toast.success("Project deleted");
       queryClient.invalidateQueries({ queryKey: ["admin-projects"] });
+      logActivity("deleted_project", "project", id, "Deleted a project");
       setDeleteTarget(null);
     },
     onError: () => toast.error("Failed to delete project"),

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { logActivity } from "@/lib/activityLogger";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,7 +48,7 @@ export default function AdminFinancials() {
       const { error } = await supabase.from("expenses").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("Expense deleted"); queryClient.invalidateQueries({ queryKey: ["expenses"] }); },
+    onSuccess: (_data, id) => { toast.success("Expense deleted"); queryClient.invalidateQueries({ queryKey: ["expenses"] }); logActivity("deleted_expense", "expense", id, "Deleted an expense"); },
     onError: () => toast.error("Failed to delete"),
   });
   const deleteInvestment = useMutation({
@@ -55,7 +56,7 @@ export default function AdminFinancials() {
       const { error } = await supabase.from("investments").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("Investment deleted"); queryClient.invalidateQueries({ queryKey: ["investments"] }); },
+    onSuccess: (_data, id) => { toast.success("Investment deleted"); queryClient.invalidateQueries({ queryKey: ["investments"] }); logActivity("deleted_investment", "investment", id, "Deleted an investment"); },
     onError: () => toast.error("Failed to delete"),
   });
   const deleteOverhead = useMutation({
@@ -63,7 +64,7 @@ export default function AdminFinancials() {
       const { error } = await supabase.from("business_overhead").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("Overhead deleted"); queryClient.invalidateQueries({ queryKey: ["business-overhead"] }); },
+    onSuccess: (_data, id) => { toast.success("Overhead deleted"); queryClient.invalidateQueries({ queryKey: ["business-overhead"] }); logActivity("deleted_overhead", "overhead", id, "Deleted an overhead item"); },
     onError: () => toast.error("Failed to delete"),
   });
   const { data: payments } = useQuery({

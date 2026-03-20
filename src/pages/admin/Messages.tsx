@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { logActivity } from "@/lib/activityLogger";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -140,6 +141,8 @@ export default function AdminMessages() {
       setMessage("");
       queryClient.invalidateQueries({ queryKey: ["admin-messages", selectedClientId] });
       queryClient.invalidateQueries({ queryKey: ["admin-latest-messages"] });
+      const clientName = clients.find((c) => c.id === selectedClientId)?.name;
+      logActivity("sent_message", "message", selectedClientId ?? null, `Sent message to ${clientName ?? "client"}`);
     },
     onError: () => toast.error("Failed to send message"),
   });

@@ -11,6 +11,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { logActivity } from "@/lib/activityLogger";
 
 interface DeleteClientDialogProps {
   open: boolean;
@@ -31,6 +32,7 @@ export function DeleteClientDialog({ open, onOpenChange, clientId, clientName }:
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
       toast({ title: "Client deleted" });
+      logActivity("deleted_client", "client", clientId, `Deleted client "${clientName}"`);
       onOpenChange(false);
     },
     onError: (err: Error) => {

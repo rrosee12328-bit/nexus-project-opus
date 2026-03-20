@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { logActivity } from "@/lib/activityLogger";
 
 interface Props {
   open: boolean;
@@ -50,6 +51,7 @@ export default function InvestmentCrudDialog({ open, onOpenChange, editing }: Pr
     onSuccess: () => {
       toast.success(editing ? "Investment updated" : "Investment added");
       queryClient.invalidateQueries({ queryKey: ["investments"] });
+      logActivity(editing ? "updated_investment" : "created_investment", "investment", editing?.id ?? null, `${editing ? "Updated" : "Added"} investment by ${ownerName} ($${amount})`);
       onOpenChange(false);
     },
     onError: (err: Error) => toast.error(err.message),

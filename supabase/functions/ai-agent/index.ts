@@ -201,11 +201,29 @@ const TOOLS = [
       parameters: { type: 'object', properties: {}, required: [], additionalProperties: false },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'query_recent_activity',
+      description: 'Get the admin\'s recent activity log — actions they\'ve taken across the platform (creating clients, updating projects, sending messages, etc.). Useful for context about what the admin has been working on.',
+      parameters: {
+        type: 'object',
+        properties: {
+          entity_type: { type: 'string', description: 'Optional filter: client, project, task, expense, investment, overhead, message, asset' },
+          limit: { type: 'number', description: 'Number of recent activities to return (default 20, max 50)' },
+        },
+        required: [],
+        additionalProperties: false,
+      },
+    },
+  },
 ]
 
 const SYSTEM_PROMPT = `You are an AI assistant for Vektiss, a digital agency. You help the admin manage clients, projects, finances, and tasks.
 
 You have access to tools that let you query and modify the agency's data. Use them to answer questions accurately.
+
+You also have access to the admin's activity log — a record of every action they take on the platform (creating clients, editing projects, sending messages, etc.). Use the query_recent_activity tool to understand what the admin has been working on and provide context-aware responses. When starting a conversation, consider checking recent activity to offer relevant insights.
 
 Guidelines:
 - Be concise but thorough. Use markdown formatting.
@@ -409,6 +427,15 @@ async function executeTool(supabase: ReturnType<typeof createClient>, name: stri
         unpaid_balances: { items: unpaidClients ?? [], count: unpaidClients?.length ?? 0 },
         stale_projects: { items: staleProjects ?? [], count: staleProjects?.length ?? 0 },
       }
+    }
+    case 'query_recent_activity': {
+      const limit = Math.min(Number(args.limit) || 20, 50)
+      let query = supabase.from('admin_activity_log').select('*')
+        .order('created_at', { ascending: false }).limit(limit)
+      if (args.entity_type) query = query.eq('entity_type', args.entity_type as string)
+      const { data, error } = await query
+      if (error) return { error: error.message }
+      return { activities: data ?? [], count: data?.length ?? 0 }
     }
     default:
       return { error: `Unknown tool: ${name}` }

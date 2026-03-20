@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { logActivity } from "@/lib/activityLogger";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -134,6 +135,12 @@ export default function OpsTasks() {
       toast.success(editId ? "Task updated" : "Task created");
       queryClient.invalidateQueries({ queryKey: ["ops-tasks"] });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      logActivity(
+        editId ? "updated_task" : "created_task",
+        "task",
+        editId,
+        editId ? `Updated task "${form.title}"` : `Created task "${form.title}"`,
+      );
       closeForm();
     },
     onError: (err: Error) => toast.error(err.message),
@@ -144,10 +151,11 @@ export default function OpsTasks() {
       const { error } = await supabase.from("tasks").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       toast.success("Task deleted");
       queryClient.invalidateQueries({ queryKey: ["ops-tasks"] });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      logActivity("deleted_task", "task", id, "Deleted a task");
       setDeleteTarget(null);
     },
     onError: () => toast.error("Failed to delete task"),
@@ -158,9 +166,10 @@ export default function OpsTasks() {
       const { error } = await supabase.from("tasks").update({ status }).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ["ops-tasks"] });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      logActivity("changed_task_status", "task", vars.id, `Changed task status to ${vars.status}`);
     },
   });
 
