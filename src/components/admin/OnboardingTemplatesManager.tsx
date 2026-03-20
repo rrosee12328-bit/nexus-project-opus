@@ -90,7 +90,7 @@ export function OnboardingTemplatesManager() {
         .order("is_default", { ascending: false })
         .order("client_type", { ascending: true });
       if (error) throw error;
-      return (data ?? []) as TemplateRow[];
+      return (data ?? []) as unknown as TemplateRow[];
     },
   });
 
