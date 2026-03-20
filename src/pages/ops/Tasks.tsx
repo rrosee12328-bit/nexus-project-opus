@@ -85,6 +85,7 @@ export default function OpsTasks() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<TaskForm>(emptyForm);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
+  const [selectedTask, setSelectedTask] = useState<Task & { clients: { name: string } | null } | null>(null);
 
   // Data fetching
   const { data: tasks = [], isLoading } = useQuery({
