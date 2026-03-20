@@ -84,6 +84,12 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
       toast({ title: isEdit ? "Client updated" : "Client created" });
+      logActivity(
+        isEdit ? "updated_client" : "created_client",
+        "client",
+        isEdit ? client.id : null,
+        isEdit ? `Updated client "${form.name}"` : `Created client "${form.name}"`,
+      );
       onOpenChange(false);
     },
     onError: (err: Error) => {
