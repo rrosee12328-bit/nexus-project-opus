@@ -2,6 +2,7 @@ import {
   LayoutDashboard,
   CheckSquare,
   BookOpen,
+  Clock,
   Settings,
   LogOut,
 } from "lucide-react";
