@@ -37,6 +37,7 @@ import {
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Constants } from "@/integrations/supabase/types";
+import ProjectDetailDialog from "@/components/projects/ProjectDetailDialog";
 
 const PHASE_LABELS: Record<string, string> = {
   discovery: "Discovery",
