@@ -383,7 +383,7 @@ export default function OpsTasks() {
                     const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== "done";
 
                     return (
-                      <TableRow key={task.id} className="hover:bg-muted/30 transition-colors group">
+                      <TableRow key={task.id} className="hover:bg-muted/30 transition-colors group cursor-pointer" onClick={() => setSelectedTask(task as any)}>
                         <TableCell>
                           <div>
                             <p className="font-medium text-sm">{task.title}</p>
