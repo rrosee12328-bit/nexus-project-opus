@@ -341,6 +341,21 @@ export default function AdminSettings() {
             </Card>
           </motion.div>
         </TabsContent>
+
+        <TabsContent value="onboarding">
+          <motion.div {...anim(0.15)}>
+            <Card className="hover:border-primary/20 transition-colors">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Rocket className="h-5 w-5 text-primary" /> Client Onboarding
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <OnboardingTemplatesManager />
+              </CardContent>
+            </Card>
+          </motion.div>
+        </TabsContent>
       </Tabs>
     </div>
   );
