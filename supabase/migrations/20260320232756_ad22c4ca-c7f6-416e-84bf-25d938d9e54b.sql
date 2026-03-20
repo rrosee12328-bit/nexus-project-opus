@@ -1,0 +1,1 @@
+ALTER TABLE public.tasks ADD COLUMN daily_focus boolean NOT NULL DEFAULT false;

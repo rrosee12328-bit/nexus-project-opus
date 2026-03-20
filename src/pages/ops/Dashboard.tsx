@@ -13,11 +13,12 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, GripVertical, CheckSquare, Clock, AlertTriangle, TrendingUp, Calendar } from "lucide-react";
+import { Plus, GripVertical, CheckSquare, Clock, AlertTriangle, TrendingUp, Calendar, Star } from "lucide-react";
 import { motion } from "framer-motion";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { format } from "date-fns";
 import TaskDetailDialog from "@/components/tasks/TaskDetailDialog";
+import TodayFocusPanel from "@/components/tasks/TodayFocusPanel";
 import type { Database } from "@/integrations/supabase/types";
 
 type Task = Database["public"]["Tables"]["tasks"]["Row"];
@@ -166,6 +167,9 @@ export default function OpsDashboard() {
         ))}
       </div>
 
+      {/* Today's Focus */}
+      <TodayFocusPanel tasks={tasks ?? []} teamMembers={teamMembers} onTaskClick={setSelectedTask} />
+
       {/* Kanban */}
       <DragDropContext onDragEnd={handleDragEnd}>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.4 }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -209,10 +213,24 @@ export default function OpsDashboard() {
                                   <p className="text-xs text-muted-foreground pl-6 line-clamp-2">{task.description}</p>
                                 )}
                                 <div className="flex items-center justify-between pl-6">
-                                  <Badge variant="outline" className={`text-xs ${priorityColor[task.priority]}`}>{task.priority}</Badge>
-                                  {task.clients?.name && (
-                                    <span className="text-xs text-muted-foreground truncate max-w-[100px]">{task.clients.name}</span>
-                                  )}
+                                  <div className="flex items-center gap-1.5">
+                                    <Badge variant="outline" className={`text-xs ${priorityColor[task.priority]}`}>{task.priority}</Badge>
+                                    {task.clients?.name && (
+                                      <span className="text-xs text-muted-foreground truncate max-w-[100px]">{task.clients.name}</span>
+                                    )}
+                                  </div>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      supabase.from("tasks").update({ daily_focus: !(task as any).daily_focus } as any).eq("id", task.id).then(() => {
+                                        queryClient.invalidateQueries({ queryKey: ["tasks"] });
+                                      });
+                                    }}
+                                    className="p-0.5 rounded hover:bg-accent transition-colors"
+                                    title={(task as any).daily_focus ? "Remove from today's focus" : "Add to today's focus"}
+                                  >
+                                    <Star className={`h-3.5 w-3.5 ${(task as any).daily_focus ? "text-primary fill-primary" : "text-muted-foreground/40"}`} />
+                                  </button>
                                 </div>
                                 {task.due_date && (
                                   <p className="text-xs text-muted-foreground pl-6 flex items-center gap-1">
