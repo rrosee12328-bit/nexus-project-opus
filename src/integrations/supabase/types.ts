@@ -548,6 +548,33 @@ export type Database = {
           },
         ]
       }
+      reminder_log: {
+        Row: {
+          id: string
+          recipient_email: string
+          recipient_user_id: string | null
+          reference_id: string
+          reminder_type: string
+          sent_at: string
+        }
+        Insert: {
+          id?: string
+          recipient_email: string
+          recipient_user_id?: string | null
+          reference_id: string
+          reminder_type: string
+          sent_at?: string
+        }
+        Update: {
+          id?: string
+          recipient_email?: string
+          recipient_user_id?: string | null
+          reference_id?: string
+          reminder_type?: string
+          sent_at?: string
+        }
+        Relationships: []
+      }
       sops: {
         Row: {
           category: Database["public"]["Enums"]["sop_category"]
