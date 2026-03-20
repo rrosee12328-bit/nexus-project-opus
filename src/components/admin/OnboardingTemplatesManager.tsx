@@ -45,6 +45,7 @@ interface OnboardingStep {
   title: string;
   description: string;
   sort_order: number;
+  category?: string;
 }
 
 interface TemplateRow {

@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { CheckCircle2, Circle, ArrowRight, ListChecks } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -12,9 +11,21 @@ import { cn } from "@/lib/utils";
 const STEP_ROUTES: Record<string, string> = {
   review_project: "/portal/projects",
   upload_assets: "/portal/assets",
+  upload_logos: "/portal/assets",
+  upload_brand_assets: "/portal/assets",
   send_message: "/portal/messages",
   review_payments: "/portal/payments",
 };
+
+interface OnboardingStep {
+  id: string;
+  step_key: string;
+  title: string;
+  description: string | null;
+  completed_at: string | null;
+  sort_order: number;
+  category: string | null;
+}
 
 export function OnboardingChecklist() {
   const navigate = useNavigate();
@@ -28,7 +39,7 @@ export function OnboardingChecklist() {
         .select("*")
         .order("sort_order", { ascending: true });
       if (error) throw error;
-      return data;
+      return data as OnboardingStep[];
     },
   });
 
@@ -55,6 +66,20 @@ export function OnboardingChecklist() {
 
   if (allDone) return null;
 
+  // Group steps by category (null category = ungrouped)
+  const grouped: { category: string | null; items: OnboardingStep[] }[] = [];
+  let currentCategory: string | null | undefined = undefined;
+
+  for (const step of steps) {
+    if (step.category !== currentCategory) {
+      currentCategory = step.category;
+      grouped.push({ category: step.category, items: [] });
+    }
+    grouped[grouped.length - 1].items.push(step);
+  }
+
+  const hasCategories = grouped.some((g) => g.category);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -74,54 +99,73 @@ export function OnboardingChecklist() {
         </CardHeader>
         <CardContent className="space-y-1 pt-0">
           <AnimatePresence>
-            {steps.map((step, i) => {
-              const isDone = !!step.completed_at;
-              const route = STEP_ROUTES[step.step_key];
+            {grouped.map((group, gi) => {
+              const groupCompleted = group.items.filter((s) => s.completed_at).length;
+              const groupTotal = group.items.length;
 
               return (
-                <motion.div
-                  key={step.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: i * 0.05 }}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors",
-                    isDone
-                      ? "opacity-60"
-                      : "hover:bg-primary/5 cursor-pointer"
+                <div key={gi} className={cn(hasCategories && gi > 0 && "mt-4")}>
+                  {hasCategories && group.category && (
+                    <div className="flex items-center gap-2 px-3 pt-2 pb-1">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {group.category}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground/60">
+                        {groupCompleted}/{groupTotal}
+                      </span>
+                    </div>
                   )}
-                  onClick={() => {
-                    if (isDone) return;
-                    if (route) {
-                      completeStep.mutate(step.id);
-                      navigate(route);
-                    } else {
-                      completeStep.mutate(step.id);
-                    }
-                  }}
-                >
-                  {isDone ? (
-                    <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
-                  ) : (
-                    <Circle className="h-5 w-5 text-muted-foreground/40 shrink-0" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className={cn(
-                      "text-sm font-medium",
-                      isDone && "line-through text-muted-foreground"
-                    )}>
-                      {step.title}
-                    </p>
-                    {step.description && !isDone && (
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {step.description}
-                      </p>
-                    )}
-                  </div>
-                  {!isDone && route && (
-                    <ArrowRight className="h-4 w-4 text-muted-foreground/50 shrink-0" />
-                  )}
-                </motion.div>
+                  {group.items.map((step, i) => {
+                    const isDone = !!step.completed_at;
+                    const route = STEP_ROUTES[step.step_key];
+
+                    return (
+                      <motion.div
+                        key={step.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.3, delay: (gi * group.items.length + i) * 0.03 }}
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors",
+                          isDone
+                            ? "opacity-60"
+                            : "hover:bg-primary/5 cursor-pointer"
+                        )}
+                        onClick={() => {
+                          if (isDone) return;
+                          if (route) {
+                            completeStep.mutate(step.id);
+                            navigate(route);
+                          } else {
+                            completeStep.mutate(step.id);
+                          }
+                        }}
+                      >
+                        {isDone ? (
+                          <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
+                        ) : (
+                          <Circle className="h-5 w-5 text-muted-foreground/40 shrink-0" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className={cn(
+                            "text-sm font-medium",
+                            isDone && "line-through text-muted-foreground"
+                          )}>
+                            {step.title}
+                          </p>
+                          {step.description && !isDone && (
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {step.description}
+                            </p>
+                          )}
+                        </div>
+                        {!isDone && route && (
+                          <ArrowRight className="h-4 w-4 text-muted-foreground/50 shrink-0" />
+                        )}
+                      </motion.div>
+                    );
+                  })}
+                </div>
               );
             })}
           </AnimatePresence>
