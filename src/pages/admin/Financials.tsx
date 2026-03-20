@@ -55,7 +55,7 @@ export default function AdminFinancials() {
       const { error } = await supabase.from("investments").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("Investment deleted"); queryClient.invalidateQueries({ queryKey: ["investments"] }); },
+    onSuccess: (_data, id) => { toast.success("Investment deleted"); queryClient.invalidateQueries({ queryKey: ["investments"] }); logActivity("deleted_investment", "investment", id, "Deleted an investment"); },
     onError: () => toast.error("Failed to delete"),
   });
   const deleteOverhead = useMutation({
