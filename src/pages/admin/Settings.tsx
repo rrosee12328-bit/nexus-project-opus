@@ -13,7 +13,8 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { User, Lock, Bell, Save, Shield, Clock, RefreshCw, Send } from "lucide-react";
+import { User, Lock, Bell, Save, Shield, Clock, RefreshCw, Send, Rocket } from "lucide-react";
+import { OnboardingTemplatesManager } from "@/components/admin/OnboardingTemplatesManager";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 
@@ -156,6 +157,7 @@ export default function AdminSettings() {
             <TabsTrigger value="security" className="gap-2"><Shield className="h-4 w-4" /> Security</TabsTrigger>
             <TabsTrigger value="notifications" className="gap-2"><Bell className="h-4 w-4" /> Notifications</TabsTrigger>
             <TabsTrigger value="reminders" className="gap-2"><Clock className="h-4 w-4" /> Reminders</TabsTrigger>
+            <TabsTrigger value="onboarding" className="gap-2"><Rocket className="h-4 w-4" /> Onboarding</TabsTrigger>
           </TabsList>
         </motion.div>
 
@@ -335,6 +337,21 @@ export default function AdminSettings() {
                     </div>
                   )}
                 </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </TabsContent>
+
+        <TabsContent value="onboarding">
+          <motion.div {...anim(0.15)}>
+            <Card className="hover:border-primary/20 transition-colors">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Rocket className="h-5 w-5 text-primary" /> Client Onboarding
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <OnboardingTemplatesManager />
               </CardContent>
             </Card>
           </motion.div>

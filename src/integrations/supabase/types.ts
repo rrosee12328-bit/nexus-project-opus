@@ -590,6 +590,42 @@ export type Database = {
         }
         Relationships: []
       }
+      onboarding_templates: {
+        Row: {
+          client_type: string
+          created_at: string
+          id: string
+          is_default: boolean
+          onboarding_steps: Json
+          phases: string[]
+          project_description: string
+          project_name: string
+          updated_at: string
+        }
+        Insert: {
+          client_type: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          onboarding_steps?: Json
+          phases?: string[]
+          project_description?: string
+          project_name: string
+          updated_at?: string
+        }
+        Update: {
+          client_type?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          onboarding_steps?: Json
+          phases?: string[]
+          project_description?: string
+          project_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
