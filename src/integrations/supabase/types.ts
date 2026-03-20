@@ -1116,6 +1116,7 @@ export type Database = {
         | "development"
         | "review"
         | "launch"
+        | "deploy"
       project_status: "not_started" | "in_progress" | "completed" | "on_hold"
       sop_category:
         | "onboarding"
@@ -1264,7 +1265,14 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "ops", "client"],
       client_status: ["active", "onboarding", "closed", "prospect", "lead"],
-      project_phase: ["discovery", "design", "development", "review", "launch"],
+      project_phase: [
+        "discovery",
+        "design",
+        "development",
+        "review",
+        "launch",
+        "deploy",
+      ],
       project_status: ["not_started", "in_progress", "completed", "on_hold"],
       sop_category: [
         "onboarding",
