@@ -30,6 +30,7 @@ import OpsLayout from "./layouts/OpsLayout";
 import OpsDashboard from "./pages/ops/Dashboard";
 import OpsTasks from "./pages/ops/Tasks";
 import OpsSops from "./pages/ops/SOPs";
+import OpsTimesheets from "./pages/ops/Timesheets";
 import OpsSettings from "./pages/ops/Settings";
 
 import ClientLayout from "./layouts/ClientLayout";
