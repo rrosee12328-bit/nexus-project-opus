@@ -97,6 +97,7 @@ const App = () => (
             >
               <Route index element={<OpsDashboard />} />
               <Route path="tasks" element={<OpsTasks />} />
+              <Route path="timesheets" element={<OpsTimesheets />} />
               <Route path="sops" element={<OpsSops />} />
               <Route path="settings" element={<OpsSettings />} />
             </Route>
