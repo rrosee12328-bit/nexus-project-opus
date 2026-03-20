@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { logActivity } from "@/lib/activityLogger";
 import { useAuth } from "@/hooks/useAuth";
 import { AssetPreviewDialog } from "@/components/assets/AssetPreviewDialog";
 import type { Tables } from "@/integrations/supabase/types";
