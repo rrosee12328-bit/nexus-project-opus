@@ -142,6 +142,7 @@ export default function OpsTasks() {
         priority: form.priority,
         due_date: form.due_date || null,
         client_id: form.client_id || null,
+        assigned_to: form.assigned_to || null,
       };
       if (editId) {
         const { error } = await supabase.from("tasks").update(payload).eq("id", editId);
