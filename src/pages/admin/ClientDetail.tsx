@@ -97,6 +97,8 @@ export default function ClientDetail() {
   const [form, setForm] = useState<NoteForm>(emptyForm);
   const [deleteTarget, setDeleteTarget] = useState<ClientNote | null>(null);
   const [activeTab, setActiveTab] = useState<string>("all");
+  const [expandedNote, setExpandedNote] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("all");
 
   const { data: client } = useQuery({
     queryKey: ["client-detail", clientId],
