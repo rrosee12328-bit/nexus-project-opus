@@ -50,7 +50,7 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [form, setForm] = useState<Partial<ClientInsert>>({
+  const [form, setForm] = useState<Partial<ClientInsert> & { pipeline_stage?: string }>({
     name: client?.name ?? "",
     type: client?.type ?? "",
     status: client?.status ?? "lead",
@@ -62,10 +62,13 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
     email: client?.email ?? "",
     phone: client?.phone ?? "",
     notes: client?.notes ?? "",
+    pipeline_stage: (client as any)?.pipeline_stage ?? "new",
   });
 
-  const set = (key: keyof ClientInsert, value: string | number) =>
+  const set = (key: string, value: string | number) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  const showPipeline = form.status === "lead" || form.status === "prospect";
 
   const mutation = useMutation({
     mutationFn: async () => {
