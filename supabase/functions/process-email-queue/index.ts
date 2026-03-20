@@ -246,21 +246,25 @@ Deno.serve(async (req) => {
       }
 
       try {
+        const emailPayload: Record<string, unknown> = {
+          to: payload.to,
+          from: payload.from,
+          sender_domain: payload.sender_domain,
+          subject: payload.subject,
+          html: payload.html,
+          text: payload.text,
+          purpose: payload.purpose || 'transactional',
+          label: payload.label,
+          idempotency_key: payload.idempotency_key,
+          unsubscribe_token: payload.unsubscribe_token,
+          message_id: payload.message_id,
+        }
+        // run_id is required by the API; auth emails get it from Supabase Auth,
+        // transactional emails generate one.
+        emailPayload.run_id = payload.run_id || crypto.randomUUID()
+
         await sendLovableEmail(
-          {
-            run_id: payload.run_id,
-            to: payload.to,
-            from: payload.from,
-            sender_domain: payload.sender_domain,
-            subject: payload.subject,
-            html: payload.html,
-            text: payload.text,
-            purpose: payload.purpose,
-            label: payload.label,
-            idempotency_key: payload.idempotency_key,
-            unsubscribe_token: payload.unsubscribe_token,
-            message_id: payload.message_id,
-          },
+          emailPayload,
           // sendUrl is optional — when LOVABLE_SEND_URL is not set, the library
           // falls back to the default Lovable API endpoint (https://api.lovable.dev).
           // Set LOVABLE_SEND_URL as a Supabase secret to override (e.g. for local dev).
