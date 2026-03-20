@@ -114,12 +114,7 @@ export default function ClientLayout() {
             >
               {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
-            <div className="flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground text-xs font-bold">V</span>
-              </div>
-              <span className="text-sm font-bold tracking-wider uppercase">Vektiss</span>
-            </div>
+            <img src="/vektiss-logo.png" alt="Vektiss" className="h-7 object-contain" />
           </div>
 
           {/* Desktop navigation */}
