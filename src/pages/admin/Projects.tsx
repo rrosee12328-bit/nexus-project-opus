@@ -177,6 +177,12 @@ export default function AdminProjects() {
     onSuccess: () => {
       toast.success(editingId ? "Project updated" : "Project created");
       queryClient.invalidateQueries({ queryKey: ["admin-projects"] });
+      logActivity(
+        editingId ? "updated_project" : "created_project",
+        "project",
+        editingId,
+        editingId ? `Updated project "${form.name}"` : `Created project "${form.name}"`,
+      );
       closeForm();
     },
     onError: (err: Error) => toast.error(err.message),
