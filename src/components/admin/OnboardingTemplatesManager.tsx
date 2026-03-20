@@ -345,19 +345,19 @@ export function OnboardingTemplatesManager() {
                     </p>
                     <div className="flex gap-2 flex-wrap pl-4">
                       {main.subPhases.map((sub) => (
-                        <Badge
+                        <button
                           key={sub.key}
-                          variant={formPhases.includes(sub.key) ? "default" : "outline"}
-                          className={cn(
-                            "cursor-pointer select-none transition-colors",
-                            formPhases.includes(sub.key)
-                              ? ""
-                              : "opacity-50 hover:opacity-100"
-                          )}
+                          type="button"
                           onClick={() => togglePhase(sub.key)}
+                          className={cn(
+                            "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors cursor-pointer select-none",
+                            formPhases.includes(sub.key)
+                              ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/80"
+                              : "text-foreground opacity-50 hover:opacity-100"
+                          )}
                         >
                           {sub.label}
-                        </Badge>
+                        </button>
                       ))}
                     </div>
                   </div>
