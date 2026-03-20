@@ -226,10 +226,53 @@ export default function ProjectDetailDialog({ projectId, onClose }: ProjectDetai
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {PHASE_DESCRIPTIONS[phase.phase]}
                         </p>
-                        {phase.notes && (
+                        {phase.notes && editingPhaseId !== phase.id && (
                           <p className="text-xs mt-2 p-2 rounded-md bg-primary/5 border border-primary/10 text-foreground">
                             {phase.notes}
                           </p>
+                        )}
+                        {/* Inline note editor */}
+                        {editingPhaseId === phase.id ? (
+                          <div className="mt-2 space-y-2">
+                            <Textarea
+                              value={noteText}
+                              onChange={(e) => setNoteText(e.target.value)}
+                              placeholder="Add a note about this phase…"
+                              rows={2}
+                              className="text-xs"
+                              autoFocus
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                className="h-7 text-xs"
+                                disabled={saveNoteMutation.isPending}
+                                onClick={() => saveNoteMutation.mutate({ id: phase.id, notes: noteText })}
+                              >
+                                {saveNoteMutation.isPending && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
+                                Save
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 text-xs"
+                                onClick={() => setEditingPhaseId(null)}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary mt-1.5 transition-colors"
+                            onClick={() => {
+                              setEditingPhaseId(phase.id);
+                              setNoteText(phase.notes || "");
+                            }}
+                          >
+                            <MessageSquarePlus className="h-3 w-3" />
+                            {phase.notes ? "Edit note" : "Add note"}
+                          </button>
                         )}
                         {isCompleted && phase.started_at && phase.completed_at && (
                           <p className="text-xs text-muted-foreground mt-1">
