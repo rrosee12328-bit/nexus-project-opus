@@ -54,7 +54,7 @@ const codeStyle = {
   fontFamily: "'JetBrains Mono', Courier, monospace",
   fontSize: '28px',
   fontWeight: 'bold' as const,
-  color: 'hsl(225, 100%, 61%)',
+  color: 'hsl(213, 100%, 58%)',
   margin: '0 0 30px',
   letterSpacing: '4px',
 }
