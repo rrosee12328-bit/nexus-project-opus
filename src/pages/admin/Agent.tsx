@@ -394,6 +394,15 @@ export default function AgentPage() {
                 rows={1}
               />
               <Button
+                onClick={toggleVoice}
+                variant={isListening ? "destructive" : "outline"}
+                size="icon"
+                className="h-[44px] w-[44px] shrink-0"
+                title={isListening ? "Stop listening" : "Voice input"}
+              >
+                {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              </Button>
+              <Button
                 onClick={handleSend}
                 disabled={!input.trim() || isLoading}
                 size="icon"
