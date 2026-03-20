@@ -54,12 +54,10 @@ export function AdminSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
         {!collapsed && (
-          <span className="text-sm font-bold tracking-wider text-sidebar-primary-foreground uppercase">
-            Vektiss Admin
-          </span>
+          <img src="/vektiss-logo.png" alt="Vektiss" className="h-7 object-contain" />
         )}
         {collapsed && (
-          <span className="text-lg font-bold text-sidebar-primary">V</span>
+          <img src="/vektiss-icon.png" alt="Vektiss" className="h-7 w-7 object-contain" />
         )}
       </SidebarHeader>
       <SidebarContent>
