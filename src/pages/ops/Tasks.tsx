@@ -25,6 +25,7 @@ import {
   TrendingUp, Pencil, Trash2, Filter, Calendar, ArrowUpDown,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import TaskDetailDialog from "@/components/tasks/TaskDetailDialog";
 import type { Database } from "@/integrations/supabase/types";
 
 type Task = Database["public"]["Tables"]["tasks"]["Row"];
@@ -84,6 +85,7 @@ export default function OpsTasks() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<TaskForm>(emptyForm);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
+  const [selectedTask, setSelectedTask] = useState<Task & { clients: { name: string } | null } | null>(null);
 
   // Data fetching
   const { data: tasks = [], isLoading } = useQuery({
@@ -381,7 +383,7 @@ export default function OpsTasks() {
                     const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== "done";
 
                     return (
-                      <TableRow key={task.id} className="hover:bg-muted/30 transition-colors group">
+                      <TableRow key={task.id} className="hover:bg-muted/30 transition-colors group cursor-pointer" onClick={() => setSelectedTask(task as any)}>
                         <TableCell>
                           <div>
                             <p className="font-medium text-sm">{task.title}</p>
@@ -390,7 +392,7 @@ export default function OpsTasks() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <Select
                             value={task.status}
                             onValueChange={(v) => statusMutation.mutate({ id: task.id, status: v as TaskStatus })}
@@ -428,14 +430,14 @@ export default function OpsTasks() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(task)}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openEdit(task); }}>
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7 text-destructive hover:text-destructive"
-                              onClick={() => setDeleteTarget({ id: task.id, title: task.title })}
+                              onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: task.id, title: task.title }); }}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
@@ -556,6 +558,8 @@ export default function OpsTasks() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {/* Task Detail Dialog */}
+      <TaskDetailDialog task={selectedTask} open={!!selectedTask} onClose={() => setSelectedTask(null)} />
     </div>
   );
 }
