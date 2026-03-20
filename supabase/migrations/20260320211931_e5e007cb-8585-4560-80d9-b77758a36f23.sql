@@ -1,0 +1,1 @@
+ALTER TABLE public.client_onboarding_steps ADD COLUMN category text DEFAULT null;

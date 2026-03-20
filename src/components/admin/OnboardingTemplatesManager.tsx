@@ -45,6 +45,7 @@ interface OnboardingStep {
   title: string;
   description: string;
   sort_order: number;
+  category?: string;
 }
 
 interface TemplateRow {
@@ -131,6 +132,7 @@ export function OnboardingTemplatesManager() {
   };
 
   const addStep = () => {
+    const lastCategory = formSteps.length > 0 ? formSteps[formSteps.length - 1].category : undefined;
     setFormSteps((prev) => [
       ...prev,
       {
@@ -138,6 +140,7 @@ export function OnboardingTemplatesManager() {
         title: "",
         description: "",
         sort_order: prev.length,
+        category: lastCategory,
       },
     ]);
   };
@@ -158,6 +161,7 @@ export function OnboardingTemplatesManager() {
         title: s.title,
         description: s.description,
         sort_order: s.sort_order,
+        ...(s.category ? { category: s.category } : {}),
       }));
       const payload = {
         client_type: formType.trim().toLowerCase().replace(/\s+/g, "_"),
@@ -380,7 +384,13 @@ export function OnboardingTemplatesManager() {
                   <div className="pt-2.5 text-muted-foreground/40">
                     <GripVertical className="h-4 w-4" />
                   </div>
-                  <div className="flex-1 grid gap-2 sm:grid-cols-2">
+                  <div className="flex-1 grid gap-2 sm:grid-cols-3">
+                    <Input
+                      value={step.category || ""}
+                      onChange={(e) => updateStep(idx, "category" as keyof OnboardingStep, e.target.value)}
+                      placeholder="Category"
+                      className="text-sm h-8"
+                    />
                     <Input
                       value={step.title}
                       onChange={(e) => updateStep(idx, "title", e.target.value)}

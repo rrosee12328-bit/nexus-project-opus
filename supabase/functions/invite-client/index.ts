@@ -180,13 +180,14 @@ async function createOnboardingSteps(
   clientType: string | null,
 ) {
   const template = await getTemplate(supabase, clientType);
-  const templateSteps = (template?.onboarding_steps as Array<{ step_key: string; title: string; description: string; sort_order: number }>) ?? null;
+  const templateSteps = (template?.onboarding_steps as Array<{ step_key: string; title: string; description: string; sort_order: number; category?: string }>) ?? null;
   const steps = (templateSteps && templateSteps.length > 0 ? templateSteps : DEFAULT_STEPS).map((step) => ({
     client_id: clientId,
     step_key: step.step_key,
     title: step.title,
     description: step.description,
     sort_order: step.sort_order,
+    category: (step as any).category || null,
   }));
 
   const { error } = await supabase.from("client_onboarding_steps").insert(steps);
