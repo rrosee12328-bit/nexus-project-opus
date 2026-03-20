@@ -163,7 +163,7 @@ export default function ClientDetail() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("client_notes" as any).delete().eq("id", id);
+      const { error } = await supabase.from("client_notes").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
