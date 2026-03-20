@@ -151,7 +151,7 @@ export default function OpsDashboard() {
                 <Plus className="h-3 w-3" />
               </Button>
             </div>
-            <div className="flex flex-col gap-2 min-h-[200px] rounded-lg border border-border bg-surface/50 p-2">
+            <div className="flex flex-col gap-2 min-h-[200px] rounded-lg border border-border bg-surface/50 p-2 overflow-hidden">
               {tasksByStatus(col.key).map((task) => (
                 <Card key={task.id} className="cursor-default hover:border-primary/20 transition-colors">
                   <CardContent className="p-3 space-y-2">
