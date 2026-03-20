@@ -186,6 +186,65 @@ export type Database = {
           },
         ]
       }
+      client_notes: {
+        Row: {
+          attendees: string[]
+          client_id: string
+          content: string | null
+          created_at: string
+          created_by: string
+          due_date: string | null
+          file_path: string | null
+          id: string
+          meeting_date: string | null
+          status: string | null
+          title: string
+          type: string
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          attendees?: string[]
+          client_id: string
+          content?: string | null
+          created_at?: string
+          created_by: string
+          due_date?: string | null
+          file_path?: string | null
+          id?: string
+          meeting_date?: string | null
+          status?: string | null
+          title: string
+          type?: string
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          attendees?: string[]
+          client_id?: string
+          content?: string | null
+          created_at?: string
+          created_by?: string
+          due_date?: string | null
+          file_path?: string | null
+          id?: string
+          meeting_date?: string | null
+          status?: string | null
+          title?: string
+          type?: string
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_notes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_payments: {
         Row: {
           amount: number

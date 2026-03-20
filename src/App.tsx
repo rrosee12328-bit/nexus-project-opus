@@ -24,6 +24,7 @@ import AdminAssets from "./pages/admin/Assets";
 import AdminReports from "./pages/admin/Reports";
 import AdminEmails from "./pages/admin/Emails";
 import AdminAgent from "./pages/admin/Agent";
+import AdminClientDetail from "./pages/admin/ClientDetail";
 
 import OpsLayout from "./layouts/OpsLayout";
 import OpsDashboard from "./pages/ops/Dashboard";
@@ -73,6 +74,7 @@ const App = () => (
             >
               <Route index element={<AdminDashboard />} />
               <Route path="clients" element={<AdminClients />} />
+              <Route path="clients/:clientId" element={<AdminClientDetail />} />
               <Route path="projects" element={<AdminProjects />} />
               <Route path="messages" element={<AdminMessages />} />
               <Route path="assets" element={<AdminAssets />} />

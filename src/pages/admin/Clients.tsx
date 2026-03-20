@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
-import { UserCheck, UserPlus, DollarSign, PhoneCall, Plus, MoreHorizontal, Pencil, Trash2, ChevronDown, ChevronRight, FileText, Calendar, Briefcase, Users, Send, RefreshCw } from "lucide-react";
+import { UserCheck, UserPlus, DollarSign, PhoneCall, Plus, MoreHorizontal, Pencil, Trash2, ChevronDown, ChevronRight, FileText, Calendar, Briefcase, Users, Send, RefreshCw, Eye } from "lucide-react";
 import { ClientFormDialog } from "@/components/ClientFormDialog";
 import { DeleteClientDialog } from "@/components/DeleteClientDialog";
 import { motion } from "framer-motion";
@@ -58,6 +59,7 @@ function parseNotes(notes: string | null): { services?: string; deliverables?: s
 }
 
 export default function AdminClients() {
+  const navigate = useNavigate();
   const [formOpen, setFormOpen] = useState(false);
   const [editClient, setEditClient] = useState<Client | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
@@ -160,6 +162,9 @@ export default function AdminClients() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => navigate(`/admin/clients/${client.id}`)}>
+          <Eye className="mr-2 h-4 w-4" /> View Details
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => openEdit(client)}>
           <Pencil className="mr-2 h-4 w-4" /> Edit
         </DropdownMenuItem>
@@ -449,6 +454,17 @@ export default function AdminClients() {
                               <p className="text-sm leading-relaxed text-muted-foreground">{parsed.raw}</p>
                             </div>
                           )}
+
+                          <Separator />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/admin/clients/${client.id}`)}
+                            className="w-full"
+                          >
+                            <Eye className="h-3.5 w-3.5 mr-2" />
+                            View Knowledge Base
+                          </Button>
                         </div>
                       </div>
                     </CollapsibleContent>
