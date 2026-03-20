@@ -41,6 +41,21 @@ const SHARED_TOOLS = {
       },
     },
   },
+  query_project_attachments: {
+    type: 'function',
+    function: {
+      name: 'query_project_attachments',
+      description: 'Get documents and links attached to a project. Returns title, type (link or file), url, file_name, file_size, and created_at.',
+      parameters: {
+        type: 'object',
+        properties: {
+          project_id: { type: 'string', description: 'Project ID to get attachments for' },
+        },
+        required: ['project_id'],
+        additionalProperties: false,
+      },
+    },
+  },
 }
 
 const ADMIN_ONLY_TOOLS = [
@@ -345,12 +360,12 @@ const CLIENT_ONLY_TOOLS = [
 
 function getToolsForRole(role: string) {
   if (role === 'admin') {
-    return [SHARED_TOOLS.query_projects, SHARED_TOOLS.query_tasks, ...ADMIN_ONLY_TOOLS]
+    return [SHARED_TOOLS.query_projects, SHARED_TOOLS.query_tasks, SHARED_TOOLS.query_project_attachments, ...ADMIN_ONLY_TOOLS]
   }
   if (role === 'ops') {
-    return [SHARED_TOOLS.query_projects, SHARED_TOOLS.query_tasks, ...OPS_ONLY_TOOLS]
+    return [SHARED_TOOLS.query_projects, SHARED_TOOLS.query_tasks, SHARED_TOOLS.query_project_attachments, ...OPS_ONLY_TOOLS]
   }
-  return CLIENT_ONLY_TOOLS
+  return [...CLIENT_ONLY_TOOLS, SHARED_TOOLS.query_project_attachments]
 }
 
 function getSystemPrompt(role: string) {
@@ -362,6 +377,8 @@ function getSystemPrompt(role: string) {
 You have access to tools that let you query and modify the agency's data. Use them to answer questions accurately.
 
 You also have access to the admin's activity log — a record of every action they take on the platform. Use query_recent_activity to understand context.
+
+You can query project attachments (documents and links) using query_project_attachments to see what files and references are attached to any project.
 
 Guidelines:
 - Be concise but thorough. Use markdown formatting.
@@ -380,6 +397,8 @@ Guidelines:
 
 You have access to tools that let you query tasks, projects, clients (read-only), timesheets, and SOPs. You can also create tasks and update task statuses.
 
+You can query project attachments (documents and links) using query_project_attachments to see what files and references are attached to any project.
+
 Guidelines:
 - Be concise and action-oriented. Use markdown formatting.
 - Help with task prioritization and workload management.
@@ -395,6 +414,8 @@ Guidelines:
   return `You are an AI assistant for Vektiss, a digital agency. You help clients stay informed about their projects, payments, and assets.
 
 You can look up your project status, payment history, uploaded assets, and send messages to the Vektiss team.
+
+You can also query documents and links attached to your projects using query_project_attachments.
 
 Guidelines:
 - Be friendly, professional, and helpful. Use markdown formatting.
@@ -431,6 +452,34 @@ async function executeTool(
       const { data, error } = await query.order('created_at', { ascending: false })
       if (error) return { error: error.message }
       return { projects: data, count: data?.length ?? 0 }
+    }
+    case 'query_project_attachments': {
+      const projectId = args.project_id as string
+      // For clients, verify they own this project
+      if (context.role === 'client' && context.clientId) {
+        const { data: proj } = await supabase.from('projects').select('id').eq('id', projectId).eq('client_id', context.clientId).single()
+        if (!proj) return { error: 'Project not found or access denied.' }
+      }
+      const { data, error } = await supabase.from('project_attachments')
+        .select('id, title, type, url, file_name, file_size, created_at')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false })
+      if (error) return { error: error.message }
+      // Generate download URLs for file attachments
+      const enriched = await Promise.all((data ?? []).map(async (att: any) => {
+        if (att.type === 'file') {
+          const { data: fileData } = await supabase.from('project_attachments')
+            .select('file_path').eq('id', att.id).single()
+          if (fileData?.file_path) {
+            const { data: signed } = await supabase.storage
+              .from('client-assets')
+              .createSignedUrl(fileData.file_path, 3600)
+            if (signed?.signedUrl) att.download_url = signed.signedUrl
+          }
+        }
+        return att
+      }))
+      return { attachments: enriched, count: enriched.length }
     }
     case 'query_financials': {
       const results: Record<string, unknown> = {}
