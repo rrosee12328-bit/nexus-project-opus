@@ -22,6 +22,7 @@ import AdminFinancials from "./pages/admin/Financials";
 import AdminSettings from "./pages/admin/Settings";
 import AdminAssets from "./pages/admin/Assets";
 import AdminReports from "./pages/admin/Reports";
+import AdminEmails from "./pages/admin/Emails";
 
 import OpsLayout from "./layouts/OpsLayout";
 import OpsDashboard from "./pages/ops/Dashboard";
@@ -76,6 +77,7 @@ const App = () => (
               <Route path="assets" element={<AdminAssets />} />
               <Route path="financials" element={<AdminFinancials />} />
               <Route path="reports" element={<AdminReports />} />
+              <Route path="emails" element={<AdminEmails />} />
               <Route path="settings" element={<AdminSettings />} />
             </Route>
 
