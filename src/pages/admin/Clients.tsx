@@ -130,6 +130,27 @@ export default function AdminClients() {
   const openEdit = (c: Client) => { setEditClient(c); setFormOpen(true); };
   const openAdd = () => { setEditClient(null); setFormOpen(true); };
 
+  const handleSendInvite = async (client: Client) => {
+    if (!client.email || client.user_id) return;
+    setInvitingIds((prev) => new Set(prev).add(client.id));
+    try {
+      const { data, error } = await supabase.functions.invoke("invite-client", {
+        body: { client_id: client.id },
+      });
+      if (error) throw error;
+      toast.success(`Invite sent to ${client.email}`);
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to send invite");
+    } finally {
+      setInvitingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(client.id);
+        return next;
+      });
+    }
+  };
+
   const ActionMenu = ({ client }: { client: Client }) => (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -141,6 +162,11 @@ export default function AdminClients() {
         <DropdownMenuItem onClick={() => openEdit(client)}>
           <Pencil className="mr-2 h-4 w-4" /> Edit
         </DropdownMenuItem>
+        {client.email && !client.user_id && (
+          <DropdownMenuItem onClick={() => handleSendInvite(client)}>
+            <Send className="mr-2 h-4 w-4" /> Send Invite
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onClick={() => setDeleteTarget(client)} className="text-destructive focus:text-destructive">
           <Trash2 className="mr-2 h-4 w-4" /> Delete
         </DropdownMenuItem>
