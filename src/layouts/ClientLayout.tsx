@@ -114,7 +114,7 @@ export default function ClientLayout() {
             >
               {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
-            <img src="/vektiss-logo.png" alt="Vektiss" className="h-14 object-contain" />
+            <img src="/vektiss-logo.png" alt="Vektiss" className="h-20 object-contain" />
           </div>
 
           {/* Desktop navigation */}

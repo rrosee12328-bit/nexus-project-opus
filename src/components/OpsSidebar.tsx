@@ -44,10 +44,10 @@ export function OpsSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
         {!collapsed && (
-          <img src="/vektiss-logo.png" alt="Vektiss" className="h-14 object-contain" />
+          <img src="/vektiss-logo.png" alt="Vektiss" className="h-20 object-contain" />
         )}
         {collapsed && (
-          <img src="/vektiss-icon.png" alt="Vektiss" className="h-11 w-11 object-contain" />
+          <img src="/vektiss-icon.png" alt="Vektiss" className="h-12 w-12 object-contain" />
         )}
       </SidebarHeader>
       <SidebarContent>

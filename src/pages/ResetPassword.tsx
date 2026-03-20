@@ -50,7 +50,7 @@ export default function ResetPassword() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md border-border bg-card">
         <CardHeader className="text-center space-y-4">
-          <img src="/vektiss-logo.png" alt="Vektiss" className="h-14 mx-auto object-contain" />
+          <img src="/vektiss-logo.png" alt="Vektiss" className="h-20 mx-auto object-contain" />
           <CardTitle className="text-2xl font-bold tracking-tight text-foreground">
             Set New Password
           </CardTitle>
