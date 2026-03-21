@@ -137,6 +137,9 @@ export default function Timesheets() {
     },
   });
 
+  // Determine if we're viewing our own timesheet or another user's
+  const isViewingSelf = selectedUserId === "all" || selectedUserId === user?.id;
+
   const addMutation = useMutation({
     mutationFn: async (data: FormData) => {
       const dayIndex = parseISO(data.entry_date).getDay();
@@ -256,7 +259,7 @@ export default function Timesheets() {
           <h1 className="text-2xl font-bold text-foreground">Timesheets</h1>
           <p className="text-sm text-muted-foreground">Track and document work hours per task</p>
         </div>
-        <Button onClick={openAdd} size="sm">
+        <Button onClick={openAdd} size="sm" disabled={!isViewingSelf}>
           <Plus className="h-4 w-4 mr-1" /> Log Time
         </Button>
       </div>

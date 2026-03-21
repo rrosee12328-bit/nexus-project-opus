@@ -35,13 +35,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase.rpc("get_user_role", { _user_id: nextSession.user.id });
       if (error) {
         console.error("Failed to fetch role:", error.message);
-        setRole("client");
+        setRole(null);
       } else {
-        setRole((data as AppRole) ?? "client");
+        setRole((data as AppRole) ?? null);
       }
     } catch (err) {
       console.error("Role fetch error:", err);
-      setRole("client");
+      setRole(null);
     }
   }, []);
 
