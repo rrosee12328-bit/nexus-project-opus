@@ -635,6 +635,54 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          created_at: string
+          email_digest: boolean
+          email_messages: boolean
+          email_payments: boolean
+          email_projects: boolean
+          email_tasks: boolean
+          id: string
+          in_app_messages: boolean
+          in_app_payments: boolean
+          in_app_projects: boolean
+          in_app_tasks: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_digest?: boolean
+          email_messages?: boolean
+          email_payments?: boolean
+          email_projects?: boolean
+          email_tasks?: boolean
+          id?: string
+          in_app_messages?: boolean
+          in_app_payments?: boolean
+          in_app_projects?: boolean
+          in_app_tasks?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_digest?: boolean
+          email_messages?: boolean
+          email_payments?: boolean
+          email_projects?: boolean
+          email_tasks?: boolean
+          id?: string
+          in_app_messages?: boolean
+          in_app_payments?: boolean
+          in_app_projects?: boolean
+          in_app_tasks?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string | null
