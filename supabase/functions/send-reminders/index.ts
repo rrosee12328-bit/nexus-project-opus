@@ -191,7 +191,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── 3. PROJECTS IN REVIEW PHASE ──
+    } // end weekday guard for tasks review
+
+    // ── 3. PROJECTS IN REVIEW PHASE (weekdays only) ──
+    if (isWeekday) {
     const { data: reviewProjects } = await supabase
       .from("projects").select("id, name, client_id, updated_at")
       .eq("current_phase", "review").eq("status", "in_progress")
