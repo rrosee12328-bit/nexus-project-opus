@@ -556,7 +556,14 @@ export default function AdminClients() {
       )}
 
       <ClientFormDialog open={formOpen} onOpenChange={setFormOpen} client={editClient} />
-      <DeleteClientDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)} clientId={deleteTarget?.id ?? ""} clientName={deleteTarget?.name ?? ""} />
+      <DeleteClientDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        clientId={deleteTarget?.id ?? ""}
+        clientName={deleteTarget?.name ?? ""}
+      />
     </div>
   );
 }
