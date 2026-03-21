@@ -279,7 +279,15 @@ Deno.serve(async (req) => {
       .from("clients")
       .update({ user_id: userId, status: "onboarding" })
       .eq("id", client_id);
-    if (updateErr) console.error("Error linking user_id:", updateErr);
+    if (updateErr) {
+      // Fail closed: delete the orphaned auth user so they can't sign in without a client link
+      console.error("Error linking user_id, rolling back auth user:", updateErr);
+      await supabase.auth.admin.deleteUser(userId);
+      return new Response(JSON.stringify({ error: "Failed to link user to client record" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Create welcome project and onboarding steps
     const projectId = await createWelcomeProject(supabase, client_id, client.type);
