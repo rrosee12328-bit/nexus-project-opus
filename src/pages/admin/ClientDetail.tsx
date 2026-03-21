@@ -228,6 +228,15 @@ export default function ClientDetail() {
 
   const getTypeConfig = (type: string) => NOTE_TYPES.find((t) => t.value === type) ?? NOTE_TYPES[3];
 
+  const normalizeLegacyDateCopy = (value: string | null | undefined) => {
+    if (!value) return value ?? "";
+
+    return value
+      .replace(/March\s*3\s*[–-]\s*7/gi, "March 23-27")
+      .replace(/March\s*3rd\s+and\s+March\s*7th/gi, "March 23rd and March 27th")
+      .replace(/March\s*3\s+and\s+March\s*7/gi, "March 23 and March 27");
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -321,9 +330,9 @@ export default function ClientDetail() {
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Latest Report</p>
                       <div className="rounded-lg border border-border bg-accent/20 p-4">
-                        <p className="font-medium text-sm mb-1">{latestReport.title}</p>
+                        <p className="font-medium text-sm mb-1">{normalizeLegacyDateCopy(latestReport.title)}</p>
                         <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-                          {latestReport.content ?? "No content"}
+                          {normalizeLegacyDateCopy(latestReport.content) || "No content"}
                         </p>
                       </div>
                     </div>
@@ -341,9 +350,9 @@ export default function ClientDetail() {
                             <div key={action.id} className="flex items-start gap-3 rounded-lg border border-border p-3">
                               <CircleDot className={`h-4 w-4 mt-0.5 shrink-0 ${statusCfg?.color ?? "text-amber-500"}`} />
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium">{action.title}</p>
+                                <p className="text-sm font-medium">{normalizeLegacyDateCopy(action.title)}</p>
                                 {action.content && (
-                                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{action.content}</p>
+                                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{normalizeLegacyDateCopy(action.content)}</p>
                                 )}
                               </div>
                               <Badge variant="outline" className={`text-xs shrink-0 ${statusCfg?.color ?? ""}`}>
@@ -434,7 +443,7 @@ export default function ClientDetail() {
                       <div className="flex-1 min-w-0 space-y-1">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="font-medium leading-tight">{note.title}</p>
+                            <p className="font-medium leading-tight">{normalizeLegacyDateCopy(note.title)}</p>
                             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                               <Badge variant="secondary" className="text-xs">{cfg.label}</Badge>
                               {note.type === "action_item" && note.status && (
@@ -485,14 +494,14 @@ export default function ClientDetail() {
 
                         {note.content && expandedNote !== note.id && (
                           <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap line-clamp-2">
-                            {note.content}
+                            {normalizeLegacyDateCopy(note.content)}
                           </p>
                         )}
 
                         {note.content && expandedNote === note.id && (
                           <div className="mt-3 pt-3 border-t border-border">
                             <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-                              {note.content}
+                              {normalizeLegacyDateCopy(note.content)}
                             </p>
                           </div>
                         )}
