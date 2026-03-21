@@ -415,8 +415,16 @@ export default function AdminMessages() {
               </div>
 
               {/* Input */}
-              <div className="border-t border-border p-3 bg-muted/20">
+              <div className="border-t border-border p-3 bg-muted/20 space-y-2">
+                {pendingAttachment && (
+                  <PendingAttachment name={pendingAttachment.name} onRemove={() => setPendingAttachment(null)} />
+                )}
                 <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="flex gap-2 items-end">
+                  <FileUploadButton
+                    clientId={selectedClientId!}
+                    onFileUploaded={setPendingAttachment}
+                    disabled={sendMutation.isPending || !!pendingAttachment}
+                  />
                   <Textarea
                     placeholder="Type your message… (Enter to send, Shift+Enter for new line)"
                     className="flex-1 bg-background min-h-[44px] max-h-[120px] resize-none text-sm"
@@ -429,7 +437,7 @@ export default function AdminMessages() {
                     onKeyDown={handleKeyDown}
                     disabled={sendMutation.isPending}
                   />
-                  <Button type="submit" size="icon" disabled={!message.trim() || sendMutation.isPending} className="shrink-0 h-10 w-10">
+                  <Button type="submit" size="icon" disabled={(!message.trim() && !pendingAttachment) || sendMutation.isPending} className="shrink-0 h-10 w-10">
                     {sendMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   </Button>
                 </form>
