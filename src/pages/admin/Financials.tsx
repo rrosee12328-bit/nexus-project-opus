@@ -11,6 +11,7 @@ import { DollarSign, TrendingUp, TrendingDown, Download, Wallet, Plus, Pencil, T
 import { Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Line, ComposedChart, Legend } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import ExpenseCrudDialog from "@/components/financials/ExpenseCrudDialog";
@@ -30,10 +31,23 @@ function formatCurrency(val: number) {
 }
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const YEAR_OPTIONS = [2024, 2025, 2026, 2027];
 
 export default function AdminFinancials() {
   const queryClient = useQueryClient();
   const [chartView, setChartView] = useState<"actual" | "projected" | "all">("all");
+
+  // Filter state
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth(); // 0-indexed
+  const [filterYear, setFilterYear] = useState<number>(currentYear);
+  const [filterFromMonth, setFilterFromMonth] = useState<number>(0); // 0-indexed
+  const [filterToMonth, setFilterToMonth] = useState<number>(currentMonth < 5 ? 5 : 11); // default to first 6 months or full year
+
+  const filteredMonthIndices = Array.from(
+    { length: filterToMonth - filterFromMonth + 1 },
+    (_, i) => filterFromMonth + i
+  );
 
   // CRUD dialog state
   const [expenseOpen, setExpenseOpen] = useState(false);
@@ -129,24 +143,28 @@ export default function AdminFinancials() {
     },
   });
 
+  // Filter helpers
+  const isInRange = (month: number, year: number) =>
+    year === filterYear && month - 1 >= filterFromMonth && month - 1 <= filterToMonth;
+
   // Split payments into actual vs projected
   const actualPayments = (payments ?? []).filter((p) => p.notes !== "Projected");
   const projectedPayments = (payments ?? []).filter((p) => p.notes === "Projected");
 
-  // Monthly chart data with actual/projected split
-  const monthlyData = MONTHS.map((label, i) => {
+  // Monthly chart data for filtered range
+  const monthlyData = filteredMonthIndices.map((i) => {
     const month = i + 1;
     const actualRev = actualPayments
-      .filter((p) => p.payment_month === month && p.payment_year === 2026)
+      .filter((p) => p.payment_month === month && p.payment_year === filterYear)
       .reduce((s, p) => s + Number(p.amount), 0);
     const projectedRev = projectedPayments
-      .filter((p) => p.payment_month === month && p.payment_year === 2026)
+      .filter((p) => p.payment_month === month && p.payment_year === filterYear)
       .reduce((s, p) => s + Number(p.amount), 0);
     const expense = (expenses ?? [])
-      .filter((e) => e.expense_month === month && e.expense_year === 2026)
+      .filter((e) => e.expense_month === month && e.expense_year === filterYear)
       .reduce((s, e) => s + Number(e.amount), 0);
     return {
-      month: label,
+      month: MONTHS[i],
       actualRevenue: actualRev,
       projectedRevenue: projectedRev,
       expenses: expense,
@@ -155,10 +173,11 @@ export default function AdminFinancials() {
     };
   });
 
-  const ytdRevenue = (payments ?? []).reduce((s, p) => s + Number(p.amount), 0);
-  const ytdExpenses = (expenses ?? [])
-    .filter((e) => e.expense_month <= new Date().getMonth() + 1 && e.expense_year === 2026)
-    .reduce((s, e) => s + Number(e.amount), 0);
+  const filteredPayments = (payments ?? []).filter((p) => isInRange(p.payment_month, p.payment_year));
+  const filteredExpenses = (expenses ?? []).filter((e) => isInRange(e.expense_month, e.expense_year));
+
+  const ytdRevenue = filteredPayments.reduce((s, p) => s + Number(p.amount), 0);
+  const ytdExpenses = filteredExpenses.reduce((s, e) => s + Number(e.amount), 0);
   const ytdProfit = ytdRevenue - ytdExpenses;
   const activeMrr = (clients ?? [])
     .filter((c) => c.status === "active")
@@ -166,12 +185,12 @@ export default function AdminFinancials() {
   const totalInvestments = (investments ?? []).reduce((s, inv) => s + Number(inv.amount), 0);
 
   // Group expenses by type
-  const expenseTypes = [...new Set((expenses ?? []).map((e) => e.type))];
+  const expenseTypes = [...new Set(filteredExpenses.map((e) => e.type))];
 
   const exportCSV = () => {
-    if (!payments?.length) return;
+    if (!filteredPayments.length) return;
     const rows = [["Client", "Month", "Year", "Amount"]];
-    for (const p of payments) {
+    for (const p of filteredPayments) {
       const clientName = (p.clients as { name: string } | null)?.name ?? "Unknown";
       rows.push([clientName, MONTHS[p.payment_month - 1], String(p.payment_year), String(p.amount)]);
     }
@@ -180,15 +199,19 @@ export default function AdminFinancials() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `vektiss-payments-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `vektiss-payments-${filterYear}-${MONTHS[filterFromMonth]}-${MONTHS[filterToMonth]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
+  const rangeLabel = filterFromMonth === 0 && filterToMonth === 11
+    ? `${filterYear}`
+    : `${MONTHS[filterFromMonth]}–${MONTHS[filterToMonth]} ${filterYear}`;
+
   const statCards = [
-    { label: "YTD Revenue", value: formatCurrency(ytdRevenue), icon: TrendingUp, color: "text-emerald-400" },
-    { label: "YTD Expenses", value: formatCurrency(ytdExpenses), icon: TrendingDown, color: "text-destructive" },
-    { label: "YTD Profit", value: formatCurrency(ytdProfit), icon: DollarSign, color: ytdProfit >= 0 ? "text-emerald-400" : "text-destructive" },
+    { label: `Revenue (${rangeLabel})`, value: formatCurrency(ytdRevenue), icon: TrendingUp, color: "text-emerald-400" },
+    { label: `Expenses (${rangeLabel})`, value: formatCurrency(ytdExpenses), icon: TrendingDown, color: "text-destructive" },
+    { label: `Profit (${rangeLabel})`, value: formatCurrency(ytdProfit), icon: DollarSign, color: ytdProfit >= 0 ? "text-emerald-400" : "text-destructive" },
     { label: "Monthly Recurring", value: formatCurrency(activeMrr), icon: DollarSign, color: "text-primary" },
     { label: "Investments", value: formatCurrency(totalInvestments), icon: Wallet, color: "text-primary" },
   ];
@@ -199,7 +222,7 @@ export default function AdminFinancials() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="flex items-center justify-between"
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Financial Tracking</h1>
@@ -208,6 +231,69 @@ export default function AdminFinancials() {
         <Button variant="outline" onClick={exportCSV}>
           <Download className="mr-2 h-4 w-4" /> Export CSV
         </Button>
+      </motion.div>
+
+      {/* Filters */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.05 }}
+      >
+        <Card>
+          <CardContent className="py-3 px-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-sm font-medium text-muted-foreground">Filter:</span>
+              <Select value={String(filterYear)} onValueChange={(v) => setFilterYear(Number(v))}>
+                <SelectTrigger className="w-24 h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {YEAR_OPTIONS.map((y) => (
+                    <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={String(filterFromMonth)} onValueChange={(v) => {
+                const m = Number(v);
+                setFilterFromMonth(m);
+                if (m > filterToMonth) setFilterToMonth(m);
+              }}>
+                <SelectTrigger className="w-24 h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONTHS.map((m, i) => (
+                    <SelectItem key={i} value={String(i)}>{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="text-sm text-muted-foreground">to</span>
+              <Select value={String(filterToMonth)} onValueChange={(v) => {
+                const m = Number(v);
+                setFilterToMonth(m);
+                if (m < filterFromMonth) setFilterFromMonth(m);
+              }}>
+                <SelectTrigger className="w-24 h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONTHS.map((m, i) => (
+                    <SelectItem key={i} value={String(i)} disabled={i < filterFromMonth}>{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex gap-1 ml-auto">
+                <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => { setFilterFromMonth(0); setFilterToMonth(2); }}>Q1</Button>
+                <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => { setFilterFromMonth(3); setFilterToMonth(5); }}>Q2</Button>
+                <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => { setFilterFromMonth(6); setFilterToMonth(8); }}>Q3</Button>
+                <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => { setFilterFromMonth(9); setFilterToMonth(11); }}>Q4</Button>
+                <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => { setFilterFromMonth(0); setFilterToMonth(5); }}>H1</Button>
+                <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => { setFilterFromMonth(6); setFilterToMonth(11); }}>H2</Button>
+                <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => { setFilterFromMonth(0); setFilterToMonth(11); }}>Full Year</Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </motion.div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -226,7 +312,7 @@ export default function AdminFinancials() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className={`text-2xl font-bold font-mono ${s.label === "YTD Profit" ? s.color : ""}`}>{s.value}</div>
+                <div className={`text-2xl font-bold font-mono ${s.label.includes("Profit") ? s.color : ""}`}>{s.value}</div>
               </CardContent>
             </Card>
           </motion.div>
@@ -241,7 +327,7 @@ export default function AdminFinancials() {
       >
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-lg">Revenue vs Expenses (2026)</CardTitle>
+          <CardTitle className="text-lg">Revenue vs Expenses ({rangeLabel})</CardTitle>
           <ToggleGroup type="single" value={chartView} onValueChange={(v) => v && setChartView(v as typeof chartView)} size="sm">
             <ToggleGroupItem value="actual" className="text-xs px-3">Actual</ToggleGroupItem>
             <ToggleGroupItem value="projected" className="text-xs px-3">Projected</ToggleGroupItem>
@@ -303,8 +389,8 @@ export default function AdminFinancials() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Expense Type</TableHead>
-                    {MONTHS.slice(0, 6).map((m) => (
-                      <TableHead key={m} className="text-right">{m}</TableHead>
+                    {filteredMonthIndices.map((i) => (
+                      <TableHead key={i} className="text-right">{MONTHS[i]}</TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
@@ -312,9 +398,9 @@ export default function AdminFinancials() {
                   {expenseTypes.map((type) => (
                     <TableRow key={type} className="hover:bg-muted/30 transition-colors">
                       <TableCell className="whitespace-nowrap">{type}</TableCell>
-                      {MONTHS.slice(0, 6).map((_, i) => {
-                        const val = (expenses ?? [])
-                          .filter((e) => e.type === type && e.expense_month === i + 1 && e.expense_year === 2026)
+                      {filteredMonthIndices.map((i) => {
+                        const val = filteredExpenses
+                          .filter((e) => e.type === type && e.expense_month === i + 1)
                           .reduce((s, e) => s + Number(e.amount), 0);
                         return (
                           <TableCell key={i} className="text-right font-mono">
@@ -326,9 +412,9 @@ export default function AdminFinancials() {
                   ))}
                   <TableRow className="font-bold border-t-2 border-border">
                     <TableCell>Total</TableCell>
-                    {MONTHS.slice(0, 6).map((_, i) => {
-                      const total = (expenses ?? [])
-                        .filter((e) => e.expense_month === i + 1 && e.expense_year === 2026)
+                    {filteredMonthIndices.map((i) => {
+                      const total = filteredExpenses
+                        .filter((e) => e.expense_month === i + 1)
                         .reduce((s, e) => s + Number(e.amount), 0);
                       return (
                         <TableCell key={i} className="text-right font-mono">
@@ -541,7 +627,7 @@ export default function AdminFinancials() {
       >
       <Card className="hover:border-primary/20 transition-colors">
         <CardHeader>
-          <CardTitle className="text-lg">Revenue Projection & Net Profit Summary</CardTitle>
+          <CardTitle className="text-lg">Revenue Projection & Net Profit Summary ({rangeLabel})</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -550,8 +636,8 @@ export default function AdminFinancials() {
                 <TableRow>
                   <TableHead>Client</TableHead>
                   <TableHead className="text-center">Status</TableHead>
-                  {MONTHS.slice(0, 6).map((m) => (
-                    <TableHead key={m} className="text-right">{m}</TableHead>
+                  {filteredMonthIndices.map((i) => (
+                    <TableHead key={i} className="text-right">{MONTHS[i]}</TableHead>
                   ))}
                   <TableHead className="text-right">Total</TableHead>
                 </TableRow>
@@ -559,23 +645,23 @@ export default function AdminFinancials() {
               <TableBody>
                 {(() => {
                   const clientMap = new Map((clients ?? []).map((c) => [c.id, c]));
-                  const allPayments = payments ?? [];
                   const byClient: Record<string, { name: string; status: string; months: number[] }> = {};
-                  for (const p of allPayments) {
-                    if (p.payment_year !== 2026 || p.payment_month < 1 || p.payment_month > 6) continue;
+                  for (const p of filteredPayments) {
+                    const idx = p.payment_month - 1 - filterFromMonth;
+                    if (idx < 0 || idx >= filteredMonthIndices.length) continue;
                     const client = clientMap.get(p.client_id);
                     const name = (p.clients as { name: string } | null)?.name ?? "Unknown";
                     if (!byClient[p.client_id]) {
-                      byClient[p.client_id] = { name, status: client?.status ?? "", months: [0,0,0,0,0,0] };
+                      byClient[p.client_id] = { name, status: client?.status ?? "", months: new Array(filteredMonthIndices.length).fill(0) };
                     }
-                    byClient[p.client_id].months[p.payment_month - 1] += Number(p.amount);
+                    byClient[p.client_id].months[idx] += Number(p.amount);
                   }
                   const entries = Object.values(byClient).sort((a, b) => {
                     const totalA = a.months.reduce((s, v) => s + v, 0);
                     const totalB = b.months.reduce((s, v) => s + v, 0);
                     return totalB - totalA;
                   });
-                  const monthTotals = [0,0,0,0,0,0];
+                  const monthTotals = new Array(filteredMonthIndices.length).fill(0);
                   entries.forEach((e) => e.months.forEach((v, i) => { monthTotals[i] += v; }));
                   const grandTotal = monthTotals.reduce((s, v) => s + v, 0);
 
@@ -590,7 +676,7 @@ export default function AdminFinancials() {
                               <Badge variant="outline" className={`text-xs ${statusColor[e.status] ?? ""}`}>{e.status}</Badge>
                             </TableCell>
                             {e.months.map((v, i) => (
-                              <TableCell key={i} className={`text-right font-mono text-sm ${i >= 3 ? "italic text-muted-foreground" : ""}`}>
+                              <TableCell key={i} className="text-right font-mono text-sm">
                                 {v > 0 ? formatCurrency(v) : "—"}
                               </TableCell>
                             ))}
@@ -601,7 +687,7 @@ export default function AdminFinancials() {
                       <TableRow className="font-bold border-t-2 border-border">
                         <TableCell colSpan={2}>Monthly Totals</TableCell>
                         {monthTotals.map((v, i) => (
-                          <TableCell key={i} className={`text-right font-mono ${i >= 3 ? "italic" : ""}`}>{formatCurrency(v)}</TableCell>
+                          <TableCell key={i} className="text-right font-mono">{formatCurrency(v)}</TableCell>
                         ))}
                         <TableCell className="text-right font-mono">{formatCurrency(grandTotal)}</TableCell>
                       </TableRow>
@@ -610,26 +696,18 @@ export default function AdminFinancials() {
                 })()}
               </TableBody>
             </Table>
-            <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-foreground" /> Actual (Jan–Mar)</span>
-              <span className="flex items-center gap-1.5 italic"><span className="h-2 w-2 rounded-full bg-muted-foreground" /> Projected (Apr–Jun)</span>
-            </div>
           </div>
 
           {/* Net Profit Summary */}
           {(() => {
-            const allP = payments ?? [];
-            const allE = expenses ?? [];
-            const ytdActualRev = allP.filter((p) => p.payment_year === 2026 && p.payment_month <= 3).reduce((s, p) => s + Number(p.amount), 0);
-            const ytdActualExp = allE.filter((e) => e.expense_year === 2026 && e.expense_month <= 3).reduce((s, e) => s + Number(e.amount), 0);
-            const projRev = allP.filter((p) => p.payment_year === 2026 && p.payment_month >= 4 && p.payment_month <= 6 && p.notes === "Projected").reduce((s, p) => s + Number(p.amount), 0);
-            const projExp = allE.filter((e) => e.expense_year === 2026 && e.expense_month >= 4 && e.expense_month <= 6).reduce((s, e) => s + Number(e.amount), 0);
-            const combinedRev = ytdActualRev + projRev;
-            const combinedExp = ytdActualExp + projExp;
+            const filteredRev = filteredPayments.reduce((s, p) => s + Number(p.amount), 0);
+            const filteredActualRev = filteredPayments.filter(p => p.notes !== "Projected").reduce((s, p) => s + Number(p.amount), 0);
+            const filteredProjRev = filteredPayments.filter(p => p.notes === "Projected").reduce((s, p) => s + Number(p.amount), 0);
+            const filteredExp = filteredExpenses.reduce((s, e) => s + Number(e.amount), 0);
             const rows = [
-              { label: "YTD Actual (Jan–Mar)", rev: ytdActualRev, exp: ytdActualExp },
-              { label: "90-Day Projected (Apr–Jun)", rev: projRev, exp: projExp },
-              { label: "Combined (Jan–Jun)", rev: combinedRev, exp: combinedExp },
+              { label: `Actual (${rangeLabel})`, rev: filteredActualRev, exp: filteredExp },
+              { label: `Projected (${rangeLabel})`, rev: filteredProjRev, exp: 0 },
+              { label: `Combined (${rangeLabel})`, rev: filteredRev, exp: filteredExp },
             ];
             return (
               <div className="mt-6">
@@ -675,7 +753,7 @@ export default function AdminFinancials() {
       >
       <Card className="hover:border-primary/20 transition-colors">
         <CardHeader>
-          <CardTitle className="text-lg">Payment History</CardTitle>
+          <CardTitle className="text-lg">Payment History ({rangeLabel})</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -689,7 +767,7 @@ export default function AdminFinancials() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(payments ?? []).map((p) => {
+                {filteredPayments.map((p) => {
                   const isProjected = p.notes === "Projected";
                   return (
                     <TableRow key={p.id} className={`hover:bg-muted/30 transition-colors ${isProjected ? "opacity-70" : ""}`}>
