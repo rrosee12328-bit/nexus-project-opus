@@ -36,7 +36,7 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
 }
 
 // Configuration
-const SITE_NAME = "nexus-project-opus"
+const SITE_NAME = "Vektiss"
 const SENDER_DOMAIN = "notify.vektiss.com"
 const ROOT_DOMAIN = "vektiss.com"
 const FROM_DOMAIN = "notify.vektiss.com" // Domain shown in From address (may be root or sender subdomain)
