@@ -90,6 +90,7 @@ const App = () => (
               <Route path="agent" element={<AdminAgent />} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="calendar" element={<AdminCalendar />} />
+              <Route path="leads" element={<AdminLeads />} />
             </Route>
 
             {/* Ops Portal */}
