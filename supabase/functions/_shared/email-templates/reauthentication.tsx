@@ -13,6 +13,7 @@ import {
 } from 'npm:@react-email/components@0.0.22'
 
 interface ReauthenticationEmailProps {
+  siteName?: string
   token: string
 }
 
