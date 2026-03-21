@@ -456,6 +456,7 @@ Deno.serve(async (req) => {
         `Good morning! Here's your daily summary from Vektiss.`
       );
     }
+    } // end weekday guard for daily digest
 
     return new Response(
       JSON.stringify({ ok: true, reminders_enqueued: totalEnqueued }),
