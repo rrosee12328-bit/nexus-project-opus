@@ -177,9 +177,21 @@ export function LeadPipelineKanban({ leads, onEdit, onDelete }: LeadPipelineKanb
               >
                 <div className={`px-3 py-2.5 ${stage.bgHeader} rounded-t-lg`}>
                   <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
-                      {stage.label}
-                    </h3>
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
+                        {stage.label}
+                      </h3>
+                      <TooltipProvider delayDuration={200}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-3.5 w-3.5 text-muted-foreground/60 hover:text-foreground/80 cursor-help transition-colors" />
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="max-w-[220px] text-xs leading-relaxed">
+                            {STAGE_DESCRIPTIONS[stage.key]}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
                     <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-mono">
                       {stageLeads.length}
                     </Badge>
