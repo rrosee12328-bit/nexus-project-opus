@@ -25,7 +25,7 @@ import {
 import {
   ArrowLeft, Plus, Video, FileText, CircleDot, StickyNote,
   Pencil, Trash2, Loader2, ExternalLink, Calendar, Users, CheckCircle2, Clock,
-  Link as LinkIcon,
+  Link as LinkIcon, ChevronDown, ChevronUp, Briefcase,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
