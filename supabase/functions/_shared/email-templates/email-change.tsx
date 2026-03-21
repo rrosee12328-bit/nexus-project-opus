@@ -15,7 +15,7 @@ import {
 } from 'npm:@react-email/components@0.0.22'
 
 interface EmailChangeEmailProps {
-  siteName: string
+  siteName: string;
   email: string
   newEmail: string
   confirmationUrl: string

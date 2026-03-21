@@ -17,14 +17,14 @@ interface ReauthenticationEmailProps {
   token: string
 }
 
-export const ReauthenticationEmail = ({ token }: ReauthenticationEmailProps) => (
+export const ReauthenticationEmail = ({ siteName, token }: ReauthenticationEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
     <Preview>Your verification code</Preview>
     <Body style={main}>
       <Container style={container}>
         <Heading style={h1}>Confirm your identity</Heading>
-        <Text style={text}>Use the code below to verify your Vektiss account:</Text>
+        <Text style={text}>Use the code below to verify your {siteName || 'account'}:</Text>
         <Text style={codeStyle}>{token}</Text>
         <Text style={footer}>
           This code will expire shortly. If you didn't request this, you can

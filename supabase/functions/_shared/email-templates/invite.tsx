@@ -26,12 +26,12 @@ export const InviteEmail = ({
 }: InviteEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>You've been invited to join Vektiss</Preview>
+    <Preview>You've been invited to join {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
         <Heading style={h1}>You've been invited</Heading>
         <Text style={text}>
-          You've been invited to join Vektiss. Click the button below to accept
+          You've been invited to join {siteName}. Click the button below to accept
           the invitation and create your account.
         </Text>
         <Button style={button} href={confirmationUrl}>
