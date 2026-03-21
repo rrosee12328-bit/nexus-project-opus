@@ -313,6 +313,13 @@ export default function ClientDashboard() {
         ))}
       </div>
 
+      {/* Project Roadmap Timeline */}
+      {activeProjects.length > 0 && (
+        <motion.div {...anim(0.35)}>
+          <ProjectRoadmapWidget projects={activeProjects} />
+        </motion.div>
+      )}
+
       {/* Active projects */}
       {activeProjects.length > 0 && (
         <motion.div {...anim(0.4)} className="space-y-4">
