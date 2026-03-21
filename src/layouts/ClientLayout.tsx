@@ -18,6 +18,7 @@ import {
   Menu,
   X,
   Bot,
+  FileCheck,
 } from "lucide-react";
 import { useState } from "react";
 
