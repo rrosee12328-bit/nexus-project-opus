@@ -165,6 +165,15 @@ export default function AdminDashboard() {
         ))}
       </div>
 
+      {/* Executive KPIs */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.35 }}
+      >
+        <ExecutiveKPICards />
+      </motion.div>
+
       {/* Main content grid */}
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Active Projects */}
