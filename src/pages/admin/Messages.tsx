@@ -169,17 +169,19 @@ export default function AdminMessages() {
   }, [messages]);
 
   const sendMutation = useMutation({
-    mutationFn: async (content: string) => {
+    mutationFn: async ({ content, attachment }: { content: string; attachment?: { url: string; name: string; type: string } | null }) => {
       if (!selectedClientId || !user?.id) throw new Error("No client selected");
       const { error } = await supabase.from("messages").insert({
         client_id: selectedClientId,
         sender_id: user.id,
         content,
-      });
+        ...(attachment ? { attachment_url: attachment.url, attachment_name: attachment.name, attachment_type: attachment.type } : {}),
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => {
       setMessage("");
+      setPendingAttachment(null);
       stopTyping();
       queryClient.invalidateQueries({ queryKey: ["admin-messages", selectedClientId] });
       queryClient.invalidateQueries({ queryKey: ["admin-latest-messages"] });
