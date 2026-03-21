@@ -274,31 +274,41 @@ export default function ClientMessages() {
                   Your account isn't linked to a client profile yet. Contact your admin.
                 </p>
               ) : (
-                <form
-                  onSubmit={(e) => { e.preventDefault(); handleSend(); }}
-                  className="flex gap-2 items-end"
-                >
-                  <Textarea
-                    placeholder="Type your message… (Enter to send, Shift+Enter for new line)"
-                    className="flex-1 bg-background min-h-[44px] max-h-[120px] resize-none text-sm"
-                    rows={1}
-                    value={message}
-                    onChange={(e) => {
-                      setMessage(e.target.value);
-                      handleInputChange();
-                    }}
-                    onKeyDown={handleKeyDown}
-                    disabled={sendMutation.isPending}
-                  />
-                  <Button
-                    type="submit"
-                    size="icon"
-                    disabled={!message.trim() || sendMutation.isPending}
-                    className="shrink-0 h-10 w-10"
+                <div className="space-y-2">
+                  {pendingAttachment && (
+                    <PendingAttachment name={pendingAttachment.name} onRemove={() => setPendingAttachment(null)} />
+                  )}
+                  <form
+                    onSubmit={(e) => { e.preventDefault(); handleSend(); }}
+                    className="flex gap-2 items-end"
                   >
-                    {sendMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  </Button>
-                </form>
+                    <FileUploadButton
+                      clientId={clientId}
+                      onFileUploaded={setPendingAttachment}
+                      disabled={sendMutation.isPending || !!pendingAttachment}
+                    />
+                    <Textarea
+                      placeholder="Type your message… (Enter to send, Shift+Enter for new line)"
+                      className="flex-1 bg-background min-h-[44px] max-h-[120px] resize-none text-sm"
+                      rows={1}
+                      value={message}
+                      onChange={(e) => {
+                        setMessage(e.target.value);
+                        handleInputChange();
+                      }}
+                      onKeyDown={handleKeyDown}
+                      disabled={sendMutation.isPending}
+                    />
+                    <Button
+                      type="submit"
+                      size="icon"
+                      disabled={(!message.trim() && !pendingAttachment) || sendMutation.isPending}
+                      className="shrink-0 h-10 w-10"
+                    >
+                      {sendMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    </Button>
+                  </form>
+                </div>
               )}
             </div>
           </div>
