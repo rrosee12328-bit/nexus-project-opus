@@ -190,11 +190,15 @@ export default function AdminSettings() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex items-center gap-4">
-                  <Avatar className="h-20 w-20 border-2 border-primary/20 shadow-lg">
-                    <AvatarFallback className="bg-primary/10 text-primary text-xl font-bold">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
+                  <AvatarUpload
+                    userId={user!.id}
+                    currentUrl={avatarUrl || null}
+                    initials={initials}
+                    onUploaded={(url) => {
+                      setAvatarUrl(url ?? "");
+                      queryClient.invalidateQueries({ queryKey: ["admin-profile", user?.id] });
+                    }}
+                  />
                   <div className="space-y-1">
                     <p className="text-lg font-semibold">{displayName || "No name set"}</p>
                     <p className="text-sm text-muted-foreground">{user?.email}</p>
