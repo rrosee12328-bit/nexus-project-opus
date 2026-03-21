@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
     for (const p of allPrefs ?? []) prefsMap[p.user_id] = p;
 
     function isEmailEnabled(userId: string | null, category: string): boolean {
-      if (!userId) return true; // No prefs = default on
+      if (!userId) return true;
       const p = prefsMap[userId];
       if (!p) return true;
       const key = `email_${category}`;
@@ -271,7 +271,68 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── 6. DAILY DIGEST for opted-in users ──
+    // ── 6. LEAD FOLLOW-UP REMINDERS ──
+    const { data: leadsWithFollowups } = await supabase
+      .from("clients")
+      .select("id, name, email, phone, pipeline_stage, follow_up_start, follow_up_end, type, notes")
+      .eq("status", "lead")
+      .not("follow_up_start", "is", null)
+      .not("follow_up_end", "is", null);
+
+    if (leadsWithFollowups?.length) {
+      const { data: adminRoles } = await supabase
+        .from("user_roles").select("user_id").eq("role", "admin");
+      const adminUserIds = adminRoles?.map((r) => r.user_id) ?? [];
+
+      for (const lead of leadsWithFollowups) {
+        const todayDate = new Date(today);
+        const startDate = new Date(lead.follow_up_start!);
+        const endDate = new Date(lead.follow_up_end!);
+
+        // Send reminder when today is within follow-up window or overdue
+        const isInWindow = todayDate >= startDate && todayDate <= endDate;
+        const isOverdue = todayDate > endDate;
+
+        if (!isInWindow && !isOverdue) continue;
+
+        const urgency = isOverdue ? "overdue" : "due";
+        const stageLabel = (lead.pipeline_stage ?? "new").replace(/_/g, " ");
+
+        for (const adminId of adminUserIds) {
+          const refId = `lead_followup_${lead.id}_${adminId}_${today}`;
+          if (await wasRecentlySent("lead_followup", refId)) continue;
+
+          const { data: { user } } = await supabase.auth.admin.getUserById(adminId);
+          if (!user?.email) continue;
+
+          const leadInfo = [
+            lead.type ? `<strong>Type:</strong> ${lead.type}` : null,
+            lead.email ? `<strong>Email:</strong> ${lead.email}` : null,
+            lead.phone ? `<strong>Phone:</strong> ${lead.phone}` : null,
+            `<strong>Stage:</strong> ${stageLabel}`,
+            `<strong>Follow-up window:</strong> ${lead.follow_up_start} → ${lead.follow_up_end}`,
+          ].filter(Boolean).join("<br/>");
+
+          const html = buildReminderHtml(
+            isOverdue ? `⚠️ Overdue follow-up: ${lead.name}` : `📞 Follow up with ${lead.name}`,
+            `${isOverdue
+              ? `The follow-up window for <strong>${lead.name}</strong> has passed. Don't lose this lead!`
+              : `It's time to follow up with <strong>${lead.name}</strong> (${stageLabel} stage).`
+            }<br/><br/>${leadInfo}`,
+            "View Lead Pipeline", `${PORTAL_URL}/admin/clients`
+          );
+          await logAndEnqueue("lead_followup", refId, user.email, adminId,
+            isOverdue
+              ? `⚠️ Overdue: Follow up with ${lead.name}`
+              : `Follow-up reminder: ${lead.name}`,
+            html,
+            `${isOverdue ? "Overdue" : "Time to"} follow up with ${lead.name} (${stageLabel}).`
+          );
+        }
+      }
+    }
+
+    // ── 7. DAILY DIGEST for opted-in users ──
     const digestUsers = (allPrefs ?? []).filter(p => p.email_digest);
     for (const pref of digestUsers) {
       const digestRef = `digest_${pref.user_id}_${today}`;
@@ -322,6 +383,32 @@ Deno.serve(async (req) => {
             cta: "View Tasks", url: `${PORTAL_URL}/${role === "admin" ? "admin" : "ops/tasks"}`,
           });
         }
+
+        // Lead follow-ups due in digest
+        const { data: digestLeads } = await supabase
+          .from("clients")
+          .select("name, pipeline_stage, follow_up_start, follow_up_end")
+          .eq("status", "lead")
+          .not("follow_up_start", "is", null)
+          .not("follow_up_end", "is", null);
+
+        const dueLeads = (digestLeads ?? []).filter(l => {
+          const s = new Date(l.follow_up_start!);
+          const e = new Date(l.follow_up_end!);
+          const t = new Date(today);
+          return t >= s; // in window or overdue
+        });
+
+        if (dueLeads.length > 0) {
+          sections.push({
+            icon: "📞", title: `${dueLeads.length} Lead Follow-up${dueLeads.length > 1 ? 's' : ''} Due`,
+            items: dueLeads.map(l => {
+              const overdue = new Date(today) > new Date(l.follow_up_end!);
+              return `${overdue ? '⚠️ ' : ''}${l.name} (${(l.pipeline_stage ?? 'new').replace(/_/g, ' ')})`;
+            }),
+            cta: "View Pipeline", url: `${PORTAL_URL}/admin/clients`,
+          });
+        }
       }
 
       // Pending approvals (for client)
@@ -342,7 +429,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      if (sections.length === 0) continue; // Nothing to report
+      if (sections.length === 0) continue;
 
       const digestHtml = buildDigestHtml(profile?.display_name ?? '', sections);
       await logAndEnqueue("daily_digest", digestRef, user.email, pref.user_id,
