@@ -148,23 +148,23 @@ export default function ClientLayout() {
       <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
         <div className="flex h-14 md:h-16 items-center justify-between px-4 md:px-8">
           {/* Logo */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <img src="/vektiss-icon.png" alt="Vektiss" className="h-8 w-8 md:h-10 md:w-10 object-contain" />
-            <span className="hidden lg:inline text-sm font-semibold text-foreground">Vektiss</span>
+            <span className="hidden xl:inline text-sm font-semibold text-foreground">Vektiss</span>
           </div>
 
           {/* Desktop navigation */}
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden md:flex items-center gap-0.5 overflow-x-auto">
             {allItems.map((item) => (
               <NavLink
                 key={item.url}
                 to={item.url}
                 end={item.url === "/portal"}
-                className="relative flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm text-muted-foreground transition-all hover:bg-accent/10 hover:text-foreground"
+                className="relative flex items-center gap-1.5 rounded-lg px-2.5 lg:px-3.5 py-2 text-xs lg:text-sm text-muted-foreground transition-all hover:bg-accent/10 hover:text-foreground whitespace-nowrap shrink-0"
                 activeClassName="bg-primary/10 text-primary font-medium"
               >
-                <item.icon className="h-4 w-4" />
-                {item.title}
+                <item.icon className="h-4 w-4 shrink-0" />
+                <span className="hidden lg:inline">{item.title}</span>
                 {item.badge > 0 && (
                   <Badge className="h-5 min-w-[20px] px-1.5 text-[10px] font-mono bg-primary text-primary-foreground">
                     {item.badge > 99 ? "99+" : item.badge}
