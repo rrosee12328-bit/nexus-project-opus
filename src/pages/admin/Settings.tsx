@@ -168,12 +168,12 @@ export default function AdminSettings() {
 
       <Tabs defaultValue="profile" className="space-y-6">
         <motion.div {...anim(0.1)}>
-          <TabsList>
-            <TabsTrigger value="profile" className="gap-2"><User className="h-4 w-4" /> Profile</TabsTrigger>
-            <TabsTrigger value="security" className="gap-2"><Shield className="h-4 w-4" /> Security</TabsTrigger>
-            <TabsTrigger value="notifications" className="gap-2"><Bell className="h-4 w-4" /> Notifications</TabsTrigger>
-            <TabsTrigger value="reminders" className="gap-2"><Clock className="h-4 w-4" /> Reminders</TabsTrigger>
-            <TabsTrigger value="onboarding" className="gap-2"><Rocket className="h-4 w-4" /> Onboarding</TabsTrigger>
+          <TabsList className="w-full overflow-x-auto flex-nowrap justify-start">
+            <TabsTrigger value="profile" className="gap-2 shrink-0"><User className="h-4 w-4" /> <span className="hidden sm:inline">Profile</span></TabsTrigger>
+            <TabsTrigger value="security" className="gap-2 shrink-0"><Shield className="h-4 w-4" /> <span className="hidden sm:inline">Security</span></TabsTrigger>
+            <TabsTrigger value="notifications" className="gap-2 shrink-0"><Bell className="h-4 w-4" /> <span className="hidden sm:inline">Notifications</span></TabsTrigger>
+            <TabsTrigger value="reminders" className="gap-2 shrink-0"><Clock className="h-4 w-4" /> <span className="hidden sm:inline">Reminders</span></TabsTrigger>
+            <TabsTrigger value="onboarding" className="gap-2 shrink-0"><Rocket className="h-4 w-4" /> <span className="hidden sm:inline">Onboarding</span></TabsTrigger>
           </TabsList>
         </motion.div>
 
