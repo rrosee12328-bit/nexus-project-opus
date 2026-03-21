@@ -92,14 +92,13 @@ export default function ClientPayments() {
         )}
       </motion.div>
 
-      {/* Summary cards */}
+      {/* Summary card */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.15 }}
-        className="grid gap-4 sm:grid-cols-3"
       >
-        <Card className="border-border hover:border-primary/20 transition-colors">
+        <Card className="border-border hover:border-primary/20 transition-colors max-w-xs">
           <CardContent className="pt-6 flex items-center gap-4">
             <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
               <Calendar className="h-5 w-5 text-primary" />
@@ -107,30 +106,6 @@ export default function ClientPayments() {
             <div>
               <p className="text-sm text-muted-foreground">Payments Made</p>
               <p className="text-2xl font-bold tracking-tight font-mono">{(payments ?? []).length}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border hover:border-primary/20 transition-colors">
-          <CardContent className="pt-6 flex items-center gap-4">
-            <div className="h-11 w-11 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
-              <DollarSign className="h-5 w-5 text-emerald-500" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">{currentYear} Total</p>
-              <p className="text-2xl font-bold tracking-tight font-mono">{fmt(ytdTotal)}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border hover:border-primary/20 transition-colors">
-          <CardContent className="pt-6 flex items-center gap-4">
-            <div className="h-11 w-11 rounded-xl bg-muted flex items-center justify-center shrink-0">
-              <Receipt className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">All-Time Total</p>
-              <p className="text-2xl font-bold tracking-tight font-mono">{fmt(totalAllTime)}</p>
             </div>
           </CardContent>
         </Card>
