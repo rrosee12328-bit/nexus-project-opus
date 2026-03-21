@@ -7,23 +7,25 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  ChevronLeft, ChevronRight, Calendar as CalIcon,
-  Users, CheckSquare, FolderKanban, Phone, ExternalLink,
+  ChevronLeft, ChevronRight, Calendar as CalIcon, Plus,
+  Users, CheckSquare, FolderKanban, Phone, ExternalLink, Video, PhoneCall, Flag, Star,
 } from "lucide-react";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth,
   isSameDay, isToday, addMonths, subMonths, parseISO, startOfWeek, endOfWeek,
 } from "date-fns";
 import { motion } from "framer-motion";
+import CalendarEventDialog from "@/components/calendar/CalendarEventDialog";
 
 interface CalendarEvent {
   id: string;
   date: Date;
   title: string;
-  type: "follow_up" | "task_deadline" | "project_milestone" | "meeting";
+  type: "follow_up" | "task_deadline" | "project_milestone" | "meeting" | "custom";
   color: string;
   meta?: string;
   link?: string;
+  rawEvent?: any;
 }
 
 const TYPE_CONFIG = {
@@ -31,7 +33,16 @@ const TYPE_CONFIG = {
   task_deadline: { icon: CheckSquare, label: "Task", color: "text-emerald-500", dotColor: "bg-emerald-500" },
   project_milestone: { icon: FolderKanban, label: "Project", color: "text-purple-500", dotColor: "bg-purple-500" },
   meeting: { icon: Users, label: "Meeting", color: "text-blue-500", dotColor: "bg-blue-500" },
+  custom: { icon: Star, label: "Event", color: "text-amber-500", dotColor: "bg-amber-500" },
 } as const;
+
+const CUSTOM_TYPE_ICONS: Record<string, typeof Star> = {
+  meeting: Users,
+  content_shoot: Video,
+  call: PhoneCall,
+  deadline: Flag,
+  other: Star,
+};
 
 type EventType = keyof typeof TYPE_CONFIG;
 
@@ -40,8 +51,10 @@ export default function AdminCalendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [activeFilters, setActiveFilters] = useState<Set<EventType>>(
-    new Set(["follow_up", "task_deadline", "project_milestone", "meeting"])
+    new Set(["follow_up", "task_deadline", "project_milestone", "meeting", "custom"])
   );
+  const [eventDialogOpen, setEventDialogOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<any>(null);
 
   const toggleFilter = (type: EventType) => {
     setActiveFilters((prev) => {
@@ -55,7 +68,6 @@ export default function AdminCalendar() {
     });
   };
 
-  // Fetch leads with follow-up windows
   const { data: leads = [] } = useQuery({
     queryKey: ["calendar-leads"],
     queryFn: async () => {
@@ -68,7 +80,6 @@ export default function AdminCalendar() {
     },
   });
 
-  // Fetch tasks with due dates (include all statuses for full visibility)
   const { data: tasks = [] } = useQuery({
     queryKey: ["calendar-tasks"],
     queryFn: async () => {
@@ -81,13 +92,10 @@ export default function AdminCalendar() {
     },
   });
 
-  // Fetch client names for task context
   const { data: clients = [] } = useQuery({
     queryKey: ["calendar-clients"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("clients")
-        .select("id, name");
+      const { data, error } = await supabase.from("clients").select("id, name");
       if (error) throw error;
       return data;
     },
@@ -99,7 +107,6 @@ export default function AdminCalendar() {
     return map;
   }, [clients]);
 
-  // Fetch projects with target dates
   const { data: projects = [] } = useQuery({
     queryKey: ["calendar-projects"],
     queryFn: async () => {
@@ -112,7 +119,6 @@ export default function AdminCalendar() {
     },
   });
 
-  // Fetch meetings from client notes
   const { data: meetings = [] } = useQuery({
     queryKey: ["calendar-meetings"],
     queryFn: async () => {
@@ -126,19 +132,27 @@ export default function AdminCalendar() {
     },
   });
 
-  // Build calendar events
+  // Fetch custom calendar events
+  const { data: customEvents = [] } = useQuery({
+    queryKey: ["calendar-custom-events"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("calendar_events")
+        .select("*")
+        .order("event_date");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const allEvents = useMemo<CalendarEvent[]>(() => {
     const result: CalendarEvent[] = [];
 
-    // Follow-up windows
     for (const lead of leads) {
       if (lead.follow_up_start) {
         result.push({
-          id: `followup-start-${lead.id}`,
-          date: parseISO(lead.follow_up_start),
-          title: `Follow up: ${lead.name}`,
-          type: "follow_up",
-          color: "bg-primary",
+          id: `followup-start-${lead.id}`, date: parseISO(lead.follow_up_start),
+          title: `Follow up: ${lead.name}`, type: "follow_up", color: "bg-primary",
           meta: lead.follow_up_end
             ? `Window: ${format(parseISO(lead.follow_up_start), "MMM d")} – ${format(parseISO(lead.follow_up_end), "MMM d")}`
             : undefined,
@@ -147,81 +161,73 @@ export default function AdminCalendar() {
       }
       if (lead.follow_up_end && lead.follow_up_end !== lead.follow_up_start) {
         result.push({
-          id: `followup-end-${lead.id}`,
-          date: parseISO(lead.follow_up_end),
-          title: `Follow-up closes: ${lead.name}`,
-          type: "follow_up",
-          color: "bg-amber-500",
+          id: `followup-end-${lead.id}`, date: parseISO(lead.follow_up_end),
+          title: `Follow-up closes: ${lead.name}`, type: "follow_up", color: "bg-amber-500",
           link: `/admin/leads`,
         });
       }
     }
 
-    // Task deadlines
     for (const task of tasks) {
       if (task.due_date) {
         const clientName = task.client_id ? clientMap.get(task.client_id) : null;
         const isDone = task.status === "done";
         result.push({
-          id: `task-${task.id}`,
-          date: parseISO(task.due_date),
-          title: task.title,
+          id: `task-${task.id}`, date: parseISO(task.due_date), title: task.title,
           type: "task_deadline",
-          color: isDone
-            ? "bg-muted"
-            : task.priority === "urgent"
-            ? "bg-destructive"
-            : task.priority === "high"
-            ? "bg-amber-500"
-            : "bg-emerald-500",
-          meta: [
-            isDone ? "✓ Done" : `${task.priority} priority · ${task.status}`,
-            clientName ? `· ${clientName}` : "",
-          ].join(" "),
+          color: isDone ? "bg-muted" : task.priority === "urgent" ? "bg-destructive" : task.priority === "high" ? "bg-amber-500" : "bg-emerald-500",
+          meta: [isDone ? "✓ Done" : `${task.priority} priority · ${task.status}`, clientName ? `· ${clientName}` : ""].join(" "),
           link: "/ops/tasks",
         });
       }
     }
 
-    // Project milestones
     for (const project of projects) {
       if (project.target_date) {
         const clientName = project.client_id ? clientMap.get(project.client_id) : null;
         result.push({
-          id: `project-${project.id}`,
-          date: parseISO(project.target_date),
-          title: `${project.name} target`,
-          type: "project_milestone",
+          id: `project-${project.id}`, date: parseISO(project.target_date),
+          title: `${project.name} target`, type: "project_milestone",
           color: project.status === "completed" ? "bg-muted" : "bg-purple-500",
-          meta: [
-            `Phase: ${project.current_phase?.replace("_", " ")}`,
-            clientName ? `· ${clientName}` : "",
-          ].join(" "),
+          meta: [`Phase: ${project.current_phase?.replace("_", " ")}`, clientName ? `· ${clientName}` : ""].join(" "),
           link: "/admin/projects",
         });
       }
     }
 
-    // Meetings
     for (const meeting of meetings) {
       if (meeting.meeting_date) {
         const clientName = meeting.client_id ? clientMap.get(meeting.client_id) : null;
         result.push({
-          id: `meeting-${meeting.id}`,
-          date: parseISO(meeting.meeting_date),
-          title: meeting.title,
-          type: "meeting",
-          color: "bg-blue-500",
+          id: `meeting-${meeting.id}`, date: parseISO(meeting.meeting_date),
+          title: meeting.title, type: "meeting", color: "bg-blue-500",
           meta: clientName ? clientName : undefined,
           link: meeting.client_id ? `/admin/clients/${meeting.client_id}` : undefined,
         });
       }
     }
 
-    return result;
-  }, [leads, tasks, projects, meetings, clientMap]);
+    // Custom calendar events
+    for (const evt of customEvents) {
+      const clientName = evt.client_id ? clientMap.get(evt.client_id) : null;
+      const timeStr = evt.start_time
+        ? `${evt.start_time.slice(0, 5)}${evt.end_time ? ` – ${evt.end_time.slice(0, 5)}` : ""}`
+        : null;
+      result.push({
+        id: `custom-${evt.id}`, date: parseISO(evt.event_date),
+        title: evt.title, type: "custom",
+        color: evt.event_type === "content_shoot" ? "bg-orange-500"
+          : evt.event_type === "call" ? "bg-sky-500"
+          : evt.event_type === "deadline" ? "bg-red-500"
+          : "bg-amber-500",
+        meta: [timeStr, clientName, evt.event_type.replace("_", " ")].filter(Boolean).join(" · "),
+        rawEvent: evt,
+      });
+    }
 
-  // Apply filters
+    return result;
+  }, [leads, tasks, projects, meetings, customEvents, clientMap]);
+
   const events = useMemo(
     () => allEvents.filter((e) => activeFilters.has(e.type)),
     [allEvents, activeFilters]
@@ -236,13 +242,13 @@ export default function AdminCalendar() {
   const getEventsForDay = (day: Date) => events.filter((e) => isSameDay(e.date, day));
   const selectedEvents = selectedDate ? getEventsForDay(selectedDate) : [];
 
-  // Summary counts for this month
   const monthEvents = events.filter((e) => isSameMonth(e.date, currentMonth));
   const typeCounts = {
     follow_up: monthEvents.filter((e) => e.type === "follow_up").length,
     task_deadline: monthEvents.filter((e) => e.type === "task_deadline").length,
     project_milestone: monthEvents.filter((e) => e.type === "project_milestone").length,
     meeting: monthEvents.filter((e) => e.type === "meeting").length,
+    custom: monthEvents.filter((e) => e.type === "custom").length,
   };
 
   const goToToday = () => {
@@ -251,28 +257,45 @@ export default function AdminCalendar() {
     setSelectedDate(today);
   };
 
+  const openNewEvent = (date?: Date) => {
+    setEditingEvent(null);
+    if (date) setSelectedDate(date);
+    setEventDialogOpen(true);
+  };
+
+  const openEditEvent = (event: CalendarEvent) => {
+    if (event.rawEvent) {
+      setEditingEvent(event.rawEvent);
+      setEventDialogOpen(true);
+    } else if (event.link) {
+      navigate(event.link);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Calendar</h1>
-          <p className="text-muted-foreground text-sm">Follow-ups, deadlines, milestones & meetings</p>
+          <p className="text-muted-foreground text-sm">Follow-ups, deadlines, milestones, meetings & events</p>
         </div>
-        <Button variant="outline" size="sm" onClick={goToToday}>
-          Today
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={goToToday}>Today</Button>
+          <Button size="sm" onClick={() => openNewEvent(selectedDate ?? new Date())}>
+            <Plus className="h-4 w-4 mr-1" /> Add Event
+          </Button>
+        </div>
       </motion.div>
 
       {/* Filter + summary row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {(
-          [
-            { key: "follow_up" as EventType, count: typeCounts.follow_up },
-            { key: "task_deadline" as EventType, count: typeCounts.task_deadline },
-            { key: "project_milestone" as EventType, count: typeCounts.project_milestone },
-            { key: "meeting" as EventType, count: typeCounts.meeting },
-          ] as const
-        ).map((item, i) => {
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        {([
+          { key: "follow_up" as EventType, count: typeCounts.follow_up },
+          { key: "task_deadline" as EventType, count: typeCounts.task_deadline },
+          { key: "project_milestone" as EventType, count: typeCounts.project_milestone },
+          { key: "meeting" as EventType, count: typeCounts.meeting },
+          { key: "custom" as EventType, count: typeCounts.custom },
+        ]).map((item, i) => {
           const cfg = TYPE_CONFIG[item.key];
           const active = activeFilters.has(item.key);
           return (
@@ -312,47 +335,46 @@ export default function AdminCalendar() {
               </div>
             </CardHeader>
             <CardContent>
-              {/* Day headers */}
               <div className="grid grid-cols-7 mb-2">
                 {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-                  <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1">
-                    {d}
-                  </div>
+                  <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1">{d}</div>
                 ))}
               </div>
-              {/* Days */}
               <div className="grid grid-cols-7">
                 {calendarDays.map((day) => {
                   const dayEvents = getEventsForDay(day);
                   const isCurrentMonth = isSameMonth(day, currentMonth);
                   const isSelected = selectedDate && isSameDay(day, selectedDate);
-                  const today = isToday(day);
+                  const todayFlag = isToday(day);
 
                   return (
                     <button
                       key={day.toISOString()}
                       onClick={() => setSelectedDate(day)}
-                      className={`relative p-1 min-h-[64px] sm:min-h-[80px] border border-border/50 text-left transition-colors hover:bg-accent/20
+                      onDoubleClick={() => openNewEvent(day)}
+                      className={`group relative p-1 min-h-[64px] sm:min-h-[80px] border border-border/50 text-left transition-colors hover:bg-accent/20
                         ${!isCurrentMonth ? "opacity-30" : ""}
                         ${isSelected ? "bg-primary/10 ring-1 ring-primary/30" : ""}
                       `}
                     >
-                      <span
-                        className={`text-xs font-medium block mb-0.5 ${
-                          today
-                            ? "bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center"
-                            : ""
-                        }`}
-                      >
-                        {format(day, "d")}
-                      </span>
-                      {/* Event dots for mobile, labels for desktop */}
+                      <div className="flex items-center justify-between">
+                        <span className={`text-xs font-medium block mb-0.5 ${
+                          todayFlag ? "bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center" : ""
+                        }`}>
+                          {format(day, "d")}
+                        </span>
+                        {isCurrentMonth && (
+                          <span
+                            className="hidden group-hover:flex h-5 w-5 rounded items-center justify-center bg-primary/10 text-primary cursor-pointer"
+                            onClick={(e) => { e.stopPropagation(); openNewEvent(day); }}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </span>
+                        )}
+                      </div>
                       <div className="hidden sm:block space-y-0.5">
                         {dayEvents.slice(0, 3).map((e) => (
-                          <div
-                            key={e.id}
-                            className={`${e.color} text-white text-[9px] leading-tight rounded px-1 py-0.5 truncate`}
-                          >
+                          <div key={e.id} className={`${e.color} text-white text-[9px] leading-tight rounded px-1 py-0.5 truncate`}>
                             {e.title}
                           </div>
                         ))}
@@ -360,7 +382,6 @@ export default function AdminCalendar() {
                           <span className="text-[9px] text-muted-foreground">+{dayEvents.length - 3} more</span>
                         )}
                       </div>
-                      {/* Dots for mobile */}
                       {dayEvents.length > 0 && (
                         <div className="flex gap-0.5 sm:hidden mt-0.5">
                           {dayEvents.slice(0, 4).map((e) => {
@@ -381,47 +402,58 @@ export default function AdminCalendar() {
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
           <Card className="sticky top-20">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <CalIcon className="h-4 w-4 text-primary" />
-                {selectedDate ? format(selectedDate, "EEEE, MMMM d") : "Select a day"}
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <CalIcon className="h-4 w-4 text-primary" />
+                  {selectedDate ? format(selectedDate, "EEEE, MMMM d") : "Select a day"}
+                </CardTitle>
+                {selectedDate && (
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openNewEvent(selectedDate)}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {selectedEvents.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 gap-2">
+                <div className="flex flex-col items-center justify-center py-10 gap-3">
                   <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
                     <CalIcon className="h-5 w-5 text-primary/40" />
                   </div>
                   <p className="text-xs text-muted-foreground">No events this day</p>
+                  <Button variant="outline" size="sm" onClick={() => openNewEvent(selectedDate ?? new Date())}>
+                    <Plus className="h-3 w-3 mr-1" /> Add Event
+                  </Button>
                 </div>
               ) : (
                 <ScrollArea className="max-h-[500px]">
                   <div className="space-y-3">
                     {selectedEvents.map((event) => {
                       const cfg = TYPE_CONFIG[event.type];
+                      const CustomIcon = event.rawEvent
+                        ? (CUSTOM_TYPE_ICONS[event.rawEvent.event_type] || Star)
+                        : cfg.icon;
                       return (
                         <div
                           key={event.id}
-                          className={`flex gap-3 items-start rounded-lg border border-border p-3 transition-colors ${
-                            event.link ? "hover:bg-accent/30 cursor-pointer" : ""
-                          }`}
-                          onClick={() => event.link && navigate(event.link)}
+                          className="flex gap-3 items-start rounded-lg border border-border p-3 transition-colors hover:bg-accent/30 cursor-pointer"
+                          onClick={() => openEditEvent(event)}
                         >
                           <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                            <cfg.icon className={`h-4 w-4 ${cfg.color}`} />
+                            <CustomIcon className={`h-4 w-4 ${event.rawEvent ? "text-amber-500" : cfg.color}`} />
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium leading-tight">{event.title}</p>
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
                               <Badge variant="outline" className="text-[10px] h-4 px-1">
-                                {cfg.label}
+                                {event.rawEvent ? event.rawEvent.event_type.replace("_", " ") : cfg.label}
                               </Badge>
                               {event.meta && (
                                 <span className="text-[10px] text-muted-foreground">{event.meta}</span>
                               )}
                             </div>
                           </div>
-                          {event.link && (
+                          {(event.link || event.rawEvent) && (
                             <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0 mt-1" />
                           )}
                         </div>
@@ -434,6 +466,13 @@ export default function AdminCalendar() {
           </Card>
         </motion.div>
       </div>
+
+      <CalendarEventDialog
+        open={eventDialogOpen}
+        onOpenChange={setEventDialogOpen}
+        selectedDate={selectedDate}
+        editingEvent={editingEvent}
+      />
     </div>
   );
 }
