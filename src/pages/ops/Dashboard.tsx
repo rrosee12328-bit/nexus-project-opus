@@ -13,10 +13,10 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, GripVertical, CheckSquare, Clock, AlertTriangle, TrendingUp, Calendar, Star } from "lucide-react";
+import { Plus, GripVertical, CheckSquare, Clock, AlertTriangle, TrendingUp, Calendar, Star, User } from "lucide-react";
 import { motion } from "framer-motion";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
-import { format } from "date-fns";
+import { format, isPast, isToday, parseISO } from "date-fns";
 import TaskDetailDialog from "@/components/tasks/TaskDetailDialog";
 import TodayFocusPanel from "@/components/tasks/TodayFocusPanel";
 import type { Database } from "@/integrations/supabase/types";
@@ -29,17 +29,17 @@ interface TaskWithClient extends Task {
   clients: { name: string } | null;
 }
 
-const columns: { key: TaskStatus; label: string; icon: typeof CheckSquare }[] = [
-  { key: "todo", label: "To Do", icon: CheckSquare },
-  { key: "in_progress", label: "In Progress", icon: Clock },
-  { key: "review", label: "Review", icon: AlertTriangle },
-  { key: "done", label: "Done", icon: TrendingUp },
+const columns: { key: TaskStatus; label: string; icon: typeof CheckSquare; accent: string }[] = [
+  { key: "todo", label: "To Do", icon: CheckSquare, accent: "border-t-muted-foreground/40" },
+  { key: "in_progress", label: "In Progress", icon: Clock, accent: "border-t-primary" },
+  { key: "review", label: "Review", icon: AlertTriangle, accent: "border-t-amber-500" },
+  { key: "done", label: "Done", icon: TrendingUp, accent: "border-t-emerald-500" },
 ];
 
 const priorityColor: Record<string, string> = {
   low: "bg-muted text-muted-foreground",
   medium: "bg-primary/20 text-primary",
-  high: "bg-warning/20 text-warning",
+  high: "bg-amber-500/20 text-amber-600",
   urgent: "bg-destructive/20 text-destructive",
 };
 
@@ -88,12 +88,15 @@ export default function OpsDashboard() {
   const addTask = useMutation({
     mutationFn: async () => {
       if (!newTitle.trim()) throw new Error("Title required");
+      const colTasks = tasksByStatus(addColumn!);
+      const maxOrder = colTasks.length > 0 ? Math.max(...colTasks.map(t => t.sort_order)) + 1 : 0;
       const { error } = await supabase.from("tasks").insert({
         title: newTitle.trim(),
         description: newDescription.trim() || null,
         status: addColumn!,
         priority: newPriority,
         assigned_to: newAssignedTo || null,
+        sort_order: maxOrder,
       });
       if (error) throw error;
     },
@@ -109,32 +112,65 @@ export default function OpsDashboard() {
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
-  const moveTask = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: TaskStatus }) => {
-      const { error } = await supabase.from("tasks").update({ status }).eq("id", id);
-      if (error) throw error;
-      return { id, status };
-    },
-    onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      const task = (tasks ?? []).find(t => t.id === vars.id);
-      if (task) {
-        logActivity("updated_task", "task", vars.id, `Moved "${task.title}" to ${columns.find(c => c.key === vars.status)?.label}`);
+  const reorderMutation = useMutation({
+    mutationFn: async (updates: { id: string; status: TaskStatus; sort_order: number }[]) => {
+      // Batch update sort orders
+      for (const u of updates) {
+        const { error } = await supabase.from("tasks").update({ status: u.status, sort_order: u.sort_order }).eq("id", u.id);
+        if (error) throw error;
       }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
     },
   });
 
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
-    const newStatus = result.destination.droppableId as TaskStatus;
+    const srcCol = result.source.droppableId as TaskStatus;
+    const destCol = result.destination.droppableId as TaskStatus;
+    const srcIdx = result.source.index;
+    const destIdx = result.destination.index;
     const taskId = result.draggableId;
-    const task = (tasks ?? []).find(t => t.id === taskId);
-    if (task && task.status !== newStatus) {
-      moveTask.mutate({ id: taskId, status: newStatus });
+
+    if (srcCol === destCol && srcIdx === destIdx) return;
+
+    const allTasks = [...(tasks ?? [])];
+    const srcItems = allTasks.filter(t => t.status === srcCol).sort((a, b) => a.sort_order - b.sort_order);
+    const [moved] = srcItems.splice(srcIdx, 1);
+    if (!moved) return;
+
+    if (srcCol === destCol) {
+      // Reorder within same column
+      srcItems.splice(destIdx, 0, moved);
+      const updates = srcItems.map((t, i) => ({ id: t.id, status: srcCol, sort_order: i }));
+      reorderMutation.mutate(updates);
+    } else {
+      // Move to different column
+      moved.status = destCol;
+      const destItems = allTasks.filter(t => t.status === destCol && t.id !== moved.id).sort((a, b) => a.sort_order - b.sort_order);
+      destItems.splice(destIdx, 0, moved);
+      const srcUpdates = srcItems.map((t, i) => ({ id: t.id, status: srcCol, sort_order: i }));
+      const destUpdates = destItems.map((t, i) => ({ id: t.id, status: destCol, sort_order: i }));
+      reorderMutation.mutate([...srcUpdates, ...destUpdates]);
+      logActivity("updated_task", "task", taskId, `Moved "${moved.title}" to ${columns.find(c => c.key === destCol)?.label}`);
     }
+
+    // Optimistic update
+    queryClient.setQueryData(["tasks"], () => {
+      const updated = [...allTasks];
+      const task = updated.find(t => t.id === taskId);
+      if (task) task.status = destCol;
+      return updated;
+    });
   };
 
-  const tasksByStatus = (status: TaskStatus) => (tasks ?? []).filter((t) => t.status === status);
+  const tasksByStatus = (status: TaskStatus) => (tasks ?? []).filter((t) => t.status === status).sort((a, b) => a.sort_order - b.sort_order);
+
+  const getAssigneeName = (userId: string | null) => {
+    if (!userId) return null;
+    return teamMembers.find((m) => m.id === userId)?.name ?? null;
+  };
 
   const todoCount = tasksByStatus("todo").length;
   const ipCount = tasksByStatus("in_progress").length;
@@ -190,60 +226,83 @@ export default function OpsDashboard() {
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`flex flex-col gap-2 min-h-[200px] rounded-lg border p-2 transition-colors ${
-                      snapshot.isDraggingOver ? "border-primary/50 bg-primary/5" : "border-border bg-surface/50"
+                    className={`flex flex-col gap-2 min-h-[200px] rounded-lg border border-t-2 p-2 transition-all ${col.accent} ${
+                      snapshot.isDraggingOver ? "border-primary/50 bg-primary/5 scale-[1.01]" : "border-border bg-card/50"
                     }`}
                   >
-                    {tasksByStatus(col.key).map((task, index) => (
-                      <Draggable key={task.id} draggableId={task.id} index={index}>
-                        {(provided, snapshot) => (
-                          <div ref={provided.innerRef} {...provided.draggableProps} className={snapshot.isDragging ? "opacity-90 rotate-1" : ""}>
-                            <Card
-                              className={`cursor-pointer hover:border-primary/30 transition-all ${snapshot.isDragging ? "shadow-lg border-primary/40" : ""}`}
-                              onClick={() => setSelectedTask(task)}
+                    {tasksByStatus(col.key).map((task, index) => {
+                      const isOverdue = task.due_date && isPast(parseISO(task.due_date)) && !isToday(parseISO(task.due_date)) && task.status !== "done";
+                      const isDueToday = task.due_date && isToday(parseISO(task.due_date));
+                      const assignee = getAssigneeName(task.assigned_to);
+
+                      return (
+                        <Draggable key={task.id} draggableId={task.id} index={index}>
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              className={`transition-transform ${snapshot.isDragging ? "rotate-[2deg] scale-105" : ""}`}
                             >
-                              <CardContent className="p-3 space-y-2">
-                                <div className="flex items-start gap-2">
-                                  <div {...provided.dragHandleProps} className="mt-0.5 shrink-0 cursor-grab active:cursor-grabbing">
-                                    <GripVertical className="h-4 w-4 text-muted-foreground" />
+                              <Card
+                                className={`cursor-pointer transition-all hover:shadow-md ${
+                                  snapshot.isDragging ? "shadow-xl border-primary/40 ring-1 ring-primary/20" : ""
+                                } ${isOverdue ? "border-destructive/40" : ""}`}
+                                onClick={() => setSelectedTask(task)}
+                              >
+                                <CardContent className="p-3 space-y-2">
+                                  <div className="flex items-start gap-2">
+                                    <div {...provided.dragHandleProps} className="mt-0.5 shrink-0 cursor-grab active:cursor-grabbing opacity-40 hover:opacity-100 transition-opacity">
+                                      <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                    <p className={`text-sm font-medium leading-tight flex-1 ${task.status === "done" ? "line-through text-muted-foreground" : ""}`}>
+                                      {task.title}
+                                    </p>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        supabase.from("tasks").update({ daily_focus: !(task as any).daily_focus } as any).eq("id", task.id).then(() => {
+                                          queryClient.invalidateQueries({ queryKey: ["tasks"] });
+                                        });
+                                      }}
+                                      className="p-0.5 rounded hover:bg-accent transition-colors shrink-0"
+                                      title={(task as any).daily_focus ? "Remove from today's focus" : "Add to today's focus"}
+                                    >
+                                      <Star className={`h-3.5 w-3.5 ${(task as any).daily_focus ? "text-primary fill-primary" : "text-muted-foreground/30 hover:text-muted-foreground/60"}`} />
+                                    </button>
                                   </div>
-                                  <p className="text-sm font-medium leading-tight flex-1">{task.title}</p>
-                                </div>
-                                {task.description && (
-                                  <p className="text-xs text-muted-foreground pl-6 line-clamp-2">{task.description}</p>
-                                )}
-                                <div className="flex items-center justify-between pl-6">
-                                  <div className="flex items-center gap-1.5">
-                                    <Badge variant="outline" className={`text-xs ${priorityColor[task.priority]}`}>{task.priority}</Badge>
+                                  {task.description && (
+                                    <p className="text-xs text-muted-foreground pl-6 line-clamp-2">{task.description}</p>
+                                  )}
+                                  <div className="flex items-center gap-1.5 pl-6 flex-wrap">
+                                    <Badge variant="outline" className={`text-[10px] h-5 ${priorityColor[task.priority]}`}>{task.priority}</Badge>
                                     {task.clients?.name && (
-                                      <span className="text-xs text-muted-foreground truncate max-w-[100px]">{task.clients.name}</span>
+                                      <span className="text-[10px] text-muted-foreground truncate max-w-[100px]">{task.clients.name}</span>
                                     )}
                                   </div>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      supabase.from("tasks").update({ daily_focus: !(task as any).daily_focus } as any).eq("id", task.id).then(() => {
-                                        queryClient.invalidateQueries({ queryKey: ["tasks"] });
-                                      });
-                                    }}
-                                    className="p-0.5 rounded hover:bg-accent transition-colors"
-                                    title={(task as any).daily_focus ? "Remove from today's focus" : "Add to today's focus"}
-                                  >
-                                    <Star className={`h-3.5 w-3.5 ${(task as any).daily_focus ? "text-primary fill-primary" : "text-muted-foreground/40"}`} />
-                                  </button>
-                                </div>
-                                {task.due_date && (
-                                  <p className="text-xs text-muted-foreground pl-6 flex items-center gap-1">
-                                    <Calendar className="h-3 w-3" />
-                                    {format(new Date(task.due_date + "T00:00:00"), "MMM d, yyyy")}
-                                  </p>
-                                )}
-                              </CardContent>
-                            </Card>
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
+                                  <div className="flex items-center justify-between pl-6">
+                                    {task.due_date ? (
+                                      <span className={`text-[10px] flex items-center gap-1 ${
+                                        isOverdue ? "text-destructive font-semibold" : isDueToday ? "text-primary font-medium" : "text-muted-foreground"
+                                      }`}>
+                                        <Calendar className="h-3 w-3" />
+                                        {isOverdue ? "Overdue · " : isDueToday ? "Today · " : ""}
+                                        {format(parseISO(task.due_date), "MMM d")}
+                                      </span>
+                                    ) : <span />}
+                                    {assignee && (
+                                      <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                                        <User className="h-2.5 w-2.5" />
+                                        {assignee}
+                                      </span>
+                                    )}
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            </div>
+                          )}
+                        </Draggable>
+                      );
+                    })}
                     {provided.placeholder}
                   </div>
                 )}
