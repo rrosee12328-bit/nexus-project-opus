@@ -137,6 +137,9 @@ export default function Timesheets() {
     },
   });
 
+  // Determine if we're viewing our own timesheet or another user's
+  const isViewingSelf = selectedUserId === "all" || selectedUserId === user?.id;
+
   const addMutation = useMutation({
     mutationFn: async (data: FormData) => {
       const dayIndex = parseISO(data.entry_date).getDay();
