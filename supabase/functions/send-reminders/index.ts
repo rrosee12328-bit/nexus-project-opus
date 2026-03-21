@@ -123,7 +123,8 @@ Deno.serve(async (req) => {
       return p[key] !== false;
     }
 
-    // ── 1. UNREAD MESSAGES ──
+    // ── 1. UNREAD MESSAGES (weekdays only) ──
+    if (isWeekday) {
     const { data: unreadClients } = await supabase
       .from("messages").select("client_id")
       .is("read_at", null).lt("created_at", cutoff);
