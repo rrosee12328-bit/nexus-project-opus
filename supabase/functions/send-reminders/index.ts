@@ -157,8 +157,10 @@ Deno.serve(async (req) => {
         );
       }
     }
+    } // end weekday guard for unread messages
 
-    // ── 2. TASKS AWAITING REVIEW ──
+    // ── 2. TASKS AWAITING REVIEW (weekdays only) ──
+    if (isWeekday) {
     const { data: reviewTasks } = await supabase
       .from("tasks").select("id, title, assigned_to, updated_at")
       .eq("status", "review").lt("updated_at", cutoff);
