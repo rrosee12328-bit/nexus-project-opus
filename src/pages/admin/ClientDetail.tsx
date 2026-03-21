@@ -273,13 +273,100 @@ export default function ClientDetail() {
         ))}
       </div>
 
+      {/* Client Briefing / Report */}
+      {notes.length > 0 && (() => {
+        const latestReport = notes.find((n) => n.type === "document") ?? notes.find((n) => n.type === "note" && (n.content?.length ?? 0) > 200);
+        const openActions = notes.filter((n) => n.type === "action_item" && n.status !== "completed");
+        const pipelineStage = (client as any)?.pipeline_stage as string | null;
+        const stageLabels: Record<string, string> = {
+          new: "New Lead", discovery_call: "Discovery Call", due_diligence: "Due Diligence",
+          proposal: "Proposal Sent", negotiation: "Negotiation", won: "Won", lost: "Lost",
+        };
+
+        return (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+            <Card className="border-primary/20">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Briefcase className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Where We're At</CardTitle>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {pipelineStage && stageLabels[pipelineStage] ? (
+                          <Badge variant="outline" className="text-xs mr-2">{stageLabels[pipelineStage]}</Badge>
+                        ) : null}
+                        Last updated {notes[0] ? formatDistanceToNow(new Date(notes[0].created_at), { addSuffix: true }) : "—"}
+                      </p>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setReportExpanded(!reportExpanded)}>
+                    {reportExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </CardHeader>
+              {reportExpanded && (
+                <CardContent className="space-y-4">
+                  {latestReport && (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Latest Report</p>
+                      <div className="rounded-lg border border-border bg-accent/20 p-4">
+                        <p className="font-medium text-sm mb-1">{latestReport.title}</p>
+                        <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                          {latestReport.content ?? "No content"}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {openActions.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                        Open Action Items ({openActions.length})
+                      </p>
+                      <div className="space-y-2">
+                        {openActions.map((action) => {
+                          const statusCfg = STATUS_OPTIONS.find((s) => s.value === action.status);
+                          return (
+                            <div key={action.id} className="flex items-start gap-3 rounded-lg border border-border p-3">
+                              <CircleDot className={`h-4 w-4 mt-0.5 shrink-0 ${statusCfg?.color ?? "text-amber-500"}`} />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium">{action.title}</p>
+                                {action.content && (
+                                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{action.content}</p>
+                                )}
+                              </div>
+                              <Badge variant="outline" className={`text-xs shrink-0 ${statusCfg?.color ?? ""}`}>
+                                {statusCfg?.label ?? action.status}
+                              </Badge>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {!latestReport && openActions.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Add a document or action item to build this client's status report.
+                    </p>
+                  )}
+                </CardContent>
+              )}
+            </Card>
+          </motion.div>
+        );
+      })()}
+
       {/* Tabs + timeline */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
         <Card>
           <CardHeader className="pb-3">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <CardTitle className="text-lg">Knowledge Base</CardTitle>
+                <CardTitle className="text-lg">Activity & Records</CardTitle>
                 <TabsList>
                   <TabsTrigger value="all">All ({typeCounts.all})</TabsTrigger>
                   <TabsTrigger value="meeting">
