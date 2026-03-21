@@ -74,6 +74,66 @@ export type Database = {
         }
         Relationships: []
       }
+      approval_requests: {
+        Row: {
+          client_id: string
+          created_at: string
+          description: string | null
+          id: string
+          phase: string | null
+          project_id: string
+          responded_at: string | null
+          response_note: string | null
+          status: string
+          submitted_by: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          phase?: string | null
+          project_id: string
+          responded_at?: string | null
+          response_note?: string | null
+          status?: string
+          submitted_by: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          phase?: string | null
+          project_id?: string
+          responded_at?: string | null
+          response_note?: string | null
+          status?: string
+          submitted_by?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_requests_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_requests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assets: {
         Row: {
           category: string

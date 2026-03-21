@@ -25,6 +25,7 @@ import AdminReports from "./pages/admin/Reports";
 import AdminEmails from "./pages/admin/Emails";
 import AdminAgent from "./pages/admin/Agent";
 import AdminClientDetail from "./pages/admin/ClientDetail";
+import AdminCalendar from "./pages/admin/Calendar";
 
 import OpsLayout from "./layouts/OpsLayout";
 import OpsDashboard from "./pages/ops/Dashboard";
@@ -42,6 +43,7 @@ import ClientMessages from "./pages/client/Messages";
 import ClientPayments from "./pages/client/Payments";
 import ClientSettings from "./pages/client/Settings";
 import ClientAgent from "./pages/client/Agent";
+import ClientApprovals from "./pages/client/Approvals";
 
 const queryClient = new QueryClient();
 
@@ -86,6 +88,7 @@ const App = () => (
               <Route path="emails" element={<AdminEmails />} />
               <Route path="agent" element={<AdminAgent />} />
               <Route path="settings" element={<AdminSettings />} />
+              <Route path="calendar" element={<AdminCalendar />} />
             </Route>
 
             {/* Ops Portal */}
@@ -116,6 +119,7 @@ const App = () => (
               <Route path="assets" element={<ClientAssets />} />
               <Route path="messages" element={<ClientMessages />} />
               <Route path="payments" element={<ClientPayments />} />
+              <Route path="approvals" element={<ClientApprovals />} />
               <Route path="agent" element={<ClientAgent />} />
               <Route path="settings" element={<ClientSettings />} />
             </Route>

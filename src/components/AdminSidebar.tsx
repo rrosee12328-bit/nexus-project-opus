@@ -11,6 +11,7 @@ import {
   BarChart3,
   Mail,
   Bot,
+  Calendar,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -31,6 +32,7 @@ import {
 
 const navItems = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
+  { title: "Calendar", url: "/admin/calendar", icon: Calendar },
   { title: "Client Management", url: "/admin/clients", icon: Users },
   { title: "Project Management", url: "/admin/projects", icon: FolderKanban },
   { title: "Assets", url: "/admin/assets", icon: Upload },
