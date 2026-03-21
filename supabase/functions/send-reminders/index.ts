@@ -250,9 +250,7 @@ Deno.serve(async (req) => {
 
     // ── 5. TASKS DUE WITHIN 24 HOURS (weekdays only) ──
     if (isWeekday) {
-    const now = new Date();
     const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-    const today = now.toISOString().split("T")[0];
 
     const { data: dueSoonTasks } = await supabase
       .from("tasks").select("id, title, due_date, assigned_to")
