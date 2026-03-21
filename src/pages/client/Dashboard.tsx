@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
+import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -25,7 +27,7 @@ import {
   Mail,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { format, formatDistanceToNow } from "date-fns";
 
 import { PHASE_LABELS, PHASE_ICONS } from "@/lib/phaseConfig";
@@ -39,6 +41,10 @@ const anim = (delay: number) => ({
 export default function ClientDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [wizardDismissed, setWizardDismissed] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return false; // Will check after user loads
+  });
 
   const { data: clientId } = useQuery({
     queryKey: ["my-client-id", user?.id],
@@ -129,6 +135,18 @@ export default function ClientDashboard() {
   const allProjects = projects ?? [];
   const displayName = profile?.display_name || user?.email?.split("@")[0] || "there";
 
+  // Show wizard for new clients who haven't dismissed it
+  const showWizard = (() => {
+    if (wizardDismissed) return false;
+    if (!user?.id) return false;
+    const stored = localStorage.getItem(`wizard_completed_${user.id}`);
+    if (stored === "true") return false;
+    // Show wizard if account is less than 7 days old
+    const createdAt = user.created_at ? new Date(user.created_at) : null;
+    if (createdAt && Date.now() - createdAt.getTime() > 7 * 24 * 60 * 60 * 1000) return false;
+    return true;
+  })();
+
   const nextMilestone = activeProjects
     .filter((p) => p.target_date)
     .sort((a, b) => new Date(a.target_date!).getTime() - new Date(b.target_date!).getTime())[0];
@@ -145,6 +163,15 @@ export default function ClientDashboard() {
   })();
 
   return (
+    <>
+      <AnimatePresence>
+        {showWizard && (
+          <OnboardingWizard
+            onComplete={() => setWizardDismissed(true)}
+            displayName={displayName}
+          />
+        )}
+      </AnimatePresence>
     <div className="space-y-8">
       {/* Hero greeting */}
       <motion.div {...anim(0)} className="relative overflow-hidden rounded-2xl border border-border bg-card">
@@ -506,5 +533,6 @@ export default function ClientDashboard() {
         </motion.div>
       )}
     </div>
+    </>
   );
 }
