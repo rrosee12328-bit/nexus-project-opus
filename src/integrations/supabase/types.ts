@@ -332,7 +332,11 @@ export type Database = {
           balance_due: number | null
           created_at: string
           email: string | null
+          follow_up_end: string | null
+          follow_up_start: string | null
           id: string
+          last_contact_date: string | null
+          lead_source: string | null
           monthly_fee: number | null
           name: string
           notes: string | null
@@ -350,7 +354,11 @@ export type Database = {
           balance_due?: number | null
           created_at?: string
           email?: string | null
+          follow_up_end?: string | null
+          follow_up_start?: string | null
           id?: string
+          last_contact_date?: string | null
+          lead_source?: string | null
           monthly_fee?: number | null
           name: string
           notes?: string | null
@@ -368,7 +376,11 @@ export type Database = {
           balance_due?: number | null
           created_at?: string
           email?: string | null
+          follow_up_end?: string | null
+          follow_up_start?: string | null
           id?: string
+          last_contact_date?: string | null
+          lead_source?: string | null
           monthly_fee?: number | null
           name?: string
           notes?: string | null
