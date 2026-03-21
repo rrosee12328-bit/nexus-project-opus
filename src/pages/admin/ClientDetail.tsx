@@ -282,6 +282,10 @@ export default function ClientDetail() {
           new: "New Lead", discovery_call: "Discovery Call", due_diligence: "Due Diligence",
           proposal: "Proposal Sent", negotiation: "Negotiation", won: "Won", lost: "Lost",
         };
+        const lastMeeting = notes.find((n) => n.type === "meeting" && n.meeting_date);
+        const lastContactDate = lastMeeting?.meeting_date
+          ? format(new Date(lastMeeting.meeting_date), "EEEE, MMMM d, yyyy")
+          : null;
 
         return (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
@@ -294,12 +298,16 @@ export default function ClientDetail() {
                     </div>
                     <div>
                       <CardTitle className="text-lg">Where We're At</CardTitle>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                         {pipelineStage && stageLabels[pipelineStage] ? (
-                          <Badge variant="outline" className="text-xs mr-2">{stageLabels[pipelineStage]}</Badge>
+                          <Badge variant="outline" className="text-xs">{stageLabels[pipelineStage]}</Badge>
                         ) : null}
-                        Last updated {notes[0] ? formatDistanceToNow(new Date(notes[0].created_at), { addSuffix: true }) : "—"}
-                      </p>
+                        {lastContactDate && (
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Calendar className="h-3 w-3" /> Last contact: {lastContactDate}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <Button variant="ghost" size="sm" onClick={() => setReportExpanded(!reportExpanded)}>
