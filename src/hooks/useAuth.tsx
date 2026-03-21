@@ -72,6 +72,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (!mounted) return;
 
+      // Let bootstrapAuth handle initial session restore — avoids race condition
+      if (event === "INITIAL_SESSION") return;
+
       if (event === "TOKEN_REFRESHED") {
         setSession(nextSession);
         setUser(nextSession?.user ?? null);
