@@ -11,6 +11,8 @@ import { MessageSquare, Send, Loader2, Check, CheckCheck } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { format, isToday, isYesterday } from "date-fns";
+import { MessageAttachment } from "@/components/messages/MessageAttachment";
+import { FileUploadButton, PendingAttachment } from "@/components/messages/FileUploadButton";
 
 function TypingDots({ names }: { names: string[] }) {
   if (names.length === 0) return null;
@@ -44,6 +46,7 @@ function formatDateSeparator(dateStr: string) {
 export default function ClientMessages() {
   const { user } = useAuth();
   const [message, setMessage] = useState("");
+  const [pendingAttachment, setPendingAttachment] = useState<{ url: string; name: string; type: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
@@ -123,15 +126,17 @@ export default function ClientMessages() {
   }, [messages]);
 
   const sendMutation = useMutation({
-    mutationFn: async (content: string) => {
+    mutationFn: async ({ content, attachment }: { content: string; attachment?: { url: string; name: string; type: string } | null }) => {
       if (!clientId || !user?.id) throw new Error("Not linked to a client");
       const { error } = await supabase.from("messages").insert({
         client_id: clientId, sender_id: user.id, content,
-      });
+        ...(attachment ? { attachment_url: attachment.url, attachment_name: attachment.name, attachment_type: attachment.type } : {}),
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => {
       setMessage("");
+      setPendingAttachment(null);
       stopTyping();
       queryClient.invalidateQueries({ queryKey: ["client-messages", clientId] });
     },
@@ -140,8 +145,8 @@ export default function ClientMessages() {
 
   const handleSend = () => {
     const trimmed = message.trim();
-    if (!trimmed) return;
-    sendMutation.mutate(trimmed);
+    if (!trimmed && !pendingAttachment) return;
+    sendMutation.mutate({ content: trimmed || (pendingAttachment ? `📎 ${pendingAttachment.name}` : ""), attachment: pendingAttachment });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -231,6 +236,14 @@ export default function ClientMessages() {
                                 }`}
                               >
                                 <p className="whitespace-pre-wrap">{msg.content}</p>
+                                {(msg as any).attachment_url && (
+                                  <MessageAttachment
+                                    url={(msg as any).attachment_url}
+                                    name={(msg as any).attachment_name || "File"}
+                                    type={(msg as any).attachment_type}
+                                    isOwn={mine}
+                                  />
+                                )}
                                 <div className={`flex items-center gap-1 mt-1 ${mine ? "justify-end" : ""}`}>
                                   <p className={`text-[10px] ${mine ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
                                     {format(new Date(msg.created_at), "h:mm a")}
@@ -261,31 +274,41 @@ export default function ClientMessages() {
                   Your account isn't linked to a client profile yet. Contact your admin.
                 </p>
               ) : (
-                <form
-                  onSubmit={(e) => { e.preventDefault(); handleSend(); }}
-                  className="flex gap-2 items-end"
-                >
-                  <Textarea
-                    placeholder="Type your message… (Enter to send, Shift+Enter for new line)"
-                    className="flex-1 bg-background min-h-[44px] max-h-[120px] resize-none text-sm"
-                    rows={1}
-                    value={message}
-                    onChange={(e) => {
-                      setMessage(e.target.value);
-                      handleInputChange();
-                    }}
-                    onKeyDown={handleKeyDown}
-                    disabled={sendMutation.isPending}
-                  />
-                  <Button
-                    type="submit"
-                    size="icon"
-                    disabled={!message.trim() || sendMutation.isPending}
-                    className="shrink-0 h-10 w-10"
+                <div className="space-y-2">
+                  {pendingAttachment && (
+                    <PendingAttachment name={pendingAttachment.name} onRemove={() => setPendingAttachment(null)} />
+                  )}
+                  <form
+                    onSubmit={(e) => { e.preventDefault(); handleSend(); }}
+                    className="flex gap-2 items-end"
                   >
-                    {sendMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  </Button>
-                </form>
+                    <FileUploadButton
+                      clientId={clientId}
+                      onFileUploaded={setPendingAttachment}
+                      disabled={sendMutation.isPending || !!pendingAttachment}
+                    />
+                    <Textarea
+                      placeholder="Type your message… (Enter to send, Shift+Enter for new line)"
+                      className="flex-1 bg-background min-h-[44px] max-h-[120px] resize-none text-sm"
+                      rows={1}
+                      value={message}
+                      onChange={(e) => {
+                        setMessage(e.target.value);
+                        handleInputChange();
+                      }}
+                      onKeyDown={handleKeyDown}
+                      disabled={sendMutation.isPending}
+                    />
+                    <Button
+                      type="submit"
+                      size="icon"
+                      disabled={(!message.trim() && !pendingAttachment) || sendMutation.isPending}
+                      className="shrink-0 h-10 w-10"
+                    >
+                      {sendMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    </Button>
+                  </form>
+                </div>
               )}
             </div>
           </div>

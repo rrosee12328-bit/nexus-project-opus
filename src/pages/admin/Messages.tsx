@@ -15,6 +15,8 @@ import { MessageSquare, Send, Loader2, Users, CheckCheck, Check, Search } from "
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { format, isToday, isYesterday } from "date-fns";
+import { MessageAttachment } from "@/components/messages/MessageAttachment";
+import { FileUploadButton, PendingAttachment } from "@/components/messages/FileUploadButton";
 
 function TypingDots({ names }: { names: string[] }) {
   if (names.length === 0) return null;
@@ -50,6 +52,7 @@ export default function AdminMessages() {
   const [message, setMessage] = useState("");
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [pendingAttachment, setPendingAttachment] = useState<{ url: string; name: string; type: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
@@ -166,17 +169,19 @@ export default function AdminMessages() {
   }, [messages]);
 
   const sendMutation = useMutation({
-    mutationFn: async (content: string) => {
+    mutationFn: async ({ content, attachment }: { content: string; attachment?: { url: string; name: string; type: string } | null }) => {
       if (!selectedClientId || !user?.id) throw new Error("No client selected");
       const { error } = await supabase.from("messages").insert({
         client_id: selectedClientId,
         sender_id: user.id,
         content,
-      });
+        ...(attachment ? { attachment_url: attachment.url, attachment_name: attachment.name, attachment_type: attachment.type } : {}),
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => {
       setMessage("");
+      setPendingAttachment(null);
       stopTyping();
       queryClient.invalidateQueries({ queryKey: ["admin-messages", selectedClientId] });
       queryClient.invalidateQueries({ queryKey: ["admin-latest-messages"] });
@@ -188,8 +193,8 @@ export default function AdminMessages() {
 
   const handleSend = () => {
     const trimmed = message.trim();
-    if (!trimmed) return;
-    sendMutation.mutate(trimmed);
+    if (!trimmed && !pendingAttachment) return;
+    sendMutation.mutate({ content: trimmed || (pendingAttachment ? `📎 ${pendingAttachment.name}` : ""), attachment: pendingAttachment });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -378,6 +383,14 @@ export default function AdminMessages() {
                                   }`}
                                 >
                                   <p className="whitespace-pre-wrap">{msg.content}</p>
+                                  {(msg as any).attachment_url && (
+                                    <MessageAttachment
+                                      url={(msg as any).attachment_url}
+                                      name={(msg as any).attachment_name || "File"}
+                                      type={(msg as any).attachment_type}
+                                      isOwn={isAdmin}
+                                    />
+                                  )}
                                   <div className={`flex items-center gap-1 mt-1 ${isAdmin ? "justify-end" : ""}`}>
                                     <p className={`text-[10px] ${isAdmin ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
                                       {format(new Date(msg.created_at), "h:mm a")}
@@ -402,8 +415,16 @@ export default function AdminMessages() {
               </div>
 
               {/* Input */}
-              <div className="border-t border-border p-3 bg-muted/20">
+              <div className="border-t border-border p-3 bg-muted/20 space-y-2">
+                {pendingAttachment && (
+                  <PendingAttachment name={pendingAttachment.name} onRemove={() => setPendingAttachment(null)} />
+                )}
                 <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="flex gap-2 items-end">
+                  <FileUploadButton
+                    clientId={selectedClientId!}
+                    onFileUploaded={setPendingAttachment}
+                    disabled={sendMutation.isPending || !!pendingAttachment}
+                  />
                   <Textarea
                     placeholder="Type your message… (Enter to send, Shift+Enter for new line)"
                     className="flex-1 bg-background min-h-[44px] max-h-[120px] resize-none text-sm"
@@ -416,7 +437,7 @@ export default function AdminMessages() {
                     onKeyDown={handleKeyDown}
                     disabled={sendMutation.isPending}
                   />
-                  <Button type="submit" size="icon" disabled={!message.trim() || sendMutation.isPending} className="shrink-0 h-10 w-10">
+                  <Button type="submit" size="icon" disabled={(!message.trim() && !pendingAttachment) || sendMutation.isPending} className="shrink-0 h-10 w-10">
                     {sendMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   </Button>
                 </form>
