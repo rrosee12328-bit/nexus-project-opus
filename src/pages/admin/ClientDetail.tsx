@@ -240,20 +240,20 @@ export default function ClientDetail() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/admin/clients")}>
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="flex items-start sm:items-center gap-3 sm:gap-4 flex-wrap">
+        <Button variant="ghost" size="icon" onClick={() => navigate("/admin/clients")} className="shrink-0">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight truncate">{client?.name ?? "Client"}</h1>
-          <p className="text-muted-foreground text-sm">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">{client?.name ?? "Client"}</h1>
+          <p className="text-muted-foreground text-xs sm:text-sm">
             {client?.type ?? "No type"} · {client?.email ?? "No email"}
             {client?.status && (
               <Badge variant="outline" className="ml-2 text-xs">{client.status}</Badge>
             )}
           </p>
         </div>
-        <Button onClick={() => openCreate()}>
+        <Button onClick={() => openCreate()} size="sm" className="shrink-0">
           <Plus className="mr-2 h-4 w-4" /> Add Entry
         </Button>
       </motion.div>
