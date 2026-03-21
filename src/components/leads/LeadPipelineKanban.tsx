@@ -1,16 +1,17 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
-// removed unused Card import
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Pencil, Trash2, Eye, Phone, Mail, Calendar, AlertTriangle, Clock } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Eye, Phone, Mail, Calendar, AlertTriangle, Clock, DollarSign, ArrowRightCircle, PartyPopper } from "lucide-react";
 import { toast } from "sonner";
 import { format, isWithinInterval, isBefore, isAfter, differenceInDays, parseISO } from "date-fns";
+import { ConvertLeadDialog } from "./ConvertLeadDialog";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
@@ -31,9 +32,9 @@ interface LeadPipelineKanbanProps {
   onDelete: (client: Client) => void;
 }
 
-function getFollowUpStatus(lead: any): { label: string; color: string; icon: typeof Clock } | null {
-  const start = (lead as any).follow_up_start;
-  const end = (lead as any).follow_up_end;
+function getFollowUpStatus(lead: Client): { label: string; color: string; icon: typeof Clock; days?: number } | null {
+  const start = lead.follow_up_start;
+  const end = lead.follow_up_end;
   if (!start || !end) return null;
 
   const today = new Date();
@@ -43,20 +44,32 @@ function getFollowUpStatus(lead: any): { label: string; color: string; icon: typ
 
   if (isBefore(today, startDate)) {
     const days = differenceInDays(startDate, today);
-    return { label: `Follow-up in ${days}d`, color: "text-muted-foreground", icon: Clock };
+    return { label: `Follow-up in ${days}d`, color: "text-muted-foreground", icon: Clock, days };
   }
   if (isWithinInterval(today, { start: startDate, end: endDate })) {
-    return { label: "Follow up now", color: "text-primary", icon: Calendar };
+    return { label: "Follow up now", color: "text-primary", icon: Calendar, days: 0 };
   }
   if (isAfter(today, endDate)) {
-    return { label: "Overdue follow-up", color: "text-destructive", icon: AlertTriangle };
+    const overdueDays = differenceInDays(today, endDate);
+    return { label: `Overdue ${overdueDays}d`, color: "text-destructive", icon: AlertTriangle, days: -overdueDays };
   }
   return null;
+}
+
+function formatDealValue(fee: number | null, setup: number | null): string | null {
+  const monthly = fee ?? 0;
+  const oneTime = setup ?? 0;
+  if (monthly === 0 && oneTime === 0) return null;
+  const parts: string[] = [];
+  if (monthly > 0) parts.push(`$${monthly.toLocaleString()}/mo`);
+  if (oneTime > 0) parts.push(`$${oneTime.toLocaleString()} setup`);
+  return parts.join(" + ");
 }
 
 export function LeadPipelineKanban({ leads, onEdit, onDelete }: LeadPipelineKanbanProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [convertLead, setConvertLead] = useState<Client | null>(null);
 
   const updateStage = useMutation({
     mutationFn: async ({ id, stage }: { id: string; stage: string }) => {
@@ -78,6 +91,16 @@ export function LeadPipelineKanban({ leads, onEdit, onDelete }: LeadPipelineKanb
     const newStage = destination.droppableId;
     const lead = leads.find((l) => l.id === draggableId);
     if (!lead || lead.pipeline_stage === newStage) return;
+
+    // If dragged to "won", open conversion dialog instead
+    if (newStage === "won") {
+      // First update the pipeline stage
+      updateStage.mutate({ id: draggableId, stage: newStage });
+      // Then open the conversion dialog
+      setConvertLead(lead);
+      return;
+    }
+
     updateStage.mutate({ id: draggableId, stage: newStage });
     toast.success(`Moved to ${PIPELINE_STAGES.find((s) => s.key === newStage)?.label}`);
   };
@@ -92,19 +115,27 @@ export function LeadPipelineKanban({ leads, onEdit, onDelete }: LeadPipelineKanb
   const conversionRate = leads.length > 0 ? Math.round((wonCount / leads.length) * 100) : 0;
   const followUpsDue = leads.filter((l) => {
     const status = getFollowUpStatus(l);
-    return status && (status.label === "Follow up now" || status.label === "Overdue follow-up");
+    return status && (status.label.startsWith("Follow up") || status.label.startsWith("Overdue"));
   }).length;
+
+  // Total pipeline value
+  const pipelineValue = activeLeads.reduce((s, l) => {
+    const annual = (l.monthly_fee ?? 0) * 12;
+    const setup = l.setup_fee ?? 0;
+    return s + annual + setup;
+  }, 0);
 
   return (
     <div className="space-y-4">
       {/* Pipeline Metrics */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
         {[
-          { label: "Total Leads", value: leads.length, accent: "text-foreground" },
-          { label: "Active", value: activeLeads.length, accent: "text-primary" },
-          { label: "Won", value: wonCount, accent: "text-emerald-500" },
-          { label: "Lost", value: lostCount, accent: "text-destructive" },
-          { label: "Follow-ups Due", value: followUpsDue, accent: followUpsDue > 0 ? "text-amber-500" : "text-muted-foreground" },
+          { label: "Total Leads", value: String(leads.length), accent: "text-foreground" },
+          { label: "Active", value: String(activeLeads.length), accent: "text-primary" },
+          { label: "Won", value: String(wonCount), accent: "text-emerald-500" },
+          { label: "Lost", value: String(lostCount), accent: "text-destructive" },
+          { label: "Follow-ups", value: String(followUpsDue), accent: followUpsDue > 0 ? "text-amber-500" : "text-muted-foreground" },
+          { label: "Pipeline Value", value: pipelineValue > 0 ? `$${(pipelineValue / 1000).toFixed(0)}k` : "$0", accent: "text-primary" },
         ].map((m) => (
           <div key={m.label} className="rounded-lg border border-border bg-card px-3 py-2.5 text-center">
             <p className={`text-xl font-bold font-mono ${m.accent}`}>{m.value}</p>
@@ -129,7 +160,7 @@ export function LeadPipelineKanban({ leads, onEdit, onDelete }: LeadPipelineKanb
             return (
               <div
                 key={stage.key}
-                className={`flex-shrink-0 w-[220px] rounded-lg border border-border ${stage.color} border-t-[3px] bg-card flex flex-col`}
+                className={`flex-shrink-0 w-[230px] rounded-lg border border-border ${stage.color} border-t-[3px] bg-card flex flex-col`}
               >
                 <div className={`px-3 py-2.5 ${stage.bgHeader} rounded-t-lg`}>
                   <div className="flex items-center justify-between">
@@ -153,8 +184,9 @@ export function LeadPipelineKanban({ leads, onEdit, onDelete }: LeadPipelineKanb
                     >
                       {stageLeads.map((lead, index) => {
                         const followUp = getFollowUpStatus(lead);
-                        const lastContact = (lead as any).last_contact_date;
-                        const source = (lead as any).lead_source;
+                        const lastContact = lead.last_contact_date;
+                        const source = lead.lead_source;
+                        const dealValue = formatDealValue(lead.monthly_fee, lead.setup_fee);
 
                         return (
                           <Draggable key={lead.id} draggableId={lead.id} index={index}>
@@ -165,7 +197,7 @@ export function LeadPipelineKanban({ leads, onEdit, onDelete }: LeadPipelineKanb
                                 {...provided.dragHandleProps}
                                 className={`rounded-md border bg-card p-3 transition-shadow ${
                                   snapshot.isDragging ? "shadow-lg ring-2 ring-primary/20" : "hover:shadow-sm"
-                                } ${followUp?.label === "Overdue follow-up" ? "border-destructive/40" : ""} ${followUp?.label === "Follow up now" ? "border-primary/40" : ""}`}
+                                } ${followUp?.label.startsWith("Overdue") ? "border-destructive/40" : ""} ${followUp?.label === "Follow up now" ? "border-primary/40" : ""}`}
                               >
                                 <div className="flex items-start justify-between gap-1">
                                   <div
@@ -184,13 +216,18 @@ export function LeadPipelineKanban({ leads, onEdit, onDelete }: LeadPipelineKanb
                                           <MoreHorizontal className="h-3.5 w-3.5" />
                                         </Button>
                                       </DropdownMenuTrigger>
-                                      <DropdownMenuContent align="end" className="w-40">
+                                      <DropdownMenuContent align="end" className="w-44">
                                         <DropdownMenuItem onClick={() => navigate(`/admin/clients/${lead.id}`)}>
-                                          <Eye className="mr-2 h-3.5 w-3.5" /> View
+                                          <Eye className="mr-2 h-3.5 w-3.5" /> View Details
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => onEdit(lead)}>
                                           <Pencil className="mr-2 h-3.5 w-3.5" /> Edit
                                         </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onClick={() => setConvertLead(lead)} className="text-emerald-500 focus:text-emerald-500">
+                                          <ArrowRightCircle className="mr-2 h-3.5 w-3.5" /> Convert to Client
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
                                         <DropdownMenuItem onClick={() => onDelete(lead)} className="text-destructive focus:text-destructive">
                                           <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
                                         </DropdownMenuItem>
@@ -198,6 +235,14 @@ export function LeadPipelineKanban({ leads, onEdit, onDelete }: LeadPipelineKanb
                                     </DropdownMenu>
                                   </div>
                                 </div>
+
+                                {/* Deal value */}
+                                {dealValue && (
+                                  <div className="flex items-center gap-1.5 mt-2 text-[11px] font-medium text-primary">
+                                    <DollarSign className="h-3 w-3 shrink-0" />
+                                    <span>{dealValue}</span>
+                                  </div>
+                                )}
 
                                 {/* Contact info */}
                                 <div className="mt-2 space-y-0.5">
@@ -224,22 +269,34 @@ export function LeadPipelineKanban({ leads, onEdit, onDelete }: LeadPipelineKanb
                                 )}
 
                                 {/* Last contact & source */}
-                                <div className="mt-2 space-y-0.5">
+                                <div className="mt-2 flex items-center gap-2 flex-wrap">
                                   {lastContact && (
-                                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70">
+                                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground/70">
                                       <Calendar className="h-2.5 w-2.5 shrink-0" />
-                                      <span>Last contact: {format(parseISO(lastContact), "MMM d")}</span>
-                                    </div>
+                                      {format(parseISO(lastContact), "MMM d")}
+                                    </span>
                                   )}
                                   {source && (
-                                    <Badge variant="outline" className="text-[9px] h-4 px-1 mt-1 font-normal">
+                                    <Badge variant="outline" className="text-[9px] h-4 px-1 font-normal">
                                       {source}
                                     </Badge>
                                   )}
                                 </div>
 
-                                {/* Notes preview */}
-                                {lead.notes && !followUp && !lastContact && (
+                                {/* Won stage: show convert button */}
+                                {stage.key === "won" && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full mt-2 h-7 text-xs text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10"
+                                    onClick={(e) => { e.stopPropagation(); setConvertLead(lead); }}
+                                  >
+                                    <PartyPopper className="h-3 w-3 mr-1" /> Convert to Client
+                                  </Button>
+                                )}
+
+                                {/* Notes preview (only show if no other indicators) */}
+                                {lead.notes && !followUp && !lastContact && !dealValue && (
                                   <p className="text-[10px] text-muted-foreground/70 mt-2 line-clamp-2 leading-relaxed">
                                     {lead.notes.slice(0, 80)}{lead.notes.length > 80 ? "…" : ""}
                                   </p>
@@ -258,6 +315,13 @@ export function LeadPipelineKanban({ leads, onEdit, onDelete }: LeadPipelineKanb
           })}
         </div>
       </DragDropContext>
+
+      {/* Convert Lead Dialog */}
+      <ConvertLeadDialog
+        open={!!convertLead}
+        onOpenChange={(open) => { if (!open) setConvertLead(null); }}
+        lead={convertLead}
+      />
     </div>
   );
 }
