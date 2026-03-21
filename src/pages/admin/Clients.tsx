@@ -116,7 +116,6 @@ export default function AdminClients() {
   }, {});
 
   const actualClients = clients?.filter((c) => c.status !== "lead") ?? [];
-  const leads = clients?.filter((c) => c.status === "lead") ?? [];
   const activeClients = actualClients.filter((c) => c.status === "active");
   const onboardingClients = actualClients.filter((c) => c.status === "onboarding");
   const mrr = activeClients.reduce((s, c) => s + (c.monthly_fee ?? 0), 0);
@@ -125,7 +124,6 @@ export default function AdminClients() {
   const stats = [
     { label: "Active Clients", value: activeClients.length, icon: UserCheck, color: "text-primary" },
     { label: "Onboarding", value: onboardingClients.length, icon: UserPlus, color: "text-warning" },
-    { label: "Leads", value: leads.length, icon: PhoneCall, color: "text-purple-400" },
     { label: "Monthly Recurring", value: formatCurrency(mrr), icon: DollarSign, color: "text-emerald-400" },
   ];
 

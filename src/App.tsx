@@ -26,6 +26,7 @@ import AdminEmails from "./pages/admin/Emails";
 import AdminAgent from "./pages/admin/Agent";
 import AdminClientDetail from "./pages/admin/ClientDetail";
 import AdminCalendar from "./pages/admin/Calendar";
+import AdminLeads from "./pages/admin/Leads";
 
 import OpsLayout from "./layouts/OpsLayout";
 import OpsDashboard from "./pages/ops/Dashboard";
