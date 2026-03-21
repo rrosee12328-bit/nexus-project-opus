@@ -43,6 +43,7 @@ import ClientMessages from "./pages/client/Messages";
 import ClientPayments from "./pages/client/Payments";
 import ClientSettings from "./pages/client/Settings";
 import ClientAgent from "./pages/client/Agent";
+import ClientApprovals from "./pages/client/Approvals";
 
 const queryClient = new QueryClient();
 
