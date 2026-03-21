@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
 import { useAuth } from "@/hooks/useAuth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,15 +15,31 @@ import {
   Clock,
   CheckCircle2,
   Sparkles,
+  FileCheck,
+  CreditCard,
+  Bell,
+  Target,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { format, formatDistanceToNow } from "date-fns";
 
 import { PHASE_LABELS, PHASE_ICONS } from "@/lib/phaseConfig";
 
 export default function ClientDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  const { data: clientId } = useQuery({
+    queryKey: ["my-client-id", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase.rpc("get_client_id_for_user", { _user_id: user.id });
+      if (error) throw error;
+      return data as string | null;
+    },
+    enabled: !!user?.id,
+  });
 
   const { data: projects } = useQuery({
     queryKey: ["client-projects"],
@@ -52,9 +68,60 @@ export default function ClientDashboard() {
     enabled: !!user?.id,
   });
 
+  const { data: pendingApprovals = [] } = useQuery({
+    queryKey: ["client-pending-approvals", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("approval_requests")
+        .select("id, title, projects(name), created_at")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!user?.id,
+  });
+
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ["unread-messages", clientId],
+    queryFn: async () => {
+      if (!clientId || !user?.id) return 0;
+      const { count, error } = await supabase
+        .from("messages")
+        .select("*", { count: "exact", head: true })
+        .eq("client_id", clientId)
+        .neq("sender_id", user.id)
+        .is("read_at", null);
+      if (error) return 0;
+      return count ?? 0;
+    },
+    enabled: !!clientId && !!user?.id,
+  });
+
+  const { data: recentNotifications = [] } = useQuery({
+    queryKey: ["client-recent-notifications", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!user?.id,
+  });
+
   const activeProjects = (projects ?? []).filter((p) => p.status === "in_progress");
   const completedProjects = (projects ?? []).filter((p) => p.status === "completed");
   const displayName = profile?.display_name || user?.email?.split("@")[0] || "there";
+
+  // Find next milestone - nearest target_date among active projects
+  const nextMilestone = activeProjects
+    .filter((p) => p.target_date)
+    .sort((a, b) => new Date(a.target_date!).getTime() - new Date(b.target_date!).getTime())[0];
 
   const greeting = (() => {
     const hour = new Date().getHours();
@@ -79,6 +146,17 @@ export default function ClientDashboard() {
             <p className="text-muted-foreground mt-2 max-w-md">
               Welcome to your creative portal. Track projects, share assets, and stay connected with your Vektiss team.
             </p>
+            {nextMilestone && (
+              <div className="mt-4 flex items-center gap-2 text-sm">
+                <Target className="h-4 w-4 text-primary" />
+                <span className="text-muted-foreground">Next milestone:</span>
+                <span className="font-medium">{nextMilestone.name}</span>
+                <span className="text-muted-foreground">—</span>
+                <span className="text-primary font-mono text-xs">
+                  {format(new Date(nextMilestone.target_date!), "MMM d, yyyy")}
+                </span>
+              </div>
+            )}
           </div>
           <div className="hidden md:flex">
             <Sparkles className="h-12 w-12 text-primary/20" />
@@ -89,12 +167,42 @@ export default function ClientDashboard() {
       {/* Onboarding checklist */}
       <OnboardingChecklist />
 
+      {/* Status summary bar */}
+      {(pendingApprovals.length > 0 || unreadCount > 0) && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+          className="flex flex-wrap gap-3"
+        >
+          {pendingApprovals.length > 0 && (
+            <button
+              onClick={() => navigate("/portal/approvals")}
+              className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-2.5 text-sm hover:bg-amber-500/10 transition-colors"
+            >
+              <FileCheck className="h-4 w-4 text-amber-500" />
+              <span className="font-medium">{pendingApprovals.length} approval{pendingApprovals.length !== 1 ? "s" : ""} pending</span>
+            </button>
+          )}
+          {unreadCount > 0 && (
+            <button
+              onClick={() => navigate("/portal/messages")}
+              className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5 text-sm hover:bg-primary/10 transition-colors"
+            >
+              <MessageSquare className="h-4 w-4 text-primary" />
+              <span className="font-medium">{unreadCount} unread message{unreadCount !== 1 ? "s" : ""}</span>
+            </button>
+          )}
+        </motion.div>
+      )}
+
       {/* Quick action cards */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { icon: FolderKanban, label: "Projects", sub: `${activeProjects.length} active · ${completedProjects.length} completed`, path: "/portal/projects" },
-          { icon: Upload, label: "Assets", sub: "Upload files & deliverables", path: "/portal/assets" },
-          { icon: MessageSquare, label: "Messages", sub: "Talk to your team", path: "/portal/messages" },
+          { icon: FolderKanban, label: "Projects", sub: `${activeProjects.length} active · ${completedProjects.length} completed`, path: "/portal/projects", badge: 0 },
+          { icon: FileCheck, label: "Approvals", sub: "Review deliverables", path: "/portal/approvals", badge: pendingApprovals.length },
+          { icon: Upload, label: "Assets", sub: "Upload files & deliverables", path: "/portal/assets", badge: 0 },
+          { icon: MessageSquare, label: "Messages", sub: "Talk to your team", path: "/portal/messages", badge: unreadCount },
         ].map((item, i) => (
           <motion.div
             key={item.label}
@@ -106,7 +214,12 @@ export default function ClientDashboard() {
               className="group cursor-pointer border-border hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
               onClick={() => navigate(item.path)}
             >
-              <CardContent className="pt-6 flex flex-col items-center text-center gap-3">
+              <CardContent className="pt-6 flex flex-col items-center text-center gap-3 relative">
+                {item.badge > 0 && (
+                  <Badge className="absolute top-3 right-3 h-5 min-w-[20px] px-1.5 text-[10px] font-mono bg-primary text-primary-foreground">
+                    {item.badge > 99 ? "99+" : item.badge}
+                  </Badge>
+                )}
                 <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                   <item.icon className="h-6 w-6 text-primary" />
                 </div>
@@ -183,6 +296,41 @@ export default function ClientDashboard() {
               </motion.div>
             ))}
           </div>
+        </motion.div>
+      )}
+
+      {/* Recent activity feed */}
+      {recentNotifications.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.5 }}
+          className="space-y-3"
+        >
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Bell className="h-5 w-5 text-primary" />
+            Recent Activity
+          </h2>
+          <Card>
+            <CardContent className="pt-4 pb-2 divide-y divide-border">
+              {recentNotifications.map((n: any) => (
+                <button
+                  key={n.id}
+                  className="flex items-start gap-3 w-full text-left py-3 first:pt-0 last:pb-0 hover:bg-muted/30 -mx-2 px-2 rounded-md transition-colors"
+                  onClick={() => n.link && navigate(n.link)}
+                >
+                  <div className={`h-2 w-2 rounded-full mt-2 shrink-0 ${n.read_at ? "bg-muted-foreground/30" : "bg-primary"}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm ${n.read_at ? "text-muted-foreground" : "font-medium"}`}>{n.title}</p>
+                    {n.body && <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{n.body}</p>}
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </CardContent>
+          </Card>
         </motion.div>
       )}
 
