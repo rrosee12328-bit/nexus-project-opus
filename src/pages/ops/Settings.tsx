@@ -2,49 +2,42 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useToast } from "@/hooks/use-toast";
-import { User, Bell, Palette, Save, Mail, Shield, Lock } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import { User, Bell, Save, Mail, Shield, Lock, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { NotificationPreferences } from "@/components/NotificationPreferences";
 
 export default function OpsSettings() {
   const { user, role } = useAuth();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Profile state
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
 
-  // Password state
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-
-  // Notification preferences (local state — no DB table for these yet)
-  const [notifTaskAssigned, setNotifTaskAssigned] = useState(true);
-  const [notifTaskCompleted, setNotifTaskCompleted] = useState(true);
-  const [notifNewMessage, setNotifNewMessage] = useState(true);
-  const [notifSopUpdated, setNotifSopUpdated] = useState(false);
-  const [notifEmail, setNotifEmail] = useState(true);
-  const [notifInApp, setNotifInApp] = useState(true);
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
 
   const { data: profile, isLoading } = useQuery({
-    queryKey: ["profile", user?.id],
+    queryKey: ["ops-profile", user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
         .eq("user_id", user!.id)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -69,11 +62,10 @@ export default function OpsSettings() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile", user?.id] });
-      toast({ title: "Profile updated" });
+      queryClient.invalidateQueries({ queryKey: ["ops-profile", user?.id] });
+      toast.success("Profile updated");
     },
-    onError: (err: Error) =>
-      toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast.error(err.message),
   });
 
   const changePassword = useMutation({
@@ -93,10 +85,9 @@ export default function OpsSettings() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      toast({ title: "Password updated successfully" });
+      toast.success("Password updated successfully");
     },
-    onError: (err: Error) =>
-      toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast.error(err.message),
   });
 
   const initials = (displayName || user?.email || "U")
@@ -106,53 +97,132 @@ export default function OpsSettings() {
     .toUpperCase()
     .slice(0, 2);
 
+  const passwordStrength = (() => {
+    if (!newPassword) return null;
+    let score = 0;
+    if (newPassword.length >= 6) score++;
+    if (newPassword.length >= 10) score++;
+    if (/[A-Z]/.test(newPassword) && /[a-z]/.test(newPassword)) score++;
+    if (/\d/.test(newPassword)) score++;
+    if (/[^A-Za-z0-9]/.test(newPassword)) score++;
+    if (score <= 2) return { label: "Weak", color: "bg-destructive" };
+    if (score <= 3) return { label: "Fair", color: "bg-warning" };
+    return { label: "Strong", color: "bg-emerald-500" };
+  })();
+
   const anim = (delay: number) => ({
-    initial: { opacity: 0, y: 20 },
-    animate: { opacity: 1, y: 0 },
+    initial: { opacity: 0, y: 20 } as const,
+    animate: { opacity: 1, y: 0 } as const,
     transition: { duration: 0.4, delay },
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 max-w-3xl">
       <motion.div {...anim(0)}>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground">Manage your profile, notifications, and preferences.</p>
+        <p className="text-muted-foreground mt-1">Manage your profile, security, and notification preferences.</p>
       </motion.div>
 
-      <motion.div {...anim(0.1)}>
-        <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="bg-card border border-border">
-            <TabsTrigger value="profile" className="gap-2 data-[state=active]:bg-primary/10">
-              <User className="h-4 w-4" /> Profile
-            </TabsTrigger>
-            <TabsTrigger value="notifications" className="gap-2 data-[state=active]:bg-primary/10">
-              <Bell className="h-4 w-4" /> Notifications
-            </TabsTrigger>
-            <TabsTrigger value="appearance" className="gap-2 data-[state=active]:bg-primary/10">
-              <Palette className="h-4 w-4" /> Appearance
-            </TabsTrigger>
+      <Tabs defaultValue="profile" className="space-y-6">
+        <motion.div {...anim(0.05)}>
+          <TabsList>
+            <TabsTrigger value="profile" className="gap-2"><User className="h-4 w-4" /> Profile</TabsTrigger>
+            <TabsTrigger value="security" className="gap-2"><Lock className="h-4 w-4" /> Security</TabsTrigger>
+            <TabsTrigger value="notifications" className="gap-2"><Bell className="h-4 w-4" /> Notifications</TabsTrigger>
           </TabsList>
+        </motion.div>
 
-          {/* Profile Tab */}
-          <TabsContent value="profile" className="space-y-6">
-            <motion.div {...anim(0.15)}>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <User className="h-4 w-4 text-muted-foreground" /> Profile Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* Avatar preview */}
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-16 w-16 border-2 border-border">
-                      <AvatarFallback className="bg-primary/10 text-primary text-lg font-bold">
-                        {initials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{displayName || "No name set"}</p>
-                      <p className="text-sm text-muted-foreground">{user?.email}</p>
+        {/* ── Profile Tab ── */}
+        <TabsContent value="profile">
+          <motion.div {...anim(0.1)}>
+            <Card className="hover:border-primary/20 transition-colors">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <User className="h-5 w-5 text-primary" /> Profile Information
+                </CardTitle>
+                <CardDescription>Your personal details visible across the ops portal.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-20 w-20 border-2 border-primary/20 shadow-lg">
+                    <AvatarFallback className="bg-primary/10 text-primary text-xl font-bold">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="space-y-1">
+                    <p className="text-lg font-semibold">{displayName || "No name set"}</p>
+                    <p className="text-sm text-muted-foreground">{user?.email}</p>
+                    <Badge variant="outline" className="capitalize text-xs mt-1">
+                      <Shield className="h-3 w-3 mr-1" />
+                      {role ?? "ops"}
+                    </Badge>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Display Name</Label>
+                    <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Your name" maxLength={100} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Avatar URL</Label>
+                    <Input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="https://..." maxLength={500} />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground flex items-center gap-1.5">
+                      <Mail className="h-3 w-3" /> Email Address
+                    </Label>
+                    <Input value={user?.email ?? ""} disabled className="opacity-60" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground flex items-center gap-1.5">
+                      <Shield className="h-3 w-3" /> Role
+                    </Label>
+                    <Input value={role ?? ""} disabled className="opacity-60 capitalize" />
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button onClick={() => updateProfile.mutate()} disabled={updateProfile.isPending || isLoading} className="gap-2">
+                    <Save className="h-4 w-4" />
+                    {updateProfile.isPending ? "Saving..." : "Save Changes"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </TabsContent>
+
+        {/* ── Security Tab ── */}
+        <TabsContent value="security">
+          <motion.div {...anim(0.1)} className="space-y-6">
+            <Card className="hover:border-primary/20 transition-colors">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Lock className="h-5 w-5 text-primary" /> Change Password
+                </CardTitle>
+                <CardDescription>Verify your current password before setting a new one.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Current Password</Label>
+                    <div className="relative">
+                      <Input
+                        type={showCurrentPw ? "text" : "password"}
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="pr-10"
+                      />
+                      <button type="button" onClick={() => setShowCurrentPw(!showCurrentPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                        {showCurrentPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
                     </div>
                   </div>
 
@@ -160,215 +230,109 @@ export default function OpsSettings() {
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label>Display Name</Label>
-                      <Input
-                        value={displayName}
-                        onChange={(e) => setDisplayName(e.target.value)}
-                        placeholder="Your name"
-                        maxLength={100}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Avatar URL</Label>
-                      <Input
-                        value={avatarUrl}
-                        onChange={(e) => setAvatarUrl(e.target.value)}
-                        placeholder="https://..."
-                        maxLength={500}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label className="text-muted-foreground flex items-center gap-1.5">
-                        <Mail className="h-3 w-3" /> Email
-                      </Label>
-                      <Input value={user?.email ?? ""} disabled className="opacity-60" />
-                      <p className="text-xs text-muted-foreground">Email cannot be changed here.</p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-muted-foreground flex items-center gap-1.5">
-                        <Shield className="h-3 w-3" /> Role
-                      </Label>
-                      <Input value={role ?? ""} disabled className="opacity-60 capitalize" />
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end">
-                    <Button
-                      onClick={() => updateProfile.mutate()}
-                      disabled={updateProfile.isPending || isLoading}
-                      className="gap-2"
-                    >
-                      <Save className="h-4 w-4" />
-                      {updateProfile.isPending ? "Saving..." : "Save Changes"}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            <motion.div {...anim(0.2)}>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Lock className="h-4 w-4 text-muted-foreground" /> Change Password
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    <div className="space-y-2">
-                      <Label>Current Password</Label>
-                      <Input
-                        type="password"
-                        value={currentPassword}
-                        onChange={(e) => setCurrentPassword(e.target.value)}
-                        placeholder="••••••••"
-                      />
-                    </div>
-                    <div className="space-y-2">
                       <Label>New Password</Label>
-                      <Input
-                        type="password"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="Min. 6 characters"
-                      />
+                      <div className="relative">
+                        <Input
+                          type={showNewPw ? "text" : "password"}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="Min. 6 characters"
+                          className="pr-10"
+                        />
+                        <button type="button" onClick={() => setShowNewPw(!showNewPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                          {showNewPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                      {passwordStrength && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                            <div className={`h-full rounded-full transition-all ${passwordStrength.color}`} style={{ width: passwordStrength.label === "Weak" ? "33%" : passwordStrength.label === "Fair" ? "66%" : "100%" }} />
+                          </div>
+                          <span className="text-xs text-muted-foreground">{passwordStrength.label}</span>
+                        </div>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label>Confirm New Password</Label>
-                      <Input
-                        type="password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="••••••••"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex justify-end">
-                    <Button
-                      onClick={() => changePassword.mutate()}
-                      disabled={changePassword.isPending || !currentPassword || !newPassword || !confirmPassword}
-                      variant="outline"
-                      className="gap-2"
-                    >
-                      <Lock className="h-4 w-4" />
-                      {changePassword.isPending ? "Updating..." : "Update Password"}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </TabsContent>
-
-          {/* Notifications Tab */}
-          <TabsContent value="notifications" className="space-y-6">
-            <motion.div {...anim(0.15)}>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Bell className="h-4 w-4 text-muted-foreground" /> Notification Events
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {[
-                    { label: "Task assigned to me", desc: "Get notified when a task is assigned to you.", value: notifTaskAssigned, set: setNotifTaskAssigned },
-                    { label: "Task completed", desc: "Get notified when a task you're watching is completed.", value: notifTaskCompleted, set: setNotifTaskCompleted },
-                    { label: "New message", desc: "Get notified for new messages in client threads.", value: notifNewMessage, set: setNotifNewMessage },
-                    { label: "SOP updated", desc: "Get notified when a standard operating procedure is changed.", value: notifSopUpdated, set: setNotifSopUpdated },
-                  ].map((item) => (
-                    <div key={item.label} className="flex items-center justify-between py-2">
-                      <div>
-                        <p className="text-sm font-medium">{item.label}</p>
-                        <p className="text-xs text-muted-foreground">{item.desc}</p>
+                      <div className="relative">
+                        <Input
+                          type={showConfirmPw ? "text" : "password"}
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="pr-10"
+                        />
+                        <button type="button" onClick={() => setShowConfirmPw(!showConfirmPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                          {showConfirmPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
                       </div>
-                      <Switch checked={item.value} onCheckedChange={item.set} />
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            <motion.div {...anim(0.2)}>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-muted-foreground" /> Delivery Channels
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {[
-                    { label: "Email notifications", desc: "Receive notifications via email.", value: notifEmail, set: setNotifEmail },
-                    { label: "In-app notifications", desc: "Show notifications within the app.", value: notifInApp, set: setNotifInApp },
-                  ].map((item) => (
-                    <div key={item.label} className="flex items-center justify-between py-2">
-                      <div>
-                        <p className="text-sm font-medium">{item.label}</p>
-                        <p className="text-xs text-muted-foreground">{item.desc}</p>
-                      </div>
-                      <Switch checked={item.value} onCheckedChange={item.set} />
-                    </div>
-                  ))}
-                  <p className="text-xs text-muted-foreground pt-2 border-t border-border">
-                    Notification preferences are stored locally. Backend notification delivery coming soon.
-                  </p>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </TabsContent>
-
-          {/* Appearance Tab */}
-          <TabsContent value="appearance" className="space-y-6">
-            <motion.div {...anim(0.15)}>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Palette className="h-4 w-4 text-muted-foreground" /> Theme
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Choose your preferred visual theme for the ops portal.
-                  </p>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { key: "dark", label: "Dark", colors: ["bg-[hsl(0,0%,5%)]", "bg-[hsl(0,0%,10%)]", "bg-[hsl(225,100%,61%)]"] },
-                      { key: "light", label: "Light", colors: ["bg-[hsl(0,0%,98%)]", "bg-[hsl(0,0%,94%)]", "bg-[hsl(225,100%,61%)]"] },
-                      { key: "system", label: "System", colors: ["bg-[hsl(0,0%,50%)]", "bg-[hsl(0,0%,30%)]", "bg-[hsl(225,100%,61%)]"] },
-                    ].map((theme) => (
-                      <button
-                        key={theme.key}
-                        className={`rounded-lg border-2 p-3 text-center transition-colors ${
-                          theme.key === "dark"
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/30"
-                        }`}
-                        onClick={() =>
-                          toast({
-                            title: `${theme.label} theme`,
-                            description: "Theme switching coming soon. Currently using dark theme.",
-                          })
-                        }
-                      >
-                        <div className="flex justify-center gap-1.5 mb-2">
-                          {theme.colors.map((c, i) => (
-                            <div key={i} className={`h-4 w-4 rounded-full ${c} border border-border`} />
-                          ))}
+                      {confirmPassword && newPassword && (
+                        <div className="flex items-center gap-1.5 mt-1">
+                          {confirmPassword === newPassword ? (
+                            <>
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                              <span className="text-xs text-emerald-500">Passwords match</span>
+                            </>
+                          ) : (
+                            <span className="text-xs text-destructive">Passwords do not match</span>
+                          )}
                         </div>
-                        <span className="text-xs font-medium">{theme.label}</span>
-                      </button>
-                    ))}
+                      )}
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground pt-2 border-t border-border">
-                    Theme switching is planned for a future update. The app currently uses the dark theme.
-                  </p>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </TabsContent>
-        </Tabs>
-      </motion.div>
+                </div>
+                <div className="flex justify-end pt-2">
+                  <Button
+                    onClick={() => changePassword.mutate()}
+                    disabled={changePassword.isPending || !currentPassword || !newPassword || !confirmPassword}
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    <Lock className="h-4 w-4" />
+                    {changePassword.isPending ? "Updating..." : "Update Password"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:border-primary/20 transition-colors">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-primary" /> Account Security
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between py-2">
+                  <div>
+                    <p className="text-sm font-medium">Active Session</p>
+                    <p className="text-xs text-muted-foreground">You're currently logged in as {user?.email}</p>
+                  </div>
+                  <Badge variant="outline" className="text-emerald-500 border-emerald-500/30">
+                    <CheckCircle2 className="h-3 w-3 mr-1" /> Active
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </TabsContent>
+
+        {/* ── Notifications Tab ── */}
+        <TabsContent value="notifications">
+          <motion.div {...anim(0.1)}>
+            <Card className="hover:border-primary/20 transition-colors">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Bell className="h-5 w-5 text-primary" /> Notification Preferences
+                </CardTitle>
+                <CardDescription>Choose how and when you'd like to be notified.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <NotificationPreferences />
+              </CardContent>
+            </Card>
+          </motion.div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
