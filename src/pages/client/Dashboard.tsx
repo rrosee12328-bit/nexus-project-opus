@@ -453,9 +453,9 @@ export default function ClientDashboard() {
                 <MessageSquare className="h-3.5 w-3.5" />
                 Send Message
               </Button>
-              <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" onClick={() => window.location.href = "mailto:hello@vektiss.com"}>
+              <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" onClick={() => window.location.href = "mailto:info@vektiss.com"}>
                 <Mail className="h-3.5 w-3.5" />
-                hello@vektiss.com
+                info@vektiss.com
               </Button>
             </div>
           </CardContent>
