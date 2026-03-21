@@ -348,7 +348,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── 7. DAILY DIGEST for opted-in users ──
+    } // end weekday guard for lead follow-ups
+
+    // ── 7. DAILY DIGEST for opted-in users (weekdays only) ──
+    if (isWeekday) {
     const digestUsers = (allPrefs ?? []).filter(p => p.email_digest);
     for (const pref of digestUsers) {
       const digestRef = `digest_${pref.user_id}_${today}`;
