@@ -22,9 +22,10 @@ import {
 import { toast } from "sonner";
 import {
   Plus, Search, ListChecks, CheckSquare, Clock, AlertTriangle,
-  TrendingUp, Pencil, Trash2, Filter, Calendar, ArrowUpDown,
+  TrendingUp, Pencil, Trash2, Filter, Calendar, ArrowUpDown, GripVertical,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import TaskDetailDialog from "@/components/tasks/TaskDetailDialog";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -35,13 +36,13 @@ type TaskPriority = Database["public"]["Enums"]["task_priority"];
 const STATUS_CONFIG: Record<TaskStatus, { label: string; icon: typeof CheckSquare; color: string }> = {
   todo: { label: "To Do", icon: CheckSquare, color: "bg-muted text-muted-foreground" },
   in_progress: { label: "In Progress", icon: Clock, color: "bg-primary/15 text-primary border-primary/30" },
-  review: { label: "Review", icon: AlertTriangle, color: "bg-warning/15 text-warning border-warning/30" },
-  done: { label: "Done", icon: TrendingUp, color: "bg-success/15 text-success border-success/30" },
+  review: { label: "Review", icon: AlertTriangle, color: "bg-amber-500/15 text-amber-600 border-amber-500/30" },
+  done: { label: "Done", icon: TrendingUp, color: "bg-emerald-500/15 text-emerald-600 border-emerald-500/30" },
 };
 
 const PRIORITY_CONFIG: Record<TaskPriority, { label: string; color: string; sort: number }> = {
   urgent: { label: "Urgent", color: "bg-destructive/15 text-destructive border-destructive/30", sort: 0 },
-  high: { label: "High", color: "bg-warning/15 text-warning border-warning/30", sort: 1 },
+  high: { label: "High", color: "bg-amber-500/15 text-amber-600 border-amber-500/30", sort: 1 },
   medium: { label: "Medium", color: "bg-primary/15 text-primary border-primary/30", sort: 2 },
   low: { label: "Low", color: "bg-muted text-muted-foreground", sort: 3 },
 };
@@ -80,7 +81,7 @@ export default function OpsTasks() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<TaskStatus | "all">("all");
   const [filterPriority, setFilterPriority] = useState<TaskPriority | "all">("all");
-  const [sortField, setSortField] = useState<"priority" | "due_date" | "created_at">("priority");
+  const [sortField, setSortField] = useState<"priority" | "due_date" | "created_at" | "manual">("manual");
 
   // Dialog state
   const [formOpen, setFormOpen] = useState(false);
@@ -194,6 +195,19 @@ export default function OpsTasks() {
     },
   });
 
+  const reorderMutation = useMutation({
+    mutationFn: async (updates: { id: string; sort_order: number }[]) => {
+      for (const u of updates) {
+        const { error } = await supabase.from("tasks").update({ sort_order: u.sort_order }).eq("id", u.id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ops-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    },
+  });
+
   // Helpers
   const openCreate = () => {
     setEditId(null);
@@ -231,6 +245,7 @@ export default function OpsTasks() {
       return true;
     })
     .sort((a, b) => {
+      if (sortField === "manual") return a.sort_order - b.sort_order;
       if (sortField === "priority") {
         return PRIORITY_CONFIG[a.priority].sort - PRIORITY_CONFIG[b.priority].sort;
       }
@@ -243,6 +258,25 @@ export default function OpsTasks() {
     });
 
   const countByStatus = (s: TaskStatus) => tasks.filter((t) => t.status === s).length;
+
+  const isDragEnabled = sortField === "manual" && filterStatus === "all" && filterPriority === "all" && !search;
+
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination || !isDragEnabled) return;
+    const srcIdx = result.source.index;
+    const destIdx = result.destination.index;
+    if (srcIdx === destIdx) return;
+
+    const reordered = [...filtered];
+    const [moved] = reordered.splice(srcIdx, 1);
+    reordered.splice(destIdx, 0, moved);
+
+    const updates = reordered.map((t, i) => ({ id: t.id, sort_order: i }));
+    reorderMutation.mutate(updates);
+
+    // Optimistic update
+    queryClient.setQueryData(["ops-tasks"], reordered.map((t, i) => ({ ...t, sort_order: i })));
+  };
 
   return (
     <div className="space-y-6">
@@ -338,12 +372,18 @@ export default function OpsTasks() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="manual">Sort: Manual</SelectItem>
                   <SelectItem value="priority">Sort: Priority</SelectItem>
                   <SelectItem value="due_date">Sort: Due Date</SelectItem>
                   <SelectItem value="created_at">Sort: Newest</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            {isDragEnabled && (
+              <p className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1">
+                <GripVertical className="h-3 w-3" /> Drag rows to reorder. Filters disabled while dragging.
+              </p>
+            )}
           </CardContent>
         </Card>
       </motion.div>
@@ -384,90 +424,116 @@ export default function OpsTasks() {
         ) : (
           <Card>
             <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[40%]">Task</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Priority</TableHead>
-                    <TableHead className="hidden md:table-cell">Client</TableHead>
-                    <TableHead className="hidden lg:table-cell">Due Date</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map((task) => {
-                    const statusCfg = STATUS_CONFIG[task.status];
-                    const priorityCfg = PRIORITY_CONFIG[task.priority];
-                    const clientName = (task.clients as { name: string } | null)?.name;
-                    const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== "done";
+              <DragDropContext onDragEnd={handleDragEnd}>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {isDragEnabled && <TableHead className="w-10" />}
+                      <TableHead className="w-[40%]">Task</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Priority</TableHead>
+                      <TableHead className="hidden md:table-cell">Client</TableHead>
+                      <TableHead className="hidden lg:table-cell">Due Date</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <Droppable droppableId="task-table">
+                    {(provided) => (
+                      <TableBody ref={provided.innerRef} {...provided.droppableProps}>
+                        {filtered.map((task, index) => {
+                          const statusCfg = STATUS_CONFIG[task.status];
+                          const priorityCfg = PRIORITY_CONFIG[task.priority];
+                          const clientName = (task.clients as { name: string } | null)?.name;
+                          const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== "done";
 
-                    return (
-                      <TableRow key={task.id} className="hover:bg-muted/30 transition-colors group cursor-pointer" onClick={() => setSelectedTask(task as any)}>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium text-sm">{task.title}</p>
-                            {task.description && (
-                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.description}</p>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <Select
-                            value={task.status}
-                            onValueChange={(v) => statusMutation.mutate({ id: task.id, status: v as TaskStatus })}
-                          >
-                            <SelectTrigger className="h-7 w-[120px] text-xs border-0 bg-transparent hover:bg-muted/50">
-                              <Badge variant="outline" className={`text-xs ${statusCfg.color}`}>
-                                {statusCfg.label}
-                              </Badge>
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Object.entries(STATUS_CONFIG).map(([k, v]) => (
-                                <SelectItem key={k} value={k}>{v.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={`text-xs ${priorityCfg.color}`}>
-                            {priorityCfg.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          <span className="text-sm text-muted-foreground">{clientName ?? "—"}</span>
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell">
-                          {task.due_date ? (
-                            <span className={`text-sm flex items-center gap-1.5 ${isOverdue ? "text-destructive font-medium" : "text-muted-foreground"}`}>
-                              <Calendar className="h-3.5 w-3.5" />
-                              {new Date(task.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                              {isOverdue && <span className="text-xs">(overdue)</span>}
-                            </span>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openEdit(task); }}>
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-destructive hover:text-destructive"
-                              onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: task.id, title: task.title }); }}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                          return (
+                            <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={!isDragEnabled}>
+                              {(provided, snapshot) => (
+                                <TableRow
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  className={`hover:bg-muted/30 transition-colors group cursor-pointer ${
+                                    snapshot.isDragging ? "bg-accent shadow-lg" : ""
+                                  } ${isOverdue ? "border-l-2 border-l-destructive" : ""}`}
+                                  onClick={() => setSelectedTask(task as any)}
+                                >
+                                  {isDragEnabled && (
+                                    <TableCell className="w-10 px-2">
+                                      <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing opacity-30 hover:opacity-100 transition-opacity">
+                                        <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                      </div>
+                                    </TableCell>
+                                  )}
+                                  <TableCell>
+                                    <div>
+                                      <p className={`font-medium text-sm ${task.status === "done" ? "line-through text-muted-foreground" : ""}`}>{task.title}</p>
+                                      {task.description && (
+                                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.description}</p>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell onClick={(e) => e.stopPropagation()}>
+                                    <Select
+                                      value={task.status}
+                                      onValueChange={(v) => statusMutation.mutate({ id: task.id, status: v as TaskStatus })}
+                                    >
+                                      <SelectTrigger className="h-7 w-[120px] text-xs border-0 bg-transparent hover:bg-muted/50">
+                                        <Badge variant="outline" className={`text-xs ${statusCfg.color}`}>
+                                          {statusCfg.label}
+                                        </Badge>
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {Object.entries(STATUS_CONFIG).map(([k, v]) => (
+                                          <SelectItem key={k} value={k}>{v.label}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline" className={`text-xs ${priorityCfg.color}`}>
+                                      {priorityCfg.label}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="hidden md:table-cell">
+                                    <span className="text-sm text-muted-foreground">{clientName ?? "—"}</span>
+                                  </TableCell>
+                                  <TableCell className="hidden lg:table-cell">
+                                    {task.due_date ? (
+                                      <span className={`text-sm flex items-center gap-1.5 ${isOverdue ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                                        <Calendar className="h-3.5 w-3.5" />
+                                        {new Date(task.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                        {isOverdue && <span className="text-xs">(overdue)</span>}
+                                      </span>
+                                    ) : (
+                                      <span className="text-sm text-muted-foreground">—</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <div className="flex gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openEdit(task); }}>
+                                        <Pencil className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-destructive hover:text-destructive"
+                                        onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: task.id, title: task.title }); }}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                            </Draggable>
+                          );
+                        })}
+                        {provided.placeholder}
+                      </TableBody>
+                    )}
+                  </Droppable>
+                </Table>
+              </DragDropContext>
             </CardContent>
           </Card>
         )}
