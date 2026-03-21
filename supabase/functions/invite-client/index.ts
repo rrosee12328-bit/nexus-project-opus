@@ -150,8 +150,7 @@ async function createWelcomeProject(
     .single();
 
   if (projectErr) {
-    console.error("Error creating welcome project:", projectErr);
-    return null;
+    throw new Error(`Failed to create welcome project: ${projectErr.message}`);
   }
 
   const phaseInserts = phases.map((phase: string, i: number) => ({
@@ -163,7 +162,7 @@ async function createWelcomeProject(
   }));
 
   const { error: phaseErr } = await supabase.from("project_phases").insert(phaseInserts);
-  if (phaseErr) console.error("Error creating project phases:", phaseErr);
+  if (phaseErr) throw new Error(`Failed to create project phases: ${phaseErr.message}`);
 
   await supabase.from("project_activity_log").insert({
     project_id: project.id,
@@ -191,7 +190,7 @@ async function createOnboardingSteps(
   }));
 
   const { error } = await supabase.from("client_onboarding_steps").insert(steps);
-  if (error) console.error("Error creating onboarding steps:", error);
+  if (error) throw new Error(`Failed to create onboarding steps: ${error.message}`);
 }
 
 Deno.serve(async (req) => {
@@ -289,9 +288,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Create welcome project and onboarding steps
-    const projectId = await createWelcomeProject(supabase, client_id, client.type);
-    await createOnboardingSteps(supabase, client_id);
+    // Create welcome project and onboarding steps — fail closed on errors
+    let projectId: string | null = null;
+    try {
+      projectId = await createWelcomeProject(supabase, client_id, client.type);
+      await createOnboardingSteps(supabase, client_id, client.type);
+    } catch (setupErr) {
+      console.error("Onboarding setup failed, rolling back auth user:", setupErr);
+      await supabase.auth.admin.deleteUser(userId);
+      await supabase.from("clients").update({ user_id: null, status: "prospect" }).eq("id", client_id);
+      return new Response(JSON.stringify({ error: `Onboarding setup failed: ${setupErr}` }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const actionLink = await generateRecoveryLink(supabase, client.email);
     const { html, plainText } = buildWelcomeEmail(client.name || "there", actionLink);
