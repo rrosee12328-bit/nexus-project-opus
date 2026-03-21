@@ -1,13 +1,18 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
-import { Bot, Send, Loader2, User, Sparkles, Plus, MessageSquare, Trash2, Mic, MicOff } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Bot, Send, Loader2, User, Sparkles, Plus, MessageSquare,
+  Trash2, Mic, MicOff, Search, PanelLeftClose, PanelLeft, Copy, Check,
+} from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
@@ -18,6 +23,31 @@ interface AIAgentChatProps {
   title?: string;
   subtitle?: string;
   suggestions?: string[];
+}
+
+/* ── Copyable code block ── */
+function CodeBlock({ children, className }: { children: string; className?: string }) {
+  const [copied, setCopied] = useState(false);
+  const lang = className?.replace("language-", "") ?? "";
+  const copy = () => {
+    navigator.clipboard.writeText(children.trim());
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <div className="relative group rounded-md overflow-hidden my-2">
+      <div className="flex items-center justify-between bg-muted/80 px-3 py-1 text-[10px] text-muted-foreground font-mono">
+        <span>{lang}</span>
+        <button onClick={copy} className="flex items-center gap-1 hover:text-foreground transition-colors">
+          {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+      <pre className="!mt-0 !rounded-t-none bg-muted/40 p-3 overflow-x-auto text-xs">
+        <code className={className}>{children}</code>
+      </pre>
+    </div>
+  );
 }
 
 export default function AIAgentChat({
@@ -34,6 +64,9 @@ export default function AIAgentChat({
   const [loadingConvos, setLoadingConvos] = useState(true);
   const [isListening, setIsListening] = useState(false);
   const [audioLevels, setAudioLevels] = useState<number[]>(new Array(24).fill(0));
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -43,9 +76,10 @@ export default function AIAgentChat({
   const streamRef = useRef<MediaStream | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /* ── Conversation CRUD ── */
   useEffect(() => {
     if (!user) return;
-    const load = async () => {
+    (async () => {
       const { data } = await supabase
         .from("ai_conversations")
         .select("id, title, updated_at")
@@ -53,9 +87,14 @@ export default function AIAgentChat({
         .order("updated_at", { ascending: false });
       setConversations((data as Conversation[]) ?? []);
       setLoadingConvos(false);
-    };
-    load();
+    })();
   }, [user]);
+
+  const filteredConversations = useMemo(() => {
+    if (!searchQuery.trim()) return conversations;
+    const q = searchQuery.toLowerCase();
+    return conversations.filter((c) => c.title.toLowerCase().includes(q));
+  }, [conversations, searchQuery]);
 
   const loadConversation = useCallback(async (id: string) => {
     const { data } = await supabase
@@ -66,6 +105,8 @@ export default function AIAgentChat({
     if (data) {
       setMessages((data.messages as unknown as Msg[]) ?? []);
       setActiveConvoId(id);
+      // auto-close sidebar on mobile
+      if (window.innerWidth < 768) setSidebarOpen(false);
     }
   }, []);
 
@@ -113,15 +154,15 @@ export default function AIAgentChat({
     [activeConvoId]
   );
 
+  /* ── Auto-scroll ── */
   useEffect(() => {
     if (scrollRef.current) {
       const viewport = scrollRef.current.querySelector("[data-radix-scroll-area-viewport]");
-      if (viewport) {
-        viewport.scrollTop = viewport.scrollHeight;
-      }
+      if (viewport) viewport.scrollTop = viewport.scrollHeight;
     }
   }, [messages, isLoading]);
 
+  /* ── Send message ── */
   const handleSend = async () => {
     const text = input.trim();
     if (!text || isLoading || !user) return;
@@ -133,10 +174,7 @@ export default function AIAgentChat({
         .insert({ user_id: user.id, messages: [] })
         .select("id, title, updated_at")
         .single();
-      if (!data) {
-        toast.error("Failed to create conversation");
-        return;
-      }
+      if (!data) { toast.error("Failed to create conversation"); return; }
       const convo = data as Conversation;
       setConversations((prev) => [convo, ...prev]);
       setActiveConvoId(convo.id);
@@ -153,22 +191,15 @@ export default function AIAgentChat({
       const resp = await supabase.functions.invoke("ai-agent", {
         body: { messages: newMessages.map((m) => ({ role: m.role, content: m.content })) },
       });
-
       if (resp.error) throw new Error(resp.error.message || "Failed to get response");
-
       const data = resp.data;
       if (data?.error) {
-        if (data.error.includes("Rate limit")) {
-          toast.error("Rate limit exceeded. Please wait a moment and try again.");
-        } else if (data.error.includes("credits")) {
-          toast.error("AI credits exhausted.");
-        } else {
-          toast.error(data.error);
-        }
+        if (data.error.includes("Rate limit")) toast.error("Rate limit exceeded. Please wait a moment and try again.");
+        else if (data.error.includes("credits")) toast.error("AI credits exhausted.");
+        else toast.error(data.error);
         saveMessages(convoId, newMessages);
         return;
       }
-
       const finalMessages: Msg[] = [
         ...newMessages,
         { role: "assistant", content: data.content || "I couldn't generate a response." },
@@ -185,12 +216,10 @@ export default function AIAgentChat({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
+  /* ── Voice ── */
   const startAudioVisualizer = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -203,7 +232,6 @@ export default function AIAgentChat({
       analyser.smoothingTimeConstant = 0.7;
       source.connect(analyser);
       analyserRef.current = analyser;
-
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
       const updateLevels = () => {
         analyser.getByteFrequencyData(dataArray);
@@ -235,19 +263,13 @@ export default function AIAgentChat({
       setIsListening(false);
       return;
     }
-
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      toast.error("Speech recognition is not supported in this browser.");
-      return;
-    }
-
+    if (!SpeechRecognition) { toast.error("Speech recognition is not supported in this browser."); return; }
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = "en-US";
     recognitionRef.current = recognition;
-
     let finalTranscript = "";
     recognition.onresult = (event: any) => {
       let interim = "";
@@ -258,14 +280,12 @@ export default function AIAgentChat({
       }
       setInput(finalTranscript + interim);
     };
-
     recognition.onerror = (event: any) => {
       console.error("Speech error:", event.error);
       if (event.error !== "aborted") toast.error("Microphone error: " + event.error);
       stopAudioVisualizer();
       setIsListening(false);
     };
-
     recognition.onend = () => { stopAudioVisualizer(); setIsListening(false); };
     recognition.start();
     startAudioVisualizer();
@@ -276,23 +296,75 @@ export default function AIAgentChat({
     return () => { recognitionRef.current?.stop(); stopAudioVisualizer(); };
   }, []);
 
+  /* ── Markdown components ── */
+  const mdComponents = useMemo(() => ({
+    code({ className, children, ...props }: any) {
+      const isBlock = className?.startsWith("language-");
+      if (isBlock) return <CodeBlock className={className}>{String(children)}</CodeBlock>;
+      return (
+        <code className="bg-muted/60 text-primary px-1.5 py-0.5 rounded text-xs font-mono" {...props}>
+          {children}
+        </code>
+      );
+    },
+    table({ children }: any) {
+      return (
+        <div className="overflow-x-auto my-2 rounded-md border border-border">
+          <table className="w-full text-xs">{children}</table>
+        </div>
+      );
+    },
+    th({ children }: any) {
+      return <th className="bg-muted/50 px-3 py-2 text-left font-semibold border-b border-border">{children}</th>;
+    },
+    td({ children }: any) {
+      return <td className="px-3 py-2 border-b border-border/50">{children}</td>;
+    },
+  }), []);
+
+  /* ── Render ── */
   return (
-    <div className="flex h-[calc(100vh-theme(spacing.12)-theme(spacing.12))] gap-4 max-w-6xl mx-auto">
+    <div className="flex h-[calc(100vh-theme(spacing.12)-theme(spacing.12))] gap-0 md:gap-4 max-w-6xl mx-auto relative">
+      {/* Mobile sidebar toggle */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="absolute top-0 left-0 z-20 md:hidden h-9 w-9"
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+      >
+        {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
+      </Button>
+
       {/* Sidebar */}
-      <div className="w-64 flex-shrink-0 flex flex-col gap-2">
+      <div
+        className={`${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        } absolute md:relative z-10 md:z-auto inset-y-0 left-0 w-64 flex-shrink-0 flex flex-col gap-2 bg-background md:bg-transparent transition-transform duration-200`}
+      >
         <Button onClick={startNewConversation} variant="outline" className="w-full gap-2">
           <Plus className="h-4 w-4" /> New Chat
         </Button>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search conversations..."
+            className="pl-8 h-8 text-xs bg-background border-border"
+          />
+        </div>
         <ScrollArea className="flex-1">
           <div className="flex flex-col gap-1 pr-2">
             {loadingConvos ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               </div>
-            ) : conversations.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-8">No conversations yet</p>
+            ) : filteredConversations.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-8">
+                {searchQuery ? "No matching conversations" : "No conversations yet"}
+              </p>
             ) : (
-              conversations.map((c) => (
+              filteredConversations.map((c) => (
                 <button
                   key={c.id}
                   onClick={() => loadConversation(c.id)}
@@ -315,8 +387,16 @@ export default function AIAgentChat({
         </ScrollArea>
       </div>
 
+      {/* Backdrop on mobile */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-background/60 backdrop-blur-sm z-[9] md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Chat area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 pl-10 md:pl-0">
         <div className="flex items-center gap-3 mb-4">
           <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
             <Bot className="h-5 w-5 text-primary" />
@@ -340,13 +420,13 @@ export default function AIAgentChat({
                 </div>
                 {suggestions.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2 max-w-lg justify-center">
-                    {suggestions.map((suggestion) => (
+                    {suggestions.map((s) => (
                       <button
-                        key={suggestion}
-                        onClick={() => { setInput(suggestion); textareaRef.current?.focus(); }}
+                        key={s}
+                        onClick={() => { setInput(s); textareaRef.current?.focus(); }}
                         className="text-xs px-3 py-1.5 rounded-full border border-border bg-secondary text-secondary-foreground hover:bg-accent transition-colors"
                       >
-                        {suggestion}
+                        {s}
                       </button>
                     ))}
                   </div>
@@ -369,15 +449,17 @@ export default function AIAgentChat({
                     </div>
                   )}
                   <div
-                    className={`rounded-lg px-4 py-3 max-w-[85%] text-sm ${
+                    className={`rounded-lg px-4 py-3 max-w-[90%] md:max-w-[80%] text-sm ${
                       msg.role === "user"
                         ? "bg-primary text-primary-foreground"
                         : "bg-secondary text-secondary-foreground"
                     }`}
                   >
                     {msg.role === "assistant" ? (
-                      <div className="prose prose-sm prose-invert max-w-none [&_table]:text-xs [&_th]:px-2 [&_td]:px-2 [&_th]:py-1 [&_td]:py-1 [&_table]:border-border [&_th]:border-border [&_td]:border-border">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                      <div className="prose prose-sm dark:prose-invert max-w-none [&_p]:my-1.5 [&_ul]:my-1.5 [&_ol]:my-1.5 [&_li]:my-0.5 [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_h1]:font-bold [&_h2]:font-semibold [&_h3]:font-medium [&_blockquote]:border-l-primary/40 [&_blockquote]:text-muted-foreground [&_a]:text-primary [&_a]:underline [&_hr]:border-border">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={mdComponents}>
+                          {msg.content}
+                        </ReactMarkdown>
                       </div>
                     ) : (
                       <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -398,8 +480,12 @@ export default function AIAgentChat({
                   <Bot className="h-4 w-4 text-primary" />
                 </div>
                 <div className="bg-secondary rounded-lg px-4 py-3 flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Thinking...</span>
+                  <span className="flex gap-1">
+                    <span className="h-2 w-2 rounded-full bg-primary/60 animate-bounce [animation-delay:0ms]" />
+                    <span className="h-2 w-2 rounded-full bg-primary/60 animate-bounce [animation-delay:150ms]" />
+                    <span className="h-2 w-2 rounded-full bg-primary/60 animate-bounce [animation-delay:300ms]" />
+                  </span>
+                  <span className="text-sm text-muted-foreground ml-1">Thinking...</span>
                 </div>
               </motion.div>
             )}
@@ -423,9 +509,7 @@ export default function AIAgentChat({
                       transition={{ duration: 0.05 }}
                     />
                   ))}
-                  <span className="ml-3 text-xs text-destructive font-medium animate-pulse">
-                    Listening...
-                  </span>
+                  <span className="ml-3 text-xs text-destructive font-medium animate-pulse">Listening...</span>
                 </motion.div>
               )}
             </AnimatePresence>
