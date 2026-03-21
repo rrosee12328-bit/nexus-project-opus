@@ -186,7 +186,7 @@ export function OnboardingWizard({ onComplete, displayName }: OnboardingWizardPr
                   <div className="flex flex-col items-center gap-5">
                     <AvatarUpload
                       currentUrl={avatarUrl}
-                      onUpload={(url) => setAvatarUrl(url)}
+                      onUploaded={(url) => setAvatarUrl(url)}
                       userId={user?.id || ""}
                     />
                     <div className="w-full max-w-xs space-y-2">
