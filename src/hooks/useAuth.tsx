@@ -50,30 +50,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const bootstrapAuth = async () => {
       try {
-        const [{ data: sessionData }, { data: userData }] = await Promise.all([
-          supabase.auth.getSession(),
-          supabase.auth.getUser(),
-        ]);
+        const {
+          data: { session: restoredSession },
+        } = await supabase.auth.getSession();
 
         if (!mounted) return;
 
-        const restoredSession = sessionData.session;
-        const restoredUser = userData.user ?? restoredSession?.user ?? null;
-
-        if (restoredUser && restoredSession) {
-          await applySession({
-            ...restoredSession,
-            user: restoredUser,
-          });
-        } else {
-          await applySession(null);
+        await applySession(restoredSession);
+      } catch (error) {
+        console.error("Auth bootstrap failed:", error);
+        if (mounted) {
+          setSession(null);
+          setUser(null);
+          setRole(null);
         }
       } finally {
         if (mounted) setLoading(false);
       }
     };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (!mounted) return;
 
       if (event === "TOKEN_REFRESHED") {
@@ -82,8 +78,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      await applySession(nextSession);
-      setLoading(false);
+      void (async () => {
+        await applySession(nextSession);
+        if (mounted) setLoading(false);
+      })();
     });
 
     void bootstrapAuth();
