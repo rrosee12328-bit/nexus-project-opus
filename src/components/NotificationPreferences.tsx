@@ -155,7 +155,7 @@ export function NotificationPreferences() {
         })}
       </div>
 
-      {/* Daily Digest */}
+      {/* Weekly Digest */}
       <div className="rounded-lg border border-border px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -163,14 +163,14 @@ export function NotificationPreferences() {
               <Newspaper className="h-4 w-4 text-primary" />
             </div>
             <div>
-              <p className="text-sm font-medium">Daily Digest</p>
+              <p className="text-sm font-medium">Weekly Digest</p>
               <p className="text-xs text-muted-foreground">
-                Receive a morning summary email with pending tasks, unread messages, and upcoming deadlines
+                Receive a Monday morning summary with revenue, project updates, tasks, and key metrics
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-[10px]">9 AM UTC</Badge>
+            <Badge variant="outline" className="text-[10px]">Mon 8 AM</Badge>
             <Switch
               checked={prefs.email_digest}
               onCheckedChange={() => toggle("email_digest")}

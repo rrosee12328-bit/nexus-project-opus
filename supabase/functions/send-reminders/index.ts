@@ -41,7 +41,7 @@ function buildReminderHtml(title: string, body: string, ctaLabel: string, ctaUrl
   `);
 }
 
-function buildDigestHtml(name: string, sections: { icon: string; title: string; items: string[]; cta: string; url: string }[]): string {
+function buildDigestHtml(name: string, greeting: string, sections: { icon: string; title: string; items: string[]; cta: string; url: string }[]): string {
   const sectionHtml = sections.map(s => `
     <div style="margin:0 0 24px;padding:16px;background:#f9f9fb;border-radius:8px;border-left:4px solid hsl(213,100%,58%);">
       <h3 style="margin:0 0 8px;font-size:15px;font-weight:600;color:#0d0d0d;">${s.icon} ${s.title}</h3>
@@ -54,7 +54,7 @@ function buildDigestHtml(name: string, sections: { icon: string; title: string; 
 
   return wrapEmail(`
     <h2 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#0d0d0d;">Good morning${name ? ', ' + name : ''}!</h2>
-    <p style="margin:0 0 24px;font-size:14px;color:#555;line-height:1.6;">Here's your daily summary from Vektiss.</p>
+    <p style="margin:0 0 24px;font-size:14px;color:#555;line-height:1.6;">${greeting}</p>
     ${sectionHtml}
   `);
 }
@@ -350,12 +350,62 @@ Deno.serve(async (req) => {
 
     } // end weekday guard for lead follow-ups
 
-    // ── 7. DAILY DIGEST for opted-in users (weekdays only) ──
-    if (isWeekday) {
+    // ── 7. WEEKLY DIGEST (Mondays only) ──
+    const isMonday = dayOfWeek === 1;
+    if (isMonday) {
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const digestUsers = (allPrefs ?? []).filter(p => p.email_digest);
+
+    // Pre-fetch weekly stats for admins
+    let weeklyRevenue = 0;
+    let newClientsThisWeek: { name: string }[] = [];
+    let completedProjectsThisWeek: { name: string }[] = [];
+    let completedTasksCount = 0;
+    let totalActiveTasks = 0;
+    let activeClientsCount = 0;
+
+    // Revenue from payments this week
+    const { data: weekPayments } = await supabase
+      .from("client_payments").select("amount, notes")
+      .gte("created_at", weekAgo)
+      .neq("notes", "Projected");
+    weeklyRevenue = (weekPayments ?? []).reduce((sum, p) => sum + Number(p.amount), 0);
+
+    // New clients
+    const { data: newClients } = await supabase
+      .from("clients").select("name")
+      .gte("created_at", weekAgo)
+      .in("status", ["active", "onboarding"]);
+    newClientsThisWeek = newClients ?? [];
+
+    // Active clients count
+    const { data: activeClients } = await supabase
+      .from("clients").select("id")
+      .in("status", ["active", "onboarding"]);
+    activeClientsCount = activeClients?.length ?? 0;
+
+    // Completed projects this week
+    const { data: completedProjects } = await supabase
+      .from("projects").select("name")
+      .eq("status", "completed")
+      .gte("updated_at", weekAgo);
+    completedProjectsThisWeek = completedProjects ?? [];
+
+    // Task stats
+    const { data: doneTasks } = await supabase
+      .from("tasks").select("id")
+      .eq("status", "done")
+      .gte("updated_at", weekAgo);
+    completedTasksCount = doneTasks?.length ?? 0;
+
+    const { data: activeTasks } = await supabase
+      .from("tasks").select("id")
+      .neq("status", "done");
+    totalActiveTasks = activeTasks?.length ?? 0;
+
     for (const pref of digestUsers) {
-      const digestRef = `digest_${pref.user_id}_${today}`;
-      if (await wasRecentlySent("daily_digest", digestRef)) continue;
+      const digestRef = `weekly_digest_${pref.user_id}_${today}`;
+      if (await wasRecentlySent("weekly_digest", digestRef)) continue;
 
       const { data: { user } } = await supabase.auth.admin.getUserById(pref.user_id);
       if (!user?.email) continue;
@@ -370,40 +420,49 @@ Deno.serve(async (req) => {
 
       const sections: { icon: string; title: string; items: string[]; cta: string; url: string }[] = [];
 
-      // Unread messages
-      if (role === "client") {
-        const { data: clientData } = await supabase
-          .from("clients").select("id").eq("user_id", pref.user_id).maybeSingle();
-        if (clientData) {
-          const { data: unread } = await supabase
-            .from("messages").select("content, created_at")
-            .eq("client_id", clientData.id).is("read_at", null)
-            .neq("sender_id", pref.user_id).order("created_at", { ascending: false }).limit(5);
-          if (unread?.length) {
-            sections.push({
-              icon: "💬", title: `${unread.length} Unread Message${unread.length > 1 ? 's' : ''}`,
-              items: unread.map(m => m.content.slice(0, 80) + (m.content.length > 80 ? '...' : '')),
-              cta: "View Messages", url: `${PORTAL_URL}/portal/messages`,
-            });
-          }
-        }
-      }
-
-      // Pending tasks (for ops/admin)
       if (role === "admin" || role === "ops") {
-        const { data: myTasks } = await supabase
-          .from("tasks").select("title, status, due_date")
-          .eq("assigned_to", pref.user_id).neq("status", "done")
-          .order("due_date", { ascending: true }).limit(5);
-        if (myTasks?.length) {
+        // Revenue summary (admin only)
+        if (role === "admin" && weeklyRevenue > 0) {
           sections.push({
-            icon: "📋", title: `${myTasks.length} Active Task${myTasks.length > 1 ? 's' : ''}`,
-            items: myTasks.map(t => `${t.title}${t.due_date ? ` (due ${t.due_date})` : ''}`),
-            cta: "View Tasks", url: `${PORTAL_URL}/${role === "admin" ? "admin" : "ops/tasks"}`,
+            icon: "💰", title: "Revenue This Week",
+            items: [`$${weeklyRevenue.toLocaleString()} collected from ${weekPayments?.length ?? 0} payment${(weekPayments?.length ?? 0) !== 1 ? 's' : ''}`],
+            cta: "View Financials", url: `${PORTAL_URL}/admin/financials`,
           });
         }
 
-        // Lead follow-ups due in digest
+        // Client growth (admin only)
+        if (role === "admin") {
+          const growthItems: string[] = [`${activeClientsCount} active client${activeClientsCount !== 1 ? 's' : ''} total`];
+          if (newClientsThisWeek.length > 0) {
+            growthItems.push(`${newClientsThisWeek.length} new: ${newClientsThisWeek.map(c => c.name).join(', ')}`);
+          }
+          sections.push({
+            icon: "📈", title: "Client Overview",
+            items: growthItems,
+            cta: "View Clients", url: `${PORTAL_URL}/admin/clients`,
+          });
+        }
+
+        // Completed projects
+        if (completedProjectsThisWeek.length > 0) {
+          sections.push({
+            icon: "🚀", title: `${completedProjectsThisWeek.length} Project${completedProjectsThisWeek.length !== 1 ? 's' : ''} Completed`,
+            items: completedProjectsThisWeek.map(p => p.name),
+            cta: "View Projects", url: `${PORTAL_URL}/${role === "admin" ? "admin/projects" : "ops/tasks"}`,
+          });
+        }
+
+        // Task summary
+        const taskItems: string[] = [];
+        if (completedTasksCount > 0) taskItems.push(`${completedTasksCount} task${completedTasksCount !== 1 ? 's' : ''} completed this week`);
+        taskItems.push(`${totalActiveTasks} task${totalActiveTasks !== 1 ? 's' : ''} still active`);
+        sections.push({
+          icon: "📋", title: "Task Summary",
+          items: taskItems,
+          cta: "View Tasks", url: `${PORTAL_URL}/${role === "admin" ? "admin" : "ops/tasks"}`,
+        });
+
+        // Lead follow-ups due
         const { data: digestLeads } = await supabase
           .from("clients")
           .select("name, pipeline_stage, follow_up_start, follow_up_end")
@@ -413,9 +472,8 @@ Deno.serve(async (req) => {
 
         const dueLeads = (digestLeads ?? []).filter(l => {
           const s = new Date(l.follow_up_start!);
-          const e = new Date(l.follow_up_end!);
           const t = new Date(today);
-          return t >= s; // in window or overdue
+          return t >= s;
         });
 
         if (dueLeads.length > 0) {
@@ -430,11 +488,38 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Pending approvals (for client)
+      // Client-specific sections
       if (role === "client") {
         const { data: clientData } = await supabase
           .from("clients").select("id").eq("user_id", pref.user_id).maybeSingle();
         if (clientData) {
+          // Unread messages
+          const { data: unread } = await supabase
+            .from("messages").select("content")
+            .eq("client_id", clientData.id).is("read_at", null)
+            .neq("sender_id", pref.user_id).limit(5);
+          if (unread?.length) {
+            sections.push({
+              icon: "💬", title: `${unread.length} Unread Message${unread.length > 1 ? 's' : ''}`,
+              items: unread.map(m => m.content.slice(0, 80) + (m.content.length > 80 ? '...' : '')),
+              cta: "View Messages", url: `${PORTAL_URL}/portal/messages`,
+            });
+          }
+
+          // Project updates this week
+          const { data: clientProjects } = await supabase
+            .from("projects").select("name, status, current_phase, progress")
+            .eq("client_id", clientData.id)
+            .neq("status", "completed");
+          if (clientProjects?.length) {
+            sections.push({
+              icon: "🎨", title: `${clientProjects.length} Active Project${clientProjects.length > 1 ? 's' : ''}`,
+              items: clientProjects.map(p => `${p.name} — ${(p.current_phase ?? '').replace(/_/g, ' ')} (${p.progress}%)`),
+              cta: "View Projects", url: `${PORTAL_URL}/portal/projects`,
+            });
+          }
+
+          // Pending approvals
           const { data: approvals } = await supabase
             .from("approval_requests").select("title")
             .eq("client_id", clientData.id).eq("status", "pending").limit(5);
@@ -450,13 +535,17 @@ Deno.serve(async (req) => {
 
       if (sections.length === 0) continue;
 
-      const digestHtml = buildDigestHtml(profile?.display_name ?? '', sections);
-      await logAndEnqueue("daily_digest", digestRef, user.email, pref.user_id,
-        "Your daily Vektiss summary", digestHtml,
-        `Good morning! Here's your daily summary from Vektiss.`
+      const digestHtml = buildDigestHtml(
+        profile?.display_name ?? '',
+        "Here's your weekly summary from Vektiss — a snapshot of the past 7 days.",
+        sections
+      );
+      await logAndEnqueue("weekly_digest", digestRef, user.email, pref.user_id,
+        "Your weekly Vektiss summary", digestHtml,
+        `Good morning! Here's your weekly summary from Vektiss.`
       );
     }
-    } // end weekday guard for daily digest
+    } // end Monday guard for weekly digest
 
     return new Response(
       JSON.stringify({ ok: true, reminders_enqueued: totalEnqueued }),
