@@ -16,7 +16,7 @@ import {
   CheckCircle2,
   Sparkles,
   FileCheck,
-  CreditCard,
+  
   Bell,
   Target,
 } from "lucide-react";
