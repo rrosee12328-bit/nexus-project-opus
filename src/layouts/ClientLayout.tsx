@@ -150,7 +150,7 @@ export default function ClientLayout() {
           {/* Logo */}
           <div className="flex items-center gap-3">
             <img src="/vektiss-icon.png" alt="Vektiss" className="h-8 w-8 md:h-10 md:w-10 object-contain" />
-            <span className="hidden md:inline text-sm font-semibold text-foreground">Vektiss</span>
+            <span className="hidden lg:inline text-sm font-semibold text-foreground">Vektiss</span>
           </div>
 
           {/* Desktop navigation */}
