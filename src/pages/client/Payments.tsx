@@ -62,47 +62,6 @@ export default function ClientPayments() {
   const years = [...new Set(allPayments.map((p) => p.payment_year))].sort((a, b) => b - a);
   const filtered = filterYear === "all" ? allPayments : allPayments.filter((p) => p.payment_year === Number(filterYear));
 
-  const totalPaid = filtered.reduce((s, p) => s + Number(p.amount), 0);
-  const avgPayment = filtered.length ? totalPaid / filtered.length : 0;
-  const ytdPayments = allPayments.filter((p) => p.payment_year === currentYear);
-  const ytdTotal = ytdPayments.reduce((s, p) => s + Number(p.amount), 0);
-
-  // Chart data — monthly for the selected year (or current year)
-  const chartYear = filterYear === "all" ? currentYear : Number(filterYear);
-  const chartPayments = allPayments.filter((p) => p.payment_year === chartYear);
-  const chartData = MONTH_SHORT.map((month, i) => {
-    const monthPayments = chartPayments.filter((p) => p.payment_month === i + 1);
-    return { month, amount: monthPayments.reduce((s, p) => s + Number(p.amount), 0) };
-  }).filter((_, i) => i < (chartYear === currentYear ? new Date().getMonth() + 1 : 12));
-
-  const exportCSV = () => {
-    if (!filtered.length) return;
-    const rows = [
-      ["Period", "Amount", "Notes", "Date Recorded"],
-      ...filtered.map((p) => [
-        `${MONTH_NAMES[p.payment_month - 1]} ${p.payment_year}`,
-        Number(p.amount).toFixed(2),
-        p.notes || "",
-        new Date(p.created_at).toLocaleDateString(),
-      ]),
-    ];
-    const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `vektiss-payments-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const stats = [
-    { label: "Total Paid", value: fmt(totalPaid), icon: DollarSign, color: "text-primary" },
-    { label: "Payments Made", value: filtered.length.toString(), icon: CreditCard, color: "text-primary" },
-    { label: "Avg Payment", value: fmt(avgPayment), icon: TrendingUp, color: "text-success" },
-    { label: `YTD ${currentYear}`, value: fmt(ytdTotal), icon: Calendar, color: "text-primary" },
-  ];
-
   return (
     <div className="space-y-8">
       {/* Header */}
