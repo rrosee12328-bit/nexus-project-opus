@@ -155,17 +155,39 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
             </div>
           </div>
           {showPipeline && (
-            <div className="space-y-2">
-              <Label>Pipeline Stage</Label>
-              <Select value={form.pipeline_stage ?? "new"} onValueChange={(v) => set("pipeline_stage", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {pipelineStages.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Pipeline Stage</Label>
+                  <Select value={form.pipeline_stage ?? "new"} onValueChange={(v) => set("pipeline_stage", v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {pipelineStages.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Lead Source</Label>
+                  <Input value={form.lead_source ?? ""} onChange={(e) => set("lead_source", e.target.value)} placeholder="e.g. Referral, Instagram" maxLength={100} />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Last Contact Date</Label>
+                  <Input type="date" value={form.last_contact_date ?? ""} onChange={(e) => set("last_contact_date", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Follow-up Start</Label>
+                  <Input type="date" value={form.follow_up_start ?? ""} onChange={(e) => set("follow_up_start", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Follow-up End</Label>
+                  <Input type="date" value={form.follow_up_end ?? ""} onChange={(e) => set("follow_up_end", e.target.value)} />
+                </div>
+              </div>
+            </>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
