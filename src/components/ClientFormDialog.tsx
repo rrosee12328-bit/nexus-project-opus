@@ -159,7 +159,7 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
               </Select>
             </div>
           )}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Email</Label>
               <Input type="email" value={form.email ?? ""} onChange={(e) => set("email", e.target.value)} placeholder="email@example.com" maxLength={255} />
