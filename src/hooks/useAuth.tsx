@@ -38,36 +38,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    let initialLoad = true;
+    let mounted = true;
+    let initialSessionResolved = false;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (initialLoad) {
-          // Skip — getSession below handles the initial load
-          return;
+      async (event, session) => {
+        if (!mounted) return;
+
+        // Skip events until initial getSession resolves
+        if (!initialSessionResolved) return;
+
+        // Only act on meaningful auth events — ignore TOKEN_REFRESHED noise
+        if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") {
+          setSession(session);
+          setUser(session?.user ?? null);
+          if (session?.user) {
+            // Defer role fetch to avoid Supabase deadlock on simultaneous requests
+            setTimeout(() => {
+              if (mounted) fetchRole(session.user.id);
+            }, 0);
+          } else {
+            setRole(null);
+          }
         }
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await fetchRole(session.user.id);
-        } else {
-          setRole(null);
+
+        // For token refresh, just update the session silently
+        if (event === "TOKEN_REFRESHED" && session) {
+          setSession(session);
+          setUser(session.user);
         }
-        setLoading(false);
       }
     );
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mounted) return;
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
         await fetchRole(session.user.id);
       }
       setLoading(false);
-      initialLoad = false;
+      initialSessionResolved = true;
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
