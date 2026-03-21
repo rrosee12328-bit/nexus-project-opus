@@ -23,9 +23,8 @@ import {
 import { useState } from "react";
 
 export default function ClientLayout() {
-  const { user, role, loading, signOut } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const location = useLocation();
 
   // Fetch client ID
   const { data: clientId } = useQuery({
