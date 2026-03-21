@@ -140,13 +140,13 @@ export default function ClientPayments() {
         <motion.div {...anim(0.08)} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {stats.map((stat) => (
             <Card key={stat.label} className="border-border hover:border-primary/20 transition-colors">
-              <CardContent className="pt-4 pb-4 flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
-                  <stat.icon className={`h-5 w-5 ${stat.color}`} />
+              <CardContent className="pt-4 pb-4 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+                <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                  <stat.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${stat.color}`} />
                 </div>
-                <div>
-                  <p className="font-mono font-bold text-lg leading-none">{stat.value}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
+                <div className="min-w-0">
+                  <p className="font-mono font-bold text-base sm:text-lg leading-none truncate">{stat.value}</p>
+                  <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">{stat.label}</p>
                 </div>
               </CardContent>
             </Card>

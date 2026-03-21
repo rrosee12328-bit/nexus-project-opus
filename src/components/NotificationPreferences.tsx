@@ -114,9 +114,9 @@ export function NotificationPreferences() {
       {/* In-App & Email grid */}
       <div className="rounded-lg border border-border overflow-hidden">
         {/* Header row */}
-        <div className="grid grid-cols-[1fr_80px_80px] gap-2 px-4 py-2.5 bg-secondary/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+        <div className="grid grid-cols-[1fr_60px_60px] sm:grid-cols-[1fr_80px_80px] gap-1 sm:gap-2 px-3 sm:px-4 py-2.5 bg-secondary/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           <span>Category</span>
-          <span className="text-center flex items-center justify-center gap-1"><Bell className="h-3 w-3" /> In-App</span>
+          <span className="text-center flex items-center justify-center gap-1"><Bell className="h-3 w-3" /> <span className="hidden sm:inline">In-App</span><span className="sm:hidden">App</span></span>
           <span className="text-center flex items-center justify-center gap-1"><Mail className="h-3 w-3" /> Email</span>
         </div>
 
@@ -125,17 +125,17 @@ export function NotificationPreferences() {
           return (
             <div
               key={cat.key}
-              className={`grid grid-cols-[1fr_80px_80px] gap-2 px-4 py-3 items-center ${
+              className={`grid grid-cols-[1fr_60px_60px] sm:grid-cols-[1fr_80px_80px] gap-1 sm:gap-2 px-3 sm:px-4 py-3 items-center ${
                 i < CATEGORIES.length - 1 ? "border-b border-border" : ""
               }`}
             >
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <Icon className="h-4 w-4 text-primary" />
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm font-medium">{cat.label}</p>
-                  <p className="text-xs text-muted-foreground">{cat.desc}</p>
+                  <p className="text-xs text-muted-foreground hidden sm:block">{cat.desc}</p>
                 </div>
               </div>
               <div className="flex justify-center">
