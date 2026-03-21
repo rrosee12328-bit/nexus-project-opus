@@ -259,7 +259,7 @@ export default function Timesheets() {
           <h1 className="text-2xl font-bold text-foreground">Timesheets</h1>
           <p className="text-sm text-muted-foreground">Track and document work hours per task</p>
         </div>
-        <Button onClick={openAdd} size="sm">
+        <Button onClick={openAdd} size="sm" disabled={!isViewingSelf}>
           <Plus className="h-4 w-4 mr-1" /> Log Time
         </Button>
       </div>
