@@ -71,7 +71,7 @@ export function GlobalSearch() {
           .limit(5),
         supabase
           .from("tasks")
-          .select("id, title, status, priority, clients(name)")
+          .select("id, title, status, priority, client_id, clients(name)")
           .ilike("title", pattern)
           .limit(5),
         supabase
@@ -99,7 +99,7 @@ export function GlobalSearch() {
           title: p.name,
           subtitle: `${(p as any).clients?.name ?? "Unknown client"} · ${p.status?.replace("_", " ")}`,
           type: "project",
-          route: `/admin/projects`,
+          route: `/admin/clients/${p.client_id}`,
         })
       );
 
@@ -109,7 +109,7 @@ export function GlobalSearch() {
           title: t.title,
           subtitle: `${t.priority} priority · ${t.status?.replace("_", " ")}`,
           type: "task",
-          route: `/admin/projects`,
+          route: t.client_id ? `/admin/clients/${t.client_id}` : `/admin/projects`,
         })
       );
 
@@ -119,7 +119,7 @@ export function GlobalSearch() {
           title: m.content.length > 80 ? m.content.slice(0, 80) + "…" : m.content,
           subtitle: (m as any).clients?.name ?? "Unknown client",
           type: "message",
-          route: `/admin/messages`,
+          route: `/admin/messages?client=${m.client_id}`,
         })
       );
 
