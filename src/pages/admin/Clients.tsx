@@ -264,7 +264,7 @@ export default function AdminClients() {
                 return (
                   <Collapsible key={client.id} open={isExpanded} onOpenChange={() => toggleExpanded(client.id)}>
                     {/* Header row */}
-                    <div className="flex items-center gap-4 px-6 py-4 hover:bg-accent/50 transition-colors">
+                    <div className="flex items-center gap-2 sm:gap-4 px-3 sm:px-6 py-3 sm:py-4 hover:bg-accent/50 transition-colors">
                       <CollapsibleTrigger asChild>
                         <button className="flex items-center gap-3 flex-1 min-w-0 text-left">
                           {isExpanded ? (
