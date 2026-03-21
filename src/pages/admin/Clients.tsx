@@ -155,34 +155,36 @@ export default function AdminClients() {
   };
 
   const ActionMenu = ({ client }: { client: Client }) => (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8">
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => navigate(`/admin/clients/${client.id}`)}>
-          <Eye className="mr-2 h-4 w-4" /> View Details
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => openEdit(client)}>
-          <Pencil className="mr-2 h-4 w-4" /> Edit
-        </DropdownMenuItem>
-        {client.email && !client.user_id && (
-          <DropdownMenuItem onClick={() => handleSendInvite(client)}>
-            <Send className="mr-2 h-4 w-4" /> Send Invite
+    <div onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => navigate(`/admin/clients/${client.id}`)}>
+            <Eye className="mr-2 h-4 w-4" /> View Details
           </DropdownMenuItem>
-        )}
-        {client.email && client.user_id && (
-          <DropdownMenuItem onClick={() => handleSendInvite(client, true)}>
-            <RefreshCw className="mr-2 h-4 w-4" /> Resend Invite
+          <DropdownMenuItem onClick={() => openEdit(client)}>
+            <Pencil className="mr-2 h-4 w-4" /> Edit
           </DropdownMenuItem>
-        )}
-        <DropdownMenuItem onClick={() => setDeleteTarget(client)} className="text-destructive focus:text-destructive">
-          <Trash2 className="mr-2 h-4 w-4" /> Delete
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          {client.email && !client.user_id && (
+            <DropdownMenuItem onClick={() => handleSendInvite(client)}>
+              <Send className="mr-2 h-4 w-4" /> Send Invite
+            </DropdownMenuItem>
+          )}
+          {client.email && client.user_id && (
+            <DropdownMenuItem onClick={() => handleSendInvite(client, true)}>
+              <RefreshCw className="mr-2 h-4 w-4" /> Resend Invite
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem onClick={() => setDeleteTarget(client)} className="text-destructive focus:text-destructive">
+            <Trash2 className="mr-2 h-4 w-4" /> Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 
   return (
