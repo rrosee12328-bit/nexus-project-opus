@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { User, Lock, Bell, Save, Shield, Clock, RefreshCw, Send, Rocket } from "lucide-react";
 import { OnboardingTemplatesManager } from "@/components/admin/OnboardingTemplatesManager";
+import { NotificationPreferences } from "@/components/NotificationPreferences";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 
