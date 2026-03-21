@@ -594,7 +594,7 @@ export default function ClientDetail() {
             )}
 
             {form.type === "action_item" && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Status</Label>
                   <Select value={form.status} onValueChange={(v) => setForm((f) => ({ ...f, status: v }))}>
