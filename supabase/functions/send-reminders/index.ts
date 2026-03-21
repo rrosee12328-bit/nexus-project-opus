@@ -221,7 +221,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── 4. UNPAID INVOICES ──
+    } // end weekday guard for projects review
+
+    // ── 4. UNPAID INVOICES (sends any day) ──
     const { data: owingClients } = await supabase
       .from("clients").select("id, name, email, user_id, balance_due")
       .gt("balance_due", 0).eq("status", "active");
