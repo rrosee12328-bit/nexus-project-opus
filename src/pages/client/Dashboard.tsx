@@ -20,6 +20,9 @@ import {
   Target,
   TrendingUp,
   Zap,
+  CalendarDays,
+  Headphones,
+  Mail,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -395,6 +398,69 @@ export default function ClientDashboard() {
           </Card>
         </motion.div>
       )}
+
+      {/* Widgets row — Upcoming deadlines + Contact */}
+      <motion.div {...anim(0.5)} className="grid gap-4 md:grid-cols-2">
+        {/* Upcoming deadlines */}
+        <Card className="border-border hover:border-primary/20 transition-colors">
+          <CardContent className="pt-5 pb-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <CalendarDays className="h-5 w-5 text-primary" />
+              <h3 className="font-semibold">Upcoming Deadlines</h3>
+            </div>
+            {(() => {
+              const upcoming = activeProjects
+                .filter((p) => p.target_date && new Date(p.target_date) >= new Date())
+                .sort((a, b) => new Date(a.target_date!).getTime() - new Date(b.target_date!).getTime())
+                .slice(0, 4);
+              if (upcoming.length === 0) {
+                return <p className="text-sm text-muted-foreground">No upcoming deadlines.</p>;
+              }
+              return (
+                <div className="space-y-3">
+                  {upcoming.map((p) => {
+                    const daysLeft = Math.ceil((new Date(p.target_date!).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                    return (
+                      <div key={p.id} className="flex items-center gap-3 group">
+                        <div className={`h-2 w-2 rounded-full shrink-0 ${daysLeft <= 7 ? "bg-warning" : "bg-primary"}`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{p.name}</p>
+                        </div>
+                        <span className={`text-xs font-mono shrink-0 ${daysLeft <= 7 ? "text-warning font-semibold" : "text-muted-foreground"}`}>
+                          {daysLeft === 0 ? "Today" : daysLeft === 1 ? "Tomorrow" : `${daysLeft}d left`}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
+
+        {/* Contact / Support card */}
+        <Card className="border-border hover:border-primary/20 transition-colors">
+          <CardContent className="pt-5 pb-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <Headphones className="h-5 w-5 text-primary" />
+              <h3 className="font-semibold">Your Team</h3>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Have questions or need something? Your Vektiss creative team is here to help.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate("/portal/messages")}>
+                <MessageSquare className="h-3.5 w-3.5" />
+                Send Message
+              </Button>
+              <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" onClick={() => window.location.href = "mailto:hello@vektiss.com"}>
+                <Mail className="h-3.5 w-3.5" />
+                hello@vektiss.com
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Completed projects */}
       {completedProjects.length > 0 && (
