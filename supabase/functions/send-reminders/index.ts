@@ -72,6 +72,10 @@ Deno.serve(async (req) => {
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     let totalEnqueued = 0;
 
+    // Check if today is a weekday (Mon-Fri). Payments send any day; all others only weekdays.
+    const dayOfWeek = new Date().getUTCDay(); // 0=Sun, 6=Sat
+    const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
+
     async function wasRecentlySent(type: string, refId: string): Promise<boolean> {
       const { data } = await supabase
         .from("reminder_log")
