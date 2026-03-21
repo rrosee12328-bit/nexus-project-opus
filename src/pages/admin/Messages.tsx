@@ -52,6 +52,7 @@ export default function AdminMessages() {
   const [message, setMessage] = useState("");
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [pendingAttachment, setPendingAttachment] = useState<{ url: string; name: string; type: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
