@@ -115,9 +115,12 @@ export default function AIAgentChat({
 
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      const viewport = scrollRef.current.querySelector("[data-radix-scroll-area-viewport]");
+      if (viewport) {
+        viewport.scrollTop = viewport.scrollHeight;
+      }
     }
-  }, [messages]);
+  }, [messages, isLoading]);
 
   const handleSend = async () => {
     const text = input.trim();
