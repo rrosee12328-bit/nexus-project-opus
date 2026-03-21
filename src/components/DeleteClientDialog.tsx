@@ -27,6 +27,30 @@ export function DeleteClientDialog({ open, onOpenChange, clientId, clientName }:
     mutationFn: async () => {
       if (!clientId) throw new Error("Missing client ID");
 
+      // Helper: collect storage paths from a table before deleting rows
+      const collectStoragePaths = async (
+        table: "assets" | "project_attachments" | "task_attachments",
+        filterCol: string,
+        filterValues: string[],
+      ): Promise<string[]> => {
+        if (!filterValues.length) return [];
+        const { data } = await supabase
+          .from(table)
+          .select("file_path")
+          .in(filterCol, filterValues);
+        return (data ?? []).map((r) => r.file_path).filter(Boolean) as string[];
+      };
+
+      // Helper: delete storage blobs in batches
+      const deleteBlobs = async (paths: string[]) => {
+        if (!paths.length) return;
+        // Storage API accepts up to 100 paths per call
+        for (let i = 0; i < paths.length; i += 100) {
+          const batch = paths.slice(i, i + 100);
+          await supabase.storage.from("client-assets").remove(batch);
+        }
+      };
+
       const deleteByClientId = async (
         table:
           | "client_notes"
@@ -40,6 +64,40 @@ export function DeleteClientDialog({ open, onOpenChange, clientId, clientName }:
         if (error) throw error;
       };
 
+      // 1. Collect all storage paths BEFORE deleting DB rows
+      // Assets
+      const assetPaths = await collectStoragePaths("assets", "client_id", [clientId]);
+
+      // Projects + their attachments
+      const { data: projects, error: projectsError } = await supabase
+        .from("projects")
+        .select("id")
+        .eq("client_id", clientId);
+      if (projectsError) throw projectsError;
+      const projectIds = (projects ?? []).map((p) => p.id);
+      const projectAttachmentPaths = await collectStoragePaths("project_attachments", "project_id", projectIds);
+
+      // Tasks + their attachments
+      const { data: tasks, error: tasksError } = await supabase
+        .from("tasks")
+        .select("id")
+        .eq("client_id", clientId);
+      if (tasksError) throw tasksError;
+      const taskIds = (tasks ?? []).map((t) => t.id);
+      const taskAttachmentPaths = await collectStoragePaths("task_attachments", "task_id", taskIds);
+
+      // 2. Delete storage blobs
+      const allPaths = [...assetPaths, ...projectAttachmentPaths, ...taskAttachmentPaths];
+      await deleteBlobs(allPaths);
+
+      // Also clean up any files under the client folder in storage
+      const { data: clientFolder } = await supabase.storage.from("client-assets").list(clientId);
+      if (clientFolder?.length) {
+        const folderPaths = clientFolder.map((f) => `${clientId}/${f.name}`);
+        await deleteBlobs(folderPaths);
+      }
+
+      // 3. Delete DB rows (same order as before)
       await deleteByClientId("client_notes");
       await deleteByClientId("client_onboarding_steps");
       await deleteByClientId("client_payments");
@@ -47,15 +105,7 @@ export function DeleteClientDialog({ open, onOpenChange, clientId, clientName }:
       await deleteByClientId("assets");
       await deleteByClientId("messages");
 
-      const { data: projects, error: projectsError } = await supabase
-        .from("projects")
-        .select("id")
-        .eq("client_id", clientId);
-      if (projectsError) throw projectsError;
-
-      if (projects.length) {
-        const projectIds = projects.map((project) => project.id);
-
+      if (projectIds.length) {
         const { error: activityError } = await supabase
           .from("project_activity_log")
           .delete()
@@ -81,15 +131,7 @@ export function DeleteClientDialog({ open, onOpenChange, clientId, clientName }:
         if (projectsDeleteError) throw projectsDeleteError;
       }
 
-      const { data: tasks, error: tasksError } = await supabase
-        .from("tasks")
-        .select("id")
-        .eq("client_id", clientId);
-      if (tasksError) throw tasksError;
-
-      if (tasks.length) {
-        const taskIds = tasks.map((task) => task.id);
-
+      if (taskIds.length) {
         const { error: taskAttachmentsError } = await supabase
           .from("task_attachments")
           .delete()
