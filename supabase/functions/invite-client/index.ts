@@ -288,9 +288,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Create welcome project and onboarding steps
-    const projectId = await createWelcomeProject(supabase, client_id, client.type);
-    await createOnboardingSteps(supabase, client_id);
+    // Create welcome project and onboarding steps — fail closed on errors
+    let projectId: string | null = null;
+    try {
+      projectId = await createWelcomeProject(supabase, client_id, client.type);
+      await createOnboardingSteps(supabase, client_id, client.type);
+    } catch (setupErr) {
+      console.error("Onboarding setup failed, rolling back auth user:", setupErr);
+      await supabase.auth.admin.deleteUser(userId);
+      await supabase.from("clients").update({ user_id: null, status: "prospect" }).eq("id", client_id);
+      return new Response(JSON.stringify({ error: `Onboarding setup failed: ${setupErr}` }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const actionLink = await generateRecoveryLink(supabase, client.email);
     const { html, plainText } = buildWelcomeEmail(client.name || "there", actionLink);
