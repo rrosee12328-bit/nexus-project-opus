@@ -1,0 +1,1 @@
+UPDATE public.clients SET status = 'lead', pipeline_stage = 'new' WHERE id = '490f0849-7b6a-4ba1-a77b-fcab29260893';
