@@ -383,6 +383,14 @@ export default function AdminMessages() {
                                   }`}
                                 >
                                   <p className="whitespace-pre-wrap">{msg.content}</p>
+                                  {(msg as any).attachment_url && (
+                                    <MessageAttachment
+                                      url={(msg as any).attachment_url}
+                                      name={(msg as any).attachment_name || "File"}
+                                      type={(msg as any).attachment_type}
+                                      isOwn={isAdmin}
+                                    />
+                                  )}
                                   <div className={`flex items-center gap-1 mt-1 ${isAdmin ? "justify-end" : ""}`}>
                                     <p className={`text-[10px] ${isAdmin ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
                                       {format(new Date(msg.created_at), "h:mm a")}
