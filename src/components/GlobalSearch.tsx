@@ -71,7 +71,7 @@ export function GlobalSearch() {
           .limit(5),
         supabase
           .from("tasks")
-          .select("id, title, status, priority, clients(name)")
+          .select("id, title, status, priority, client_id, clients(name)")
           .ilike("title", pattern)
           .limit(5),
         supabase

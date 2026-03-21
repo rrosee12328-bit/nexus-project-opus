@@ -29,16 +29,16 @@ export function DeleteClientDialog({ open, onOpenChange, clientId, clientName }:
 
       // Helper: collect storage paths from a table before deleting rows
       const collectStoragePaths = async (
-        table: "assets" | "project_attachments" | "task_attachments",
+        table: string,
         filterCol: string,
         filterValues: string[],
       ): Promise<string[]> => {
         if (!filterValues.length) return [];
         const { data } = await supabase
-          .from(table)
+          .from(table as any)
           .select("file_path")
           .in(filterCol, filterValues);
-        return (data ?? []).map((r) => r.file_path).filter(Boolean) as string[];
+        return (data ?? []).map((r: any) => r.file_path).filter(Boolean) as string[];
       };
 
       // Helper: delete storage blobs in batches
