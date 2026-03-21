@@ -193,13 +193,13 @@ export default function AdminClients() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="flex items-center justify-between"
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3"
       >
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Client Management</h1>
-          <p className="text-muted-foreground">View and manage all clients, payments, and services.</p>
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Client Management</h1>
+          <p className="text-sm text-muted-foreground hidden sm:block">View and manage all clients, payments, and services.</p>
         </div>
-        <Button onClick={openAdd}><Plus className="mr-2 h-4 w-4" /> Add Client</Button>
+        <Button onClick={openAdd} size="sm" className="shrink-0 self-start sm:self-auto"><Plus className="mr-2 h-4 w-4" /> Add Client</Button>
       </motion.div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -264,7 +264,7 @@ export default function AdminClients() {
                 return (
                   <Collapsible key={client.id} open={isExpanded} onOpenChange={() => toggleExpanded(client.id)}>
                     {/* Header row */}
-                    <div className="flex items-center gap-4 px-6 py-4 hover:bg-accent/50 transition-colors">
+                    <div className="flex items-center gap-2 sm:gap-4 px-3 sm:px-6 py-3 sm:py-4 hover:bg-accent/50 transition-colors">
                       <CollapsibleTrigger asChild>
                         <button className="flex items-center gap-3 flex-1 min-w-0 text-left">
                           {isExpanded ? (
