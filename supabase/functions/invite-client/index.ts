@@ -150,8 +150,7 @@ async function createWelcomeProject(
     .single();
 
   if (projectErr) {
-    console.error("Error creating welcome project:", projectErr);
-    return null;
+    throw new Error(`Failed to create welcome project: ${projectErr.message}`);
   }
 
   const phaseInserts = phases.map((phase: string, i: number) => ({
@@ -163,7 +162,7 @@ async function createWelcomeProject(
   }));
 
   const { error: phaseErr } = await supabase.from("project_phases").insert(phaseInserts);
-  if (phaseErr) console.error("Error creating project phases:", phaseErr);
+  if (phaseErr) throw new Error(`Failed to create project phases: ${phaseErr.message}`);
 
   await supabase.from("project_activity_log").insert({
     project_id: project.id,
