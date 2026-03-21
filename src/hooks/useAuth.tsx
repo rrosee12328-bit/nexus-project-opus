@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -22,9 +22,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchRole = async (userId: string) => {
+  const applySession = useCallback(async (nextSession: Session | null) => {
+    setSession(nextSession);
+    setUser(nextSession?.user ?? null);
+
+    if (!nextSession?.user) {
+      setRole(null);
+      return;
+    }
+
     try {
-      const { data, error } = await supabase.rpc("get_user_role", { _user_id: userId });
+      const { data, error } = await supabase.rpc("get_user_role", { _user_id: nextSession.user.id });
       if (error) {
         console.error("Failed to fetch role:", error.message);
         setRole("client");
@@ -35,57 +43,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("Role fetch error:", err);
       setRole("client");
     }
-  };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
-    let initialSessionResolved = false;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+    const bootstrapAuth = async () => {
+      try {
+        const [{ data: sessionData }, { data: userData }] = await Promise.all([
+          supabase.auth.getSession(),
+          supabase.auth.getUser(),
+        ]);
+
         if (!mounted) return;
 
-        // Skip events until initial getSession resolves
-        if (!initialSessionResolved) return;
+        const restoredSession = sessionData.session;
+        const restoredUser = userData.user ?? restoredSession?.user ?? null;
 
-        // Only act on meaningful auth events — ignore TOKEN_REFRESHED noise
-        if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") {
-          setSession(session);
-          setUser(session?.user ?? null);
-          if (session?.user) {
-            // Defer role fetch to avoid Supabase deadlock on simultaneous requests
-            setTimeout(() => {
-              if (mounted) fetchRole(session.user.id);
-            }, 0);
-          } else {
-            setRole(null);
-          }
+        if (restoredUser && restoredSession) {
+          await applySession({
+            ...restoredSession,
+            user: restoredUser,
+          });
+        } else {
+          await applySession(null);
         }
-
-        // For token refresh, just update the session silently
-        if (event === "TOKEN_REFRESHED" && session) {
-          setSession(session);
-          setUser(session.user);
-        }
+      } finally {
+        if (mounted) setLoading(false);
       }
-    );
+    };
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
       if (!mounted) return;
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchRole(session.user.id);
+
+      if (event === "TOKEN_REFRESHED") {
+        setSession(nextSession);
+        setUser(nextSession?.user ?? null);
+        return;
       }
+
+      await applySession(nextSession);
       setLoading(false);
-      initialSessionResolved = true;
     });
+
+    void bootstrapAuth();
 
     return () => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [applySession]);
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
