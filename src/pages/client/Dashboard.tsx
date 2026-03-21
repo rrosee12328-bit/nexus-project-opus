@@ -16,15 +16,22 @@ import {
   CheckCircle2,
   Sparkles,
   FileCheck,
-  
   Bell,
   Target,
+  TrendingUp,
+  Zap,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { format, formatDistanceToNow } from "date-fns";
 
 import { PHASE_LABELS, PHASE_ICONS } from "@/lib/phaseConfig";
+
+const anim = (delay: number) => ({
+  initial: { opacity: 0, y: 16 } as const,
+  animate: { opacity: 1, y: 0 } as const,
+  transition: { duration: 0.45, delay },
+});
 
 export default function ClientDashboard() {
   const navigate = useNavigate();
@@ -116,12 +123,16 @@ export default function ClientDashboard() {
 
   const activeProjects = (projects ?? []).filter((p) => p.status === "in_progress");
   const completedProjects = (projects ?? []).filter((p) => p.status === "completed");
+  const allProjects = projects ?? [];
   const displayName = profile?.display_name || user?.email?.split("@")[0] || "there";
 
-  // Find next milestone - nearest target_date among active projects
   const nextMilestone = activeProjects
     .filter((p) => p.target_date)
     .sort((a, b) => new Date(a.target_date!).getTime() - new Date(b.target_date!).getTime())[0];
+
+  const avgProgress = activeProjects.length
+    ? Math.round(activeProjects.reduce((s, p) => s + p.progress, 0) / activeProjects.length)
+    : 0;
 
   const greeting = (() => {
     const hour = new Date().getHours();
@@ -133,64 +144,106 @@ export default function ClientDashboard() {
   return (
     <div className="space-y-8">
       {/* Hero greeting */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="rounded-2xl border border-border bg-gradient-to-br from-primary/5 via-card to-card p-8"
-      >
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-muted-foreground text-sm mb-1">{greeting},</p>
-            <h1 className="text-3xl font-bold tracking-tight">{displayName}</h1>
-            <p className="text-muted-foreground mt-2 max-w-md">
-              Welcome to your creative portal. Track projects, share assets, and stay connected with your Vektiss team.
-            </p>
-            {nextMilestone && (
-              <div className="mt-4 flex items-center gap-2 text-sm">
-                <Target className="h-4 w-4 text-primary" />
-                <span className="text-muted-foreground">Next milestone:</span>
-                <span className="font-medium">{nextMilestone.name}</span>
-                <span className="text-muted-foreground">—</span>
-                <span className="text-primary font-mono text-xs">
-                  {format(new Date(nextMilestone.target_date!), "MMM d, yyyy")}
-                </span>
+      <motion.div {...anim(0)} className="relative overflow-hidden rounded-2xl border border-border bg-card">
+        {/* Decorative gradient blobs */}
+        <div className="absolute -top-24 -right-24 h-48 w-48 rounded-full bg-primary/8 blur-3xl" />
+        <div className="absolute -bottom-16 -left-16 h-40 w-40 rounded-full bg-primary/5 blur-3xl" />
+
+        <div className="relative p-8">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-muted-foreground text-sm mb-1 flex items-center gap-1.5">
+                {greeting}
+                <Sparkles className="h-3.5 w-3.5 text-primary/40" />
+              </p>
+              <h1 className="text-3xl font-bold tracking-tight">{displayName}</h1>
+              <p className="text-muted-foreground mt-2 max-w-lg">
+                Welcome to your creative portal. Track projects, share assets, and stay connected with your Vektiss team.
+              </p>
+            </div>
+          </div>
+
+          {/* Inline stats strip */}
+          {allProjects.length > 0 && (
+            <div className="mt-6 flex flex-wrap items-center gap-6 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <FolderKanban className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="font-mono font-bold text-lg leading-none">{activeProjects.length}</p>
+                  <p className="text-muted-foreground text-xs">Active</p>
+                </div>
               </div>
-            )}
-          </div>
-          <div className="hidden md:flex">
-            <Sparkles className="h-12 w-12 text-primary/20" />
-          </div>
+              {activeProjects.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <TrendingUp className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-mono font-bold text-lg leading-none">{avgProgress}%</p>
+                    <p className="text-muted-foreground text-xs">Avg Progress</p>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-success/10 flex items-center justify-center">
+                  <CheckCircle2 className="h-4 w-4 text-success" />
+                </div>
+                <div>
+                  <p className="font-mono font-bold text-lg leading-none">{completedProjects.length}</p>
+                  <p className="text-muted-foreground text-xs">Completed</p>
+                </div>
+              </div>
+              {nextMilestone && (
+                <div className="flex items-center gap-2 ml-auto">
+                  <Target className="h-4 w-4 text-primary" />
+                  <span className="text-muted-foreground">Next:</span>
+                  <span className="font-medium truncate max-w-[150px]">{nextMilestone.name}</span>
+                  <span className="text-primary font-mono text-xs">
+                    {format(new Date(nextMilestone.target_date!), "MMM d")}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </motion.div>
 
       {/* Onboarding checklist */}
       <OnboardingChecklist />
 
-      {/* Status summary bar */}
+      {/* Alerts bar */}
       {(pendingApprovals.length > 0 || unreadCount > 0) && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
-          className="flex flex-wrap gap-3"
-        >
+        <motion.div {...anim(0.1)} className="flex flex-wrap gap-3">
           {pendingApprovals.length > 0 && (
             <button
               onClick={() => navigate("/portal/approvals")}
-              className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-2.5 text-sm hover:bg-amber-500/10 transition-colors"
+              className="flex items-center gap-2.5 rounded-xl border border-warning/20 bg-warning/5 px-4 py-3 text-sm hover:bg-warning/10 transition-all hover:border-warning/40 group"
             >
-              <FileCheck className="h-4 w-4 text-amber-500" />
-              <span className="font-medium">{pendingApprovals.length} approval{pendingApprovals.length !== 1 ? "s" : ""} pending</span>
+              <div className="h-8 w-8 rounded-lg bg-warning/10 flex items-center justify-center group-hover:bg-warning/20 transition-colors">
+                <FileCheck className="h-4 w-4 text-warning" />
+              </div>
+              <div className="text-left">
+                <p className="font-semibold text-sm">{pendingApprovals.length} approval{pendingApprovals.length !== 1 ? "s" : ""} pending</p>
+                <p className="text-xs text-muted-foreground">Review deliverables</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground ml-2 group-hover:translate-x-0.5 transition-transform" />
             </button>
           )}
           {unreadCount > 0 && (
             <button
               onClick={() => navigate("/portal/messages")}
-              className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5 text-sm hover:bg-primary/10 transition-colors"
+              className="flex items-center gap-2.5 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm hover:bg-primary/10 transition-all hover:border-primary/40 group"
             >
-              <MessageSquare className="h-4 w-4 text-primary" />
-              <span className="font-medium">{unreadCount} unread message{unreadCount !== 1 ? "s" : ""}</span>
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                <MessageSquare className="h-4 w-4 text-primary" />
+              </div>
+              <div className="text-left">
+                <p className="font-semibold text-sm">{unreadCount} unread message{unreadCount !== 1 ? "s" : ""}</p>
+                <p className="text-xs text-muted-foreground">View conversation</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground ml-2 group-hover:translate-x-0.5 transition-transform" />
             </button>
           )}
         </motion.div>
@@ -199,28 +252,24 @@ export default function ClientDashboard() {
       {/* Quick action cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { icon: FolderKanban, label: "Projects", sub: `${activeProjects.length} active · ${completedProjects.length} completed`, path: "/portal/projects", badge: 0 },
-          { icon: FileCheck, label: "Approvals", sub: "Review deliverables", path: "/portal/approvals", badge: pendingApprovals.length },
-          { icon: Upload, label: "Assets", sub: "Upload files & deliverables", path: "/portal/assets", badge: 0 },
-          { icon: MessageSquare, label: "Messages", sub: "Talk to your team", path: "/portal/messages", badge: unreadCount },
+          { icon: FolderKanban, label: "Projects", sub: `${activeProjects.length} active · ${completedProjects.length} done`, path: "/portal/projects", badge: 0, accent: "primary" },
+          { icon: FileCheck, label: "Approvals", sub: "Review deliverables", path: "/portal/approvals", badge: pendingApprovals.length, accent: "warning" },
+          { icon: Upload, label: "Assets", sub: "Files & deliverables", path: "/portal/assets", badge: 0, accent: "primary" },
+          { icon: MessageSquare, label: "Messages", sub: "Talk to your team", path: "/portal/messages", badge: unreadCount, accent: "primary" },
         ].map((item, i) => (
-          <motion.div
-            key={item.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.15 + i * 0.07 }}
-          >
+          <motion.div key={item.label} {...anim(0.15 + i * 0.06)}>
             <Card
-              className="group cursor-pointer border-border hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
+              className="group cursor-pointer border-border hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 relative overflow-hidden"
               onClick={() => navigate(item.path)}
             >
-              <CardContent className="pt-6 flex flex-col items-center text-center gap-3 relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <CardContent className="pt-6 pb-5 flex flex-col items-center text-center gap-3 relative">
                 {item.badge > 0 && (
                   <Badge className="absolute top-3 right-3 h-5 min-w-[20px] px-1.5 text-[10px] font-mono bg-primary text-primary-foreground">
                     {item.badge > 99 ? "99+" : item.badge}
                   </Badge>
                 )}
-                <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 group-hover:scale-105 transition-all duration-300">
                   <item.icon className="h-6 w-6 text-primary" />
                 </div>
                 <div>
@@ -235,62 +284,80 @@ export default function ClientDashboard() {
 
       {/* Active projects */}
       {activeProjects.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.4 }}
-          className="space-y-4"
-        >
+        <motion.div {...anim(0.4)} className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Clock className="h-5 w-5 text-primary" />
+              <Zap className="h-5 w-5 text-primary" />
               Active Projects
             </h2>
-            <Button variant="ghost" size="sm" onClick={() => navigate("/portal/projects")} className="text-muted-foreground">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/portal/projects")} className="text-muted-foreground hover:text-primary">
               View all <ArrowRight className="ml-1 h-4 w-4" />
             </Button>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             {activeProjects.slice(0, 4).map((project, i) => (
-              <motion.div
-                key={project.id}
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.5 + i * 0.07 }}
-              >
+              <motion.div key={project.id} {...anim(0.45 + i * 0.06)}>
                 <Card
-                  className="cursor-pointer hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
+                  className="group cursor-pointer border-border hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 overflow-hidden"
                   onClick={() => navigate("/portal/projects")}
                 >
+                  {/* Thin top accent bar showing progress */}
+                  <div className="h-1 bg-muted">
+                    <div
+                      className="h-full bg-gradient-to-r from-primary to-primary/60 transition-all duration-500"
+                      style={{ width: `${project.progress}%` }}
+                    />
+                  </div>
+
                   <CardContent className="pt-5 space-y-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate">{project.name}</h3>
+                        <h3 className="font-semibold truncate group-hover:text-primary transition-colors">{project.name}</h3>
                         {project.description && (
                           <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">{project.description}</p>
                         )}
                       </div>
-                      <Badge variant="secondary" className="shrink-0 gap-1">
+                      <Badge variant="secondary" className="shrink-0 gap-1 text-xs">
                         <span>{PHASE_ICONS[project.current_phase] ?? "📋"}</span>
                         {PHASE_LABELS[project.current_phase]}
                       </Badge>
                     </div>
 
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Progress</span>
-                        <span className="font-mono font-semibold text-primary">{project.progress}%</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {/* Circular progress indicator */}
+                        <div className="relative h-11 w-11">
+                          <svg viewBox="0 0 36 36" className="h-11 w-11 -rotate-90">
+                            <circle cx="18" cy="18" r="15.5" fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
+                            <circle
+                              cx="18" cy="18" r="15.5" fill="none"
+                              stroke="hsl(var(--primary))"
+                              strokeWidth="3"
+                              strokeDasharray={`${project.progress * 0.9742} 97.42`}
+                              strokeLinecap="round"
+                              className="transition-all duration-700"
+                            />
+                          </svg>
+                          <span className="absolute inset-0 flex items-center justify-center text-xs font-mono font-bold">
+                            {project.progress}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Progress</p>
+                          <p className="text-sm font-medium">{project.progress}% complete</p>
+                        </div>
                       </div>
-                      <Progress value={project.progress} className="h-2" />
-                    </div>
 
-                    {project.target_date && (
-                      <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                        <Rocket className="h-3 w-3" />
-                        Target launch: {new Date(project.target_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                      </p>
-                    )}
+                      {project.target_date && (
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground">Target</p>
+                          <p className="text-sm font-mono">
+                            {format(new Date(project.target_date), "MMM d")}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -301,12 +368,7 @@ export default function ClientDashboard() {
 
       {/* Recent activity feed */}
       {recentNotifications.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.5 }}
-          className="space-y-3"
-        >
+        <motion.div {...anim(0.5)} className="space-y-3">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Bell className="h-5 w-5 text-primary" />
             Recent Activity
@@ -316,14 +378,14 @@ export default function ClientDashboard() {
               {recentNotifications.map((n: any) => (
                 <button
                   key={n.id}
-                  className="flex items-start gap-3 w-full text-left py-3 first:pt-0 last:pb-0 hover:bg-muted/30 -mx-2 px-2 rounded-md transition-colors"
+                  className="flex items-start gap-3 w-full text-left py-3 first:pt-0 last:pb-0 hover:bg-muted/30 -mx-2 px-2 rounded-md transition-colors group"
                   onClick={() => n.link && navigate(n.link)}
                 >
                   <div className={`h-2 w-2 rounded-full mt-2 shrink-0 ${n.read_at ? "bg-muted-foreground/30" : "bg-primary"}`} />
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm ${n.read_at ? "text-muted-foreground" : "font-medium"}`}>{n.title}</p>
+                    <p className={`text-sm ${n.read_at ? "text-muted-foreground" : "font-medium"} group-hover:text-primary transition-colors`}>{n.title}</p>
                     {n.body && <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{n.body}</p>}
-                    <p className="text-[10px] text-muted-foreground mt-1">
+                    <p className="text-[10px] text-muted-foreground mt-1 font-mono">
                       {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
                     </p>
                   </div>
@@ -336,22 +398,17 @@ export default function ClientDashboard() {
 
       {/* Completed projects */}
       {completedProjects.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.55 }}
-          className="space-y-3"
-        >
+        <motion.div {...anim(0.55)} className="space-y-3">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-success" />
             Completed
           </h2>
           <div className="grid gap-3 md:grid-cols-2">
             {completedProjects.map((project) => (
-              <Card key={project.id} className="bg-card/50 border-border/50 hover:border-primary/20 transition-colors">
+              <Card key={project.id} className="bg-card/50 border-border/50 hover:border-success/20 transition-colors group">
                 <CardContent className="pt-4 pb-4 flex items-center justify-between">
                   <div>
-                    <h3 className="font-medium text-sm">{project.name}</h3>
+                    <h3 className="font-medium text-sm group-hover:text-success transition-colors">{project.name}</h3>
                     {project.description && (
                       <p className="text-xs text-muted-foreground">{project.description}</p>
                     )}
@@ -365,12 +422,8 @@ export default function ClientDashboard() {
       )}
 
       {/* Empty state */}
-      {(projects ?? []).length === 0 && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.4, delay: 0.3 }}
-        >
+      {allProjects.length === 0 && (
+        <motion.div {...anim(0.3)}>
           <Card className="border-dashed border-2 border-border">
             <CardContent className="py-16 flex flex-col items-center text-center gap-4">
               <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
