@@ -284,7 +284,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── 6. LEAD FOLLOW-UP REMINDERS ──
+    } // end weekday guard for task deadlines
+
+    // ── 6. LEAD FOLLOW-UP REMINDERS (weekdays only) ──
+    if (isWeekday) {
     const { data: leadsWithFollowups } = await supabase
       .from("clients")
       .select("id, name, email, phone, pipeline_stage, follow_up_start, follow_up_end, type, notes")
