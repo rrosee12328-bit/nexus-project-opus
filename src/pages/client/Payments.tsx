@@ -55,7 +55,7 @@ export default function ClientPayments() {
     );
   }
 
-  const allPayments = payments ?? [];
+  const allPayments = (payments ?? []).filter((p) => p.notes !== "Projected");
   const years = [...new Set(allPayments.map((p) => p.payment_year))].sort((a, b) => b - a);
   const filtered = filterYear === "all" ? allPayments : allPayments.filter((p) => p.payment_year === Number(filterYear));
 
