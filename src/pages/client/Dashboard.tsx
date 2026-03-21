@@ -20,6 +20,9 @@ import {
   Target,
   TrendingUp,
   Zap,
+  CalendarDays,
+  Headphones,
+  Mail,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
