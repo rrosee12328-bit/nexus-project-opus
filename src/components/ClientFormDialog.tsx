@@ -169,7 +169,7 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
               <Input value={form.phone ?? ""} onChange={(e) => set("phone", e.target.value)} placeholder="(555) 123-4567" maxLength={20} />
             </div>
           </div>
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>Setup Fee</Label>
               <Input type="number" min={0} value={form.setup_fee ?? 0} onChange={(e) => set("setup_fee", e.target.value)} />
