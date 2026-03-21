@@ -31,6 +31,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { format, formatDistanceToNow } from "date-fns";
 
 import { PHASE_LABELS, PHASE_ICONS } from "@/lib/phaseConfig";
+import { ProjectRoadmapWidget } from "@/components/dashboard/ProjectRoadmapWidget";
 
 const anim = (delay: number) => ({
   initial: { opacity: 0, y: 16 } as const,
@@ -311,6 +312,13 @@ export default function ClientDashboard() {
           </motion.div>
         ))}
       </div>
+
+      {/* Project Roadmap Timeline */}
+      {activeProjects.length > 0 && (
+        <motion.div {...anim(0.35)}>
+          <ProjectRoadmapWidget projects={activeProjects} />
+        </motion.div>
+      )}
 
       {/* Active projects */}
       {activeProjects.length > 0 && (
