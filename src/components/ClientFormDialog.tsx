@@ -50,7 +50,7 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [form, setForm] = useState<Partial<ClientInsert> & { pipeline_stage?: string }>({
+  const [form, setForm] = useState<Partial<ClientInsert> & { pipeline_stage?: string; follow_up_start?: string; follow_up_end?: string; last_contact_date?: string; lead_source?: string }>({
     name: client?.name ?? "",
     type: client?.type ?? "",
     status: client?.status ?? "lead",
@@ -63,6 +63,10 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
     phone: client?.phone ?? "",
     notes: client?.notes ?? "",
     pipeline_stage: (client as any)?.pipeline_stage ?? "new",
+    follow_up_start: (client as any)?.follow_up_start ?? "",
+    follow_up_end: (client as any)?.follow_up_end ?? "",
+    last_contact_date: (client as any)?.last_contact_date ?? "",
+    lead_source: (client as any)?.lead_source ?? "",
   });
 
   const set = (key: string, value: string | number) =>
