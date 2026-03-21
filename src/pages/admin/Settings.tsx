@@ -209,15 +209,9 @@ export default function AdminSettings() {
                   </div>
                 </div>
                 <Separator />
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Display Name</Label>
-                    <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Your name" maxLength={100} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Avatar URL</Label>
-                    <Input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="https://..." maxLength={500} />
-                  </div>
+                <div className="space-y-2">
+                  <Label>Display Name</Label>
+                  <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Your name" maxLength={100} />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-muted-foreground flex items-center gap-1.5">
