@@ -1087,6 +1087,7 @@ export type Database = {
           due_date: string | null
           id: string
           priority: Database["public"]["Enums"]["task_priority"]
+          recurring_key: string | null
           sort_order: number
           status: Database["public"]["Enums"]["task_status"]
           title: string
@@ -1101,6 +1102,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           priority?: Database["public"]["Enums"]["task_priority"]
+          recurring_key?: string | null
           sort_order?: number
           status?: Database["public"]["Enums"]["task_status"]
           title: string
@@ -1115,6 +1117,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           priority?: Database["public"]["Enums"]["task_priority"]
+          recurring_key?: string | null
           sort_order?: number
           status?: Database["public"]["Enums"]["task_status"]
           title?: string
