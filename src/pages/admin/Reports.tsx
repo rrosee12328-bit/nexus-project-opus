@@ -8,7 +8,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  BarChart3, Users, DollarSign, TrendingUp, Download, Activity, Heart, AlertTriangle, FolderKanban, FileSpreadsheet,
+  BarChart3, Users, DollarSign, TrendingUp, Activity, Heart, AlertTriangle, FolderKanban, FileSpreadsheet,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid,
