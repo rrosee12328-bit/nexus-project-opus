@@ -27,7 +27,7 @@ import {
   Mail,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { format, formatDistanceToNow } from "date-fns";
 
 import { PHASE_LABELS, PHASE_ICONS } from "@/lib/phaseConfig";
