@@ -123,7 +123,7 @@ export default function ClientLayout() {
     <div className="min-h-screen flex flex-col bg-background">
       {/* Top navigation bar */}
       <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
-        <div className="flex h-24 items-center justify-between px-4 md:px-8">
+        <div className="flex h-16 items-center justify-between px-4 md:px-8">
           {/* Logo */}
           <div className="flex items-center gap-3">
             <button
@@ -132,7 +132,7 @@ export default function ClientLayout() {
             >
               {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
-            <img src="/vektiss-logo.png" alt="Vektiss" className="h-28 object-contain" />
+            <img src="/vektiss-icon.png" alt="Vektiss" className="h-10 w-10 object-contain" />
           </div>
 
           {/* Desktop navigation */}
