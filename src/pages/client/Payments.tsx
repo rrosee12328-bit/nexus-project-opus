@@ -48,11 +48,6 @@ export default function ClientPayments() {
     );
   }
 
-  const currentYear = new Date().getFullYear();
-  const ytdTotal = (payments ?? [])
-    .filter((p) => p.payment_year === currentYear)
-    .reduce((sum, p) => sum + Number(p.amount), 0);
-  const totalAllTime = (payments ?? []).reduce((sum, p) => sum + Number(p.amount), 0);
 
   const exportCSV = () => {
     if (!payments?.length) return;
