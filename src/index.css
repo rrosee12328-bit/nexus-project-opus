@@ -59,11 +59,37 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Prevent horizontal overflow on mobile */
+  html, body, #root {
+    overflow-x: hidden;
+    max-width: 100vw;
   }
 }
 
 @layer utilities {
   .font-mono {
     font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+/* Mobile dialog improvements */
+@media (max-width: 640px) {
+  [role="dialog"] {
+    max-height: 90dvh !important;
+    overflow-y: auto;
+  }
+
+  /* Better touch targets on mobile */
+  button, [role="button"], a {
+    min-height: 36px;
+  }
+
+  /* Smaller text in tables on mobile */
+  table {
+    font-size: 0.8125rem;
   }
 }
