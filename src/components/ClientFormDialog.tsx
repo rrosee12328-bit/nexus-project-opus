@@ -119,7 +119,7 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
           <DialogTitle>{isEdit ? "Edit Client" : "Add Client"}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-2">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Name *</Label>
               <Input value={form.name ?? ""} onChange={(e) => set("name", e.target.value)} placeholder="Client name" maxLength={100} />
@@ -129,7 +129,7 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
               <Input value={form.type ?? ""} onChange={(e) => set("type", e.target.value)} placeholder="e.g. Financial Services" maxLength={100} />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Status</Label>
               <Select value={form.status} onValueChange={(v) => set("status", v)}>
