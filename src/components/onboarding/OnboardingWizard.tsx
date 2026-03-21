@@ -188,6 +188,7 @@ export function OnboardingWizard({ onComplete, displayName }: OnboardingWizardPr
                       currentUrl={avatarUrl}
                       onUploaded={(url) => setAvatarUrl(url)}
                       userId={user?.id || ""}
+                      initials={name ? name.slice(0, 2).toUpperCase() : "ME"}
                     />
                     <div className="w-full max-w-xs space-y-2">
                       <label className="text-sm font-medium">Display Name</label>
