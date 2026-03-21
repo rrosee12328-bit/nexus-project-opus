@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useTypingIndicator } from "@/hooks/useTypingIndicator";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,22 +12,24 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { format, isToday, isYesterday } from "date-fns";
 
-function TypingDots() {
+function TypingDots({ names }: { names: string[] }) {
+  if (names.length === 0) return null;
+  const label = names.length === 1
+    ? `${names[0]} is typing`
+    : `${names.join(", ")} are typing`;
   return (
-    <div className="flex items-center gap-1 px-4 py-3">
-      <Avatar className="h-7 w-7 shrink-0 mr-2">
-        <AvatarFallback className="text-xs font-semibold bg-accent text-accent-foreground">V</AvatarFallback>
-      </Avatar>
+    <div className="flex items-center gap-2 px-2 py-1.5">
       <div className="flex gap-1">
         {[0, 1, 2].map((i) => (
           <motion.div
             key={i}
-            className="h-2 w-2 rounded-full bg-muted-foreground/40"
-            animate={{ y: [0, -6, 0] }}
-            transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
+            className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50"
+            animate={{ y: [0, -4, 0] }}
+            transition={{ duration: 0.55, repeat: Infinity, delay: i * 0.15 }}
           />
         ))}
       </div>
+      <span className="text-xs text-muted-foreground">{label}</span>
     </div>
   );
 }
@@ -55,6 +58,16 @@ export default function ClientMessages() {
     enabled: !!user?.id,
   });
 
+  const { data: profile } = useQuery({
+    queryKey: ["my-profile", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data } = await supabase.from("profiles").select("display_name").eq("user_id", user.id).single();
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
   const { data: messages = [], isLoading } = useQuery({
     queryKey: ["client-messages", clientId],
     queryFn: async () => {
@@ -70,13 +83,21 @@ export default function ClientMessages() {
     enabled: !!clientId,
   });
 
+  // Typing indicator
+  const { typingNames, handleInputChange, stopTyping } = useTypingIndicator({
+    channelName: clientId ? `chat-${clientId}` : "",
+    userId: user?.id,
+    userName: profile?.display_name || "Client",
+  });
+
+  // Real-time: listen for all events including read receipt updates
   useEffect(() => {
     if (!clientId) return;
     const channel = supabase
       .channel(`messages-${clientId}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages", filter: `client_id=eq.${clientId}` },
+        { event: "*", schema: "public", table: "messages", filter: `client_id=eq.${clientId}` },
         () => queryClient.invalidateQueries({ queryKey: ["client-messages", clientId] })
       )
       .subscribe();
@@ -111,6 +132,7 @@ export default function ClientMessages() {
     },
     onSuccess: () => {
       setMessage("");
+      stopTyping();
       queryClient.invalidateQueries({ queryKey: ["client-messages", clientId] });
     },
     onError: () => toast.error("Failed to send message"),
@@ -184,7 +206,6 @@ export default function ClientMessages() {
                 <div className="space-y-1">
                   {groupedMessages.map((group) => (
                     <div key={group.date}>
-                      {/* Date separator */}
                       <div className="flex items-center gap-3 my-4">
                         <div className="flex-1 h-px bg-border" />
                         <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
@@ -227,6 +248,8 @@ export default function ClientMessages() {
                       })}
                     </div>
                   ))}
+                  {/* Typing indicator from admin */}
+                  <TypingDots names={typingNames} />
                 </div>
               )}
             </div>
@@ -247,7 +270,10 @@ export default function ClientMessages() {
                     className="flex-1 bg-background min-h-[44px] max-h-[120px] resize-none text-sm"
                     rows={1}
                     value={message}
-                    onChange={(e) => setMessage(e.target.value)}
+                    onChange={(e) => {
+                      setMessage(e.target.value);
+                      handleInputChange();
+                    }}
                     onKeyDown={handleKeyDown}
                     disabled={sendMutation.isPending}
                   />
