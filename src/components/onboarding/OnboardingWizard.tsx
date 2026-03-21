@@ -15,7 +15,6 @@ import {
   Upload,
   MessageSquare,
   FileCheck,
-  CheckCircle2,
   Rocket,
   PartyPopper,
 } from "lucide-react";
