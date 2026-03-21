@@ -50,7 +50,7 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [form, setForm] = useState<Partial<ClientInsert> & { pipeline_stage?: string }>({
+  const [form, setForm] = useState<Partial<ClientInsert> & { pipeline_stage?: string; follow_up_start?: string; follow_up_end?: string; last_contact_date?: string; lead_source?: string }>({
     name: client?.name ?? "",
     type: client?.type ?? "",
     status: client?.status ?? "lead",
@@ -63,6 +63,10 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
     phone: client?.phone ?? "",
     notes: client?.notes ?? "",
     pipeline_stage: (client as any)?.pipeline_stage ?? "new",
+    follow_up_start: (client as any)?.follow_up_start ?? "",
+    follow_up_end: (client as any)?.follow_up_end ?? "",
+    last_contact_date: (client as any)?.last_contact_date ?? "",
+    lead_source: (client as any)?.lead_source ?? "",
   });
 
   const set = (key: string, value: string | number) =>
@@ -86,6 +90,10 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
         phone: form.phone?.trim() || null,
         notes: form.notes?.trim() || null,
         pipeline_stage: showPipeline ? (form.pipeline_stage || "new") : null,
+        follow_up_start: showPipeline && form.follow_up_start ? form.follow_up_start : null,
+        follow_up_end: showPipeline && form.follow_up_end ? form.follow_up_end : null,
+        last_contact_date: form.last_contact_date || null,
+        lead_source: showPipeline ? (form.lead_source?.trim() || null) : null,
       };
 
       if (isEdit) {
@@ -147,17 +155,39 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
             </div>
           </div>
           {showPipeline && (
-            <div className="space-y-2">
-              <Label>Pipeline Stage</Label>
-              <Select value={form.pipeline_stage ?? "new"} onValueChange={(v) => set("pipeline_stage", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {pipelineStages.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Pipeline Stage</Label>
+                  <Select value={form.pipeline_stage ?? "new"} onValueChange={(v) => set("pipeline_stage", v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {pipelineStages.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Lead Source</Label>
+                  <Input value={form.lead_source ?? ""} onChange={(e) => set("lead_source", e.target.value)} placeholder="e.g. Referral, Instagram" maxLength={100} />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Last Contact Date</Label>
+                  <Input type="date" value={form.last_contact_date ?? ""} onChange={(e) => set("last_contact_date", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Follow-up Start</Label>
+                  <Input type="date" value={form.follow_up_start ?? ""} onChange={(e) => set("follow_up_start", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Follow-up End</Label>
+                  <Input type="date" value={form.follow_up_end ?? ""} onChange={(e) => set("follow_up_end", e.target.value)} />
+                </div>
+              </div>
+            </>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
