@@ -41,6 +41,10 @@ const anim = (delay: number) => ({
 export default function ClientDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [wizardDismissed, setWizardDismissed] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return false; // Will check after user loads
+  });
 
   const { data: clientId } = useQuery({
     queryKey: ["my-client-id", user?.id],
