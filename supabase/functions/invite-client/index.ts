@@ -190,7 +190,7 @@ async function createOnboardingSteps(
   }));
 
   const { error } = await supabase.from("client_onboarding_steps").insert(steps);
-  if (error) console.error("Error creating onboarding steps:", error);
+  if (error) throw new Error(`Failed to create onboarding steps: ${error.message}`);
 }
 
 Deno.serve(async (req) => {
