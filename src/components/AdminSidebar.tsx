@@ -12,6 +12,7 @@ import {
   Mail,
   Bot,
   Calendar,
+  Target,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -34,6 +35,7 @@ const navItems = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
   { title: "Calendar", url: "/admin/calendar", icon: Calendar },
   { title: "Client Management", url: "/admin/clients", icon: Users },
+  { title: "Sales Pipeline", url: "/admin/leads", icon: Target },
   { title: "Project Management", url: "/admin/projects", icon: FolderKanban },
   { title: "Assets", url: "/admin/assets", icon: Upload },
   { title: "Messages", url: "/admin/messages", icon: MessageSquare },

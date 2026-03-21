@@ -12,10 +12,9 @@ import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
-import { UserCheck, UserPlus, DollarSign, PhoneCall, Plus, MoreHorizontal, Pencil, Trash2, ChevronDown, ChevronRight, FileText, Calendar, Briefcase, Users, Send, RefreshCw, Eye } from "lucide-react";
+import { UserCheck, UserPlus, DollarSign, Plus, MoreHorizontal, Pencil, Trash2, ChevronDown, ChevronRight, FileText, Calendar, Briefcase, Users, Send, RefreshCw, Eye } from "lucide-react";
 import { ClientFormDialog } from "@/components/ClientFormDialog";
 import { DeleteClientDialog } from "@/components/DeleteClientDialog";
-import { LeadPipelineKanban } from "@/components/leads/LeadPipelineKanban";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
@@ -117,7 +116,6 @@ export default function AdminClients() {
   }, {});
 
   const actualClients = clients?.filter((c) => c.status !== "lead") ?? [];
-  const leads = clients?.filter((c) => c.status === "lead") ?? [];
   const activeClients = actualClients.filter((c) => c.status === "active");
   const onboardingClients = actualClients.filter((c) => c.status === "onboarding");
   const mrr = activeClients.reduce((s, c) => s + (c.monthly_fee ?? 0), 0);
@@ -126,7 +124,6 @@ export default function AdminClients() {
   const stats = [
     { label: "Active Clients", value: activeClients.length, icon: UserCheck, color: "text-primary" },
     { label: "Onboarding", value: onboardingClients.length, icon: UserPlus, color: "text-warning" },
-    { label: "Leads", value: leads.length, icon: PhoneCall, color: "text-purple-400" },
     { label: "Monthly Recurring", value: formatCurrency(mrr), icon: DollarSign, color: "text-emerald-400" },
   ];
 
@@ -203,7 +200,7 @@ export default function AdminClients() {
         <Button onClick={openAdd} size="sm" className="shrink-0 self-start sm:self-auto"><Plus className="mr-2 h-4 w-4" /> Add Client</Button>
       </motion.div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-3">
         {stats.map((s, i) => (
           <motion.div
             key={s.label}
@@ -476,30 +473,6 @@ export default function AdminClients() {
               })}
             </div>
           )}
-        </CardContent>
-      </Card>
-      </motion.div>
-
-      {/* Lead Pipeline Kanban */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.5 }}
-      >
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <PhoneCall className="h-5 w-5 text-purple-400" />
-            Sales Pipeline
-            {leads.length > 0 && <Badge variant="secondary" className="ml-2 text-xs">{leads.length} leads</Badge>}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <LeadPipelineKanban
-            leads={leads}
-            onEdit={openEdit}
-            onDelete={setDeleteTarget}
-          />
         </CardContent>
       </Card>
       </motion.div>
