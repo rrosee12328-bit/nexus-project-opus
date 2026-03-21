@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { UserCheck, UserPlus, DollarSign, PhoneCall, Plus, MoreHorizontal, Pencil, Trash2, ChevronDown, ChevronRight, FileText, Calendar, Briefcase, Users, Send, RefreshCw, Eye } from "lucide-react";
 import { ClientFormDialog } from "@/components/ClientFormDialog";
 import { DeleteClientDialog } from "@/components/DeleteClientDialog";
+import { LeadPipelineKanban } from "@/components/leads/LeadPipelineKanban";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
@@ -479,7 +480,7 @@ export default function AdminClients() {
       </Card>
       </motion.div>
 
-      {/* Leads */}
+      {/* Lead Pipeline Kanban */}
       {leads.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -490,45 +491,16 @@ export default function AdminClients() {
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <PhoneCall className="h-5 w-5 text-purple-400" />
-              Leads & Pipeline
+              Sales Pipeline
+              <Badge variant="secondary" className="ml-2 text-xs">{leads.length} leads</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {leads.map((lead) => {
-                const stage = (lead as any).pipeline_stage as string | null;
-                const stageConfig: Record<string, { label: string; color: string }> = {
-                  new: { label: "New Lead", color: "bg-muted text-muted-foreground" },
-                  discovery_call: { label: "Discovery Call", color: "bg-blue-500/20 text-blue-400" },
-                  due_diligence: { label: "Due Diligence", color: "bg-amber-500/20 text-amber-400" },
-                  proposal: { label: "Proposal Sent", color: "bg-purple-500/20 text-purple-400" },
-                  negotiation: { label: "Negotiation", color: "bg-primary/20 text-primary" },
-                  won: { label: "Won", color: "bg-success/20 text-success" },
-                  lost: { label: "Lost", color: "bg-destructive/20 text-destructive" },
-                };
-                const currentStage = stage && stageConfig[stage] ? stageConfig[stage] : null;
-
-                return (
-                  <Card key={lead.id} className="hover:border-primary/20 transition-colors cursor-pointer" onClick={() => navigate(`/admin/clients/${lead.id}`)}>
-                    <CardContent className="pt-4 pb-4">
-                      <div className="flex items-start justify-between">
-                        <div className="min-w-0">
-                          <p className="font-medium">{lead.name}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{lead.type ?? "No type"}</p>
-                          {lead.email && <p className="text-xs text-muted-foreground mt-1">{lead.email}</p>}
-                          {currentStage && (
-                            <Badge variant="outline" className={`mt-2 text-xs ${currentStage.color}`}>
-                              {currentStage.label}
-                            </Badge>
-                          )}
-                        </div>
-                        <ActionMenu client={lead} />
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
+            <LeadPipelineKanban
+              leads={leads}
+              onEdit={openEdit}
+              onDelete={setDeleteTarget}
+            />
           </CardContent>
         </Card>
         </motion.div>
