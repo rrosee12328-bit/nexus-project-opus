@@ -132,7 +132,7 @@ export default function ClientLayout() {
             >
               {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
-            <img src="/vektiss-icon.png" alt="Vektiss" className="h-14 w-14 object-contain" />
+            <img src="/vektiss-logo.png" alt="Vektiss" className="h-10 object-contain" />
           </div>
 
           {/* Desktop navigation */}
@@ -163,7 +163,7 @@ export default function ClientLayout() {
               <span className="text-xs font-medium">{displayName}</span>
               <span className="text-[10px] text-muted-foreground">{user.email}</span>
             </div>
-            <Avatar className="h-14 w-14 border border-border">
+            <Avatar className="h-8 w-8 border border-border">
               <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
                 {initials}
               </AvatarFallback>
