@@ -163,7 +163,7 @@ export default function ClientLayout() {
               <span className="text-xs font-medium">{displayName}</span>
               <span className="text-[10px] text-muted-foreground">{user.email}</span>
             </div>
-            <Avatar className="h-8 w-8 border border-border">
+            <Avatar className="h-14 w-14 border border-border">
               <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
                 {initials}
               </AvatarFallback>
