@@ -10,7 +10,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  BarChart3, Users, DollarSign, TrendingUp, TrendingDown, Activity, Heart, AlertTriangle,
+  BarChart3, Users, DollarSign, TrendingUp, Activity, Heart, AlertTriangle,
   FolderKanban, FileSpreadsheet, Clock, CheckCircle2, AlertCircle, Target, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
 import {
