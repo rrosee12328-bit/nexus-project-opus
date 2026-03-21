@@ -9,8 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { User, Mail, Shield, Save, Lock } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { User, Mail, Shield, Save, Lock, Bell } from "lucide-react";
 import { motion } from "framer-motion";
+import { NotificationPreferences } from "@/components/NotificationPreferences";
 
 export default function ClientSettings() {
   const { user } = useAuth();
