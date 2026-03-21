@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   const { user, role, loading } = useAuth();
 
-  if (loading) {
+  if (loading || (user && !role)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -22,7 +22,6 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   }
 
   if (allowedRoles && role && !allowedRoles.includes(role)) {
-    // Redirect to user's appropriate portal
     if (role === "admin") return <Navigate to="/admin" replace />;
     if (role === "ops") return <Navigate to="/ops" replace />;
     return <Navigate to="/" replace />;
