@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (!mounted) return;
 
       if (event === "TOKEN_REFRESHED") {
@@ -78,8 +78,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      await applySession(nextSession);
-      setLoading(false);
+      void (async () => {
+        await applySession(nextSession);
+        if (mounted) setLoading(false);
+      })();
     });
 
     void bootstrapAuth();
