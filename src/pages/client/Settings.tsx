@@ -9,8 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { User, Mail, Shield, Save, Lock } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { User, Mail, Shield, Save, Lock, Bell } from "lucide-react";
 import { motion } from "framer-motion";
+import { NotificationPreferences } from "@/components/NotificationPreferences";
 
 export default function ClientSettings() {
   const { user } = useAuth();
@@ -106,129 +108,156 @@ export default function ClientSettings() {
     <div className="space-y-8">
       <motion.div {...anim(0)}>
         <h1 className="text-2xl font-bold tracking-tight">Account Settings</h1>
-        <p className="text-muted-foreground mt-1">Manage your profile and security.</p>
+        <p className="text-muted-foreground mt-1">Manage your profile, security, and notification preferences.</p>
       </motion.div>
 
-      {/* Profile card */}
-      <motion.div {...anim(0.1)}>
-        <Card className="hover:border-primary/20 transition-colors">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <User className="h-5 w-5 text-primary" /> Profile
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex items-center gap-4">
-              <Avatar className="h-16 w-16 border-2 border-border">
-                <AvatarFallback className="bg-primary/10 text-primary text-lg font-bold">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="font-semibold">{displayName || "No name set"}</p>
-                <p className="text-sm text-muted-foreground">{user?.email}</p>
-              </div>
-            </div>
+      <Tabs defaultValue="profile" className="space-y-6">
+        <motion.div {...anim(0.05)}>
+          <TabsList>
+            <TabsTrigger value="profile" className="gap-2"><User className="h-4 w-4" /> Profile</TabsTrigger>
+            <TabsTrigger value="security" className="gap-2"><Lock className="h-4 w-4" /> Security</TabsTrigger>
+            <TabsTrigger value="notifications" className="gap-2"><Bell className="h-4 w-4" /> Notifications</TabsTrigger>
+          </TabsList>
+        </motion.div>
 
-            <Separator />
+        <TabsContent value="profile">
+          <motion.div {...anim(0.1)}>
+            <Card className="hover:border-primary/20 transition-colors">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <User className="h-5 w-5 text-primary" /> Profile
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-16 w-16 border-2 border-border">
+                    <AvatarFallback className="bg-primary/10 text-primary text-lg font-bold">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-semibold">{displayName || "No name set"}</p>
+                    <p className="text-sm text-muted-foreground">{user?.email}</p>
+                  </div>
+                </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Display Name</Label>
-                <Input
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Your name"
-                  maxLength={100}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Avatar URL</Label>
-                <Input
-                  value={avatarUrl}
-                  onChange={(e) => setAvatarUrl(e.target.value)}
-                  placeholder="https://..."
-                  maxLength={500}
-                />
-              </div>
-            </div>
+                <Separator />
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label className="text-muted-foreground flex items-center gap-1.5">
-                  <Mail className="h-3 w-3" /> Email
-                </Label>
-                <Input value={user?.email ?? ""} disabled className="opacity-60" />
-                <p className="text-xs text-muted-foreground">Email cannot be changed here.</p>
-              </div>
-            </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Display Name</Label>
+                    <Input
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      placeholder="Your name"
+                      maxLength={100}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Avatar URL</Label>
+                    <Input
+                      value={avatarUrl}
+                      onChange={(e) => setAvatarUrl(e.target.value)}
+                      placeholder="https://..."
+                      maxLength={500}
+                    />
+                  </div>
+                </div>
 
-            <div className="flex justify-end">
-              <Button
-                onClick={() => updateProfile.mutate()}
-                disabled={updateProfile.isPending || isLoading}
-                className="gap-2"
-              >
-                <Save className="h-4 w-4" />
-                {updateProfile.isPending ? "Saving..." : "Save Changes"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground flex items-center gap-1.5">
+                      <Mail className="h-3 w-3" /> Email
+                    </Label>
+                    <Input value={user?.email ?? ""} disabled className="opacity-60" />
+                    <p className="text-xs text-muted-foreground">Email cannot be changed here.</p>
+                  </div>
+                </div>
 
-      {/* Password change */}
-      <motion.div {...anim(0.2)}>
-        <Card className="hover:border-primary/20 transition-colors">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Lock className="h-5 w-5 text-primary" /> Change Password
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="space-y-2">
-                <Label>Current Password</Label>
-                <Input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="••••••••"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>New Password</Label>
-                <Input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Min. 6 characters"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Confirm New Password</Label>
-                <Input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <Button
-                onClick={() => changePassword.mutate()}
-                disabled={changePassword.isPending || !currentPassword || !newPassword || !confirmPassword}
-                variant="outline"
-                className="gap-2"
-              >
-                <Lock className="h-4 w-4" />
-                {changePassword.isPending ? "Updating..." : "Update Password"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+                <div className="flex justify-end">
+                  <Button
+                    onClick={() => updateProfile.mutate()}
+                    disabled={updateProfile.isPending || isLoading}
+                    className="gap-2"
+                  >
+                    <Save className="h-4 w-4" />
+                    {updateProfile.isPending ? "Saving..." : "Save Changes"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </TabsContent>
+
+        <TabsContent value="security">
+          <motion.div {...anim(0.1)}>
+            <Card className="hover:border-primary/20 transition-colors">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Lock className="h-5 w-5 text-primary" /> Change Password
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label>Current Password</Label>
+                    <Input
+                      type="password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="••••••••"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>New Password</Label>
+                    <Input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Min. 6 characters"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Confirm New Password</Label>
+                    <Input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <Button
+                    onClick={() => changePassword.mutate()}
+                    disabled={changePassword.isPending || !currentPassword || !newPassword || !confirmPassword}
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    <Lock className="h-4 w-4" />
+                    {changePassword.isPending ? "Updating..." : "Update Password"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </TabsContent>
+
+        <TabsContent value="notifications">
+          <motion.div {...anim(0.1)}>
+            <Card className="hover:border-primary/20 transition-colors">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Bell className="h-5 w-5 text-primary" /> Notification Preferences
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <NotificationPreferences />
+              </CardContent>
+            </Card>
+          </motion.div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

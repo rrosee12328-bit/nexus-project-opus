@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { User, Lock, Bell, Save, Shield, Clock, RefreshCw, Send, Rocket } from "lucide-react";
 import { OnboardingTemplatesManager } from "@/components/admin/OnboardingTemplatesManager";
+import { NotificationPreferences } from "@/components/NotificationPreferences";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 
@@ -255,22 +256,8 @@ export default function AdminSettings() {
                   <Bell className="h-5 w-5 text-primary" /> Notification Preferences
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {[
-                  { label: "New client messages", desc: "Get notified when a client sends a message" },
-                  { label: "Task assignments", desc: "Get notified when tasks are assigned or updated" },
-                  { label: "Payment received", desc: "Get notified when a client payment is recorded" },
-                  { label: "Project milestones", desc: "Get notified when a project phase is completed" },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center justify-between py-2">
-                    <div>
-                      <p className="text-sm font-medium">{item.label}</p>
-                      <p className="text-xs text-muted-foreground">{item.desc}</p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-                ))}
-                <p className="text-xs text-muted-foreground pt-2">Notification delivery is coming soon — preferences are saved locally.</p>
+              <CardContent>
+                <NotificationPreferences />
               </CardContent>
             </Card>
           </motion.div>
