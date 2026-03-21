@@ -74,13 +74,22 @@
   .font-mono {
     font-family: 'JetBrains Mono', monospace;
   }
+
+  /* Safe area padding for devices with notch/home indicator */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
 }
 
 /* Mobile dialog improvements */
 @media (max-width: 640px) {
   [role="dialog"] {
-    max-height: 90dvh !important;
+    max-height: 85dvh !important;
     overflow-y: auto;
+    border-radius: 1rem 1rem 0 0 !important;
   }
 
   /* Better touch targets on mobile */
@@ -91,5 +100,28 @@
   /* Smaller text in tables on mobile */
   table {
     font-size: 0.8125rem;
+  }
+
+  /* Cards on mobile — less padding */
+  .card-content {
+    padding: 1rem;
+  }
+
+  /* Smooth scrolling */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Bottom bar safe area */
+  nav.fixed.bottom-0 {
+    padding-bottom: env(safe-area-inset-bottom, 8px);
+  }
+}
+
+/* Active state for touch */
+@media (hover: none) {
+  button:active, [role="button"]:active, a:active {
+    transform: scale(0.97);
+    transition: transform 0.1s ease;
   }
 }
