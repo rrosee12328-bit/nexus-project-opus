@@ -533,5 +533,6 @@ export default function ClientDashboard() {
         </motion.div>
       )}
     </div>
+    </>
   );
 }
