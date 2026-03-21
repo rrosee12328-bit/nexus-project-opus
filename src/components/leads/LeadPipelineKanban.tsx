@@ -8,13 +8,26 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Pencil, Trash2, Eye, Phone, Mail, Calendar, AlertTriangle, Clock, DollarSign, ArrowRightCircle, PartyPopper } from "lucide-react";
+import {
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { MoreHorizontal, Pencil, Trash2, Eye, Phone, Mail, Calendar, AlertTriangle, Clock, DollarSign, ArrowRightCircle, PartyPopper, Info } from "lucide-react";
 import { toast } from "sonner";
 import { format, isWithinInterval, isBefore, isAfter, differenceInDays, parseISO } from "date-fns";
 import { ConvertLeadDialog } from "./ConvertLeadDialog";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
+
+const STAGE_DESCRIPTIONS: Record<string, string> = {
+  new: "A brand-new inbound or outbound lead that hasn't been contacted yet. Capture their info and schedule the first touchpoint.",
+  discovery_call: "An introductory call to understand the prospect's goals, pain points, and whether there's a mutual fit.",
+  due_diligence: "Researching the prospect's business, competitors, and current setup to craft a tailored strategy.",
+  proposal: "A formal proposal or scope of work has been sent. Waiting for the prospect to review and respond.",
+  negotiation: "Actively discussing pricing, terms, or scope adjustments before closing the deal.",
+  won: "The prospect has signed and is converting to a client. Onboarding begins!",
+  lost: "The deal didn't close. Log the reason so we can learn and improve future outreach.",
+};
 
 const PIPELINE_STAGES = [
   { key: "new", label: "New Lead", color: "border-t-muted-foreground", bgHeader: "bg-muted/50" },
