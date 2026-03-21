@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 
-import { CheckCircle2, Circle, Clock, Pause, Calendar, Target, Rocket, FileCheck } from "lucide-react";
+import { CheckCircle2, Circle, Clock, Pause, Calendar, Target, Rocket, FileCheck, ArrowRight, BarChart3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
@@ -37,6 +37,12 @@ const phaseIcon = (status: string) => {
   }
 };
 
+const anim = (delay: number) => ({
+  initial: { opacity: 0, y: 16 } as const,
+  animate: { opacity: 1, y: 0 } as const,
+  transition: { duration: 0.45, delay },
+});
+
 export default function ClientProjects() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -53,7 +59,6 @@ export default function ClientProjects() {
     },
   });
 
-  // Fetch approvals grouped by project
   const { data: approvals = [] } = useQuery({
     queryKey: ["client-project-approvals", user?.id],
     queryFn: async () => {
@@ -84,23 +89,44 @@ export default function ClientProjects() {
     );
   }
 
+  const allProjects = projects ?? [];
+  const activeProjects = allProjects.filter((p) => p.status === "in_progress");
+  const completedProjects = allProjects.filter((p) => p.status === "completed");
+  const totalPendingApprovals = (approvals as any[]).filter((a: any) => a.status === "pending").length;
+
   return (
     <div className="space-y-8">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
+      <motion.div {...anim(0)}>
         <h1 className="text-2xl font-bold tracking-tight">Your Projects</h1>
         <p className="text-muted-foreground mt-1">Track progress across every phase of your creative projects.</p>
       </motion.div>
 
-      {(projects ?? []).length === 0 ? (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
-        >
+      {/* Summary stats */}
+      {allProjects.length > 0 && (
+        <motion.div {...anim(0.08)} className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: "Total Projects", value: allProjects.length, icon: BarChart3, color: "text-primary" },
+            { label: "In Progress", value: activeProjects.length, icon: Clock, color: "text-primary" },
+            { label: "Completed", value: completedProjects.length, icon: CheckCircle2, color: "text-success" },
+            { label: "Pending Reviews", value: totalPendingApprovals, icon: FileCheck, color: "text-warning" },
+          ].map((stat) => (
+            <Card key={stat.label} className="border-border">
+              <CardContent className="pt-4 pb-4 flex items-center gap-3">
+                <div className={`h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0`}>
+                  <stat.icon className={`h-4.5 w-4.5 ${stat.color}`} />
+                </div>
+                <div>
+                  <p className="font-mono font-bold text-xl leading-none">{stat.value}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </motion.div>
+      )}
+
+      {allProjects.length === 0 ? (
+        <motion.div {...anim(0.15)}>
           <Card className="border-dashed border-2 border-border">
             <CardContent className="py-16 flex flex-col items-center text-center gap-4">
               <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
@@ -117,7 +143,7 @@ export default function ClientProjects() {
         </motion.div>
       ) : (
         <div className="space-y-6">
-          {(projects ?? []).map((project, idx) => {
+          {allProjects.map((project, idx) => {
             const phases = (project.project_phases as Array<{
               id: string; phase: string; status: string; sort_order: number;
               started_at: string | null; completed_at: string | null; notes: string | null;
@@ -129,17 +155,20 @@ export default function ClientProjects() {
             const pendingApprovals = projectApprovals.filter((a: any) => a.status === "pending");
 
             return (
-              <motion.div
-                key={project.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.15 + idx * 0.1 }}
-              >
-                <Card className="overflow-hidden hover:border-primary/20 transition-colors">
+              <motion.div key={project.id} {...anim(0.12 + idx * 0.08)}>
+                <Card className="overflow-hidden hover:border-primary/20 transition-all duration-300 group">
+                  {/* Top progress bar */}
+                  <div className="h-1 bg-muted">
+                    <div
+                      className="h-full bg-gradient-to-r from-primary to-primary/60 transition-all duration-700"
+                      style={{ width: `${project.progress}%` }}
+                    />
+                  </div>
+
                   <CardHeader className="pb-4">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
-                        <CardTitle className="text-xl">{project.name}</CardTitle>
+                        <CardTitle className="text-xl group-hover:text-primary transition-colors">{project.name}</CardTitle>
                         {project.description && (
                           <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">{project.description}</p>
                         )}
@@ -151,45 +180,110 @@ export default function ClientProjects() {
                   </CardHeader>
 
                   <CardContent className="space-y-6">
-                    {/* Progress overview */}
-                    <div className="rounded-xl bg-muted/30 border border-border p-5 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Overall Progress</span>
-                        <span className="text-lg font-mono font-bold text-primary">{project.progress}%</span>
+                    {/* Progress overview with circular indicator */}
+                    <div className="rounded-xl bg-muted/30 border border-border p-5">
+                      <div className="flex items-center gap-5">
+                        {/* Circular progress */}
+                        <div className="relative h-16 w-16 shrink-0">
+                          <svg viewBox="0 0 36 36" className="h-16 w-16 -rotate-90">
+                            <circle cx="18" cy="18" r="15.5" fill="none" stroke="hsl(var(--muted))" strokeWidth="2.5" />
+                            <circle
+                              cx="18" cy="18" r="15.5" fill="none"
+                              stroke="hsl(var(--primary))"
+                              strokeWidth="2.5"
+                              strokeDasharray={`${project.progress * 0.9742} 97.42`}
+                              strokeLinecap="round"
+                              className="transition-all duration-700"
+                            />
+                          </svg>
+                          <span className="absolute inset-0 flex items-center justify-center text-sm font-mono font-bold">
+                            {project.progress}%
+                          </span>
+                        </div>
+
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">Overall Progress</span>
+                            <span className="text-xs text-muted-foreground font-mono">
+                              {completedPhases}/{sortedPhases.length} phases
+                            </span>
+                          </div>
+                          <Progress value={project.progress} className="h-2" />
+                          {project.current_phase && (
+                            <p className="text-xs text-muted-foreground">
+                              Currently in <span className="text-primary font-medium">{PHASE_LABELS[project.current_phase]}</span>
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <Progress value={project.progress} className="h-3" />
-                      <p className="text-xs text-muted-foreground">
-                        <span className="font-mono">{completedPhases}</span> of <span className="font-mono">{sortedPhases.length}</span> phases complete
-                        {project.current_phase && ` · Currently in ${PHASE_LABELS[project.current_phase]}`}
-                      </p>
                     </div>
 
-                    {/* Pending approvals for this project */}
+                    {/* Pending approvals */}
                     {pendingApprovals.length > 0 && (
                       <button
                         onClick={() => navigate("/portal/approvals")}
-                        className="w-full flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-left hover:bg-amber-500/10 transition-colors"
+                        className="w-full flex items-center gap-3 rounded-xl border border-warning/20 bg-warning/5 px-4 py-3 text-left hover:bg-warning/10 hover:border-warning/40 transition-all group/approval"
                       >
-                        <FileCheck className="h-5 w-5 text-amber-500 shrink-0" />
+                        <div className="h-9 w-9 rounded-lg bg-warning/10 flex items-center justify-center shrink-0">
+                          <FileCheck className="h-4.5 w-4.5 text-warning" />
+                        </div>
                         <div className="flex-1">
                           <p className="text-sm font-medium">
                             {pendingApprovals.length} deliverable{pendingApprovals.length !== 1 ? "s" : ""} awaiting your review
                           </p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
+                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
                             {pendingApprovals.map((a: any) => a.title).join(", ")}
                           </p>
                         </div>
-                        <Badge className="bg-amber-500/15 text-amber-600 border-amber-500/30 shrink-0">
-                          Review
-                        </Badge>
+                        <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0 group-hover/approval:translate-x-0.5 transition-transform" />
                       </button>
                     )}
 
-                    {/* Phase timeline */}
+                    {/* Horizontal phase stepper (for small phase counts) + vertical timeline */}
                     {sortedPhases.length > 0 && (
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Project Timeline</p>
-                        <div className="space-y-0">
+
+                        {/* Horizontal stepper for desktop */}
+                        <div className="hidden md:flex items-start gap-0 mb-2">
+                          {sortedPhases.map((phase, index) => {
+                            const isActive = phase.status === "in_progress";
+                            const isCompleted = phase.status === "completed";
+                            return (
+                              <div key={phase.id} className="flex-1 flex flex-col items-center relative">
+                                {/* Connector line */}
+                                {index > 0 && (
+                                  <div className={`absolute top-[10px] right-1/2 w-full h-0.5 -z-10 ${
+                                    isCompleted || sortedPhases[index - 1]?.status === "completed"
+                                      ? "bg-success/50"
+                                      : "bg-border"
+                                  }`} />
+                                )}
+                                <div className={`shrink-0 ${isActive ? "scale-110" : ""} transition-transform z-10 bg-card`}>
+                                  {phaseIcon(phase.status)}
+                                </div>
+                                <p className={`text-[11px] mt-2 text-center font-medium leading-tight ${
+                                  isActive ? "text-primary" : isCompleted ? "text-foreground" : "text-muted-foreground/50"
+                                }`}>
+                                  {PHASE_LABELS[phase.phase]}
+                                </p>
+                                {isActive && phase.started_at && (
+                                  <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
+                                    {new Date(phase.started_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                  </p>
+                                )}
+                                {isCompleted && phase.completed_at && (
+                                  <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
+                                    {new Date(phase.completed_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Vertical timeline for mobile */}
+                        <div className="md:hidden space-y-0">
                           {sortedPhases.map((phase, index) => {
                             const isActive = phase.status === "in_progress";
                             const isCompleted = phase.status === "completed";
@@ -210,7 +304,7 @@ export default function ClientProjects() {
                                     <p className={`text-sm font-semibold ${isActive ? "text-primary" : ""}`}>
                                       {PHASE_LABELS[phase.phase]}
                                     </p>
-                                    <span className="text-xs text-muted-foreground">
+                                    <span className="text-xs text-muted-foreground font-mono">
                                       {isCompleted && phase.completed_at &&
                                         new Date(phase.completed_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                                       {isActive && phase.started_at &&
@@ -222,7 +316,7 @@ export default function ClientProjects() {
                                     {PHASE_DESCRIPTIONS[phase.phase]}
                                   </p>
                                   {phase.notes && isActive && (
-                                    <p className="text-xs mt-2 p-2 rounded-md bg-primary/5 border border-primary/10 text-foreground">
+                                    <p className="text-xs mt-2 p-2.5 rounded-lg bg-primary/5 border border-primary/10 text-foreground">
                                       {phase.notes}
                                     </p>
                                   )}
