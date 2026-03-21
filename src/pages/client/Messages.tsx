@@ -144,8 +144,8 @@ export default function ClientMessages() {
 
   const handleSend = () => {
     const trimmed = message.trim();
-    if (!trimmed) return;
-    sendMutation.mutate(trimmed);
+    if (!trimmed && !pendingAttachment) return;
+    sendMutation.mutate({ content: trimmed || (pendingAttachment ? `📎 ${pendingAttachment.name}` : ""), attachment: pendingAttachment });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
