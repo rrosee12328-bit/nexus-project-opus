@@ -48,12 +48,8 @@ export function FileUploadButton({ clientId, onFileUploaded, disabled }: FileUpl
 
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage
-        .from("client-assets")
-        .getPublicUrl(path);
-
       onFileUploaded({
-        url: urlData.publicUrl,
+        url: path,
         name: file.name,
         type: file.type,
       });
