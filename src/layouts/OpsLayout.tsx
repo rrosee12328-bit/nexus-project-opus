@@ -9,7 +9,7 @@ export default function OpsLayout() {
       <div className="min-h-screen flex w-full">
         <OpsSidebar />
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="h-12 flex items-center justify-between border-b border-border px-4 shrink-0">
+          <header className="h-12 md:h-14 flex items-center justify-between border-b border-border px-3 md:px-4 shrink-0 sticky top-0 z-30 bg-background/80 backdrop-blur-xl">
             <SidebarTrigger />
             <NotificationBell />
           </header>

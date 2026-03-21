@@ -1,4 +1,4 @@
-import { Outlet, Navigate } from "react-router-dom";
+import { Outlet, Navigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,18 +15,18 @@ import {
   CreditCard,
   Settings,
   LogOut,
-  Menu,
-  X,
   Bot,
   FileCheck,
+  MoreHorizontal,
+  X,
 } from "lucide-react";
 import { useState } from "react";
 
 export default function ClientLayout() {
   const { user, loading, signOut } = useAuth();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const location = useLocation();
 
-  // Fetch client ID
   const { data: clientId } = useQuery({
     queryKey: ["my-client-id", user?.id],
     queryFn: async () => {
@@ -38,7 +38,6 @@ export default function ClientLayout() {
     enabled: !!user?.id,
   });
 
-  // Fetch profile for avatar
   const { data: profile } = useQuery({
     queryKey: ["client-profile", user?.id],
     queryFn: async () => {
@@ -54,7 +53,6 @@ export default function ClientLayout() {
     enabled: !!user?.id,
   });
 
-  // Fetch unread message count
   const { data: unreadCount = 0 } = useQuery({
     queryKey: ["unread-messages", clientId],
     queryFn: async () => {
@@ -72,7 +70,6 @@ export default function ClientLayout() {
     refetchInterval: 30000,
   });
 
-  // Fetch pending approval count
   const { data: pendingApprovalCount = 0 } = useQuery({
     queryKey: ["pending-approval-count", user?.id],
     queryFn: async () => {
@@ -108,7 +105,25 @@ export default function ClientLayout() {
     .toUpperCase()
     .slice(0, 2);
 
-  const navItems = [
+  // Primary tabs shown in bottom bar (max 5 for mobile)
+  const primaryTabs = [
+    { title: "Home", url: "/portal", icon: LayoutDashboard, badge: 0 },
+    { title: "Projects", url: "/portal/projects", icon: FolderKanban, badge: 0 },
+    { title: "Messages", url: "/portal/messages", icon: MessageSquare, badge: unreadCount },
+    { title: "Approvals", url: "/portal/approvals", icon: FileCheck, badge: pendingApprovalCount },
+    { title: "More", url: "#more", icon: MoreHorizontal, badge: 0 },
+  ];
+
+  // Secondary items shown in "More" sheet
+  const secondaryItems = [
+    { title: "Assets", url: "/portal/assets", icon: Upload, badge: 0 },
+    { title: "Payments", url: "/portal/payments", icon: CreditCard, badge: 0 },
+    { title: "AI Assistant", url: "/portal/agent", icon: Bot, badge: 0 },
+    { title: "Settings", url: "/portal/settings", icon: Settings, badge: 0 },
+  ];
+
+  // All items for desktop nav
+  const allItems = [
     { title: "Dashboard", url: "/portal", icon: LayoutDashboard, badge: 0 },
     { title: "Projects", url: "/portal/projects", icon: FolderKanban, badge: 0 },
     { title: "Approvals", url: "/portal/approvals", icon: FileCheck, badge: pendingApprovalCount },
@@ -119,25 +134,28 @@ export default function ClientLayout() {
     { title: "Settings", url: "/portal/settings", icon: Settings, badge: 0 },
   ];
 
+  const isTabActive = (url: string) => {
+    if (url === "/portal") return location.pathname === "/portal";
+    return location.pathname.startsWith(url);
+  };
+
+  // Check if any secondary item is active (to highlight "More" tab)
+  const isMoreActive = secondaryItems.some((item) => isTabActive(item.url));
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      {/* Top navigation bar */}
+      {/* Top bar — simplified on mobile */}
       <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
-        <div className="flex h-16 items-center justify-between px-4 md:px-8">
+        <div className="flex h-14 md:h-16 items-center justify-between px-4 md:px-8">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <button
-              className="md:hidden p-2 rounded-md hover:bg-accent/10 transition-colors"
-              onClick={() => setMobileOpen(!mobileOpen)}
-            >
-              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
-            <img src="/vektiss-icon.png" alt="Vektiss" className="h-10 w-10 object-contain" />
+            <img src="/vektiss-icon.png" alt="Vektiss" className="h-8 w-8 md:h-10 md:w-10 object-contain" />
+            <span className="hidden md:inline text-sm font-semibold text-foreground">Vektiss</span>
           </div>
 
           {/* Desktop navigation */}
           <nav className="hidden md:flex items-center gap-1">
-            {navItems.map((item) => (
+            {allItems.map((item) => (
               <NavLink
                 key={item.url}
                 to={item.url}
@@ -159,11 +177,11 @@ export default function ClientLayout() {
           {/* User section */}
           <div className="flex items-center gap-2">
             <NotificationBell />
-            <div className="hidden sm:flex flex-col items-end mr-1">
+            <div className="hidden lg:flex flex-col items-end mr-1">
               <span className="text-xs font-medium">{displayName}</span>
               <span className="text-[10px] text-muted-foreground">{user.email}</span>
             </div>
-            <Avatar className="h-8 w-8 border border-border">
+            <Avatar className="h-8 w-8 border border-border hidden sm:flex">
               <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
                 {initials}
               </AvatarFallback>
@@ -172,49 +190,113 @@ export default function ClientLayout() {
               variant="ghost"
               size="sm"
               onClick={signOut}
-              className="text-muted-foreground hover:text-foreground"
+              className="hidden md:flex text-muted-foreground hover:text-foreground"
             >
               <LogOut className="mr-2 h-4 w-4" /> Sign Out
             </Button>
           </div>
         </div>
-
-        {/* Mobile navigation dropdown */}
-        {mobileOpen && (
-          <div className="md:hidden border-t border-border bg-background/95 backdrop-blur-xl px-4 pb-4 pt-2 space-y-1 animate-in slide-in-from-top-2 duration-200">
-            {navItems.map((item) => (
-              <NavLink
-                key={item.url}
-                to={item.url}
-                end={item.url === "/portal"}
-                className="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
-                activeClassName="bg-primary/10 text-primary font-medium"
-                onClick={() => setMobileOpen(false)}
-              >
-                <div className="flex items-center gap-3">
-                  <item.icon className="h-4 w-4" />
-                  {item.title}
-                </div>
-                {item.badge > 0 && (
-                  <Badge className="h-5 min-w-[20px] px-1.5 text-[10px] font-mono bg-primary text-primary-foreground">
-                    {item.badge}
-                  </Badge>
-                )}
-              </NavLink>
-            ))}
-          </div>
-        )}
       </header>
 
-      {/* Main content */}
-      <main className="flex-1 px-4 py-8 md:px-8 lg:px-12">
+      {/* Main content — extra bottom padding on mobile for tab bar */}
+      <main className="flex-1 px-4 py-6 md:px-8 md:py-8 lg:px-12 pb-24 md:pb-8">
         <div className="mx-auto max-w-5xl">
           <Outlet />
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border px-6 py-4">
+      {/* Mobile "More" overlay */}
+      {moreOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex flex-col justify-end">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setMoreOpen(false)}
+          />
+          {/* Sheet */}
+          <div className="relative bg-card rounded-t-2xl border-t border-border px-2 pt-3 pb-safe animate-in slide-in-from-bottom-4 duration-300">
+            {/* Handle */}
+            <div className="mx-auto w-10 h-1 rounded-full bg-muted-foreground/30 mb-4" />
+
+            <div className="grid grid-cols-4 gap-1 px-2 mb-3">
+              {secondaryItems.map((item) => (
+                <NavLink
+                  key={item.url}
+                  to={item.url}
+                  className="flex flex-col items-center gap-1.5 rounded-xl py-3 px-2 text-muted-foreground transition-colors active:scale-95"
+                  activeClassName="bg-primary/10 text-primary"
+                  onClick={() => setMoreOpen(false)}
+                >
+                  <div className="h-10 w-10 rounded-xl bg-secondary/50 flex items-center justify-center">
+                    <item.icon className="h-5 w-5" />
+                  </div>
+                  <span className="text-[11px] font-medium">{item.title}</span>
+                </NavLink>
+              ))}
+            </div>
+
+            {/* Sign out */}
+            <div className="border-t border-border pt-2 pb-2 px-2">
+              <button
+                onClick={() => { signOut(); setMoreOpen(false); }}
+                className="flex items-center gap-3 w-full rounded-xl px-4 py-3 text-sm text-muted-foreground hover:bg-accent/10 active:scale-[0.98] transition-all"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile bottom tab bar */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-background/90 backdrop-blur-xl border-t border-border pb-safe">
+        <div className="flex items-center justify-around h-16 px-1">
+          {primaryTabs.map((tab) => {
+            const isMore = tab.url === "#more";
+            const active = isMore ? (moreOpen || isMoreActive) : isTabActive(tab.url);
+
+            if (isMore) {
+              return (
+                <button
+                  key="more"
+                  onClick={() => setMoreOpen(!moreOpen)}
+                  className={`flex flex-col items-center justify-center gap-0.5 flex-1 py-1 transition-colors ${
+                    active ? "text-primary" : "text-muted-foreground"
+                  }`}
+                >
+                  {moreOpen ? <X className="h-5 w-5" /> : <tab.icon className="h-5 w-5" />}
+                  <span className="text-[10px] font-medium">{moreOpen ? "Close" : tab.title}</span>
+                </button>
+              );
+            }
+
+            return (
+              <NavLink
+                key={tab.url}
+                to={tab.url}
+                end={tab.url === "/portal"}
+                className={`flex flex-col items-center justify-center gap-0.5 flex-1 py-1 transition-colors text-muted-foreground`}
+                activeClassName="text-primary"
+                onClick={() => setMoreOpen(false)}
+              >
+                <div className="relative">
+                  <tab.icon className="h-5 w-5" />
+                  {tab.badge > 0 && (
+                    <span className="absolute -top-1.5 -right-2.5 h-4 min-w-[16px] px-1 text-[9px] font-bold bg-primary text-primary-foreground rounded-full flex items-center justify-center">
+                      {tab.badge > 99 ? "99+" : tab.badge}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[10px] font-medium">{tab.title}</span>
+              </NavLink>
+            );
+          })}
+        </div>
+      </nav>
+
+      {/* Footer — desktop only */}
+      <footer className="hidden md:block border-t border-border px-6 py-4">
         <p className="text-center text-xs text-muted-foreground">
           © {new Date().getFullYear()} Vektiss Creative — Your creative partner
         </p>
