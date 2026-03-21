@@ -6,10 +6,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import {
-  Bot, Send, Loader2, User, Sparkles, Plus, MessageSquare,
+  Send, Loader2, User, Sparkles, Plus, MessageSquare,
   Trash2, Mic, MicOff, Search, PanelLeftClose, PanelLeft, Copy, Check,
-  RotateCcw, Zap,
+  RotateCcw,
 } from "lucide-react";
+import botAvatar from "@/assets/bot-avatar.png";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
