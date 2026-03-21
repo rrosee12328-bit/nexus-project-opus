@@ -7,17 +7,15 @@ import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Calendar, Receipt, Download, DollarSign, TrendingUp, CreditCard } from "lucide-react";
+import { Receipt, Download } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
-const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const fmt = (val: number) =>
   val.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
@@ -30,7 +28,6 @@ const anim = (delay: number) => ({
 
 export default function ClientPayments() {
   const { user } = useAuth();
-  const currentYear = new Date().getFullYear();
   const [filterYear, setFilterYear] = useState<string>("all");
 
   const { data: payments, isLoading } = useQuery({
@@ -62,19 +59,6 @@ export default function ClientPayments() {
   const years = [...new Set(allPayments.map((p) => p.payment_year))].sort((a, b) => b - a);
   const filtered = filterYear === "all" ? allPayments : allPayments.filter((p) => p.payment_year === Number(filterYear));
 
-  const totalPaid = filtered.reduce((s, p) => s + Number(p.amount), 0);
-  const avgPayment = filtered.length ? totalPaid / filtered.length : 0;
-  const ytdPayments = allPayments.filter((p) => p.payment_year === currentYear);
-  const ytdTotal = ytdPayments.reduce((s, p) => s + Number(p.amount), 0);
-
-  // Chart data — monthly for the selected year (or current year)
-  const chartYear = filterYear === "all" ? currentYear : Number(filterYear);
-  const chartPayments = allPayments.filter((p) => p.payment_year === chartYear);
-  const chartData = MONTH_SHORT.map((month, i) => {
-    const monthPayments = chartPayments.filter((p) => p.payment_month === i + 1);
-    return { month, amount: monthPayments.reduce((s, p) => s + Number(p.amount), 0) };
-  }).filter((_, i) => i < (chartYear === currentYear ? new Date().getMonth() + 1 : 12));
-
   const exportCSV = () => {
     if (!filtered.length) return;
     const rows = [
@@ -95,13 +79,6 @@ export default function ClientPayments() {
     a.click();
     URL.revokeObjectURL(url);
   };
-
-  const stats = [
-    { label: "Total Paid", value: fmt(totalPaid), icon: DollarSign, color: "text-primary" },
-    { label: "Payments Made", value: filtered.length.toString(), icon: CreditCard, color: "text-primary" },
-    { label: "Avg Payment", value: fmt(avgPayment), icon: TrendingUp, color: "text-success" },
-    { label: `YTD ${currentYear}`, value: fmt(ytdTotal), icon: Calendar, color: "text-primary" },
-  ];
 
   return (
     <div className="space-y-8">
@@ -135,62 +112,9 @@ export default function ClientPayments() {
         </div>
       </motion.div>
 
-      {/* Summary stats */}
-      {allPayments.length > 0 && (
-        <motion.div {...anim(0.08)} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {stats.map((stat) => (
-            <Card key={stat.label} className="border-border hover:border-primary/20 transition-colors">
-              <CardContent className="pt-4 pb-4 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
-                <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
-                  <stat.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${stat.color}`} />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-mono font-bold text-base sm:text-lg leading-none truncate">{stat.value}</p>
-                  <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">{stat.label}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </motion.div>
-      )}
-
-      {/* Payment chart */}
-      {chartData.some((d) => d.amount > 0) && (
-        <motion.div {...anim(0.16)}>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Monthly Payments — {chartYear}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[200px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} barSize={28}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                    <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => `$${v}`} />
-                    <Tooltip
-                      formatter={(value: number) => [fmt(value), "Amount"]}
-                      contentStyle={{
-                        background: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
-                        fontSize: "12px",
-                      }}
-                    />
-                    <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
-
       {/* Payment table */}
       {filtered.length > 0 ? (
-        <motion.div {...anim(0.24)}>
+        <motion.div {...anim(0.1)}>
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
@@ -236,7 +160,7 @@ export default function ClientPayments() {
           </Card>
         </motion.div>
       ) : (
-        <motion.div {...anim(0.2)}>
+        <motion.div {...anim(0.1)}>
           <Card className="border-dashed border-2 border-border">
             <CardContent className="py-16 flex flex-col items-center text-center gap-4">
               <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
