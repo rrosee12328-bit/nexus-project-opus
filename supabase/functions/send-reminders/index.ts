@@ -10,14 +10,53 @@ const PORTAL_URL = "https://nexus-project-opus.lovable.app";
 const FROM_EMAIL = "Vektiss <noreply@mail.vektiss.com>";
 const SENDER_DOMAIN = "mail.vektiss.com";
 
-function buildReminderHtml(title: string, body: string, ctaLabel: string, ctaUrl: string): string {
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
-<body style="font-family: Inter, Arial, sans-serif; background-color: #ffffff; padding: 40px 25px;">
-  <h1 style="font-size: 24px; font-weight: bold; color: #0d0d0d; margin: 0 0 20px;">${title}</h1>
-  <p style="font-size: 14px; color: #6b6b6b; line-height: 1.6; margin: 0 0 25px;">${body}</p>
-  <a href="${ctaUrl}" style="display: inline-block; background-color: hsl(213, 100%, 58%); color: #ffffff; font-size: 14px; font-weight: 600; border-radius: 6px; padding: 12px 24px; text-decoration: none;">${ctaLabel}</a>
-  <p style="font-size: 12px; color: #999999; margin: 30px 0 0;">This is an automated reminder from Vektiss.</p>
+/* ── Branded email shell ── */
+function wrapEmail(content: string): string {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background-color:#f7f7f8;font-family:'Inter',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f7f7f8;padding:40px 0;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+  <tr><td style="background:linear-gradient(135deg, hsl(213,100%,58%), hsl(213,100%,45%));padding:28px 32px;">
+    <h1 style="margin:0;font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">Vektiss</h1>
+  </td></tr>
+  <tr><td style="padding:32px;">
+    ${content}
+  </td></tr>
+  <tr><td style="padding:16px 32px 24px;border-top:1px solid #eee;">
+    <p style="margin:0;font-size:11px;color:#999;text-align:center;">This is an automated notification from Vektiss. <a href="${PORTAL_URL}" style="color:hsl(213,100%,58%);text-decoration:none;">Open Portal</a></p>
+  </td></tr>
+</table>
+</td></tr></table>
 </body></html>`;
+}
+
+function buildReminderHtml(title: string, body: string, ctaLabel: string, ctaUrl: string): string {
+  return wrapEmail(`
+    <h2 style="margin:0 0 16px;font-size:20px;font-weight:700;color:#0d0d0d;">${title}</h2>
+    <p style="margin:0 0 24px;font-size:14px;color:#555;line-height:1.7;">${body}</p>
+    <a href="${ctaUrl}" style="display:inline-block;background-color:hsl(213,100%,58%);color:#ffffff;font-size:14px;font-weight:600;border-radius:8px;padding:12px 28px;text-decoration:none;">
+      ${ctaLabel}
+    </a>
+  `);
+}
+
+function buildDigestHtml(name: string, sections: { icon: string; title: string; items: string[]; cta: string; url: string }[]): string {
+  const sectionHtml = sections.map(s => `
+    <div style="margin:0 0 24px;padding:16px;background:#f9f9fb;border-radius:8px;border-left:4px solid hsl(213,100%,58%);">
+      <h3 style="margin:0 0 8px;font-size:15px;font-weight:600;color:#0d0d0d;">${s.icon} ${s.title}</h3>
+      <ul style="margin:0;padding:0 0 0 16px;font-size:13px;color:#555;line-height:1.8;">
+        ${s.items.map(i => `<li>${i}</li>`).join('')}
+      </ul>
+      <a href="${s.url}" style="display:inline-block;margin-top:10px;font-size:12px;font-weight:600;color:hsl(213,100%,58%);text-decoration:none;">${s.cta} →</a>
+    </div>
+  `).join('');
+
+  return wrapEmail(`
+    <h2 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#0d0d0d;">Good morning${name ? ', ' + name : ''}!</h2>
+    <p style="margin:0 0 24px;font-size:14px;color:#555;line-height:1.6;">Here's your daily summary from Vektiss.</p>
+    ${sectionHtml}
+  `);
 }
 
 Deno.serve(async (req) => {
@@ -65,6 +104,21 @@ Deno.serve(async (req) => {
       totalEnqueued++;
     }
 
+    // ── Load notification preferences (for checking email opt-outs) ──
+    const { data: allPrefs } = await supabase
+      .from("notification_preferences")
+      .select("*");
+    const prefsMap: Record<string, any> = {};
+    for (const p of allPrefs ?? []) prefsMap[p.user_id] = p;
+
+    function isEmailEnabled(userId: string | null, category: string): boolean {
+      if (!userId) return true; // No prefs = default on
+      const p = prefsMap[userId];
+      if (!p) return true;
+      const key = `email_${category}`;
+      return p[key] !== false;
+    }
+
     // ── 1. UNREAD MESSAGES ──
     const { data: unreadClients } = await supabase
       .from("messages").select("client_id")
@@ -78,6 +132,7 @@ Deno.serve(async (req) => {
           .from("clients").select("email, name, user_id")
           .eq("id", clientId).single();
         if (!client?.email) continue;
+        if (!isEmailEnabled(client.user_id, "messages")) continue;
 
         const { data: unreadFromStaff } = await supabase
           .from("messages").select("id")
@@ -110,6 +165,7 @@ Deno.serve(async (req) => {
 
       for (const task of reviewTasks) {
         for (const adminId of adminUserIds) {
+          if (!isEmailEnabled(adminId, "tasks")) continue;
           const refId = `${task.id}_${adminId}`;
           if (await wasRecentlySent("task_review", refId)) continue;
           const { data: { user } } = await supabase.auth.admin.getUserById(adminId);
@@ -141,6 +197,7 @@ Deno.serve(async (req) => {
           .from("clients").select("email, name, user_id")
           .eq("id", project.client_id).single();
         if (!client?.email) continue;
+        if (!isEmailEnabled(client.user_id, "projects")) continue;
 
         const html = buildReminderHtml(
           "Your project needs your feedback",
@@ -162,6 +219,7 @@ Deno.serve(async (req) => {
     if (owingClients?.length) {
       for (const client of owingClients) {
         if (!client.email) continue;
+        if (!isEmailEnabled(client.user_id, "payments")) continue;
         if (await wasRecentlySent("unpaid_invoice", client.id)) continue;
 
         const html = buildReminderHtml(
@@ -190,13 +248,13 @@ Deno.serve(async (req) => {
       for (const task of dueSoonTasks) {
         const targetUserId = task.assigned_to;
         if (!targetUserId) continue;
+        if (!isEmailEnabled(targetUserId, "tasks")) continue;
         const refId = `deadline_${task.id}_${targetUserId}`;
         if (await wasRecentlySent("task_deadline", refId)) continue;
 
         const { data: { user } } = await supabase.auth.admin.getUserById(targetUserId);
         if (!user?.email) continue;
 
-        // Determine portal link based on user role
         const { data: roleData } = await supabase
           .from("user_roles").select("role").eq("user_id", targetUserId).single();
         const portalPath = roleData?.role === "admin" ? "/admin" : "/ops/tasks";
@@ -211,6 +269,86 @@ Deno.serve(async (req) => {
           `The task "${task.title}" is due on ${task.due_date}.`
         );
       }
+    }
+
+    // ── 6. DAILY DIGEST for opted-in users ──
+    const digestUsers = (allPrefs ?? []).filter(p => p.email_digest);
+    for (const pref of digestUsers) {
+      const digestRef = `digest_${pref.user_id}_${today}`;
+      if (await wasRecentlySent("daily_digest", digestRef)) continue;
+
+      const { data: { user } } = await supabase.auth.admin.getUserById(pref.user_id);
+      if (!user?.email) continue;
+
+      const { data: profile } = await supabase
+        .from("profiles").select("display_name")
+        .eq("user_id", pref.user_id).maybeSingle();
+
+      const { data: roleData } = await supabase
+        .from("user_roles").select("role").eq("user_id", pref.user_id).single();
+      const role = roleData?.role ?? "client";
+
+      const sections: { icon: string; title: string; items: string[]; cta: string; url: string }[] = [];
+
+      // Unread messages
+      if (role === "client") {
+        const { data: clientData } = await supabase
+          .from("clients").select("id").eq("user_id", pref.user_id).maybeSingle();
+        if (clientData) {
+          const { data: unread } = await supabase
+            .from("messages").select("content, created_at")
+            .eq("client_id", clientData.id).is("read_at", null)
+            .neq("sender_id", pref.user_id).order("created_at", { ascending: false }).limit(5);
+          if (unread?.length) {
+            sections.push({
+              icon: "💬", title: `${unread.length} Unread Message${unread.length > 1 ? 's' : ''}`,
+              items: unread.map(m => m.content.slice(0, 80) + (m.content.length > 80 ? '...' : '')),
+              cta: "View Messages", url: `${PORTAL_URL}/portal/messages`,
+            });
+          }
+        }
+      }
+
+      // Pending tasks (for ops/admin)
+      if (role === "admin" || role === "ops") {
+        const { data: myTasks } = await supabase
+          .from("tasks").select("title, status, due_date")
+          .eq("assigned_to", pref.user_id).neq("status", "done")
+          .order("due_date", { ascending: true }).limit(5);
+        if (myTasks?.length) {
+          sections.push({
+            icon: "📋", title: `${myTasks.length} Active Task${myTasks.length > 1 ? 's' : ''}`,
+            items: myTasks.map(t => `${t.title}${t.due_date ? ` (due ${t.due_date})` : ''}`),
+            cta: "View Tasks", url: `${PORTAL_URL}/${role === "admin" ? "admin" : "ops/tasks"}`,
+          });
+        }
+      }
+
+      // Pending approvals (for client)
+      if (role === "client") {
+        const { data: clientData } = await supabase
+          .from("clients").select("id").eq("user_id", pref.user_id).maybeSingle();
+        if (clientData) {
+          const { data: approvals } = await supabase
+            .from("approval_requests").select("title")
+            .eq("client_id", clientData.id).eq("status", "pending").limit(5);
+          if (approvals?.length) {
+            sections.push({
+              icon: "✅", title: `${approvals.length} Pending Approval${approvals.length > 1 ? 's' : ''}`,
+              items: approvals.map(a => a.title),
+              cta: "Review Approvals", url: `${PORTAL_URL}/portal/projects`,
+            });
+          }
+        }
+      }
+
+      if (sections.length === 0) continue; // Nothing to report
+
+      const digestHtml = buildDigestHtml(profile?.display_name ?? '', sections);
+      await logAndEnqueue("daily_digest", digestRef, user.email, pref.user_id,
+        "Your daily Vektiss summary", digestHtml,
+        `Good morning! Here's your daily summary from Vektiss.`
+      );
     }
 
     return new Response(
