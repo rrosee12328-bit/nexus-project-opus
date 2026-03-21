@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logActivity } from "@/lib/activityLogger";
@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -23,11 +24,13 @@ import { toast } from "sonner";
 import {
   Plus, Search, ListChecks, CheckSquare, Clock, AlertTriangle,
   TrendingUp, Pencil, Trash2, Filter, Calendar, ArrowUpDown, GripVertical,
+  Play, Square, Timer, Users, Building2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import TaskDetailDialog from "@/components/tasks/TaskDetailDialog";
 import type { Database } from "@/integrations/supabase/types";
+import { useAuth } from "@/hooks/useAuth";
 
 type Task = Database["public"]["Tables"]["tasks"]["Row"];
 type TaskStatus = Database["public"]["Enums"]["task_status"];
@@ -74,21 +77,83 @@ const emptyForm: TaskForm = {
   assigned_to: "",
 };
 
+// Timer hook
+function useTaskTimer() {
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+  const startTimeRef = useRef<Date | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const start = useCallback((taskId: string) => {
+    // Stop any existing timer
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    setActiveTaskId(taskId);
+    setElapsed(0);
+    startTimeRef.current = new Date();
+    intervalRef.current = setInterval(() => {
+      if (startTimeRef.current) {
+        setElapsed(Math.floor((Date.now() - startTimeRef.current.getTime()) / 1000));
+      }
+    }, 1000);
+  }, []);
+
+  const stop = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    const result = {
+      taskId: activeTaskId,
+      startTime: startTimeRef.current,
+      endTime: new Date(),
+      elapsed,
+    };
+    setActiveTaskId(null);
+    setElapsed(0);
+    startTimeRef.current = null;
+    intervalRef.current = null;
+    return result;
+  }, [activeTaskId, elapsed]);
+
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
+
+  return { activeTaskId, elapsed, start, stop };
+}
+
+function formatTimer(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
 export default function OpsTasks() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   // UI state
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<TaskStatus | "all">("all");
   const [filterPriority, setFilterPriority] = useState<TaskPriority | "all">("all");
+  const [filterClient, setFilterClient] = useState<string>("all");
+  const [filterAssignee, setFilterAssignee] = useState<string>("all");
   const [sortField, setSortField] = useState<"priority" | "due_date" | "created_at" | "manual">("manual");
+
+  // Selection state
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   // Dialog state
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<TaskForm>(emptyForm);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task & { clients: { name: string } | null } | null>(null);
+
+  // Timer
+  const timer = useTaskTimer();
 
   // Data fetching
   const { data: tasks = [], isLoading } = useQuery({
@@ -208,6 +273,78 @@ export default function OpsTasks() {
     },
   });
 
+  // Bulk mutations
+  const bulkStatusMutation = useMutation({
+    mutationFn: async ({ ids, status }: { ids: string[]; status: TaskStatus }) => {
+      for (const id of ids) {
+        const { error } = await supabase.from("tasks").update({ status }).eq("id", id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: (_data, vars) => {
+      toast.success(`${vars.ids.length} task(s) moved to ${STATUS_CONFIG[vars.status].label}`);
+      queryClient.invalidateQueries({ queryKey: ["ops-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      setSelected(new Set());
+    },
+    onError: () => toast.error("Bulk update failed"),
+  });
+
+  const bulkPriorityMutation = useMutation({
+    mutationFn: async ({ ids, priority }: { ids: string[]; priority: TaskPriority }) => {
+      for (const id of ids) {
+        const { error } = await supabase.from("tasks").update({ priority }).eq("id", id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: (_data, vars) => {
+      toast.success(`${vars.ids.length} task(s) set to ${PRIORITY_CONFIG[vars.priority].label}`);
+      queryClient.invalidateQueries({ queryKey: ["ops-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      setSelected(new Set());
+    },
+    onError: () => toast.error("Bulk update failed"),
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      for (const id of ids) {
+        const { error } = await supabase.from("tasks").delete().eq("id", id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: (_data, ids) => {
+      toast.success(`${ids.length} task(s) deleted`);
+      queryClient.invalidateQueries({ queryKey: ["ops-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      setSelected(new Set());
+      setBulkDeleteOpen(false);
+    },
+    onError: () => toast.error("Bulk delete failed"),
+  });
+
+  // Timer mutation - save time entry
+  const saveTimerMutation = useMutation({
+    mutationFn: async (entry: { taskId: string; startTime: Date; endTime: Date; hours: number; description: string }) => {
+      const { error } = await supabase.from("time_entries").insert({
+        user_id: user!.id,
+        start_time: entry.startTime.toTimeString().slice(0, 5),
+        end_time: entry.endTime.toTimeString().slice(0, 5),
+        hours: entry.hours,
+        description: entry.description,
+        category: "client_work",
+        entry_date: entry.startTime.toISOString().split("T")[0],
+        day_of_week: entry.startTime.toLocaleDateString("en-US", { weekday: "long" }),
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Time entry saved to timesheet");
+      queryClient.invalidateQueries({ queryKey: ["time-entries"] });
+    },
+    onError: () => toast.error("Failed to save time entry"),
+  });
+
   // Helpers
   const openCreate = () => {
     setEditId(null);
@@ -235,11 +372,53 @@ export default function OpsTasks() {
     setForm(emptyForm);
   };
 
+  const handleTimerToggle = (task: Task) => {
+    if (timer.activeTaskId === task.id) {
+      // Stop timer and save entry
+      const result = timer.stop();
+      if (result.startTime && result.elapsed > 10) {
+        const hours = Math.round((result.elapsed / 3600) * 100) / 100;
+        saveTimerMutation.mutate({
+          taskId: task.id,
+          startTime: result.startTime,
+          endTime: result.endTime,
+          hours: Math.max(hours, 0.01),
+          description: task.title,
+        });
+      } else {
+        toast.info("Timer too short — not logged");
+      }
+    } else {
+      timer.start(task.id);
+      toast.info(`Timer started for "${task.title}"`);
+    }
+  };
+
+  // Selection helpers
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = (filteredIds: string[]) => {
+    if (filteredIds.every((id) => selected.has(id))) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filteredIds));
+    }
+  };
+
   // Filtering & sorting
   const filtered = tasks
     .filter((t) => {
       if (filterStatus !== "all" && t.status !== filterStatus) return false;
       if (filterPriority !== "all" && t.priority !== filterPriority) return false;
+      if (filterClient !== "all" && (t.client_id ?? "none") !== filterClient) return false;
+      if (filterAssignee !== "all" && (t.assigned_to ?? "unassigned") !== filterAssignee) return false;
       if (search && !t.title.toLowerCase().includes(search.toLowerCase()) &&
           !(t.description ?? "").toLowerCase().includes(search.toLowerCase())) return false;
       return true;
@@ -257,9 +436,13 @@ export default function OpsTasks() {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
+  const filteredIds = filtered.map((t) => t.id);
+  const allSelected = filteredIds.length > 0 && filteredIds.every((id) => selected.has(id));
+  const someSelected = selected.size > 0;
+
   const countByStatus = (s: TaskStatus) => tasks.filter((t) => t.status === s).length;
 
-  const isDragEnabled = sortField === "manual" && filterStatus === "all" && filterPriority === "all" && !search;
+  const isDragEnabled = sortField === "manual" && filterStatus === "all" && filterPriority === "all" && filterClient === "all" && filterAssignee === "all" && !search && !someSelected;
 
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination || !isDragEnabled) return;
@@ -273,10 +456,12 @@ export default function OpsTasks() {
 
     const updates = reordered.map((t, i) => ({ id: t.id, sort_order: i }));
     reorderMutation.mutate(updates);
-
-    // Optimistic update
     queryClient.setQueryData(["ops-tasks"], reordered.map((t, i) => ({ ...t, sort_order: i })));
   };
+
+  // Get unique clients and assignees from tasks for filters
+  const taskClients = Array.from(new Set(tasks.map((t) => t.client_id).filter(Boolean))) as string[];
+  const taskAssignees = Array.from(new Set(tasks.map((t) => t.assigned_to).filter(Boolean))) as string[];
 
   return (
     <div className="space-y-6">
@@ -291,9 +476,18 @@ export default function OpsTasks() {
           <h1 className="text-2xl font-bold tracking-tight">Tasks</h1>
           <p className="text-muted-foreground">Manage priorities, assignments, and track progress.</p>
         </div>
-        <Button onClick={openCreate} className="gap-2">
-          <Plus className="h-4 w-4" /> New Task
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Active timer indicator */}
+          {timer.activeTaskId && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 animate-pulse">
+              <Timer className="h-4 w-4 text-primary" />
+              <span className="text-sm font-mono font-medium text-primary">{formatTimer(timer.elapsed)}</span>
+            </div>
+          )}
+          <Button onClick={openCreate} className="gap-2">
+            <Plus className="h-4 w-4" /> New Task
+          </Button>
+        </div>
       </motion.div>
 
       {/* Stat cards */}
@@ -320,6 +514,55 @@ export default function OpsTasks() {
           </motion.div>
         ))}
       </div>
+
+      {/* Bulk actions bar */}
+      {someSelected && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="py-3 flex items-center gap-3 flex-wrap">
+              <span className="text-sm font-medium">{selected.size} selected</span>
+              <div className="h-4 w-px bg-border" />
+
+              {/* Bulk status */}
+              <Select onValueChange={(v) => bulkStatusMutation.mutate({ ids: Array.from(selected), status: v as TaskStatus })}>
+                <SelectTrigger className="w-[140px] h-8 text-xs">
+                  <SelectValue placeholder="Set status…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(STATUS_CONFIG).map(([k, v]) => (
+                    <SelectItem key={k} value={k}>{v.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Bulk priority */}
+              <Select onValueChange={(v) => bulkPriorityMutation.mutate({ ids: Array.from(selected), priority: v as TaskPriority })}>
+                <SelectTrigger className="w-[140px] h-8 text-xs">
+                  <SelectValue placeholder="Set priority…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(PRIORITY_CONFIG).map(([k, v]) => (
+                    <SelectItem key={k} value={k}>{v.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Button
+                variant="destructive"
+                size="sm"
+                className="h-8 gap-1.5 text-xs"
+                onClick={() => setBulkDeleteOpen(true)}
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Delete
+              </Button>
+
+              <Button variant="ghost" size="sm" className="h-8 text-xs ml-auto" onClick={() => setSelected(new Set())}>
+                Clear
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {/* Filters */}
       <motion.div
@@ -362,6 +605,34 @@ export default function OpsTasks() {
                   <SelectItem value="all">All Priorities</SelectItem>
                   {Object.entries(PRIORITY_CONFIG).map(([k, v]) => (
                     <SelectItem key={k} value={k}>{v.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={filterClient} onValueChange={setFilterClient}>
+                <SelectTrigger className="w-[140px]">
+                  <Building2 className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                  <SelectValue placeholder="Client" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Clients</SelectItem>
+                  <SelectItem value="none">No Client</SelectItem>
+                  {clients.filter((c) => taskClients.includes(c.id)).map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={filterAssignee} onValueChange={setFilterAssignee}>
+                <SelectTrigger className="w-[140px]">
+                  <Users className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                  <SelectValue placeholder="Assignee" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Assignees</SelectItem>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {teamMembers.filter((m) => taskAssignees.includes(m.id)).map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -428,8 +699,15 @@ export default function OpsTasks() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-10 px-2">
+                        <Checkbox
+                          checked={allSelected}
+                          onCheckedChange={() => toggleSelectAll(filteredIds)}
+                          aria-label="Select all"
+                        />
+                      </TableHead>
                       {isDragEnabled && <TableHead className="w-10" />}
-                      <TableHead className="w-[40%]">Task</TableHead>
+                      <TableHead className="w-[35%]">Task</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Priority</TableHead>
                       <TableHead className="hidden md:table-cell">Client</TableHead>
@@ -445,6 +723,7 @@ export default function OpsTasks() {
                           const priorityCfg = PRIORITY_CONFIG[task.priority];
                           const clientName = (task.clients as { name: string } | null)?.name;
                           const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== "done";
+                          const isTimerActive = timer.activeTaskId === task.id;
 
                           return (
                             <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={!isDragEnabled}>
@@ -454,9 +733,18 @@ export default function OpsTasks() {
                                   {...provided.draggableProps}
                                   className={`hover:bg-muted/30 transition-colors group cursor-pointer ${
                                     snapshot.isDragging ? "bg-accent shadow-lg" : ""
-                                  } ${isOverdue ? "border-l-2 border-l-destructive" : ""}`}
+                                  } ${isOverdue ? "border-l-2 border-l-destructive" : ""} ${
+                                    isTimerActive ? "bg-primary/5 border-l-2 border-l-primary" : ""
+                                  } ${selected.has(task.id) ? "bg-primary/10" : ""}`}
                                   onClick={() => setSelectedTask(task as any)}
                                 >
+                                  <TableCell className="w-10 px-2" onClick={(e) => e.stopPropagation()}>
+                                    <Checkbox
+                                      checked={selected.has(task.id)}
+                                      onCheckedChange={() => toggleSelect(task.id)}
+                                      aria-label={`Select ${task.title}`}
+                                    />
+                                  </TableCell>
                                   {isDragEnabled && (
                                     <TableCell className="w-10 px-2">
                                       <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing opacity-30 hover:opacity-100 transition-opacity">
@@ -465,10 +753,17 @@ export default function OpsTasks() {
                                     </TableCell>
                                   )}
                                   <TableCell>
-                                    <div>
-                                      <p className={`font-medium text-sm ${task.status === "done" ? "line-through text-muted-foreground" : ""}`}>{task.title}</p>
-                                      {task.description && (
-                                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.description}</p>
+                                    <div className="flex items-center gap-2">
+                                      <div className="flex-1">
+                                        <p className={`font-medium text-sm ${task.status === "done" ? "line-through text-muted-foreground" : ""}`}>{task.title}</p>
+                                        {task.description && (
+                                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.description}</p>
+                                        )}
+                                      </div>
+                                      {isTimerActive && (
+                                        <span className="text-xs font-mono text-primary font-medium animate-pulse">
+                                          {formatTimer(timer.elapsed)}
+                                        </span>
                                       )}
                                     </div>
                                   </TableCell>
@@ -509,14 +804,24 @@ export default function OpsTasks() {
                                     )}
                                   </TableCell>
                                   <TableCell className="text-right">
-                                    <div className="flex gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openEdit(task); }}>
+                                    <div className="flex gap-1 justify-end items-center">
+                                      {/* Timer button - always visible */}
+                                      <Button
+                                        variant={isTimerActive ? "default" : "ghost"}
+                                        size="icon"
+                                        className={`h-7 w-7 ${isTimerActive ? "bg-primary text-primary-foreground" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
+                                        onClick={(e) => { e.stopPropagation(); handleTimerToggle(task); }}
+                                        title={isTimerActive ? "Stop timer" : "Start timer"}
+                                      >
+                                        {isTimerActive ? <Square className="h-3 w-3" /> : <Play className="h-3.5 w-3.5" />}
+                                      </Button>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => { e.stopPropagation(); openEdit(task); }}>
                                         <Pencil className="h-3.5 w-3.5" />
                                       </Button>
                                       <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-7 w-7 text-destructive hover:text-destructive"
+                                        className="h-7 w-7 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                                         onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: task.id, title: task.title }); }}
                                       >
                                         <Trash2 className="h-3.5 w-3.5" />
@@ -657,6 +962,28 @@ export default function OpsTasks() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk delete confirmation */}
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selected.size} task(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the selected tasks. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => bulkDeleteMutation.mutate(Array.from(selected))}
+            >
+              {bulkDeleteMutation.isPending ? "Deleting…" : `Delete ${selected.size} Tasks`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Task Detail Dialog */}
       <TaskDetailDialog task={selectedTask} open={!!selectedTask} onClose={() => setSelectedTask(null)} />
     </div>
