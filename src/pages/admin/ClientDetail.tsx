@@ -573,7 +573,7 @@ export default function ClientDetail() {
 
             {form.type === "meeting" && (
               <>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Meeting Date</Label>
                     <Input type="datetime-local" value={form.meeting_date} onChange={(e) => setForm((f) => ({ ...f, meeting_date: e.target.value }))} />
