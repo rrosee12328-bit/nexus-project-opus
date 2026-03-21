@@ -1,14 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle2, Circle, Clock, Pause, Calendar, Target, Rocket } from "lucide-react";
+
+import { CheckCircle2, Circle, Clock, Pause, Calendar, Target, Rocket, FileCheck } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
 import { PHASE_LABELS, PHASE_DESCRIPTIONS } from "@/lib/phaseConfig";
-
 
 const STATUS_BADGES: Record<string, { label: string; className: string }> = {
   not_started: { label: "Not Started", className: "bg-muted text-muted-foreground" },
@@ -36,6 +38,9 @@ const phaseIcon = (status: string) => {
 };
 
 export default function ClientProjects() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
   const { data: projects, isLoading } = useQuery({
     queryKey: ["client-projects"],
     queryFn: async () => {
@@ -47,6 +52,26 @@ export default function ClientProjects() {
       return data;
     },
   });
+
+  // Fetch approvals grouped by project
+  const { data: approvals = [] } = useQuery({
+    queryKey: ["client-project-approvals", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("approval_requests")
+        .select("id, title, status, project_id, created_at")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!user?.id,
+  });
+
+  const approvalsByProject = (approvals as any[]).reduce((acc: Record<string, any[]>, a) => {
+    if (!acc[a.project_id]) acc[a.project_id] = [];
+    acc[a.project_id].push(a);
+    return acc;
+  }, {} as Record<string, any[]>);
 
   if (isLoading) {
     return (
@@ -100,6 +125,8 @@ export default function ClientProjects() {
             const sortedPhases = [...phases].sort((a, b) => a.sort_order - b.sort_order);
             const completedPhases = sortedPhases.filter((p) => p.status === "completed").length;
             const badge = STATUS_BADGES[project.status] ?? STATUS_BADGES.not_started;
+            const projectApprovals = approvalsByProject[project.id] ?? [];
+            const pendingApprovals = projectApprovals.filter((a: any) => a.status === "pending");
 
             return (
               <motion.div
@@ -136,6 +163,27 @@ export default function ClientProjects() {
                         {project.current_phase && ` · Currently in ${PHASE_LABELS[project.current_phase]}`}
                       </p>
                     </div>
+
+                    {/* Pending approvals for this project */}
+                    {pendingApprovals.length > 0 && (
+                      <button
+                        onClick={() => navigate("/portal/approvals")}
+                        className="w-full flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-left hover:bg-amber-500/10 transition-colors"
+                      >
+                        <FileCheck className="h-5 w-5 text-amber-500 shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">
+                            {pendingApprovals.length} deliverable{pendingApprovals.length !== 1 ? "s" : ""} awaiting your review
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {pendingApprovals.map((a: any) => a.title).join(", ")}
+                          </p>
+                        </div>
+                        <Badge className="bg-amber-500/15 text-amber-600 border-amber-500/30 shrink-0">
+                          Review
+                        </Badge>
+                      </button>
+                    )}
 
                     {/* Phase timeline */}
                     {sortedPhases.length > 0 && (
@@ -190,7 +238,7 @@ export default function ClientProjects() {
                     {(project.start_date || project.target_date) && (
                       <>
                         <Separator />
-                        <div className="flex gap-8">
+                        <div className="flex flex-wrap gap-4 sm:gap-8">
                           {project.start_date && (
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                               <Calendar className="h-4 w-4" />

@@ -1,4 +1,4 @@
-import { Outlet, Navigate, useLocation } from "react-router-dom";
+import { Outlet, Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,9 +23,8 @@ import {
 import { useState } from "react";
 
 export default function ClientLayout() {
-  const { user, role, loading, signOut } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const location = useLocation();
 
   // Fetch client ID
   const { data: clientId } = useQuery({
@@ -73,6 +72,21 @@ export default function ClientLayout() {
     refetchInterval: 30000,
   });
 
+  // Fetch pending approval count
+  const { data: pendingApprovalCount = 0 } = useQuery({
+    queryKey: ["pending-approval-count", user?.id],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("approval_requests")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "pending");
+      if (error) return 0;
+      return count ?? 0;
+    },
+    enabled: !!user?.id,
+    refetchInterval: 30000,
+  });
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -97,7 +111,7 @@ export default function ClientLayout() {
   const navItems = [
     { title: "Dashboard", url: "/portal", icon: LayoutDashboard, badge: 0 },
     { title: "Projects", url: "/portal/projects", icon: FolderKanban, badge: 0 },
-    { title: "Approvals", url: "/portal/approvals", icon: FileCheck, badge: 0 },
+    { title: "Approvals", url: "/portal/approvals", icon: FileCheck, badge: pendingApprovalCount },
     { title: "Assets", url: "/portal/assets", icon: Upload, badge: 0 },
     { title: "Messages", url: "/portal/messages", icon: MessageSquare, badge: unreadCount },
     { title: "Payments", url: "/portal/payments", icon: CreditCard, badge: 0 },

@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Calendar, Receipt, Download } from "lucide-react";
+import { Calendar, Receipt, Download, DollarSign } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 
@@ -19,6 +19,9 @@ const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
+
+const fmt = (val: number) =>
+  val.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
 
 export default function ClientPayments() {
   const { user } = useAuth();
@@ -37,7 +40,6 @@ export default function ClientPayments() {
     enabled: !!user?.id,
   });
 
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -45,6 +47,12 @@ export default function ClientPayments() {
       </div>
     );
   }
+
+  const currentYear = new Date().getFullYear();
+  const ytdTotal = (payments ?? [])
+    .filter((p) => p.payment_year === currentYear)
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+  const totalAllTime = (payments ?? []).reduce((sum, p) => sum + Number(p.amount), 0);
 
   const exportCSV = () => {
     if (!payments?.length) return;
@@ -89,11 +97,12 @@ export default function ClientPayments() {
         )}
       </motion.div>
 
-      {/* Summary card */}
+      {/* Summary cards */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.15 }}
+        className="grid gap-4 sm:grid-cols-3"
       >
         <Card className="border-border hover:border-primary/20 transition-colors">
           <CardContent className="pt-6 flex items-center gap-4">
@@ -103,6 +112,30 @@ export default function ClientPayments() {
             <div>
               <p className="text-sm text-muted-foreground">Payments Made</p>
               <p className="text-2xl font-bold tracking-tight font-mono">{(payments ?? []).length}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border hover:border-primary/20 transition-colors">
+          <CardContent className="pt-6 flex items-center gap-4">
+            <div className="h-11 w-11 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
+              <DollarSign className="h-5 w-5 text-emerald-500" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">{currentYear} Total</p>
+              <p className="text-2xl font-bold tracking-tight font-mono">{fmt(ytdTotal)}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border hover:border-primary/20 transition-colors">
+          <CardContent className="pt-6 flex items-center gap-4">
+            <div className="h-11 w-11 rounded-xl bg-muted flex items-center justify-center shrink-0">
+              <Receipt className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">All-Time Total</p>
+              <p className="text-2xl font-bold tracking-tight font-mono">{fmt(totalAllTime)}</p>
             </div>
           </CardContent>
         </Card>
