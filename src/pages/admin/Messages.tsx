@@ -15,6 +15,8 @@ import { MessageSquare, Send, Loader2, Users, CheckCheck, Check, Search } from "
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { format, isToday, isYesterday } from "date-fns";
+import { MessageAttachment } from "@/components/messages/MessageAttachment";
+import { FileUploadButton, PendingAttachment } from "@/components/messages/FileUploadButton";
 
 function TypingDots({ names }: { names: string[] }) {
   if (names.length === 0) return null;
