@@ -90,6 +90,10 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
         phone: form.phone?.trim() || null,
         notes: form.notes?.trim() || null,
         pipeline_stage: showPipeline ? (form.pipeline_stage || "new") : null,
+        follow_up_start: showPipeline && form.follow_up_start ? form.follow_up_start : null,
+        follow_up_end: showPipeline && form.follow_up_end ? form.follow_up_end : null,
+        last_contact_date: form.last_contact_date || null,
+        lead_source: showPipeline ? (form.lead_source?.trim() || null) : null,
       };
 
       if (isEdit) {
