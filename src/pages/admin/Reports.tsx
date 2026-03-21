@@ -1,18 +1,21 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  BarChart3, Users, DollarSign, TrendingUp, Activity, Heart, AlertTriangle, FolderKanban, FileSpreadsheet,
+  BarChart3, Users, DollarSign, TrendingUp, Activity, Heart, AlertTriangle,
+  FolderKanban, FileSpreadsheet, Clock, CheckCircle2, AlertCircle, Target,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid,
-  BarChart, Bar, Legend,
+  BarChart, Bar, Legend, RadialBarChart, RadialBar,
 } from "recharts";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -47,6 +50,16 @@ const STATUS_COLORS: Record<string, string> = {
   completed: "hsl(142, 71%, 45%)", on_hold: "hsl(48, 96%, 53%)",
 };
 
+const CATEGORY_LABELS: Record<string, string> = {
+  client_work: "Client Work", sales: "Sales", admin: "Admin", vektiss: "Vektiss",
+  break: "Break", meeting: "Meeting", other: "Other",
+};
+const CATEGORY_COLORS: Record<string, string> = {
+  client_work: "hsl(213, 100%, 58%)", sales: "hsl(142, 71%, 45%)", admin: "hsl(262, 80%, 50%)",
+  vektiss: "hsl(48, 96%, 53%)", break: "hsl(var(--muted-foreground))", meeting: "hsl(200, 80%, 50%)",
+  other: "hsl(0, 84%, 60%)",
+};
+
 const tooltipStyle = {
   backgroundColor: "hsl(var(--card))",
   border: "1px solid hsl(var(--border))",
@@ -56,7 +69,14 @@ const tooltipStyle = {
   boxShadow: "0 4px 12px hsl(var(--foreground) / 0.1)",
 };
 
+const YEAR_OPTIONS = [2024, 2025, 2026, 2027];
+
 export default function AdminReports() {
+  const now = new Date();
+  const [filterYear, setFilterYear] = useState(now.getFullYear());
+  const [filterFromMonth, setFilterFromMonth] = useState(0);
+  const [filterToMonth, setFilterToMonth] = useState(now.getMonth());
+
   const { data: clients } = useQuery({
     queryKey: ["report-clients"],
     queryFn: async () => {
@@ -96,42 +116,124 @@ export default function AdminReports() {
   const { data: tasks } = useQuery({
     queryKey: ["report-tasks"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("tasks").select("*");
+      const { data, error } = await supabase.from("tasks").select("*, clients(name)");
       if (error) throw error;
       return data;
     },
   });
 
+  const { data: timeEntries } = useQuery({
+    queryKey: ["report-time-entries"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("time_entries").select("*");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // --- Filtered range helpers ---
+  const isInRange = (month: number, year: number) =>
+    year === filterYear && month - 1 >= filterFromMonth && month - 1 <= filterToMonth;
+  const filteredMonthIndices = Array.from(
+    { length: filterToMonth - filterFromMonth + 1 },
+    (_, i) => filterFromMonth + i
+  );
+  const rangeLabel = filterFromMonth === 0 && filterToMonth === 11
+    ? `${filterYear}` : `${MONTHS[filterFromMonth]}–${MONTHS[filterToMonth]} ${filterYear}`;
+
+  // --- Core metrics ---
   const activeClients = (clients ?? []).filter((c) => c.status === "active");
   const actualPayments = (payments ?? []).filter((p) => p.notes !== "Projected");
-  const totalRevenue = actualPayments.reduce((s, p) => s + Number(p.amount), 0);
-  const totalExpenses = (expenses ?? []).reduce((s, e) => s + Number(e.amount), 0);
+  const filteredActualPayments = actualPayments.filter((p) => isInRange(p.payment_month, p.payment_year));
+  const filteredExpenses = (expenses ?? []).filter((e) => isInRange(e.expense_month, e.expense_year));
+
+  const totalRevenue = filteredActualPayments.reduce((s, p) => s + Number(p.amount), 0);
+  const totalExpenses = filteredExpenses.reduce((s, e) => s + Number(e.amount), 0);
   const netProfit = totalRevenue - totalExpenses;
   const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
   const mrr = activeClients.reduce((s, c) => s + (c.monthly_fee ?? 0), 0);
   const avgRevenuePerClient = activeClients.length > 0 ? mrr / activeClients.length : 0;
 
-  const completedTasks = (tasks ?? []).filter((t) => t.status === "done").length;
-  const totalTasks = (tasks ?? []).length;
+  // --- Task analytics ---
+  const allTasks = tasks ?? [];
+  const completedTasks = allTasks.filter((t) => t.status === "done").length;
+  const totalTasks = allTasks.length;
   const taskCompletionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+  const today = new Date().toISOString().slice(0, 10);
+  const overdueTasks = allTasks.filter((t) => t.status !== "done" && t.due_date && t.due_date < today);
+  const upcomingTasks = allTasks.filter((t) => t.status !== "done" && t.due_date && t.due_date >= today && t.due_date <= new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10));
+  const inProgressTasks = allTasks.filter((t) => t.status === "in_progress").length;
+  const todoTasks = allTasks.filter((t) => t.status === "todo").length;
+
+  const tasksByPriority = ["urgent", "high", "medium", "low"].map((p) => ({
+    name: p.charAt(0).toUpperCase() + p.slice(1),
+    total: allTasks.filter((t) => t.priority === p).length,
+    done: allTasks.filter((t) => t.priority === p && t.status === "done").length,
+    open: allTasks.filter((t) => t.priority === p && t.status !== "done").length,
+  })).filter((d) => d.total > 0);
+
+  const tasksByClient = activeClients.map((c) => {
+    const ct = allTasks.filter((t) => t.client_id === c.id);
+    return { name: c.name, total: ct.length, done: ct.filter((t) => t.status === "done").length, open: ct.filter((t) => t.status !== "done").length };
+  }).filter((d) => d.total > 0).sort((a, b) => b.open - a.open);
+
+  // --- Time entries analytics ---
+  const filteredTimeEntries = (timeEntries ?? []).filter((te) => {
+    const d = new Date(te.entry_date);
+    return d.getFullYear() === filterYear && d.getMonth() >= filterFromMonth && d.getMonth() <= filterToMonth;
+  });
+  const totalHoursLogged = filteredTimeEntries.reduce((s, te) => s + Number(te.hours), 0);
+  const workingDays = filteredMonthIndices.length * 22; // approx 22 working days/month
+  const targetHours = workingDays * 8;
+  const utilizationRate = targetHours > 0 ? (totalHoursLogged / targetHours) * 100 : 0;
+
+  const hoursByCategory = Object.keys(CATEGORY_LABELS).map((cat) => ({
+    name: CATEGORY_LABELS[cat],
+    value: filteredTimeEntries.filter((te) => te.category === cat).reduce((s, te) => s + Number(te.hours), 0),
+    fill: CATEGORY_COLORS[cat],
+  })).filter((d) => d.value > 0);
+
+  const billableHours = filteredTimeEntries.filter((te) => te.category === "client_work").reduce((s, te) => s + Number(te.hours), 0);
+  const billableRate = totalHoursLogged > 0 ? (billableHours / totalHoursLogged) * 100 : 0;
+
+  // Weekly hours trend
+  const weeklyHours: { week: string; hours: number }[] = [];
+  if (filteredTimeEntries.length > 0) {
+    const sorted = [...filteredTimeEntries].sort((a, b) => a.entry_date.localeCompare(b.entry_date));
+    const getWeekKey = (d: string) => {
+      const date = new Date(d);
+      const start = new Date(date);
+      start.setDate(start.getDate() - start.getDay());
+      return `${MONTHS[start.getMonth()]} ${start.getDate()}`;
+    };
+    const grouped: Record<string, number> = {};
+    sorted.forEach((te) => {
+      const wk = getWeekKey(te.entry_date);
+      grouped[wk] = (grouped[wk] || 0) + Number(te.hours);
+    });
+    Object.entries(grouped).slice(-12).forEach(([week, hours]) => weeklyHours.push({ week, hours }));
+  }
+
+  // --- Revenue forecast (next 6 months based on MRR) ---
+  const forecastData = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() + i + 1, 1);
+    return { label: `${MONTHS[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`, projected: mrr };
+  });
+
+  // --- Revenue trend ---
+  const revenueTrend = filteredMonthIndices.map((i) => {
+    const month = i + 1;
+    const rev = actualPayments
+      .filter((p) => p.payment_month === month && p.payment_year === filterYear)
+      .reduce((s, p) => s + Number(p.amount), 0);
+    const exp = (expenses ?? [])
+      .filter((e) => e.expense_month === month && e.expense_year === filterYear)
+      .reduce((s, e) => s + Number(e.amount), 0);
+    return { label: MONTHS[i], revenue: rev, expenses: exp, profit: rev - exp };
+  });
 
   const completedProjects = (projects ?? []).filter((p) => p.status === "completed").length;
   const activeProjects = (projects ?? []).filter((p) => p.status === "in_progress").length;
-
-  // --- Revenue trend (last 12 months) ---
-  const now = new Date();
-  const revenueTrend = Array.from({ length: 12 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
-    const month = d.getMonth() + 1;
-    const year = d.getFullYear();
-    const rev = actualPayments
-      .filter((p) => p.payment_month === month && p.payment_year === year)
-      .reduce((s, p) => s + Number(p.amount), 0);
-    const exp = (expenses ?? [])
-      .filter((e) => e.expense_month === month && e.expense_year === year)
-      .reduce((s, e) => s + Number(e.amount), 0);
-    return { label: `${MONTHS[month - 1]} ${String(year).slice(2)}`, revenue: rev, expenses: exp, profit: rev - exp };
-  });
 
   // --- Project pipeline ---
   const phaseDist = Object.keys(PHASE_LABELS).map((phase) => ({
@@ -154,92 +256,68 @@ export default function AdminReports() {
     const totalPaid = clientPayments.reduce((s, p) => s + Number(p.amount), 0);
     const avgProgress = clientProjects.length > 0
       ? clientProjects.reduce((s, p) => s + p.progress, 0) / clientProjects.length : 0;
-
     let health: "healthy" | "attention" | "critical" = "healthy";
     if (clientPayments.length === 0 && activeProjectCount > 0) health = "critical";
     else if (activeProjectCount === 0 && client.status === "active") health = "attention";
-
     return { ...client, totalPaid, activeProjectCount, avgProgress, health, projectCount: clientProjects.length };
   }).sort((a, b) => {
     const order = { critical: 0, attention: 1, healthy: 2 };
     return order[a.health] - order[b.health];
   });
 
-  // Revenue by client for pie chart
   const revenueByClient = activeClients.map((c) => {
     const rev = actualPayments.filter((p) => p.client_id === c.id).reduce((s, p) => s + Number(p.amount), 0);
     return { name: c.name, value: rev };
   }).filter((c) => c.value > 0).sort((a, b) => b.value - a.value);
 
-  // Client status distribution
   const clientStatusDist = ["active", "onboarding", "prospect", "lead", "closed"].map((s) => ({
     name: s.charAt(0).toUpperCase() + s.slice(1),
     value: (clients ?? []).filter((c) => c.status === s).length,
   })).filter((s) => s.value > 0);
 
-  // --- Excel export ---
+  // --- Export ---
   const exportExcel = async () => {
     try {
       toast.info("Generating report...");
-
-      // Build CSV with multiple sections separated by blank lines
       const sections: string[][] = [];
-
-      // KPIs
       sections.push(
-        ["BUSINESS KPIs"],
-        ["Metric", "Value"],
-        ["Total Revenue", fmt(totalRevenue)],
-        ["Total Expenses", fmt(totalExpenses)],
-        ["Net Profit", fmt(netProfit)],
-        ["Profit Margin", `${profitMargin.toFixed(1)}%`],
-        ["MRR", fmt(mrr)],
-        ["Avg Revenue/Client", fmt(avgRevenuePerClient)],
-        ["Active Clients", String(activeClients.length)],
-        ["Active Projects", String(activeProjects)],
+        ["BUSINESS KPIs — " + rangeLabel], ["Metric", "Value"],
+        ["Total Revenue", fmt(totalRevenue)], ["Total Expenses", fmt(totalExpenses)],
+        ["Net Profit", fmt(netProfit)], ["Profit Margin", `${profitMargin.toFixed(1)}%`],
+        ["MRR", fmt(mrr)], ["Avg Revenue/Client", fmt(avgRevenuePerClient)],
+        ["Active Clients", String(activeClients.length)], ["Active Projects", String(activeProjects)],
         ["Completed Projects", String(completedProjects)],
         ["Task Completion Rate", `${taskCompletionRate.toFixed(1)}%`],
+        ["Total Hours Logged", `${totalHoursLogged.toFixed(1)}h`],
+        ["Billable Rate", `${billableRate.toFixed(1)}%`],
+        ["Overdue Tasks", String(overdueTasks.length)],
         [],
       );
-
-      // Revenue trend
       sections.push(
-        ["MONTHLY REVENUE TREND (Last 12 Months)"],
-        ["Month", "Revenue", "Expenses", "Profit"],
+        ["REVENUE TREND — " + rangeLabel], ["Month", "Revenue", "Expenses", "Profit"],
         ...revenueTrend.map((r) => [r.label, fmt(r.revenue), fmt(r.expenses), fmt(r.profit)]),
         [],
       );
-
-      // Client health
       sections.push(
-        ["CLIENT HEALTH SCORES"],
-        ["Client", "Status", "Health", "Projects", "Avg Progress", "Total Paid"],
-        ...clientHealth.map((c) => [
-          c.name, c.status, HEALTH_COLORS[c.health].label,
-          String(c.projectCount), `${c.avgProgress.toFixed(0)}%`, fmt(c.totalPaid),
-        ]),
+        ["TEAM UTILIZATION — " + rangeLabel], ["Category", "Hours"],
+        ...hoursByCategory.map((c) => [c.name, `${c.value.toFixed(1)}h`]),
         [],
       );
-
-      // Project pipeline
       sections.push(
-        ["PROJECT PIPELINE"],
-        ["Project", "Client", "Status", "Phase", "Progress"],
-        ...(projects ?? []).map((p) => [
-          p.name,
-          (p.clients as { name: string } | null)?.name ?? "",
-          p.status.replace(/_/g, " "),
-          PHASE_LABELS[p.current_phase] ?? p.current_phase,
-          `${p.progress}%`,
-        ]),
+        ["CLIENT HEALTH SCORES"], ["Client", "Status", "Health", "Projects", "Avg Progress", "Total Paid"],
+        ...clientHealth.map((c) => [c.name, c.status, HEALTH_COLORS[c.health].label, String(c.projectCount), `${c.avgProgress.toFixed(0)}%`, fmt(c.totalPaid)]),
+        [],
       );
-
+      sections.push(
+        ["OVERDUE TASKS"], ["Task", "Client", "Due Date", "Priority"],
+        ...overdueTasks.map((t) => [t.title, (t.clients as { name: string } | null)?.name ?? "—", t.due_date ?? "—", t.priority]),
+      );
       const csv = sections.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
       const blob = new Blob([csv], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `vektiss-business-report-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = `vektiss-report-${rangeLabel.replace(/\s/g, "-")}.csv`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success("Report downloaded!");
@@ -252,7 +330,7 @@ export default function AdminReports() {
     { label: "Net Profit", value: fmt(netProfit), icon: DollarSign, color: netProfit >= 0 ? "text-emerald-400" : "text-destructive" },
     { label: "Profit Margin", value: `${profitMargin.toFixed(1)}%`, icon: TrendingUp, color: profitMargin >= 20 ? "text-emerald-400" : "text-warning" },
     { label: "MRR", value: fmt(mrr), icon: DollarSign, color: "text-primary" },
-    { label: "Avg Revenue/Client", value: fmt(avgRevenuePerClient), icon: Users, color: "text-primary" },
+    { label: "Billable Rate", value: `${billableRate.toFixed(0)}%`, icon: Clock, color: billableRate >= 60 ? "text-emerald-400" : "text-warning" },
     { label: "Task Completion", value: `${taskCompletionRate.toFixed(0)}%`, icon: Activity, color: taskCompletionRate >= 70 ? "text-emerald-400" : "text-warning" },
   ];
 
@@ -262,19 +340,51 @@ export default function AdminReports() {
     transition: { duration: 0.4, delay },
   });
 
+  // Utilization radial data
+  const utilizationRadial = [{ name: "Utilization", value: Math.min(utilizationRate, 100), fill: utilizationRate >= 70 ? "hsl(142, 71%, 45%)" : utilizationRate >= 40 ? "hsl(48, 96%, 53%)" : "hsl(0, 84%, 60%)" }];
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <motion.div {...anim(0)} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Reports & Analytics</h1>
-          <p className="text-muted-foreground">KPIs, trends, pipeline, and business intelligence.</p>
+          <p className="text-muted-foreground">KPIs, trends, utilization, pipeline, and business intelligence.</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={exportExcel} className="gap-2">
-            <FileSpreadsheet className="h-4 w-4" /> Export Full Report
-          </Button>
-        </div>
+        <Button variant="outline" onClick={exportExcel} className="gap-2">
+          <FileSpreadsheet className="h-4 w-4" /> Export Full Report
+        </Button>
+      </motion.div>
+
+      {/* Date Range Filter */}
+      <motion.div {...anim(0.05)}>
+        <Card>
+          <CardContent className="py-3 px-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-sm font-medium text-muted-foreground">Period:</span>
+              <Select value={String(filterYear)} onValueChange={(v) => setFilterYear(Number(v))}>
+                <SelectTrigger className="w-24 h-8 text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>{YEAR_OPTIONS.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+              </Select>
+              <Select value={String(filterFromMonth)} onValueChange={(v) => { const m = Number(v); setFilterFromMonth(m); if (m > filterToMonth) setFilterToMonth(m); }}>
+                <SelectTrigger className="w-24 h-8 text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>{MONTHS.map((m, i) => <SelectItem key={i} value={String(i)}>{m}</SelectItem>)}</SelectContent>
+              </Select>
+              <span className="text-sm text-muted-foreground">to</span>
+              <Select value={String(filterToMonth)} onValueChange={(v) => { const m = Number(v); setFilterToMonth(m); if (m < filterFromMonth) setFilterFromMonth(m); }}>
+                <SelectTrigger className="w-24 h-8 text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>{MONTHS.map((m, i) => <SelectItem key={i} value={String(i)} disabled={i < filterFromMonth}>{m}</SelectItem>)}</SelectContent>
+              </Select>
+              <div className="flex gap-1 ml-auto">
+                <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => { setFilterFromMonth(0); setFilterToMonth(2); }}>Q1</Button>
+                <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => { setFilterFromMonth(3); setFilterToMonth(5); }}>Q2</Button>
+                <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => { setFilterFromMonth(6); setFilterToMonth(8); }}>Q3</Button>
+                <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => { setFilterFromMonth(9); setFilterToMonth(11); }}>Q4</Button>
+                <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => { setFilterFromMonth(0); setFilterToMonth(11); }}>Full Year</Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </motion.div>
 
       {/* KPI Cards */}
@@ -296,12 +406,12 @@ export default function AdminReports() {
         ))}
       </div>
 
-      {/* Revenue Trend Area Chart */}
+      {/* Revenue Trend */}
       <motion.div {...anim(0.4)}>
         <Card className="hover:border-primary/20 transition-colors">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-primary" /> Revenue Trend (Last 12 Months)
+              <TrendingUp className="h-5 w-5 text-primary" /> Revenue Trend ({rangeLabel})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -337,9 +447,185 @@ export default function AdminReports() {
         </Card>
       </motion.div>
 
-      {/* Project Pipeline + Revenue by Client */}
+      {/* Team Utilization + Task Health */}
+      <motion.div {...anim(0.45)} className="grid gap-4 lg:grid-cols-3">
+        {/* Utilization Gauge */}
+        <Card className="hover:border-primary/20 transition-colors">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Clock className="h-5 w-5 text-primary" /> Team Utilization
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center">
+            <div className="h-48 w-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <RadialBarChart cx="50%" cy="50%" innerRadius="60%" outerRadius="90%" startAngle={180} endAngle={0} data={utilizationRadial} barSize={14}>
+                  <RadialBar dataKey="value" cornerRadius={10} background={{ fill: "hsl(var(--muted))" }} />
+                </RadialBarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="text-center -mt-12">
+              <p className="text-3xl font-bold font-mono">{utilizationRate.toFixed(0)}%</p>
+              <p className="text-xs text-muted-foreground">{totalHoursLogged.toFixed(0)}h logged / {targetHours}h target</p>
+            </div>
+            <div className="grid grid-cols-2 gap-4 mt-6 w-full text-center">
+              <div className="rounded-lg bg-primary/5 p-3">
+                <p className="text-lg font-bold font-mono text-primary">{billableHours.toFixed(0)}h</p>
+                <p className="text-xs text-muted-foreground">Billable</p>
+              </div>
+              <div className="rounded-lg bg-muted/50 p-3">
+                <p className="text-lg font-bold font-mono">{(totalHoursLogged - billableHours).toFixed(0)}h</p>
+                <p className="text-xs text-muted-foreground">Non-Billable</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Hours by Category */}
+        <Card className="hover:border-primary/20 transition-colors">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" /> Hours by Category
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {hoursByCategory.length > 0 ? (
+              <>
+                <div className="h-52">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={hoursByCategory} cx="50%" cy="50%" innerRadius={50} outerRadius={85} paddingAngle={3} dataKey="value" strokeWidth={0}>
+                        {hoursByCategory.map((entry, i) => (
+                          <Cell key={i} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v.toFixed(1)}h`]} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex flex-wrap gap-3 justify-center">
+                  {hoursByCategory.map((c) => (
+                    <div key={c.name} className="flex items-center gap-1.5 text-xs">
+                      <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c.fill }} />
+                      <span className="text-muted-foreground">{c.name}</span>
+                      <span className="font-mono font-semibold">{c.value.toFixed(0)}h</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-16">No time entries in this period</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Task Health Overview */}
+        <Card className="hover:border-primary/20 transition-colors">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-primary" /> Task Health
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg bg-destructive/10 p-3 text-center">
+                <AlertCircle className="h-4 w-4 text-destructive mx-auto mb-1" />
+                <p className="text-2xl font-bold font-mono text-destructive">{overdueTasks.length}</p>
+                <p className="text-xs text-muted-foreground">Overdue</p>
+              </div>
+              <div className="rounded-lg bg-warning/10 p-3 text-center">
+                <Clock className="h-4 w-4 text-warning mx-auto mb-1" />
+                <p className="text-2xl font-bold font-mono text-warning">{upcomingTasks.length}</p>
+                <p className="text-xs text-muted-foreground">Due This Week</p>
+              </div>
+              <div className="rounded-lg bg-primary/10 p-3 text-center">
+                <Activity className="h-4 w-4 text-primary mx-auto mb-1" />
+                <p className="text-2xl font-bold font-mono text-primary">{inProgressTasks}</p>
+                <p className="text-xs text-muted-foreground">In Progress</p>
+              </div>
+              <div className="rounded-lg bg-muted/50 p-3 text-center">
+                <Target className="h-4 w-4 text-muted-foreground mx-auto mb-1" />
+                <p className="text-2xl font-bold font-mono">{todoTasks}</p>
+                <p className="text-xs text-muted-foreground">To Do</p>
+              </div>
+            </div>
+
+            <div className="border-t border-border pt-3">
+              <p className="text-sm font-medium text-muted-foreground mb-2">By Priority</p>
+              <div className="space-y-2">
+                {tasksByPriority.map((tp) => (
+                  <div key={tp.name} className="flex items-center gap-2">
+                    <span className="text-xs font-medium w-16">{tp.name}</span>
+                    <Progress value={tp.total > 0 ? (tp.done / tp.total) * 100 : 0} className="h-2 flex-1" />
+                    <span className="text-xs font-mono text-muted-foreground w-12 text-right">{tp.done}/{tp.total}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Weekly Hours Trend + Revenue Forecast */}
       <motion.div {...anim(0.5)} className="grid gap-4 lg:grid-cols-2">
-        {/* Project Pipeline */}
+        {/* Weekly Hours */}
+        <Card className="hover:border-primary/20 transition-colors">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Clock className="h-5 w-5 text-primary" /> Weekly Hours Trend
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {weeklyHours.length > 0 ? (
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={weeklyHours}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="week" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}h`} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v.toFixed(1)}h`, "Hours"]} />
+                    <Bar dataKey="hours" fill="hsl(213, 100%, 58%)" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-16">No time entries in this period</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* MRR Forecast */}
+        <Card className="hover:border-primary/20 transition-colors">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" /> Revenue Forecast (MRR-based)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={forecastData}>
+                  <defs>
+                    <linearGradient id="forecastGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(213, 100%, 58%)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="hsl(213, 100%, 58%)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickFormatter={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [fmt(v), "Projected"]} />
+                  <Area type="monotone" dataKey="projected" name="Projected MRR" stroke="hsl(213, 100%, 58%)" fill="url(#forecastGrad)" strokeWidth={2} strokeDasharray="8 4" dot={{ r: 4, fill: "hsl(213, 100%, 58%)" }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+            <p className="text-xs text-muted-foreground text-center mt-2">Based on current MRR of {fmt(mrr)}/month from {activeClients.length} active clients</p>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Project Pipeline + Revenue by Client */}
+      <motion.div {...anim(0.55)} className="grid gap-4 lg:grid-cols-2">
         <Card className="hover:border-primary/20 transition-colors">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -347,7 +633,6 @@ export default function AdminReports() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* By Phase */}
             <div>
               <p className="text-sm font-medium text-muted-foreground mb-3">Active Projects by Phase</p>
               {phaseDist.length > 0 ? (
@@ -359,9 +644,7 @@ export default function AdminReports() {
                       <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} width={90} tickLine={false} axisLine={false} />
                       <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "hsl(var(--muted) / 0.3)" }} />
                       <Bar dataKey="value" name="Projects" radius={[0, 6, 6, 0]}>
-                        {phaseDist.map((entry, i) => (
-                          <Cell key={i} fill={entry.fill} />
-                        ))}
+                        {phaseDist.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -370,8 +653,6 @@ export default function AdminReports() {
                 <p className="text-sm text-muted-foreground text-center py-8">No active projects</p>
               )}
             </div>
-
-            {/* By Status */}
             <div className="border-t border-border pt-4">
               <p className="text-sm font-medium text-muted-foreground mb-3">All Projects by Status</p>
               <div className="space-y-3">
@@ -385,24 +666,14 @@ export default function AdminReports() {
                 ))}
               </div>
               <div className="pt-4 grid grid-cols-3 gap-4 text-center border-t border-border mt-4">
-                <div>
-                  <p className="text-2xl font-bold font-mono text-primary">{activeProjects}</p>
-                  <p className="text-xs text-muted-foreground">Active</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold font-mono text-emerald-400">{completedProjects}</p>
-                  <p className="text-xs text-muted-foreground">Completed</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold font-mono">{(projects ?? []).length}</p>
-                  <p className="text-xs text-muted-foreground">Total</p>
-                </div>
+                <div><p className="text-2xl font-bold font-mono text-primary">{activeProjects}</p><p className="text-xs text-muted-foreground">Active</p></div>
+                <div><p className="text-2xl font-bold font-mono text-emerald-400">{completedProjects}</p><p className="text-xs text-muted-foreground">Completed</p></div>
+                <div><p className="text-2xl font-bold font-mono">{(projects ?? []).length}</p><p className="text-xs text-muted-foreground">Total</p></div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Revenue by Client + Client Distribution */}
         <Card className="hover:border-primary/20 transition-colors">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -423,14 +694,9 @@ export default function AdminReports() {
                       ))}
                     </defs>
                     <Pie data={revenueByClient} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={3} dataKey="value" strokeWidth={0}>
-                      {revenueByClient.map((_, i) => (
-                        <Cell key={i} fill={`url(#pieGrad${i % PIE_COLORS.length})`} />
-                      ))}
+                      {revenueByClient.map((_, i) => <Cell key={i} fill={`url(#pieGrad${i % PIE_COLORS.length})`} />)}
                     </Pie>
-                    <Tooltip
-                      formatter={(v: number) => fmt(v)}
-                      contentStyle={tooltipStyle}
-                    />
+                    <Tooltip formatter={(v: number) => fmt(v)} contentStyle={tooltipStyle} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -446,8 +712,6 @@ export default function AdminReports() {
                 </div>
               ))}
             </div>
-
-            {/* Client Distribution */}
             <div className="border-t border-border mt-6 pt-4">
               <p className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
                 <Users className="h-4 w-4" /> Client Distribution
@@ -468,8 +732,36 @@ export default function AdminReports() {
         </Card>
       </motion.div>
 
+      {/* Tasks by Client */}
+      {tasksByClient.length > 0 && (
+        <motion.div {...anim(0.6)}>
+          <Card className="hover:border-primary/20 transition-colors">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Activity className="h-5 w-5 text-primary" /> Task Load by Client
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={tasksByClient} layout="vertical" barSize={16}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                    <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} width={120} tickLine={false} axisLine={false} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Legend />
+                    <Bar dataKey="done" name="Done" stackId="a" fill="hsl(142, 71%, 45%)" radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="open" name="Open" stackId="a" fill="hsl(213, 100%, 58%)" radius={[0, 6, 6, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
       {/* Client Health Table */}
-      <motion.div {...anim(0.6)}>
+      <motion.div {...anim(0.65)}>
         <Card className="hover:border-primary/20 transition-colors">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -495,9 +787,7 @@ export default function AdminReports() {
                     return (
                       <TableRow key={c.id} className="hover:bg-muted/30 transition-colors">
                         <TableCell className="font-medium">{c.name}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs capitalize">{c.status}</Badge>
-                        </TableCell>
+                        <TableCell><Badge variant="outline" className="text-xs capitalize">{c.status}</Badge></TableCell>
                         <TableCell>
                           <Badge className={`${h.bg} ${h.text} border-transparent text-xs gap-1`}>
                             {c.health === "critical" && <AlertTriangle className="h-3 w-3" />}
@@ -523,6 +813,47 @@ export default function AdminReports() {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Overdue Tasks Table */}
+      {overdueTasks.length > 0 && (
+        <motion.div {...anim(0.7)}>
+          <Card className="hover:border-destructive/20 transition-colors border-destructive/10">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2 text-destructive">
+                <AlertCircle className="h-5 w-5" /> Overdue Tasks ({overdueTasks.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Task</TableHead>
+                    <TableHead>Client</TableHead>
+                    <TableHead>Due Date</TableHead>
+                    <TableHead>Priority</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {overdueTasks.sort((a, b) => (a.due_date ?? "").localeCompare(b.due_date ?? "")).map((t) => (
+                    <TableRow key={t.id} className="hover:bg-muted/30 transition-colors">
+                      <TableCell className="font-medium">{t.title}</TableCell>
+                      <TableCell className="text-muted-foreground">{(t.clients as { name: string } | null)?.name ?? "—"}</TableCell>
+                      <TableCell className="font-mono text-sm text-destructive">{t.due_date}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs capitalize">{t.priority}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs capitalize">{t.status.replace(/_/g, " ")}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
     </div>
   );
 }
