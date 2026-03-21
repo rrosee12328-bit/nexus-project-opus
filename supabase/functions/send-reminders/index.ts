@@ -72,6 +72,12 @@ Deno.serve(async (req) => {
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     let totalEnqueued = 0;
 
+    // Check if today is a weekday (Mon-Fri). Payments send any day; all others only weekdays.
+    const dayOfWeek = new Date().getUTCDay(); // 0=Sun, 6=Sat
+    const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
+    const now = new Date();
+    const today = now.toISOString().split("T")[0];
+
     async function wasRecentlySent(type: string, refId: string): Promise<boolean> {
       const { data } = await supabase
         .from("reminder_log")
@@ -119,7 +125,8 @@ Deno.serve(async (req) => {
       return p[key] !== false;
     }
 
-    // ── 1. UNREAD MESSAGES ──
+    // ── 1. UNREAD MESSAGES (weekdays only) ──
+    if (isWeekday) {
     const { data: unreadClients } = await supabase
       .from("messages").select("client_id")
       .is("read_at", null).lt("created_at", cutoff);
@@ -152,8 +159,10 @@ Deno.serve(async (req) => {
         );
       }
     }
+    } // end weekday guard for unread messages
 
-    // ── 2. TASKS AWAITING REVIEW ──
+    // ── 2. TASKS AWAITING REVIEW (weekdays only) ──
+    if (isWeekday) {
     const { data: reviewTasks } = await supabase
       .from("tasks").select("id, title, assigned_to, updated_at")
       .eq("status", "review").lt("updated_at", cutoff);
@@ -184,7 +193,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── 3. PROJECTS IN REVIEW PHASE ──
+    } // end weekday guard for tasks review
+
+    // ── 3. PROJECTS IN REVIEW PHASE (weekdays only) ──
+    if (isWeekday) {
     const { data: reviewProjects } = await supabase
       .from("projects").select("id, name, client_id, updated_at")
       .eq("current_phase", "review").eq("status", "in_progress")
@@ -211,7 +223,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── 4. UNPAID INVOICES ──
+    } // end weekday guard for projects review
+
+    // ── 4. UNPAID INVOICES (sends any day) ──
     const { data: owingClients } = await supabase
       .from("clients").select("id, name, email, user_id, balance_due")
       .gt("balance_due", 0).eq("status", "active");
@@ -234,10 +248,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── 5. TASKS DUE WITHIN 24 HOURS ──
-    const now = new Date();
+    // ── 5. TASKS DUE WITHIN 24 HOURS (weekdays only) ──
+    if (isWeekday) {
     const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-    const today = now.toISOString().split("T")[0];
 
     const { data: dueSoonTasks } = await supabase
       .from("tasks").select("id, title, due_date, assigned_to")
@@ -271,7 +284,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── 6. LEAD FOLLOW-UP REMINDERS ──
+    } // end weekday guard for task deadlines
+
+    // ── 6. LEAD FOLLOW-UP REMINDERS (weekdays only) ──
+    if (isWeekday) {
     const { data: leadsWithFollowups } = await supabase
       .from("clients")
       .select("id, name, email, phone, pipeline_stage, follow_up_start, follow_up_end, type, notes")
@@ -332,7 +348,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── 7. DAILY DIGEST for opted-in users ──
+    } // end weekday guard for lead follow-ups
+
+    // ── 7. DAILY DIGEST for opted-in users (weekdays only) ──
+    if (isWeekday) {
     const digestUsers = (allPrefs ?? []).filter(p => p.email_digest);
     for (const pref of digestUsers) {
       const digestRef = `digest_${pref.user_id}_${today}`;
@@ -437,6 +456,7 @@ Deno.serve(async (req) => {
         `Good morning! Here's your daily summary from Vektiss.`
       );
     }
+    } // end weekday guard for daily digest
 
     return new Response(
       JSON.stringify({ ok: true, reminders_enqueued: totalEnqueued }),
