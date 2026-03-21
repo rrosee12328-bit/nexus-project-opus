@@ -41,7 +41,7 @@ function buildReminderHtml(title: string, body: string, ctaLabel: string, ctaUrl
   `);
 }
 
-function buildDigestHtml(name: string, sections: { icon: string; title: string; items: string[]; cta: string; url: string }[]): string {
+function buildDigestHtml(name: string, greeting: string, sections: { icon: string; title: string; items: string[]; cta: string; url: string }[]): string {
   const sectionHtml = sections.map(s => `
     <div style="margin:0 0 24px;padding:16px;background:#f9f9fb;border-radius:8px;border-left:4px solid hsl(213,100%,58%);">
       <h3 style="margin:0 0 8px;font-size:15px;font-weight:600;color:#0d0d0d;">${s.icon} ${s.title}</h3>
@@ -54,7 +54,7 @@ function buildDigestHtml(name: string, sections: { icon: string; title: string; 
 
   return wrapEmail(`
     <h2 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#0d0d0d;">Good morning${name ? ', ' + name : ''}!</h2>
-    <p style="margin:0 0 24px;font-size:14px;color:#555;line-height:1.6;">Here's your daily summary from Vektiss.</p>
+    <p style="margin:0 0 24px;font-size:14px;color:#555;line-height:1.6;">${greeting}</p>
     ${sectionHtml}
   `);
 }
