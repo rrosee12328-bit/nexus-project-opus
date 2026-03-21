@@ -569,9 +569,9 @@ async function executeTool(
       return { success: true, task: data?.[0] }
     }
     case 'send_message': {
-      const { data: adminRoles } = await supabase.from('user_roles').select('user_id').eq('role', 'admin').limit(1)
-      const senderId = adminRoles?.[0]?.user_id
-      if (!senderId) return { error: 'No admin user found' }
+      // Use the authenticated user's ID as sender, not an arbitrary admin
+      const senderId = context.userId
+      if (!senderId) return { error: 'No authenticated user' }
       const { data, error } = await supabase.from('messages').insert({
         client_id: args.client_id, sender_id: senderId, content: args.content,
       }).select()
