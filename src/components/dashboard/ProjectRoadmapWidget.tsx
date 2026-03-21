@@ -54,7 +54,7 @@ export function ProjectRoadmapWidget({ projects }: Props) {
                   {ALL_PHASE_KEYS.map((phase, i) => {
                     const isCompleted = i < currentIndex;
                     const isCurrent = i === currentIndex;
-                    const isFuture = i > currentIndex;
+                    
 
                     return (
                       <div key={phase} className="flex items-center flex-1 min-w-0">
