@@ -109,10 +109,34 @@ export default function AIAgentChat({
     }
   }, []);
 
-  const saveMessages = useCallback((convoId: string, msgs: Msg[]) => {
+  const generateTitle = useCallback(async (msgs: Msg[]): Promise<string> => {
+    const userMsgs = msgs.filter((m) => m.role === "user").map((m) => m.content);
+    if (userMsgs.length === 0) return "New conversation";
+    // Use first user message + assistant reply to create a short summary
+    const context = msgs.slice(0, 4).map((m) => `${m.role}: ${m.content.slice(0, 120)}`).join("\n");
+    try {
+      const resp = await supabase.functions.invoke("ai-agent", {
+        body: {
+          messages: [
+            { role: "user", content: `Summarize this conversation in 4-6 words as a short title. Only return the title, nothing else.\n\n${context}` },
+          ],
+        },
+      });
+      const title = resp.data?.content?.trim().replace(/^["']|["']$/g, "");
+      if (title && title.length > 0 && title.length < 80) return title;
+    } catch { /* fallback */ }
+    return userMsgs[0].slice(0, 50);
+  }, []);
+
+  const saveMessages = useCallback((convoId: string, msgs: Msg[], generateNewTitle = false) => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(async () => {
-      const title = msgs.find((m) => m.role === "user")?.content.slice(0, 80) || "New conversation";
+      let title: string;
+      if (generateNewTitle && msgs.length >= 2) {
+        title = await generateTitle(msgs);
+      } else {
+        title = msgs.find((m) => m.role === "user")?.content.slice(0, 60) || "New conversation";
+      }
       await supabase
         .from("ai_conversations")
         .update({ messages: JSON.parse(JSON.stringify(msgs)), title })
