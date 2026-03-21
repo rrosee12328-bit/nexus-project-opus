@@ -228,7 +228,7 @@ export default function AIAgentChat({
         { role: "assistant", content: data.content || "I couldn't generate a response." },
       ];
       setMessages(finalMessages);
-      saveMessages(convoId, finalMessages);
+      saveMessages(convoId, finalMessages, finalMessages.length === 2);
     } catch (err) {
       console.error("Agent error:", err);
       toast.error("Failed to get a response. Please try again.");
