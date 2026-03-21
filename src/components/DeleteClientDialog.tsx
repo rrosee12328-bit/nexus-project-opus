@@ -26,6 +26,29 @@ export function DeleteClientDialog({ open, onOpenChange, clientId, clientName }:
 
   const mutation = useMutation({
     mutationFn: async () => {
+      // Delete related records first to avoid FK constraint errors
+      await supabase.from("client_notes").delete().eq("client_id", clientId);
+      await supabase.from("client_onboarding_steps").delete().eq("client_id", clientId);
+      await supabase.from("client_payments").delete().eq("client_id", clientId);
+      await supabase.from("client_costs").delete().eq("client_id", clientId);
+      await supabase.from("assets").delete().eq("client_id", clientId);
+      await supabase.from("messages").delete().eq("client_id", clientId);
+      // Delete projects and their related records
+      const { data: projects } = await supabase.from("projects").select("id").eq("client_id", clientId);
+      if (projects?.length) {
+        const projectIds = projects.map(p => p.id);
+        await supabase.from("project_activity_log").delete().in("project_id", projectIds);
+        await supabase.from("project_phases").delete().in("project_id", projectIds);
+        await supabase.from("project_attachments").delete().in("project_id", projectIds);
+        await supabase.from("projects").delete().eq("client_id", clientId);
+      }
+      // Delete tasks linked to this client
+      const { data: tasks } = await supabase.from("tasks").select("id").eq("client_id", clientId);
+      if (tasks?.length) {
+        const taskIds = tasks.map(t => t.id);
+        await supabase.from("task_attachments").delete().in("task_id", taskIds);
+        await supabase.from("tasks").delete().eq("client_id", clientId);
+      }
       const { error } = await supabase.from("clients").delete().eq("id", clientId);
       if (error) throw error;
     },
