@@ -16,7 +16,12 @@ export default function ResetPassword() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // Listen for the PASSWORD_RECOVERY event from the URL token
+    // Check if recovery session is already established
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setReady(true);
+    });
+
+    // Also listen for the PASSWORD_RECOVERY event in case it fires after mount
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
         setReady(true);
