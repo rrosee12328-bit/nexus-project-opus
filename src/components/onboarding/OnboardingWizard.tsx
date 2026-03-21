@@ -43,7 +43,7 @@ export function OnboardingWizard({ onComplete, displayName }: OnboardingWizardPr
   const [name, setName] = useState(displayName || "");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
-  const { data: profile } = useQuery({
+  useQuery({
     queryKey: ["wizard-profile", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
