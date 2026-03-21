@@ -411,14 +411,14 @@ export default function AIAgentChat({
                 <button
                   key={c.id}
                   onClick={() => loadConversation(c.id)}
-                  className={`group flex items-center gap-2 text-left px-2.5 py-2 rounded-lg text-sm transition-all duration-150 ${
+                  className={`group flex items-center gap-2 text-left px-2 py-1.5 rounded-lg text-sm transition-all duration-150 ${
                     activeConvoId === c.id
                       ? "bg-primary/10 text-primary shadow-sm shadow-primary/5"
                       : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
                   }`}
                 >
-                  <img src={botAvatar} alt="" className="h-5 w-5 flex-shrink-0 rounded" />
-                  <span className="truncate flex-1 text-[13px] leading-snug">{c.title}</span>
+                  <MessageSquare className="h-3.5 w-3.5 flex-shrink-0 opacity-50" />
+                  <span className="truncate flex-1 text-[12px] leading-tight">{c.title}</span>
                   <Trash2
                     className="h-3.5 w-3.5 opacity-0 group-hover:opacity-70 hover:!opacity-100 text-destructive transition-opacity flex-shrink-0"
                     onClick={(e) => deleteConversation(c.id, e)}
