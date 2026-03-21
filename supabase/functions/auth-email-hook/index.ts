@@ -269,13 +269,11 @@ async function handleWebhook(req: Request): Promise<Response> {
 
   if (enqueueError) {
     console.error('Failed to enqueue auth email', { error: enqueueError, run_id, emailType })
-    await supabase.from('email_send_log').insert({
-      message_id: messageId,
-      template_name: emailType,
-      recipient_email: payload.data.email,
+    // Update the existing pending row to failed (instead of inserting a duplicate)
+    await supabase.from('email_send_log').update({
       status: 'failed',
       error_message: 'Failed to enqueue email',
-    })
+    }).eq('message_id', messageId).eq('status', 'pending')
     return new Response(JSON.stringify({ error: 'Failed to enqueue email' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
