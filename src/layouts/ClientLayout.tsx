@@ -97,6 +97,7 @@ export default function ClientLayout() {
   const navItems = [
     { title: "Dashboard", url: "/portal", icon: LayoutDashboard, badge: 0 },
     { title: "Projects", url: "/portal/projects", icon: FolderKanban, badge: 0 },
+    { title: "Approvals", url: "/portal/approvals", icon: FileCheck, badge: 0 },
     { title: "Assets", url: "/portal/assets", icon: Upload, badge: 0 },
     { title: "Messages", url: "/portal/messages", icon: MessageSquare, badge: unreadCount },
     { title: "Payments", url: "/portal/payments", icon: CreditCard, badge: 0 },
