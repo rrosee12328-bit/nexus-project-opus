@@ -481,30 +481,28 @@ export default function AdminClients() {
       </motion.div>
 
       {/* Lead Pipeline Kanban */}
-      {leads.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.5 }}
-        >
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <PhoneCall className="h-5 w-5 text-purple-400" />
-              Sales Pipeline
-              <Badge variant="secondary" className="ml-2 text-xs">{leads.length} leads</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <LeadPipelineKanban
-              leads={leads}
-              onEdit={openEdit}
-              onDelete={setDeleteTarget}
-            />
-          </CardContent>
-        </Card>
-        </motion.div>
-      )}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.5 }}
+      >
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <PhoneCall className="h-5 w-5 text-purple-400" />
+            Sales Pipeline
+            {leads.length > 0 && <Badge variant="secondary" className="ml-2 text-xs">{leads.length} leads</Badge>}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <LeadPipelineKanban
+            leads={leads}
+            onEdit={openEdit}
+            onDelete={setDeleteTarget}
+          />
+        </CardContent>
+      </Card>
+      </motion.div>
 
       {/* Pending Setup Alert */}
       {pendingSetup > 0 && (
