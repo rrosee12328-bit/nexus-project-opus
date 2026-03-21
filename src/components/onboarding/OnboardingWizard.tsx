@@ -28,7 +28,7 @@ const WIZARD_STEPS = [
   { id: "complete", title: "You're All Set!" },
 ] as const;
 
-type StepId = (typeof WIZARD_STEPS)[number]["id"];
+
 
 interface OnboardingWizardProps {
   onComplete: () => void;
