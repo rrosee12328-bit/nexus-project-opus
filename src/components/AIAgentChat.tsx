@@ -6,11 +6,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import {
-  Send, Loader2, User, Sparkles, Plus, MessageSquare,
+  Bot, Send, Loader2, User, Sparkles, Plus, MessageSquare,
   Trash2, Mic, MicOff, Search, PanelLeftClose, PanelLeft, Copy, Check,
-  RotateCcw,
+  RotateCcw, Zap,
 } from "lucide-react";
-import botAvatar from "@/assets/bot-avatar.png";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
@@ -110,10 +109,34 @@ export default function AIAgentChat({
     }
   }, []);
 
-  const saveMessages = useCallback((convoId: string, msgs: Msg[]) => {
+  const generateTitle = useCallback(async (msgs: Msg[]): Promise<string> => {
+    const userMsgs = msgs.filter((m) => m.role === "user").map((m) => m.content);
+    if (userMsgs.length === 0) return "New conversation";
+    // Use first user message + assistant reply to create a short summary
+    const context = msgs.slice(0, 4).map((m) => `${m.role}: ${m.content.slice(0, 120)}`).join("\n");
+    try {
+      const resp = await supabase.functions.invoke("ai-agent", {
+        body: {
+          messages: [
+            { role: "user", content: `Summarize this conversation in 4-6 words as a short title. Only return the title, nothing else.\n\n${context}` },
+          ],
+        },
+      });
+      const title = resp.data?.content?.trim().replace(/^["']|["']$/g, "");
+      if (title && title.length > 0 && title.length < 80) return title;
+    } catch { /* fallback */ }
+    return userMsgs[0].slice(0, 50);
+  }, []);
+
+  const saveMessages = useCallback((convoId: string, msgs: Msg[], generateNewTitle = false) => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(async () => {
-      const title = msgs.find((m) => m.role === "user")?.content.slice(0, 80) || "New conversation";
+      let title: string;
+      if (generateNewTitle && msgs.length >= 2) {
+        title = await generateTitle(msgs);
+      } else {
+        title = msgs.find((m) => m.role === "user")?.content.slice(0, 60) || "New conversation";
+      }
       await supabase
         .from("ai_conversations")
         .update({ messages: JSON.parse(JSON.stringify(msgs)), title })
@@ -205,7 +228,7 @@ export default function AIAgentChat({
         { role: "assistant", content: data.content || "I couldn't generate a response." },
       ];
       setMessages(finalMessages);
-      saveMessages(convoId, finalMessages);
+      saveMessages(convoId, finalMessages, finalMessages.length === 2);
     } catch (err) {
       console.error("Agent error:", err);
       toast.error("Failed to get a response. Please try again.");
@@ -412,14 +435,14 @@ export default function AIAgentChat({
                 <button
                   key={c.id}
                   onClick={() => loadConversation(c.id)}
-                  className={`group flex items-center gap-2 text-left px-2.5 py-2 rounded-lg text-sm transition-all duration-150 ${
+                  className={`group flex items-center gap-2 text-left px-2 py-1.5 rounded-lg text-sm transition-all duration-150 ${
                     activeConvoId === c.id
                       ? "bg-primary/10 text-primary shadow-sm shadow-primary/5"
                       : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
                   }`}
                 >
-                  <img src={botAvatar} alt="" className="h-5 w-5 flex-shrink-0 rounded" />
-                  <span className="truncate flex-1 text-[13px] leading-snug">{c.title}</span>
+                  <MessageSquare className="h-3.5 w-3.5 flex-shrink-0 opacity-50" />
+                  <span className="truncate flex-1 text-[12px] leading-tight">{c.title}</span>
                   <Trash2
                     className="h-3.5 w-3.5 opacity-0 group-hover:opacity-70 hover:!opacity-100 text-destructive transition-opacity flex-shrink-0"
                     onClick={(e) => deleteConversation(c.id, e)}
