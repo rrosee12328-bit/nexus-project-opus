@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { AvatarUpload } from "@/components/AvatarUpload";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -189,11 +189,15 @@ export default function AdminSettings() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex items-center gap-4">
-                  <Avatar className="h-20 w-20 border-2 border-primary/20 shadow-lg">
-                    <AvatarFallback className="bg-primary/10 text-primary text-xl font-bold">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
+                  <AvatarUpload
+                    userId={user!.id}
+                    currentUrl={avatarUrl || null}
+                    initials={initials}
+                    onUploaded={(url) => {
+                      setAvatarUrl(url ?? "");
+                      queryClient.invalidateQueries({ queryKey: ["admin-profile", user?.id] });
+                    }}
+                  />
                   <div className="space-y-1">
                     <p className="text-lg font-semibold">{displayName || "No name set"}</p>
                     <p className="text-sm text-muted-foreground">{user?.email}</p>
@@ -204,15 +208,9 @@ export default function AdminSettings() {
                   </div>
                 </div>
                 <Separator />
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Display Name</Label>
-                    <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Your name" maxLength={100} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Avatar URL</Label>
-                    <Input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="https://..." maxLength={500} />
-                  </div>
+                <div className="space-y-2">
+                  <Label>Display Name</Label>
+                  <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Your name" maxLength={100} />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-muted-foreground flex items-center gap-1.5">
