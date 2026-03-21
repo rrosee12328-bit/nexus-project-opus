@@ -29,10 +29,10 @@ export const SignupEmail = ({
 }: SignupEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>Confirm your email for Vektiss</Preview>
+    <Preview>Confirm your email for {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Heading style={h1}>Welcome to Vektiss</Heading>
+        <Heading style={h1}>Welcome to {siteName}</Heading>
         <Text style={text}>
           Thanks for signing up! Please confirm your email address (
           <Link href={`mailto:${recipient}`} style={link}>
