@@ -200,7 +200,7 @@ export default function AdminClients() {
         <Button onClick={openAdd} size="sm" className="shrink-0 self-start sm:self-auto"><Plus className="mr-2 h-4 w-4" /> Add Client</Button>
       </motion.div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-3">
         {stats.map((s, i) => (
           <motion.div
             key={s.label}
