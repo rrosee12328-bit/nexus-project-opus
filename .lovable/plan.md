@@ -1,22 +1,47 @@
 
 
-# Resume: Stripe Billing Integration
+## Fix: Cost Double-Counting in Reports Page
 
-We left off at Step 1 — enabling Stripe. This is required before any edge functions or billing code can be written, as it provisions the Stripe secret key and unlocks Stripe-specific tooling.
+### Problem
+The Reports page (`src/pages/admin/Reports.tsx`) triple-counts costs:
 
-## Immediate Next Step
+1. **`expenses` table** already contains explicit monthly entries for Operating Expenses ($651/mo), Salary ($4,000/mo), Outsourced Editing, and Office Rent.
+2. **`business_overhead` table** defines the same items as templates (Operating Expenses $651, Salary $4,000, plus $188 in tools) — these get multiplied by months and added again.
+3. **`client_costs` table** includes outsourced editing amounts per client that overlap with the expenses entries.
 
-**Enable Stripe** — This will prompt you to connect your Stripe account and provide a restricted API key. Once connected, the secret key becomes available to edge functions automatically.
+For Jan–Mar (3 months), the phantom additions are roughly:
+- Overhead: ($651 + $4,000 + $188) × 3 = ~$14,517
+- Client costs: ~$4,997 × 3 = ~$14,991
 
-After Stripe is enabled, implementation proceeds in this order:
+The Financials page does NOT have this bug — it correctly uses only the `expenses` table for cost calculations.
 
-1. **Database migration** — Add `stripe_customer_id` to `clients`, `payment_source`/`stripe_invoice_id` to `client_payments`, create `stripe_subscriptions` and `stripe_invoices` tables with RLS
-2. **Edge functions** — `stripe-webhook`, `create-checkout`, `stripe-portal`
-3. **Client Billing page** — Replace Payments with full Billing UI (overview cards, invoice history, subscription status, Stripe Portal buttons)
-4. **Admin billing controls** — Add invoice creation and payment link tools to Client Detail / Financials
-5. **Route updates** — Rename nav items, add redirects
+### Fix (2 edits in Reports.tsx)
 
-## To Proceed
+**1. Remove overhead and client_costs from total cost calculation (lines 140–145)**
 
-Approve this plan and I will enable Stripe as the first action.
+Change the `totalCosts` calculation to use only the `expenses` table, which is the source of truth:
+
+```typescript
+const totalCosts = totalExpenses;
+```
+
+Remove the `monthlyOverhead`, `monthlyClientCosts`, `totalOverheadInRange`, and `totalClientCostsInRange` variables (or keep them only if used elsewhere for display, but remove from cost aggregation).
+
+**2. Fix the revenue trend chart (line 232)**
+
+The per-month cost in `revenueTrend` also adds overhead and client costs on top of expenses:
+
+```typescript
+// Before (line 232):
+const costs = exp + monthlyOverhead + monthlyClientCosts;
+
+// After:
+const costs = exp;
+```
+
+This makes the chart consistent with the corrected totals.
+
+### Result
+- Net profit, profit margin, and all cost-dependent KPIs will reflect accurate numbers matching the Financials page and your spreadsheet.
+- The `business_overhead` and `client_costs` tables remain intact for reference/display purposes — they just won't be double-counted into totals.
 
