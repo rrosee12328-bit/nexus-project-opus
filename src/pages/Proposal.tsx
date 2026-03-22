@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { renderContract } from "@/lib/contractTemplate";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ interface ProposalData {
 
 export default function ProposalPage() {
   const { token } = useParams<{ token: string }>();
+  const [searchParams] = useSearchParams();
   const [proposal, setProposal] = useState<ProposalData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +68,7 @@ export default function ProposalPage() {
       setClientAddress(p.client_address || "");
       setClientEmail(p.client_email || "");
 
-      if (p.paid_at) setStep("done");
+      if (p.paid_at || searchParams.get("paid") === "true") setStep("done");
       else if (p.signed_at) setStep("pay");
       else if (p.status === "viewed") setStep("review");
       else setStep("info");
