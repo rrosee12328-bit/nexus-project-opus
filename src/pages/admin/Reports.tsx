@@ -109,7 +109,7 @@ export default function AdminReports() {
     queryKey: ["report-time-entries"],
     queryFn: async () => { const { data, error } = await supabase.from("time_entries").select("*"); if (error) throw error; return data; },
   });
-  const { data: overhead } = useQuery({
+  const { data: _overhead } = useQuery({
     queryKey: ["report-overhead"],
     queryFn: async () => { const { data, error } = await supabase.from("business_overhead").select("*"); if (error) throw error; return data; },
   });
@@ -137,12 +137,8 @@ export default function AdminReports() {
   const totalRevenue = filteredActualPayments.reduce((s, p) => s + Number(p.amount), 0);
   const totalExpenses = filteredExpenses.reduce((s, e) => s + Number(e.amount), 0);
 
-  // Integrate overhead and client costs
-  const monthlyOverhead = (overhead ?? []).reduce((s, o) => s + Number(o.amount), 0);
-  const monthlyClientCosts = (clientCosts ?? []).filter((c) => c.is_monthly).reduce((s, c) => s + Number(c.amount), 0);
-  const totalOverheadInRange = monthlyOverhead * filteredMonthIndices.length;
-  const totalClientCostsInRange = monthlyClientCosts * filteredMonthIndices.length;
-  const totalCosts = totalExpenses + totalOverheadInRange + totalClientCostsInRange;
+  // Use expenses table as single source of truth for costs (overhead & client costs are reference data only)
+  const totalCosts = totalExpenses;
 
   const netProfit = totalRevenue - totalCosts;
   const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
@@ -229,9 +225,8 @@ export default function AdminReports() {
     const exp = (expenses ?? [])
       .filter((e) => e.expense_month === month && e.expense_year === filterYear)
       .reduce((s, e) => s + Number(e.amount), 0);
-    const costs = exp + monthlyOverhead + monthlyClientCosts;
-    return { label: MONTHS[i], revenue: rev, expenses: costs, profit: rev - costs };
-  }), [filteredMonthIndices, actualPayments, expenses, filterYear, monthlyOverhead, monthlyClientCosts]);
+    return { label: MONTHS[i], revenue: rev, expenses: exp, profit: rev - exp };
+  }), [filteredMonthIndices, actualPayments, expenses, filterYear]);
 
   // Revenue forecast with growth scenarios
   const forecastData = useMemo(() => {
@@ -306,10 +301,8 @@ export default function AdminReports() {
   const waterfallData = useMemo(() => [
     { name: "Revenue", value: totalRevenue, fill: "hsl(142, 71%, 45%)" },
     { name: "Expenses", value: -totalExpenses, fill: "hsl(0, 84%, 60%)" },
-    { name: "Overhead", value: -totalOverheadInRange, fill: "hsl(0, 60%, 50%)" },
-    { name: "Client Costs", value: -totalClientCostsInRange, fill: "hsl(38, 80%, 50%)" },
     { name: "Net Profit", value: netProfit, fill: netProfit >= 0 ? "hsl(213, 100%, 58%)" : "hsl(0, 84%, 60%)" },
-  ], [totalRevenue, totalExpenses, totalOverheadInRange, totalClientCostsInRange, netProfit]);
+  ], [totalRevenue, totalExpenses, netProfit]);
 
   // --- Utilization radial ---
   const utilizationRadial = [{ name: "Utilization", value: Math.min(utilizationRate, 100), fill: utilizationRate >= 70 ? "hsl(142, 71%, 45%)" : utilizationRate >= 40 ? "hsl(48, 96%, 53%)" : "hsl(0, 84%, 60%)" }];
@@ -332,7 +325,6 @@ export default function AdminReports() {
       sections.push(
         ["BUSINESS KPIs — " + rangeLabel], ["Metric", "Value"],
         ["Total Revenue", fmt(totalRevenue)], ["Total Expenses", fmt(totalExpenses)],
-        ["Overhead (period)", fmt(totalOverheadInRange)], ["Client Costs (period)", fmt(totalClientCostsInRange)],
         ["Net Profit", fmt(netProfit)], ["Profit Margin", `${profitMargin.toFixed(1)}%`],
         ["MRR", fmt(mrr)], ["Avg Revenue/Client", fmt(avgRevenuePerClient)],
         ["Active Clients", String(activeClients.length)], ["Active Projects", String(activeProjects)],
