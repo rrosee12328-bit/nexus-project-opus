@@ -42,7 +42,6 @@ import ClientProjects from "./pages/client/Projects";
 import ClientAssets from "./pages/client/Assets";
 import ClientMessages from "./pages/client/Messages";
 import ClientBilling from "./pages/client/Billing";
-import ClientBilling from "./pages/client/Billing";
 import ClientSettings from "./pages/client/Settings";
 import ClientAgent from "./pages/client/Agent";
 import ClientApprovals from "./pages/client/Approvals";
