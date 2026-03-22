@@ -256,9 +256,14 @@ export default function ClientDetail() {
             )}
           </p>
         </div>
-        <Button onClick={() => openCreate()} size="sm" className="shrink-0">
-          <Plus className="mr-2 h-4 w-4" /> Add Entry
-        </Button>
+        <div className="flex gap-2 shrink-0">
+          <Button onClick={() => setProposalOpen(true)} size="sm" variant="outline">
+            <FileSignature className="mr-2 h-4 w-4" /> Send Proposal
+          </Button>
+          <Button onClick={() => openCreate()} size="sm">
+            <Plus className="mr-2 h-4 w-4" /> Add Entry
+          </Button>
+        </div>
       </motion.div>
 
       {/* Quick stats */}
