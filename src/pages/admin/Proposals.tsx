@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { FileText, CheckCircle, CreditCard, Clock, ExternalLink } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { FileText, CheckCircle, CreditCard, Clock, ExternalLink, Eye } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -38,12 +39,13 @@ export default function AdminProposals() {
   const sent = all.filter((p) => p.status === "draft").length;
   const signed = all.filter((p) => p.status === "signed").length;
   const paid = all.filter((p) => p.status === "paid").length;
+  const viewed = all.filter((p) => (p as any).view_count > 0).length;
 
   const stats = [
     { label: "Total Sent", value: all.length, icon: FileText, color: "text-amber-400" },
+    { label: "Opened", value: viewed, icon: Eye, color: "text-purple-400" },
     { label: "Signed", value: signed, icon: CheckCircle, color: "text-blue-400" },
     { label: "Paid", value: paid, icon: CreditCard, color: "text-emerald-400" },
-    { label: "Awaiting", value: sent, icon: Clock, color: "text-muted-foreground" },
   ];
 
   return (
@@ -92,6 +94,7 @@ export default function AdminProposals() {
                     <TableHead>Setup Fee</TableHead>
                     <TableHead>Monthly Fee</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Views</TableHead>
                     <TableHead>Signed</TableHead>
                     <TableHead>Paid</TableHead>
                     <TableHead>Created</TableHead>
@@ -102,6 +105,9 @@ export default function AdminProposals() {
                   {all.map((p) => {
                     const cfg = statusConfig[p.status] ?? statusConfig.draft;
                     const clientName = (p as any).clients?.name ?? p.client_name ?? "—";
+                    const viewCount = (p as any).view_count ?? 0;
+                    const firstViewed = (p as any).first_viewed_at;
+                    const lastViewed = (p as any).last_viewed_at;
                     return (
                       <TableRow key={p.id}>
                         <TableCell className="font-medium">{clientName}</TableCell>
@@ -109,6 +115,24 @@ export default function AdminProposals() {
                         <TableCell>{formatCurrency(p.monthly_fee)}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className={cfg.color}>{cfg.label}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {viewCount > 0 ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="inline-flex items-center gap-1 text-sm cursor-default">
+                                  <Eye className="h-3.5 w-3.5 text-purple-400" />
+                                  {viewCount}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>First opened: {firstViewed ? format(new Date(firstViewed), "MMM d, yyyy h:mm a") : "—"}</p>
+                                <p>Last viewed: {lastViewed ? format(new Date(lastViewed), "MMM d, yyyy h:mm a") : "—"}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-muted-foreground text-xs">
                           {p.signed_at ? format(new Date(p.signed_at), "MMM d, yyyy") : "—"}
