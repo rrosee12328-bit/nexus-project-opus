@@ -15,6 +15,7 @@ import { MoreHorizontal, Pencil, Trash2, Eye, Phone, Mail, Calendar, AlertTriang
 import { toast } from "sonner";
 import { format, isWithinInterval, isBefore, isAfter, differenceInDays, parseISO } from "date-fns";
 import { ConvertLeadDialog } from "./ConvertLeadDialog";
+import { SendProposalDialog } from "@/components/proposals/SendProposalDialog";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
