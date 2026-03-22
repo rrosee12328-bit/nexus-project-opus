@@ -93,7 +93,9 @@ serve(async (req: Request) => {
       case "invoice.updated":
       case "invoice.finalized":
       case "invoice.paid":
+      case "invoice.payment_succeeded":
       case "invoice.payment_failed":
+      case "invoice.sent":
       case "invoice.voided": {
         const invoice = event.data.object;
         await handleInvoice(supabase, invoice);
