@@ -6,7 +6,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { FileText, CheckCircle, CreditCard, Clock, ExternalLink, Eye } from "lucide-react";
+import { FileText, CheckCircle, CreditCard, ExternalLink, Eye } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
