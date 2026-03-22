@@ -378,6 +378,17 @@ export default function ClientDetail() {
         );
       })()}
 
+      {/* Billing */}
+      {client && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+          <AdminClientBilling
+            clientId={client.id}
+            clientName={client.name}
+            stripeCustomerId={(client as any).stripe_customer_id ?? null}
+          />
+        </motion.div>
+      )}
+
       {/* Tabs + timeline */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
         <Card>
