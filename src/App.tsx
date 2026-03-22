@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -41,7 +41,7 @@ import ClientDashboard from "./pages/client/Dashboard";
 import ClientProjects from "./pages/client/Projects";
 import ClientAssets from "./pages/client/Assets";
 import ClientMessages from "./pages/client/Messages";
-import ClientPayments from "./pages/client/Payments";
+import ClientBilling from "./pages/client/Billing";
 import ClientSettings from "./pages/client/Settings";
 import ClientAgent from "./pages/client/Agent";
 import ClientApprovals from "./pages/client/Approvals";
@@ -120,7 +120,8 @@ const App = () => (
               <Route path="projects" element={<ClientProjects />} />
               <Route path="assets" element={<ClientAssets />} />
               <Route path="messages" element={<ClientMessages />} />
-              <Route path="payments" element={<ClientPayments />} />
+              <Route path="billing" element={<ClientBilling />} />
+              <Route path="payments" element={<Navigate to="/portal/billing" replace />} />
               <Route path="approvals" element={<ClientApprovals />} />
               <Route path="agent" element={<ClientAgent />} />
               <Route path="settings" element={<ClientSettings />} />
