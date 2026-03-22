@@ -101,6 +101,7 @@ export default function ClientDetail() {
   const [activeTab, setActiveTab] = useState<string>("all");
   const [expandedNote, setExpandedNote] = useState<string | null>(null);
   const [reportExpanded, setReportExpanded] = useState(true);
+  const [proposalOpen, setProposalOpen] = useState(false);
 
   const { data: client } = useQuery({
     queryKey: ["client-detail", clientId],
