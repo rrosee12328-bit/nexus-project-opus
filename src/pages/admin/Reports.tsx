@@ -109,7 +109,7 @@ export default function AdminReports() {
     queryKey: ["report-time-entries"],
     queryFn: async () => { const { data, error } = await supabase.from("time_entries").select("*"); if (error) throw error; return data; },
   });
-  const { data: overhead } = useQuery({
+  const { data: _overhead } = useQuery({
     queryKey: ["report-overhead"],
     queryFn: async () => { const { data, error } = await supabase.from("business_overhead").select("*"); if (error) throw error; return data; },
   });
