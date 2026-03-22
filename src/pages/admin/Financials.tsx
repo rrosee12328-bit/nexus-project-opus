@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { DollarSign, TrendingUp, TrendingDown, Download, Wallet, Plus, Pencil, Trash2 } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Download, Wallet, Plus, Pencil, Trash2, CreditCard, AlertCircle } from "lucide-react";
 import { Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Line, ComposedChart, Legend } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
