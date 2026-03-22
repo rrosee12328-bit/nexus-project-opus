@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import AdminClientBilling from "@/components/admin/AdminClientBilling";
 import { format, formatDistanceToNow } from "date-fns";
 
 type NoteType = "meeting" | "document" | "action_item" | "note";
