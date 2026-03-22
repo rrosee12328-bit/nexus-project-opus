@@ -225,9 +225,8 @@ export default function AdminReports() {
     const exp = (expenses ?? [])
       .filter((e) => e.expense_month === month && e.expense_year === filterYear)
       .reduce((s, e) => s + Number(e.amount), 0);
-    const costs = exp + monthlyOverhead + monthlyClientCosts;
-    return { label: MONTHS[i], revenue: rev, expenses: costs, profit: rev - costs };
-  }), [filteredMonthIndices, actualPayments, expenses, filterYear, monthlyOverhead, monthlyClientCosts]);
+    return { label: MONTHS[i], revenue: rev, expenses: exp, profit: rev - exp };
+  }), [filteredMonthIndices, actualPayments, expenses, filterYear]);
 
   // Revenue forecast with growth scenarios
   const forecastData = useMemo(() => {
