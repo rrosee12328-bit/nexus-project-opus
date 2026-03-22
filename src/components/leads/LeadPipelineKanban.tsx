@@ -11,10 +11,11 @@ import {
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { MoreHorizontal, Pencil, Trash2, Eye, Phone, Mail, Calendar, AlertTriangle, Clock, DollarSign, ArrowRightCircle, PartyPopper, Info } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Eye, Phone, Mail, Calendar, AlertTriangle, Clock, DollarSign, ArrowRightCircle, PartyPopper, Info, FileSignature } from "lucide-react";
 import { toast } from "sonner";
 import { format, isWithinInterval, isBefore, isAfter, differenceInDays, parseISO } from "date-fns";
 import { ConvertLeadDialog } from "./ConvertLeadDialog";
+import { SendProposalDialog } from "@/components/proposals/SendProposalDialog";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
@@ -83,6 +84,7 @@ export function LeadPipelineKanban({ leads, onEdit, onDelete }: LeadPipelineKanb
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [convertLead, setConvertLead] = useState<Client | null>(null);
+  const [proposalLead, setProposalLead] = useState<Client | null>(null);
 
   const updateStage = useMutation({
     mutationFn: async ({ id, stage }: { id: string; stage: string }) => {
@@ -249,6 +251,9 @@ export function LeadPipelineKanban({ leads, onEdit, onDelete }: LeadPipelineKanb
                                           <Pencil className="mr-2 h-3.5 w-3.5" /> Edit
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
+                                        <DropdownMenuItem onClick={() => setProposalLead(lead)} className="text-primary focus:text-primary">
+                                          <FileSignature className="mr-2 h-3.5 w-3.5" /> Send Proposal
+                                        </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => setConvertLead(lead)} className="text-emerald-500 focus:text-emerald-500">
                                           <ArrowRightCircle className="mr-2 h-3.5 w-3.5" /> Convert to Client
                                         </DropdownMenuItem>
@@ -346,6 +351,17 @@ export function LeadPipelineKanban({ leads, onEdit, onDelete }: LeadPipelineKanb
         open={!!convertLead}
         onOpenChange={(open) => { if (!open) setConvertLead(null); }}
         lead={convertLead}
+      />
+
+      {/* Send Proposal Dialog */}
+      <SendProposalDialog
+        open={!!proposalLead}
+        onOpenChange={(open) => { if (!open) setProposalLead(null); }}
+        clientId={proposalLead?.id ?? ""}
+        clientName={proposalLead?.name ?? ""}
+        clientEmail={proposalLead?.email}
+        defaultMonthlyFee={proposalLead?.monthly_fee ?? 0}
+        defaultSetupFee={proposalLead?.setup_fee ?? 0}
       />
     </div>
   );
