@@ -251,6 +251,9 @@ export function LeadPipelineKanban({ leads, onEdit, onDelete }: LeadPipelineKanb
                                           <Pencil className="mr-2 h-3.5 w-3.5" /> Edit
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
+                                        <DropdownMenuItem onClick={() => setProposalLead(lead)} className="text-primary focus:text-primary">
+                                          <FileSignature className="mr-2 h-3.5 w-3.5" /> Send Proposal
+                                        </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => setConvertLead(lead)} className="text-emerald-500 focus:text-emerald-500">
                                           <ArrowRightCircle className="mr-2 h-3.5 w-3.5" /> Convert to Client
                                         </DropdownMenuItem>
