@@ -325,7 +325,6 @@ export default function AdminReports() {
       sections.push(
         ["BUSINESS KPIs — " + rangeLabel], ["Metric", "Value"],
         ["Total Revenue", fmt(totalRevenue)], ["Total Expenses", fmt(totalExpenses)],
-        ["Overhead (period)", fmt(totalOverheadInRange)], ["Client Costs (period)", fmt(totalClientCostsInRange)],
         ["Net Profit", fmt(netProfit)], ["Profit Margin", `${profitMargin.toFixed(1)}%`],
         ["MRR", fmt(mrr)], ["Avg Revenue/Client", fmt(avgRevenuePerClient)],
         ["Active Clients", String(activeClients.length)], ["Active Projects", String(activeProjects)],
