@@ -1,0 +1,1 @@
+UPDATE clients SET setup_fee = 7000, monthly_fee = 1000 WHERE name = 'Jay (Barber)' AND status = 'lead';
