@@ -119,6 +119,11 @@ serve(async (req: Request) => {
             .update({ stripe_customer_id: session.customer })
             .eq("id", session.metadata.client_id);
         }
+
+        // Handle proposal-based checkout completion
+        if (session.metadata?.proposal_id) {
+          await handleProposalPayment(supabase, session);
+        }
         break;
       }
 
