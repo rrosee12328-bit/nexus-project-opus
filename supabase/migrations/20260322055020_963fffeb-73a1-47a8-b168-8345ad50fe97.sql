@@ -1,0 +1,1 @@
+UPDATE clients SET setup_fee = 320000, monthly_fee = 10500 WHERE id = 'cbd8f4c1-afa7-4d66-b257-ad7100ea4456';
