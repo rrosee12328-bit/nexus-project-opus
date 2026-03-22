@@ -33,6 +33,78 @@ function formatCurrency(val: number) {
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const YEAR_OPTIONS = [2024, 2025, 2026, 2027];
 
+function StripeBillingOverview({ clients }: { clients: any[] }) {
+  const { data: invoices } = useQuery({
+    queryKey: ["all-stripe-invoices"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("stripe_invoices")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: subs } = useQuery({
+    queryKey: ["all-stripe-subs"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("stripe_subscriptions")
+        .select("*")
+        .in("status", ["active", "trialing"]);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const pastDue = (invoices ?? []).filter((i: any) => i.status === "open" && i.due_date && new Date(i.due_date) < new Date());
+  const activeSubCount = (subs ?? []).length;
+  const stripeMrr = (subs ?? []).reduce((sum: number, s: any) => {
+    const client = clients.find((c: any) => c.id === s.client_id);
+    return sum + (client?.monthly_fee ?? 0);
+  }, 0);
+
+  if ((invoices ?? []).length === 0 && activeSubCount === 0) return null;
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <CreditCard className="h-5 w-5 text-primary" />
+            Stripe Billing
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-6 text-sm">
+            <div>
+              <p className="text-muted-foreground">Active Subscriptions</p>
+              <p className="text-2xl font-bold font-mono">{activeSubCount}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Stripe MRR</p>
+              <p className="text-2xl font-bold font-mono">{formatCurrency(stripeMrr)}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Total Invoices</p>
+              <p className="text-2xl font-bold font-mono">{(invoices ?? []).length}</p>
+            </div>
+            {pastDue.length > 0 && (
+              <div>
+                <p className="text-destructive flex items-center gap-1">
+                  <AlertCircle className="h-3.5 w-3.5" /> Past Due
+                </p>
+                <p className="text-2xl font-bold font-mono text-destructive">{pastDue.length}</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
 export default function AdminFinancials() {
   const queryClient = useQueryClient();
   const [chartView, setChartView] = useState<"actual" | "projected" | "all">("all");
