@@ -25,12 +25,13 @@ import {
 import {
   ArrowLeft, Plus, Video, FileText, CircleDot, StickyNote,
   Pencil, Trash2, Loader2, ExternalLink, Calendar, Users, CheckCircle2, Clock,
-  Link as LinkIcon, ChevronDown, ChevronUp, Briefcase,
+  Link as LinkIcon, ChevronDown, ChevronUp, Briefcase, FileSignature,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import AdminClientBilling from "@/components/admin/AdminClientBilling";
 import { format, formatDistanceToNow } from "date-fns";
+import { SendProposalDialog } from "@/components/proposals/SendProposalDialog";
 
 type NoteType = "meeting" | "document" | "action_item" | "note";
 
@@ -100,6 +101,7 @@ export default function ClientDetail() {
   const [activeTab, setActiveTab] = useState<string>("all");
   const [expandedNote, setExpandedNote] = useState<string | null>(null);
   const [reportExpanded, setReportExpanded] = useState(true);
+  const [proposalOpen, setProposalOpen] = useState(false);
 
   const { data: client } = useQuery({
     queryKey: ["client-detail", clientId],
@@ -254,9 +256,14 @@ export default function ClientDetail() {
             )}
           </p>
         </div>
-        <Button onClick={() => openCreate()} size="sm" className="shrink-0">
-          <Plus className="mr-2 h-4 w-4" /> Add Entry
-        </Button>
+        <div className="flex gap-2 shrink-0">
+          <Button onClick={() => setProposalOpen(true)} size="sm" variant="outline">
+            <FileSignature className="mr-2 h-4 w-4" /> Send Proposal
+          </Button>
+          <Button onClick={() => openCreate()} size="sm">
+            <Plus className="mr-2 h-4 w-4" /> Add Entry
+          </Button>
+        </div>
       </motion.div>
 
       {/* Quick stats */}
@@ -667,6 +674,18 @@ export default function ClientDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {client && (
+        <SendProposalDialog
+          open={proposalOpen}
+          onOpenChange={setProposalOpen}
+          clientId={client.id}
+          clientName={client.name}
+          clientEmail={client.email}
+          defaultMonthlyFee={client.monthly_fee ?? 0}
+          defaultSetupFee={client.setup_fee ?? 0}
+        />
+      )}
     </div>
   );
 }
