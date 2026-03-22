@@ -31,6 +31,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import AdminClientBilling from "@/components/admin/AdminClientBilling";
 import { format, formatDistanceToNow } from "date-fns";
+import { SendProposalDialog } from "@/components/proposals/SendProposalDialog";
 
 type NoteType = "meeting" | "document" | "action_item" | "note";
 
