@@ -117,7 +117,7 @@ export default function ClientLayout() {
   // Secondary items shown in "More" sheet
   const secondaryItems = [
     { title: "Assets", url: "/portal/assets", icon: Upload, badge: 0 },
-    { title: "Payments", url: "/portal/payments", icon: CreditCard, badge: 0 },
+    { title: "Billing", url: "/portal/billing", icon: CreditCard, badge: 0 },
     { title: "AI Assistant", url: "/portal/agent", icon: Bot, badge: 0 },
     { title: "Settings", url: "/portal/settings", icon: Settings, badge: 0 },
   ];
