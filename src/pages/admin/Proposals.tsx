@@ -36,7 +36,7 @@ export default function AdminProposals() {
   });
 
   const all = proposals ?? [];
-  const sent = all.filter((p) => p.status === "draft").length;
+  
   const signed = all.filter((p) => p.status === "signed").length;
   const paid = all.filter((p) => p.status === "paid").length;
   const viewed = all.filter((p) => (p as any).view_count > 0).length;
