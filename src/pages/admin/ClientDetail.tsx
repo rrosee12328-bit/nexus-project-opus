@@ -674,6 +674,18 @@ export default function ClientDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {client && (
+        <SendProposalDialog
+          open={proposalOpen}
+          onOpenChange={setProposalOpen}
+          clientId={client.id}
+          clientName={client.name}
+          clientEmail={client.email}
+          defaultMonthlyFee={client.monthly_fee ?? 0}
+          defaultSetupFee={client.setup_fee ?? 0}
+        />
+      )}
     </div>
   );
 }
