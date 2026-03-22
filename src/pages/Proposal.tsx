@@ -29,6 +29,7 @@ interface ProposalData {
 
 export default function ProposalPage() {
   const { token } = useParams<{ token: string }>();
+  const [searchParams] = useSearchParams();
   const [proposal, setProposal] = useState<ProposalData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
