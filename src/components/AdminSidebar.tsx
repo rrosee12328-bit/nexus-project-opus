@@ -37,6 +37,7 @@ const navItems = [
   { title: "Calendar", url: "/admin/calendar", icon: Calendar },
   { title: "Client Management", url: "/admin/clients", icon: Users },
   { title: "Sales Pipeline", url: "/admin/leads", icon: Target },
+  { title: "Proposals", url: "/admin/proposals", icon: FileText },
   { title: "Project Management", url: "/admin/projects", icon: FolderKanban },
   { title: "Assets", url: "/admin/assets", icon: Upload },
   { title: "Messages", url: "/admin/messages", icon: MessageSquare },

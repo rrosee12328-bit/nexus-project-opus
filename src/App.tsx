@@ -94,6 +94,7 @@ const App = () => (
               <Route path="settings" element={<AdminSettings />} />
               <Route path="calendar" element={<AdminCalendar />} />
               <Route path="leads" element={<AdminLeads />} />
+              <Route path="proposals" element={<AdminProposals />} />
             </Route>
 
             {/* Ops Portal */}
