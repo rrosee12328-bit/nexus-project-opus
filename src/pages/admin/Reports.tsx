@@ -137,12 +137,8 @@ export default function AdminReports() {
   const totalRevenue = filteredActualPayments.reduce((s, p) => s + Number(p.amount), 0);
   const totalExpenses = filteredExpenses.reduce((s, e) => s + Number(e.amount), 0);
 
-  // Integrate overhead and client costs
-  const monthlyOverhead = (overhead ?? []).reduce((s, o) => s + Number(o.amount), 0);
-  const monthlyClientCosts = (clientCosts ?? []).filter((c) => c.is_monthly).reduce((s, c) => s + Number(c.amount), 0);
-  const totalOverheadInRange = monthlyOverhead * filteredMonthIndices.length;
-  const totalClientCostsInRange = monthlyClientCosts * filteredMonthIndices.length;
-  const totalCosts = totalExpenses + totalOverheadInRange + totalClientCostsInRange;
+  // Use expenses table as single source of truth for costs (overhead & client costs are reference data only)
+  const totalCosts = totalExpenses;
 
   const netProfit = totalRevenue - totalCosts;
   const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
