@@ -121,7 +121,8 @@ const App = () => (
               <Route path="projects" element={<ClientProjects />} />
               <Route path="assets" element={<ClientAssets />} />
               <Route path="messages" element={<ClientMessages />} />
-              <Route path="payments" element={<ClientPayments />} />
+              <Route path="billing" element={<ClientBilling />} />
+              <Route path="payments" element={<Navigate to="/portal/billing" replace />} />
               <Route path="approvals" element={<ClientApprovals />} />
               <Route path="agent" element={<ClientAgent />} />
               <Route path="settings" element={<ClientSettings />} />
