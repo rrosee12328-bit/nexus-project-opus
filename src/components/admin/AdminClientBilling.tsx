@@ -79,8 +79,8 @@ export default function AdminClientBilling({ clientId, clientName, stripeCustome
       });
       if (error) throw error;
       if (data?.url) {
-        await navigator.clipboard.writeText(data.url);
-        toast.success("Payment link copied to clipboard");
+        window.open(data.url, "_blank");
+        toast.success("Checkout opened in new tab");
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to create payment link");
