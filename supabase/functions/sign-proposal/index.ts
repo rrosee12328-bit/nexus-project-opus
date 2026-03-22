@@ -76,6 +76,23 @@ Deno.serve(async (req) => {
         .is("email", null);
     }
 
+    // Trigger contract PDF generation asynchronously
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    try {
+      await fetch(`${supabaseUrl}/functions/v1/generate-contract-pdf`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${serviceRoleKey}`,
+        },
+        body: JSON.stringify({ proposal_id: proposal.id }),
+      });
+    } catch (pdfErr) {
+      // Log but don't fail the signing — PDF can be regenerated
+      console.error("PDF generation call failed (non-blocking):", pdfErr);
+    }
+
     return new Response(
       JSON.stringify({ success: true }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
