@@ -319,6 +319,9 @@ export default function AdminFinancials() {
         ))}
       </div>
 
+      {/* Stripe Billing Overview */}
+      <StripeBillingOverview clients={clients ?? []} />
+
       {/* Revenue vs Expenses Chart */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
