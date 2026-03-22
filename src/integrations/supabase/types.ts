@@ -1017,6 +1017,80 @@ export type Database = {
           },
         ]
       }
+      proposals: {
+        Row: {
+          client_address: string | null
+          client_email: string | null
+          client_id: string | null
+          client_name: string | null
+          company_name: string | null
+          contract_pdf_path: string | null
+          created_at: string
+          created_by: string
+          id: string
+          monthly_fee: number
+          paid_at: string | null
+          services_description: string | null
+          setup_fee: number
+          signed_at: string | null
+          signed_name: string | null
+          status: string
+          stripe_checkout_session_id: string | null
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          client_address?: string | null
+          client_email?: string | null
+          client_id?: string | null
+          client_name?: string | null
+          company_name?: string | null
+          contract_pdf_path?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          monthly_fee?: number
+          paid_at?: string | null
+          services_description?: string | null
+          setup_fee?: number
+          signed_at?: string | null
+          signed_name?: string | null
+          status?: string
+          stripe_checkout_session_id?: string | null
+          token?: string
+          updated_at?: string
+        }
+        Update: {
+          client_address?: string | null
+          client_email?: string | null
+          client_id?: string | null
+          client_name?: string | null
+          company_name?: string | null
+          contract_pdf_path?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          monthly_fee?: number
+          paid_at?: string | null
+          services_description?: string | null
+          setup_fee?: number
+          signed_at?: string | null
+          signed_name?: string | null
+          status?: string
+          stripe_checkout_session_id?: string | null
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposals_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reminder_log: {
         Row: {
           id: string
