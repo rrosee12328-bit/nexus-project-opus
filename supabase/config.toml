@@ -11,3 +11,9 @@ project_id = "xtftehtsfnxsdsfmwkew"
     verify_jwt = true
   [functions.invite-client]
     verify_jwt = false
+  [functions.stripe-webhook]
+    verify_jwt = false
+  [functions.create-checkout]
+    verify_jwt = false
+  [functions.stripe-portal]
+    verify_jwt = false
