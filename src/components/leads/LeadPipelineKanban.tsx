@@ -83,6 +83,7 @@ export function LeadPipelineKanban({ leads, onEdit, onDelete }: LeadPipelineKanb
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [convertLead, setConvertLead] = useState<Client | null>(null);
+  const [proposalLead, setProposalLead] = useState<Client | null>(null);
 
   const updateStage = useMutation({
     mutationFn: async ({ id, stage }: { id: string; stage: string }) => {
