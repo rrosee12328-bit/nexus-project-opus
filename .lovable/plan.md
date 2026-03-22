@@ -1,47 +1,27 @@
 
 
-## Fix: Cost Double-Counting in Reports Page
+## Fix Payment Created Dates
 
 ### Problem
-The Reports page (`src/pages/admin/Reports.tsx`) triple-counts costs:
+All `client_payments` records have `created_at = 2026-03-17` because they were bulk-inserted. This makes date-based queries and sorting misleading.
 
-1. **`expenses` table** already contains explicit monthly entries for Operating Expenses ($651/mo), Salary ($4,000/mo), Outsourced Editing, and Office Rent.
-2. **`business_overhead` table** defines the same items as templates (Operating Expenses $651, Salary $4,000, plus $188 in tools) — these get multiplied by months and added again.
-3. **`client_costs` table** includes outsourced editing amounts per client that overlap with the expenses entries.
+### Solution
+Run a single SQL migration to set each payment's `created_at` to the 1st of its `payment_month`/`payment_year`. Projected payments keep their current timestamp since they represent future forecasts.
 
-For Jan–Mar (3 months), the phantom additions are roughly:
-- Overhead: ($651 + $4,000 + $188) × 3 = ~$14,517
-- Client costs: ~$4,997 × 3 = ~$14,991
+### Migration SQL
 
-The Financials page does NOT have this bug — it correctly uses only the `expenses` table for cost calculations.
-
-### Fix (2 edits in Reports.tsx)
-
-**1. Remove overhead and client_costs from total cost calculation (lines 140–145)**
-
-Change the `totalCosts` calculation to use only the `expenses` table, which is the source of truth:
-
-```typescript
-const totalCosts = totalExpenses;
+```sql
+UPDATE client_payments
+SET created_at = make_timestamptz(payment_year, payment_month, 1, 12, 0, 0, 'UTC')
+WHERE notes IS DISTINCT FROM 'Projected'
+  AND stripe_invoice_id IS NULL;
 ```
 
-Remove the `monthlyOverhead`, `monthlyClientCosts`, `totalOverheadInRange`, and `totalClientCostsInRange` variables (or keep them only if used elsewhere for display, but remove from cost aggregation).
-
-**2. Fix the revenue trend chart (line 232)**
-
-The per-month cost in `revenueTrend` also adds overhead and client costs on top of expenses:
-
-```typescript
-// Before (line 232):
-const costs = exp + monthlyOverhead + monthlyClientCosts;
-
-// After:
-const costs = exp;
-```
-
-This makes the chart consistent with the corrected totals.
+This updates 13 actual payment records across all clients (Rose Credit Repair, Goodland Church, J&J Elite Auto Repair, Jarvis Johnson, Porsche) while leaving the 9 projected payments unchanged.
 
 ### Result
-- Net profit, profit margin, and all cost-dependent KPIs will reflect accurate numbers matching the Financials page and your spreadsheet.
-- The `business_overhead` and `client_costs` tables remain intact for reference/display purposes — they just won't be double-counted into totals.
+- Jan 2026 payments → `2026-01-01T12:00:00Z`
+- Feb 2026 payments → `2026-02-01T12:00:00Z`
+- Mar 2026 payments → `2026-03-01T12:00:00Z`
+- Projected (Apr–Jun) → unchanged
 
