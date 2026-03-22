@@ -259,3 +259,76 @@ async function handleSubscription(supabase: any, subscription: any) {
     throw error;
   }
 }
+
+async function handleProposalPayment(supabase: any, session: any) {
+  const proposalId = session.metadata?.proposal_id;
+  const clientId = session.metadata?.client_id;
+
+  if (!proposalId) return;
+
+  // Mark proposal as paid
+  const { error: updateErr } = await supabase
+    .from("proposals")
+    .update({
+      status: "paid",
+      paid_at: new Date().toISOString(),
+      stripe_checkout_session_id: session.id,
+    })
+    .eq("id", proposalId);
+
+  if (updateErr) {
+    console.error("Failed to update proposal paid status:", updateErr);
+  }
+
+  // Record payment in client_payments (this triggers auto_invite_on_first_payment)
+  if (clientId && session.amount_total > 0) {
+    const now = new Date();
+
+    // Check if already recorded for this session
+    const { data: existing } = await supabase
+      .from("client_payments")
+      .select("id")
+      .eq("stripe_invoice_id", session.id)
+      .maybeSingle();
+
+    if (!existing) {
+      const { error: payErr } = await supabase.from("client_payments").insert({
+        client_id: clientId,
+        amount: session.amount_total / 100, // cents → dollars
+        payment_month: now.getMonth() + 1,
+        payment_year: now.getFullYear(),
+        notes: "Setup fee — proposal signed & paid",
+        stripe_invoice_id: session.id,
+        payment_source: "stripe",
+      });
+
+      if (payErr) {
+        console.error("Failed to insert proposal payment:", payErr);
+      } else {
+        console.log(`Proposal payment recorded for client ${clientId}, triggering onboarding flow`);
+      }
+    }
+  }
+
+  // Also update client fees from the proposal
+  if (clientId) {
+    const { data: proposal } = await supabase
+      .from("proposals")
+      .select("setup_fee, monthly_fee, client_email, client_name")
+      .eq("id", proposalId)
+      .single();
+
+    if (proposal) {
+      await supabase
+        .from("clients")
+        .update({
+          setup_fee: proposal.setup_fee,
+          monthly_fee: proposal.monthly_fee,
+          setup_paid: proposal.setup_fee,
+          email: proposal.client_email,
+          name: proposal.client_name,
+        })
+        .eq("id", clientId);
+    }
+  }
+}
