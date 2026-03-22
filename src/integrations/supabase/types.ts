@@ -1017,6 +1017,35 @@ export type Database = {
           },
         ]
       }
+      proposal_views: {
+        Row: {
+          id: string
+          ip_address: string | null
+          proposal_id: string
+          viewed_at: string
+        }
+        Insert: {
+          id?: string
+          ip_address?: string | null
+          proposal_id: string
+          viewed_at?: string
+        }
+        Update: {
+          id?: string
+          ip_address?: string | null
+          proposal_id?: string
+          viewed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_views_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       proposals: {
         Row: {
           client_address: string | null
@@ -1027,7 +1056,9 @@ export type Database = {
           contract_pdf_path: string | null
           created_at: string
           created_by: string
+          first_viewed_at: string | null
           id: string
+          last_viewed_at: string | null
           monthly_fee: number
           paid_at: string | null
           services_description: string | null
@@ -1038,6 +1069,7 @@ export type Database = {
           stripe_checkout_session_id: string | null
           token: string
           updated_at: string
+          view_count: number
         }
         Insert: {
           client_address?: string | null
@@ -1048,7 +1080,9 @@ export type Database = {
           contract_pdf_path?: string | null
           created_at?: string
           created_by: string
+          first_viewed_at?: string | null
           id?: string
+          last_viewed_at?: string | null
           monthly_fee?: number
           paid_at?: string | null
           services_description?: string | null
@@ -1059,6 +1093,7 @@ export type Database = {
           stripe_checkout_session_id?: string | null
           token?: string
           updated_at?: string
+          view_count?: number
         }
         Update: {
           client_address?: string | null
@@ -1069,7 +1104,9 @@ export type Database = {
           contract_pdf_path?: string | null
           created_at?: string
           created_by?: string
+          first_viewed_at?: string | null
           id?: string
+          last_viewed_at?: string | null
           monthly_fee?: number
           paid_at?: string | null
           services_description?: string | null
@@ -1080,6 +1117,7 @@ export type Database = {
           stripe_checkout_session_id?: string | null
           token?: string
           updated_at?: string
+          view_count?: number
         }
         Relationships: [
           {
