@@ -352,6 +352,17 @@ export function LeadPipelineKanban({ leads, onEdit, onDelete }: LeadPipelineKanb
         onOpenChange={(open) => { if (!open) setConvertLead(null); }}
         lead={convertLead}
       />
+
+      {/* Send Proposal Dialog */}
+      <SendProposalDialog
+        open={!!proposalLead}
+        onOpenChange={(open) => { if (!open) setProposalLead(null); }}
+        clientId={proposalLead?.id ?? ""}
+        clientName={proposalLead?.name ?? ""}
+        clientEmail={proposalLead?.email}
+        defaultMonthlyFee={proposalLead?.monthly_fee ?? 0}
+        defaultSetupFee={proposalLead?.setup_fee ?? 0}
+      />
     </div>
   );
 }
