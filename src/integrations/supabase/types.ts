@@ -407,7 +407,9 @@ export type Database = {
           id: string
           notes: string | null
           payment_month: number
+          payment_source: string
           payment_year: number
+          stripe_invoice_id: string | null
         }
         Insert: {
           amount?: number
@@ -416,7 +418,9 @@ export type Database = {
           id?: string
           notes?: string | null
           payment_month: number
+          payment_source?: string
           payment_year: number
+          stripe_invoice_id?: string | null
         }
         Update: {
           amount?: number
@@ -425,7 +429,9 @@ export type Database = {
           id?: string
           notes?: string | null
           payment_month?: number
+          payment_source?: string
           payment_year?: number
+          stripe_invoice_id?: string | null
         }
         Relationships: [
           {
@@ -456,6 +462,7 @@ export type Database = {
           setup_paid: number | null
           start_date: string | null
           status: Database["public"]["Enums"]["client_status"]
+          stripe_customer_id: string | null
           type: string | null
           updated_at: string
           user_id: string | null
@@ -478,6 +485,7 @@ export type Database = {
           setup_paid?: number | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["client_status"]
+          stripe_customer_id?: string | null
           type?: string | null
           updated_at?: string
           user_id?: string | null
@@ -500,6 +508,7 @@ export type Database = {
           setup_paid?: number | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["client_status"]
+          stripe_customer_id?: string | null
           type?: string | null
           updated_at?: string
           user_id?: string | null
@@ -1064,6 +1073,121 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      stripe_invoices: {
+        Row: {
+          amount_due: number
+          amount_paid: number
+          client_id: string
+          created_at: string
+          currency: string
+          description: string | null
+          due_date: string | null
+          hosted_invoice_url: string | null
+          id: string
+          invoice_pdf: string | null
+          paid_at: string | null
+          period_end: string | null
+          period_start: string | null
+          status: string
+          stripe_invoice_id: string
+          stripe_invoice_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_due?: number
+          amount_paid?: number
+          client_id: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          due_date?: string | null
+          hosted_invoice_url?: string | null
+          id?: string
+          invoice_pdf?: string | null
+          paid_at?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          status?: string
+          stripe_invoice_id: string
+          stripe_invoice_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_due?: number
+          amount_paid?: number
+          client_id?: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          due_date?: string | null
+          hosted_invoice_url?: string | null
+          id?: string
+          invoice_pdf?: string | null
+          paid_at?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          status?: string
+          stripe_invoice_id?: string
+          stripe_invoice_number?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_invoices_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean
+          client_id: string
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          status: string
+          stripe_price_id: string | null
+          stripe_subscription_id: string
+          updated_at: string
+        }
+        Insert: {
+          cancel_at_period_end?: boolean
+          client_id: string
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          status?: string
+          stripe_price_id?: string | null
+          stripe_subscription_id: string
+          updated_at?: string
+        }
+        Update: {
+          cancel_at_period_end?: boolean
+          client_id?: string
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          status?: string
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_subscriptions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       suppressed_emails: {
         Row: {
