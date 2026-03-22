@@ -301,10 +301,8 @@ export default function AdminReports() {
   const waterfallData = useMemo(() => [
     { name: "Revenue", value: totalRevenue, fill: "hsl(142, 71%, 45%)" },
     { name: "Expenses", value: -totalExpenses, fill: "hsl(0, 84%, 60%)" },
-    { name: "Overhead", value: -totalOverheadInRange, fill: "hsl(0, 60%, 50%)" },
-    { name: "Client Costs", value: -totalClientCostsInRange, fill: "hsl(38, 80%, 50%)" },
     { name: "Net Profit", value: netProfit, fill: netProfit >= 0 ? "hsl(213, 100%, 58%)" : "hsl(0, 84%, 60%)" },
-  ], [totalRevenue, totalExpenses, totalOverheadInRange, totalClientCostsInRange, netProfit]);
+  ], [totalRevenue, totalExpenses, netProfit]);
 
   // --- Utilization radial ---
   const utilizationRadial = [{ name: "Utilization", value: Math.min(utilizationRate, 100), fill: utilizationRate >= 70 ? "hsl(142, 71%, 45%)" : utilizationRate >= 40 ? "hsl(48, 96%, 53%)" : "hsl(0, 84%, 60%)" }];
