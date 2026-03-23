@@ -140,10 +140,14 @@ export default function AICommandCenter({
 
   /* ── Auto-scroll ── */
   useEffect(() => {
-    if (scrollRef.current) {
-      const viewport = scrollRef.current.querySelector("[data-radix-scroll-area-viewport]");
-      if (viewport) viewport.scrollTop = viewport.scrollHeight;
-    }
+    requestAnimationFrame(() => {
+      if (scrollRef.current) {
+        const viewport = scrollRef.current.querySelector("[data-radix-scroll-area-viewport]");
+        if (viewport) {
+          viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
+        }
+      }
+    });
   }, [messages, isLoading]);
 
   /* ── Markdown components ── */
