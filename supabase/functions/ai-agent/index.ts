@@ -244,6 +244,22 @@ const ADMIN_ONLY_TOOLS = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'query_sops',
+      description: 'Search SOPs (Standard Operating Procedures). Use this when asked about processes, workflows, policies, how things should be done, or operational questions. Can filter by category or search by keyword.',
+      parameters: {
+        type: 'object',
+        properties: {
+          category: { type: 'string', enum: ['onboarding', 'operations', 'development', 'design', 'communication', 'finance', 'general'] },
+          search: { type: 'string', description: 'Keyword to search in title or content' },
+        },
+        required: [],
+        additionalProperties: false,
+      },
+    },
+  },
 ]
 
 const OPS_ONLY_TOOLS = [
@@ -397,6 +413,8 @@ You also have access to the admin's activity log — a record of every action th
 You can query project attachments (documents and links) using query_project_attachments to see what files and references are attached to any project.
 
 You can access company-wide client status reports using query_company_summaries. These reports contain the latest state of all clients, pipeline status, and action items. Use this tool when asked about what's happening across the business, client updates, company snapshots, or any broad operational question.
+
+You can search SOPs (Standard Operating Procedures) using query_sops. These contain documented processes, policies, and workflows for the team. Reference them when asked about how things should be done, operational procedures, or team policies.
 
 Guidelines:
 - Be concise but thorough. Use markdown formatting.
