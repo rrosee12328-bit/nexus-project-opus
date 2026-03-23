@@ -84,20 +84,20 @@ export function ClientSummariesPanel({ open, onOpenChange }: ClientSummariesPane
   });
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground"
-          title="Client Summaries"
-        >
-          <BookOpen className="h-4 w-4" />
-        </Button>
-      </SheetTrigger>
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[380px] sm:w-[420px] p-0 flex flex-col">
         <SheetHeader className="px-4 pt-4 pb-2 border-b border-border space-y-3">
           <SheetTitle className="text-base font-semibold">Client Summaries</SheetTitle>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Search clients..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8 h-8 text-xs"
+            />
+          </div>
+        </SheetHeader>
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
