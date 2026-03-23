@@ -21,6 +21,7 @@ import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { motion } from "framer-motion";
 import { ExecutiveKPICards } from "@/components/dashboard/ExecutiveKPICards";
+import AICommandCenter from "@/components/AICommandCenter";
 
 function formatCurrency(val: number) {
   return new Intl.NumberFormat("en-US", {
