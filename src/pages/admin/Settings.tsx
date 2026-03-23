@@ -512,7 +512,7 @@ export default function AdminSettings() {
                 </div>
                 <div className="flex justify-end pt-2">
                   <Button
-                    onClick={() => inviteTeamMember.mutate()}
+                    onClick={() => { setGeneratedLink(null); setLinkCopied(false); inviteTeamMember.mutate(); }}
                     disabled={inviteTeamMember.isPending || !inviteEmail.trim()}
                     className="gap-2"
                   >
@@ -520,6 +520,33 @@ export default function AdminSettings() {
                     {inviteTeamMember.isPending ? "Sending..." : "Send Invite"}
                   </Button>
                 </div>
+
+                {generatedLink && (
+                  <div className="mt-4 p-4 rounded-lg border border-primary/20 bg-primary/5 space-y-2">
+                    <p className="text-sm font-medium text-foreground flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-primary" />
+                      Invite link generated
+                    </p>
+                    <p className="text-xs text-muted-foreground">Share this link with the new team member to set their password:</p>
+                    <div className="flex gap-2 items-center">
+                      <Input value={generatedLink} readOnly className="text-xs font-mono" />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0 gap-1.5"
+                        onClick={() => {
+                          navigator.clipboard.writeText(generatedLink);
+                          setLinkCopied(true);
+                          toast.success("Link copied to clipboard");
+                          setTimeout(() => setLinkCopied(false), 3000);
+                        }}
+                      >
+                        {linkCopied ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Send className="h-3.5 w-3.5" />}
+                        {linkCopied ? "Copied" : "Copy"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
