@@ -479,7 +479,7 @@ export default function AIAgentChat({
       )}
 
       {/* Chat area */}
-      <div className="flex-1 flex flex-col min-w-0 pl-10 md:pl-0">
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col pl-10 md:pl-0">
         {/* Header */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-border/30">
           <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center ring-1 ring-primary/20">
@@ -497,7 +497,7 @@ export default function AIAgentChat({
         </div>
 
         {/* Messages */}
-        <ScrollArea className="flex-1" ref={scrollRef}>
+        <ScrollArea className="flex-1 min-h-0 touch-pan-y overscroll-contain" ref={scrollRef}>
           <div className="max-w-3xl mx-auto px-4 py-4">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center text-center py-16 gap-5">
