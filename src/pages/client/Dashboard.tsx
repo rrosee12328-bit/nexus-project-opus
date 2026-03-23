@@ -1,4 +1,5 @@
 import { useState } from "react";
+import AICommandCenter from "@/components/AICommandCenter";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
