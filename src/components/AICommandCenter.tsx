@@ -350,7 +350,7 @@ export default function AICommandCenter({
 
               {/* Chat messages */}
               {messages.length > 0 && (
-                <ScrollArea className="max-h-[400px]" ref={scrollRef}>
+                <ScrollArea className="max-h-[min(52vh,400px)] touch-pan-y overscroll-contain" ref={scrollRef}>
                   <div className="px-4 py-3 space-y-3">
                     {messages.map((msg, i) => (
                       <motion.div
