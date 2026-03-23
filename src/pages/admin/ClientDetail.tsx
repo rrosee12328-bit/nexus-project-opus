@@ -242,6 +242,7 @@ export default function ClientDetail() {
 
   return (
     <div className="space-y-6">
+      <AICommandCenter pageContext={{ pageType: "client-detail", title: "Client Detail", entityId: clientId, entityName: client?.name }} />
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="flex items-start sm:items-center gap-3 sm:gap-4 flex-wrap">
         <Button variant="ghost" size="icon" onClick={() => navigate("/admin/clients")} className="shrink-0">
