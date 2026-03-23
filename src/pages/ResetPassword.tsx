@@ -15,6 +15,8 @@ export default function ResetPassword() {
   const [submitting, setSubmitting] = useState(false);
   const [ready, setReady] = useState(false);
 
+  const [expired, setExpired] = useState(false);
+
   useEffect(() => {
     // Check if recovery session is already established
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -27,7 +29,16 @@ export default function ResetPassword() {
         setReady(true);
       }
     });
-    return () => subscription.unsubscribe();
+
+    // If not ready after 5 seconds, the link likely expired
+    const timeout = setTimeout(() => {
+      setExpired(true);
+    }, 5000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
