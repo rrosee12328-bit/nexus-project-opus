@@ -138,9 +138,6 @@ export default function AICommandCenter({
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Don't show if no suggestions for this page and not expanded
-  if (suggestions.length === 0 && !expanded) return null;
-
   /* ── Auto-scroll ── */
   useEffect(() => {
     if (scrollRef.current) {
@@ -148,6 +145,9 @@ export default function AICommandCenter({
       if (viewport) viewport.scrollTop = viewport.scrollHeight;
     }
   }, [messages, isLoading]);
+
+  // Don't show if no suggestions for this page and not expanded
+  if (suggestions.length === 0 && !expanded) return null;
 
   const handleSend = async (text?: string) => {
     const msgText = text ?? input.trim();
