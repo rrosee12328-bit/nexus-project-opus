@@ -132,6 +132,9 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* AI Command Center */}
+      <AICommandCenter pageContext={{ pageType: "dashboard", title: "Admin Dashboard" }} />
+
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
