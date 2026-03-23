@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
         type: "recovery",
         email,
         options: {
-          redirectTo: "https://nexus-project-opus.lovable.app/reset-password",
+          redirectTo: "https://portal.vektiss.com/reset-password",
         },
       });
 

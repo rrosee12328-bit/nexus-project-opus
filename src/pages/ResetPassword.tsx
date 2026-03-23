@@ -15,6 +15,8 @@ export default function ResetPassword() {
   const [submitting, setSubmitting] = useState(false);
   const [ready, setReady] = useState(false);
 
+  const [expired, setExpired] = useState(false);
+
   useEffect(() => {
     // Check if recovery session is already established
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -27,7 +29,16 @@ export default function ResetPassword() {
         setReady(true);
       }
     });
-    return () => subscription.unsubscribe();
+
+    // If not ready after 5 seconds, the link likely expired
+    const timeout = setTimeout(() => {
+      setExpired(true);
+    }, 5000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -60,7 +71,7 @@ export default function ResetPassword() {
             Set New Password
           </CardTitle>
           <CardDescription className="text-muted-foreground">
-            {ready ? "Enter your new password below." : "Verifying your reset link..."}
+            {ready ? "Enter your new password below." : expired ? "This reset link has expired or is invalid." : "Verifying your reset link..."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -93,6 +104,15 @@ export default function ResetPassword() {
                 {submitting ? "Updating..." : "Update Password"}
               </Button>
             </form>
+          ) : expired ? (
+            <div className="space-y-4 text-center">
+              <p className="text-sm text-muted-foreground">
+                The link you clicked has expired or was already used. Please request a new invite or use "Forgot Password" on the login page.
+              </p>
+              <Button onClick={() => navigate("/login")} className="w-full">
+                Go to Login
+              </Button>
+            </div>
           ) : (
             <div className="flex justify-center py-8">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
