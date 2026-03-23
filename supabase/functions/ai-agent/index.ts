@@ -228,6 +228,22 @@ const ADMIN_ONLY_TOOLS = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'query_company_summaries',
+      description: 'Get company-wide client status reports / summaries. These are periodic reports containing the current state of all clients, pipeline, and action items. Use this when asked about client updates, company snapshots, or what is happening across the business.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'number', description: 'Number of summaries to return (default 3, most recent first)' },
+          search: { type: 'string', description: 'Optional keyword to search in title or content' },
+        },
+        required: [],
+        additionalProperties: false,
+      },
+    },
+  },
 ]
 
 const OPS_ONLY_TOOLS = [
