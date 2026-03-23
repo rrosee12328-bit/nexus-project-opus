@@ -240,32 +240,6 @@ export default function AICommandCenter({
 
   const canRetry = messages.length >= 2 && messages[messages.length - 1]?.role === "assistant" && !isLoading;
 
-  /* ── Markdown components ── */
-  const mdComponents = useMemo(() => ({
-    code({ className, children, ...props }: any) {
-      const isBlock = className?.startsWith("language-");
-      if (isBlock) return <CodeBlock className={className}>{String(children)}</CodeBlock>;
-      return (
-        <code className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-xs font-mono" {...props}>
-          {children}
-        </code>
-      );
-    },
-    table({ children }: any) {
-      return (
-        <div className="overflow-x-auto my-2 rounded-lg border border-border/50">
-          <table className="w-full text-xs">{children}</table>
-        </div>
-      );
-    },
-    th({ children }: any) {
-      return <th className="bg-muted/50 px-2 py-1.5 text-left font-semibold text-foreground border-b border-border text-xs">{children}</th>;
-    },
-    td({ children }: any) {
-      return <td className="px-2 py-1.5 border-b border-border/30 text-xs">{children}</td>;
-    },
-  }), []);
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
