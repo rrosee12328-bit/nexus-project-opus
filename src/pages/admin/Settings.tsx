@@ -33,6 +33,8 @@ export default function AdminSettings() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "ops">("admin");
+  const [generatedLink, setGeneratedLink] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ["admin-profile", user?.id],
