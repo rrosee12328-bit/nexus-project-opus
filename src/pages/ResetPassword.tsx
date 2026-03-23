@@ -104,6 +104,15 @@ export default function ResetPassword() {
                 {submitting ? "Updating..." : "Update Password"}
               </Button>
             </form>
+          ) : expired ? (
+            <div className="space-y-4 text-center">
+              <p className="text-sm text-muted-foreground">
+                The link you clicked has expired or was already used. Please request a new invite or use "Forgot Password" on the login page.
+              </p>
+              <Button onClick={() => navigate("/login")} className="w-full">
+                Go to Login
+              </Button>
+            </div>
           ) : (
             <div className="flex justify-center py-8">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
