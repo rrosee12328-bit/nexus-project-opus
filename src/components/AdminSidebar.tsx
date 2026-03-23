@@ -19,7 +19,6 @@ import {
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { ClientSummariesPanel } from "@/components/ClientSummariesPanel";
 import {
   Sidebar,
   SidebarContent,
@@ -38,6 +37,7 @@ const navItems = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
   { title: "Calendar", url: "/admin/calendar", icon: Calendar },
   { title: "Client Management", url: "/admin/clients", icon: Users },
+  { title: "Client Summaries", url: "/admin/summaries", icon: BookOpen },
   { title: "Sales Pipeline", url: "/admin/leads", icon: Target },
   { title: "Proposals", url: "/admin/proposals", icon: FileText },
   { title: "Project Management", url: "/admin/projects", icon: FolderKanban },
@@ -56,7 +56,6 @@ export function AdminSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const { signOut } = useAuth();
-  const [summariesOpen, setSummariesOpen] = useState(false);
 
   const isActive = (url: string) =>
     url === "/admin"
@@ -64,64 +63,49 @@ export function AdminSidebar() {
       : location.pathname.startsWith(url);
 
   return (
-    <>
-      <Sidebar collapsible="icon">
-        <SidebarHeader className="border-b border-sidebar-border px-4 py-2">
-          {!collapsed && (
-            <img src="/vektiss-logo.png" alt="Vektiss" className="h-20 object-contain" />
-          )}
-          {collapsed && (
-            <img src="/vektiss-icon.png" alt="Vektiss" className="h-12 w-12 object-contain" />
-          )}
-        </SidebarHeader>
-        <SidebarContent>
-          <SidebarGroup>
-            <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {navItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                      <NavLink
-                        to={item.url}
-                        end={item.url === "/admin"}
-                        className="hover:bg-sidebar-accent"
-                        activeClassName="bg-sidebar-accent text-sidebar-primary"
-                      >
-                        <item.icon className="h-4 w-4" />
-                        {!collapsed && <span>{item.title}</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-
-                {/* Client Summaries - opens sheet */}
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => setSummariesOpen(true)}
-                    className="hover:bg-sidebar-accent"
-                  >
-                    <BookOpen className="h-4 w-4" />
-                    {!collapsed && <span>Client Summaries</span>}
+    <Sidebar collapsible="icon">
+      <SidebarHeader className="border-b border-sidebar-border px-4 py-2">
+        {!collapsed && (
+          <img src="/vektiss-logo.png" alt="Vektiss" className="h-20 object-contain" />
+        )}
+        {collapsed && (
+          <img src="/vektiss-icon.png" alt="Vektiss" className="h-12 w-12 object-contain" />
+        )}
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {navItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                    <NavLink
+                      to={item.url}
+                      end={item.url === "/admin"}
+                      className="hover:bg-sidebar-accent"
+                      activeClassName="bg-sidebar-accent text-sidebar-primary"
+                    >
+                      <item.icon className="h-4 w-4" />
+                      {!collapsed && <span>{item.title}</span>}
+                    </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </SidebarContent>
-        <SidebarFooter className="border-t border-sidebar-border p-2">
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton onClick={signOut} className="hover:bg-sidebar-accent">
-                <LogOut className="h-4 w-4" />
-                {!collapsed && <span>Sign Out</span>}
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarFooter>
-      </Sidebar>
-
-      <ClientSummariesPanel open={summariesOpen} onOpenChange={setSummariesOpen} />
-    </>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+      <SidebarFooter className="border-t border-sidebar-border p-2">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={signOut} className="hover:bg-sidebar-accent">
+              <LogOut className="h-4 w-4" />
+              {!collapsed && <span>Sign Out</span>}
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
   );
 }
