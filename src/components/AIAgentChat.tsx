@@ -395,7 +395,7 @@ export default function AIAgentChat({
 
   /* ── Render ── */
   return (
-    <div className="flex h-[calc(100vh-theme(spacing.12)-theme(spacing.12))] gap-0 md:gap-0 max-w-6xl mx-auto relative">
+    <div className="relative mx-auto flex h-[calc(100dvh-theme(spacing.12)-theme(spacing.12))] max-w-6xl min-h-0 gap-0 md:h-[calc(100vh-theme(spacing.12)-theme(spacing.12))] md:gap-0">
       {/* Mobile sidebar toggle */}
       <Button
         variant="ghost"
@@ -410,7 +410,7 @@ export default function AIAgentChat({
       <div
         className={`${
           sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-        } absolute md:relative z-10 md:z-auto inset-y-0 left-0 w-72 flex-shrink-0 flex flex-col bg-card md:bg-card/50 border-r border-border/50 transition-transform duration-200`}
+        } absolute md:relative z-10 md:z-auto inset-y-0 left-0 w-72 min-h-0 flex-shrink-0 flex flex-col bg-card md:bg-card/50 border-r border-border/50 transition-transform duration-200`}
       >
         {/* Sidebar header */}
         <div className="p-3 space-y-2 border-b border-border/50">
