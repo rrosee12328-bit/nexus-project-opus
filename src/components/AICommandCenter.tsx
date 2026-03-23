@@ -136,19 +136,33 @@ export default function AICommandCenter({
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    window.requestAnimationFrame(() => {
+      const viewport = scrollRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLDivElement | null;
+      if (!viewport) return;
+      viewport.scrollTo({ top: viewport.scrollHeight, behavior });
+      messagesEndRef.current?.scrollIntoView({ block: "end", behavior });
+    });
+  }, []);
 
   /* ── Auto-scroll ── */
   useEffect(() => {
-    requestAnimationFrame(() => {
-      if (scrollRef.current) {
-        const viewport = scrollRef.current.querySelector("[data-radix-scroll-area-viewport]");
-        if (viewport) {
-          viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
-        }
-      }
-    });
-  }, [messages, isLoading]);
+    if (!expanded || messages.length === 0) return;
+    const behavior: ScrollBehavior = messages.length > 1 || isLoading ? "smooth" : "auto";
+    scrollToBottom(behavior);
+    const timeoutId = window.setTimeout(() => scrollToBottom("auto"), 180);
+    return () => window.clearTimeout(timeoutId);
+  }, [expanded, messages.length, isLoading, scrollToBottom]);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const handleViewportChange = () => scrollToBottom("auto");
+    window.visualViewport?.addEventListener("resize", handleViewportChange);
+    return () => window.visualViewport?.removeEventListener("resize", handleViewportChange);
+  }, [expanded, scrollToBottom]);
 
   /* ── Markdown components ── */
   const mdComponents = useMemo(() => ({
