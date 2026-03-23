@@ -422,6 +422,7 @@ export default function AICommandCenter({
                         </button>
                       </div>
                     )}
+                    <div ref={messagesEndRef} className="h-px w-full" />
                   </div>
                 </ScrollArea>
               )}
@@ -433,6 +434,7 @@ export default function AICommandCenter({
                     ref={textareaRef}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
+                    onFocus={() => scrollToBottom("smooth")}
                     onKeyDown={handleKeyDown}
                     placeholder="Ask anything about this page..."
                     className="min-h-[32px] max-h-20 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 text-xs placeholder:text-muted-foreground/50"

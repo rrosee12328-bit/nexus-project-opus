@@ -605,6 +605,7 @@ export default function AIAgentChat({
                 </button>
               </div>
             )}
+            <div ref={messagesEndRef} className="h-px w-full" />
           </div>
         </ScrollArea>
 
@@ -637,6 +638,7 @@ export default function AIAgentChat({
                 ref={textareaRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
+                onFocus={() => scrollToBottom("smooth")}
                 onKeyDown={handleKeyDown}
                 placeholder="Ask anything..."
                 className="min-h-[40px] max-h-32 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 text-sm placeholder:text-muted-foreground/50"
