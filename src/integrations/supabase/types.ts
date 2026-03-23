@@ -515,6 +515,36 @@ export type Database = {
         }
         Relationships: []
       }
+      company_summaries: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string
+          id: string
+          summary_date: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          created_by: string
+          id?: string
+          summary_date?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          summary_date?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       email_send_log: {
         Row: {
           created_at: string

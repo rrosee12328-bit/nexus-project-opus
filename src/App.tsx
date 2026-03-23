@@ -29,6 +29,7 @@ import AdminClientDetail from "./pages/admin/ClientDetail";
 import AdminCalendar from "./pages/admin/Calendar";
 import AdminLeads from "./pages/admin/Leads";
 import AdminProposals from "./pages/admin/Proposals";
+import AdminSummaries from "./pages/admin/Summaries";
 
 import OpsLayout from "./layouts/OpsLayout";
 import OpsDashboard from "./pages/ops/Dashboard";
@@ -95,6 +96,7 @@ const App = () => (
               <Route path="calendar" element={<AdminCalendar />} />
               <Route path="leads" element={<AdminLeads />} />
               <Route path="proposals" element={<AdminProposals />} />
+              <Route path="summaries" element={<AdminSummaries />} />
             </Route>
 
             {/* Ops Portal */}
