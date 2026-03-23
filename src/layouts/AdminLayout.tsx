@@ -15,7 +15,6 @@ export default function AdminLayout() {
             <SidebarTrigger />
             <div className="flex items-center gap-2">
               <GlobalSearch />
-              <ClientSummariesPanel />
               <NotificationBell />
             </div>
           </header>

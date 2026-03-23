@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   LayoutDashboard,
   Users,
@@ -14,10 +15,12 @@ import {
   Calendar,
   Target,
   FileText,
+  BookOpen,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { ClientSummariesPanel } from "@/components/ClientSummariesPanel";
 import {
   Sidebar,
   SidebarContent,
