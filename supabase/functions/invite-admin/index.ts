@@ -185,7 +185,7 @@ Deno.serve(async (req) => {
     console.log(`Invited ${targetRole} user: ${email} (${userId})`);
 
     return new Response(
-      JSON.stringify({ success: true, user_id: userId, role: targetRole }),
+      JSON.stringify({ success: true, user_id: userId, role: targetRole, invite_link: actionLink || null }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
