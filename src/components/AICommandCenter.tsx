@@ -121,14 +121,11 @@ interface AICommandCenterProps {
   pageContext: AIPageContext;
   /** Override role detection */
   role?: AIRole;
-  /** Compact mode — inline bar instead of panel */
-  variant?: "panel" | "bar";
 }
 
 export default function AICommandCenter({
   pageContext,
   role: roleProp,
-  variant = "panel",
 }: AICommandCenterProps) {
   const { user, role: authRole } = useAuth();
   const role = (roleProp ?? authRole ?? "client") as AIRole;
