@@ -228,6 +228,22 @@ const ADMIN_ONLY_TOOLS = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'query_company_summaries',
+      description: 'Get company-wide client status reports / summaries. These are periodic reports containing the current state of all clients, pipeline, and action items. Use this when asked about client updates, company snapshots, or what is happening across the business.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'number', description: 'Number of summaries to return (default 3, most recent first)' },
+          search: { type: 'string', description: 'Optional keyword to search in title or content' },
+        },
+        required: [],
+        additionalProperties: false,
+      },
+    },
+  },
 ]
 
 const OPS_ONLY_TOOLS = [
@@ -380,9 +396,11 @@ You also have access to the admin's activity log — a record of every action th
 
 You can query project attachments (documents and links) using query_project_attachments to see what files and references are attached to any project.
 
+You can access company-wide client status reports using query_company_summaries. These reports contain the latest state of all clients, pipeline status, and action items. Use this tool when asked about what's happening across the business, client updates, company snapshots, or any broad operational question.
+
 Guidelines:
 - Be concise but thorough. Use markdown formatting.
-- When asked about a client, query their data first.
+- When asked about a client, query their data first. Also check company summaries for the latest status notes.
 - For ANY write/mutating action, ALWAYS describe what you're about to do and ask for confirmation BEFORE executing.
 - When analyzing financials, calculate totals, trends, and provide actionable insights.
 - Proactively mention overdue items or potential issues.
@@ -614,6 +632,15 @@ async function executeTool(
         unpaid_balances: { items: unpaidClients ?? [], count: unpaidClients?.length ?? 0 },
         stale_projects: { items: staleProjects ?? [], count: staleProjects?.length ?? 0 },
       }
+    }
+    case 'query_company_summaries': {
+      const limit = Math.min(Number(args.limit) || 3, 10)
+      let query = supabase.from('company_summaries').select('id, title, content, summary_date, created_at')
+        .order('summary_date', { ascending: false }).limit(limit)
+      if (args.search) query = query.or(`title.ilike.%${args.search}%,content.ilike.%${args.search}%`)
+      const { data, error } = await query
+      if (error) return { error: error.message }
+      return { summaries: data ?? [], count: data?.length ?? 0 }
     }
     case 'query_recent_activity': {
       const limit = Math.min(Number(args.limit) || 20, 50)
