@@ -186,8 +186,56 @@ export default function AdminSummaries() {
               </Button>
             </div>
             <ScrollArea className="flex-1">
-              <article className="px-6 md:px-10 py-6 md:py-8 max-w-4xl prose prose-sm dark:prose-invert prose-headings:text-foreground prose-p:text-foreground/80 prose-strong:text-foreground prose-td:text-foreground/80 prose-th:text-foreground prose-th:font-semibold">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              <article className="px-6 md:px-10 lg:px-16 py-6 md:py-10 max-w-4xl mx-auto summary-doc">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    h1: ({ children }) => (
+                      <h1 className="text-2xl font-bold text-foreground mb-1 tracking-tight">{children}</h1>
+                    ),
+                    h2: ({ children }) => (
+                      <h2 className="text-lg font-bold text-foreground mt-8 mb-4 pb-2 border-b border-border">{children}</h2>
+                    ),
+                    h3: ({ children }) => (
+                      <h3 className="text-base font-semibold text-foreground mt-5 mb-2">{children}</h3>
+                    ),
+                    p: ({ children }) => (
+                      <p className="text-sm text-foreground/80 leading-relaxed mb-3">{children}</p>
+                    ),
+                    ul: ({ children }) => (
+                      <ul className="space-y-1.5 mb-4 ml-1">{children}</ul>
+                    ),
+                    ol: ({ children }) => (
+                      <ol className="space-y-2 mb-4 ml-1 list-decimal list-inside">{children}</ol>
+                    ),
+                    li: ({ children }) => (
+                      <li className="text-sm text-foreground/80 leading-relaxed pl-1">{children}</li>
+                    ),
+                    strong: ({ children }) => (
+                      <strong className="text-foreground font-semibold">{children}</strong>
+                    ),
+                    hr: () => (
+                      <div className="my-6 border-t border-border/60" />
+                    ),
+                    table: ({ children }) => (
+                      <div className="my-4 rounded-lg border border-border overflow-hidden">
+                        <table className="w-full text-sm">{children}</table>
+                      </div>
+                    ),
+                    thead: ({ children }) => (
+                      <thead className="bg-muted/60">{children}</thead>
+                    ),
+                    th: ({ children }) => (
+                      <th className="text-left text-xs font-semibold text-foreground px-3 py-2.5 border-b border-border">{children}</th>
+                    ),
+                    td: ({ children }) => (
+                      <td className="text-sm text-foreground/80 px-3 py-2.5 border-b border-border/40">{children}</td>
+                    ),
+                    tr: ({ children }) => (
+                      <tr className="hover:bg-muted/30 transition-colors">{children}</tr>
+                    ),
+                  }}
+                >
                   {selected.content}
                 </ReactMarkdown>
               </article>
