@@ -290,6 +290,7 @@ export default function AdminFinancials() {
 
   return (
     <div className="space-y-6">
+      <AICommandCenter pageContext={{ pageType: "financials", title: "Financial Tracking" }} />
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
