@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { BookOpen, Search, Circle } from "lucide-react";
+import { Search, Circle } from "lucide-react";
 import { format } from "date-fns";
 
 const STATUS_COLOR: Record<string, string> = {
@@ -25,28 +24,29 @@ type ClientWithNote = {
   latest_note: { title: string; content: string | null; created_at: string } | null;
 };
 
-export function ClientSummariesPanel() {
-  const [open, setOpen] = useState(false);
+interface ClientSummariesPanelProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function ClientSummariesPanel({ open, onOpenChange }: ClientSummariesPanelProps) {
   const [search, setSearch] = useState("");
 
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ["client-summaries-panel"],
     queryFn: async () => {
-      // Fetch clients
       const { data: clientRows, error: cErr } = await supabase
         .from("clients")
         .select("id, name, status, monthly_fee")
         .order("name");
       if (cErr) throw cErr;
 
-      // Fetch latest note per client
       const { data: notes, error: nErr } = await supabase
         .from("client_notes")
         .select("client_id, title, content, created_at")
         .order("created_at", { ascending: false });
       if (nErr) throw nErr;
 
-      // Group: keep only latest note per client
       const latestByClient = new Map<string, (typeof notes)[0]>();
       for (const n of notes ?? []) {
         if (!latestByClient.has(n.client_id)) {
@@ -54,15 +54,12 @@ export function ClientSummariesPanel() {
         }
       }
 
-      return (clientRows ?? []).map((c) => {
-        const note = latestByClient.get(c.id);
-        return {
-          ...c,
-          latest_note: note
-            ? { title: note.title, content: note.content, created_at: note.created_at }
-            : null,
-        } as ClientWithNote;
-      });
+      return (clientRows ?? []).map((c) => ({
+        ...c,
+        latest_note: latestByClient.has(c.id)
+          ? { title: latestByClient.get(c.id)!.title, content: latestByClient.get(c.id)!.content, created_at: latestByClient.get(c.id)!.created_at }
+          : null,
+      })) as ClientWithNote[];
     },
     enabled: open,
     staleTime: 30_000,
@@ -72,7 +69,6 @@ export function ClientSummariesPanel() {
     c.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  // Sort: clients with notes first, then alphabetical
   const sorted = [...filtered].sort((a, b) => {
     if (a.latest_note && !b.latest_note) return -1;
     if (!a.latest_note && b.latest_note) return 1;
@@ -80,17 +76,7 @@ export function ClientSummariesPanel() {
   });
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground"
-          title="Client Summaries"
-        >
-          <BookOpen className="h-4 w-4" />
-        </Button>
-      </SheetTrigger>
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[380px] sm:w-[420px] p-0 flex flex-col">
         <SheetHeader className="px-4 pt-4 pb-2 border-b border-border space-y-3">
           <SheetTitle className="text-base font-semibold">Client Summaries</SheetTitle>
@@ -120,7 +106,6 @@ export function ClientSummariesPanel() {
                 key={client.id}
                 className="rounded-lg border border-border/50 bg-card p-3 space-y-2 hover:border-border transition-colors"
               >
-                {/* Header row */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <Circle className="h-2 w-2 flex-shrink-0 fill-current text-primary/60" />
@@ -134,14 +119,12 @@ export function ClientSummariesPanel() {
                   </Badge>
                 </div>
 
-                {/* Monthly fee */}
                 {client.monthly_fee != null && client.monthly_fee > 0 && (
                   <div className="text-[11px] text-muted-foreground">
                     ${client.monthly_fee.toLocaleString()}/mo
                   </div>
                 )}
 
-                {/* Latest note */}
                 {client.latest_note ? (
                   <div className="bg-muted/40 rounded-md px-2.5 py-2 space-y-1">
                     <div className="flex items-center justify-between">
