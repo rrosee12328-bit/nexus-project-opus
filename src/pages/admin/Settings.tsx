@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { User, Lock, Bell, Save, Shield, Clock, RefreshCw, Send, Rocket, Eye, EyeOff, CheckCircle2, Mail } from "lucide-react";
+import { User, Lock, Bell, Save, Shield, Clock, RefreshCw, Send, Rocket, Eye, EyeOff, CheckCircle2, Mail, Users, UserPlus } from "lucide-react";
 import { OnboardingTemplatesManager } from "@/components/admin/OnboardingTemplatesManager";
 import { NotificationPreferences } from "@/components/NotificationPreferences";
 import { motion } from "framer-motion";
@@ -30,6 +30,9 @@ export default function AdminSettings() {
   const [showCurrentPw, setShowCurrentPw] = useState(false);
   const [showNewPw, setShowNewPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteName, setInviteName] = useState("");
+  const [inviteRole, setInviteRole] = useState<"admin" | "ops">("admin");
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ["admin-profile", user?.id],
@@ -99,6 +102,47 @@ export default function AdminSettings() {
       setNewPassword("");
       setConfirmPassword("");
       toast.success("Password updated successfully");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const { data: teamMembers, isLoading: teamLoading } = useQuery({
+    queryKey: ["team-members"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("user_id, role, created_at")
+        .in("role", ["admin", "ops"]);
+      if (error) throw error;
+      // Fetch profiles for these users
+      const userIds = (data ?? []).map((r) => r.user_id);
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, display_name, avatar_url")
+        .in("user_id", userIds);
+      const profileMap = new Map((profiles ?? []).map((p) => [p.user_id, p]));
+      return (data ?? []).map((r) => ({
+        ...r,
+        display_name: profileMap.get(r.user_id)?.display_name ?? null,
+      }));
+    },
+  });
+
+  const inviteTeamMember = useMutation({
+    mutationFn: async () => {
+      if (!inviteEmail.trim()) throw new Error("Email is required");
+      const { data, error } = await supabase.functions.invoke("invite-admin", {
+        body: { email: inviteEmail.trim(), display_name: inviteName.trim() || undefined, role: inviteRole },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success(`Invite sent to ${inviteEmail}`);
+      setInviteEmail("");
+      setInviteName("");
+      queryClient.invalidateQueries({ queryKey: ["team-members"] });
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -173,6 +217,7 @@ export default function AdminSettings() {
             <TabsTrigger value="security" className="gap-2 shrink-0"><Shield className="h-4 w-4" /> <span className="hidden sm:inline">Security</span></TabsTrigger>
             <TabsTrigger value="notifications" className="gap-2 shrink-0"><Bell className="h-4 w-4" /> <span className="hidden sm:inline">Notifications</span></TabsTrigger>
             <TabsTrigger value="reminders" className="gap-2 shrink-0"><Clock className="h-4 w-4" /> <span className="hidden sm:inline">Reminders</span></TabsTrigger>
+            <TabsTrigger value="team" className="gap-2 shrink-0"><Users className="h-4 w-4" /> <span className="hidden sm:inline">Team</span></TabsTrigger>
             <TabsTrigger value="onboarding" className="gap-2 shrink-0"><Rocket className="h-4 w-4" /> <span className="hidden sm:inline">Onboarding</span></TabsTrigger>
           </TabsList>
         </motion.div>
@@ -406,6 +451,118 @@ export default function AdminSettings() {
                     </div>
                   )}
                 </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </TabsContent>
+
+        {/* ── Team Tab ── */}
+        <TabsContent value="team">
+          <motion.div {...anim(0.15)} className="space-y-6">
+            <Card className="hover:border-primary/20 transition-colors">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <UserPlus className="h-5 w-5 text-primary" /> Invite Team Member
+                </CardTitle>
+                <CardDescription>Send an invite link so someone can join as an admin or ops team member.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Email Address</Label>
+                    <Input value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="team@vektiss.com" type="email" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Display Name <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                    <Input value={inviteName} onChange={(e) => setInviteName(e.target.value)} placeholder="Full name" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Role</Label>
+                  <div className="flex gap-3">
+                    <Button
+                      type="button"
+                      variant={inviteRole === "admin" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setInviteRole("admin")}
+                      className="gap-2"
+                    >
+                      <Shield className="h-3.5 w-3.5" /> Admin
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={inviteRole === "ops" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setInviteRole("ops")}
+                      className="gap-2"
+                    >
+                      <Clock className="h-3.5 w-3.5" /> Ops
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {inviteRole === "admin"
+                      ? "Full access to clients, projects, finances, and settings."
+                      : "Access to tasks, timesheets, SOPs, and project execution."}
+                  </p>
+                </div>
+                <div className="flex justify-end pt-2">
+                  <Button
+                    onClick={() => inviteTeamMember.mutate()}
+                    disabled={inviteTeamMember.isPending || !inviteEmail.trim()}
+                    className="gap-2"
+                  >
+                    <Send className="h-4 w-4" />
+                    {inviteTeamMember.isPending ? "Sending..." : "Send Invite"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:border-primary/20 transition-colors">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary" /> Team Members
+                </CardTitle>
+                <CardDescription>Admin and ops users with portal access.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {teamLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading...</p>
+                ) : !teamMembers?.length ? (
+                  <p className="text-sm text-muted-foreground">No team members found.</p>
+                ) : (
+                  <div className="rounded-md border overflow-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Joined</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {teamMembers.map((member) => (
+                          <TableRow key={member.user_id}>
+                            <TableCell className="text-sm font-medium">
+                              {member.display_name || "—"}
+                              {member.user_id === user?.id && (
+                                <Badge variant="outline" className="ml-2 text-xs">You</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={member.role === "admin" ? "default" : "secondary"} className="capitalize text-xs">
+                                {member.role}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {format(new Date(member.created_at), "MMM d, yyyy")}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </motion.div>
