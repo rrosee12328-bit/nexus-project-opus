@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -6,10 +6,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Bot, Send, Loader2, User, Sparkles, Zap, Copy, Check,
-  RotateCcw, X, ChevronDown, ChevronUp, FileText, Shield,
+  RotateCcw, ChevronDown, ChevronUp, FileText, Shield,
   DollarSign, AlertTriangle, ListChecks, Clock, BarChart3,
   TrendingUp, MessageSquare, ClipboardList, GitCompare,
-  Download, BookmarkPlus, Share2, ListPlus,
+  Download,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
