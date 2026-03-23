@@ -217,6 +217,7 @@ export default function AdminSettings() {
             <TabsTrigger value="security" className="gap-2 shrink-0"><Shield className="h-4 w-4" /> <span className="hidden sm:inline">Security</span></TabsTrigger>
             <TabsTrigger value="notifications" className="gap-2 shrink-0"><Bell className="h-4 w-4" /> <span className="hidden sm:inline">Notifications</span></TabsTrigger>
             <TabsTrigger value="reminders" className="gap-2 shrink-0"><Clock className="h-4 w-4" /> <span className="hidden sm:inline">Reminders</span></TabsTrigger>
+            <TabsTrigger value="team" className="gap-2 shrink-0"><Users className="h-4 w-4" /> <span className="hidden sm:inline">Team</span></TabsTrigger>
             <TabsTrigger value="onboarding" className="gap-2 shrink-0"><Rocket className="h-4 w-4" /> <span className="hidden sm:inline">Onboarding</span></TabsTrigger>
           </TabsList>
         </motion.div>
