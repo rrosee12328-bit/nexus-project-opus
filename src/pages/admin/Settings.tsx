@@ -106,6 +106,47 @@ export default function AdminSettings() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const { data: teamMembers, isLoading: teamLoading } = useQuery({
+    queryKey: ["team-members"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("user_id, role, created_at")
+        .in("role", ["admin", "ops"]);
+      if (error) throw error;
+      // Fetch profiles for these users
+      const userIds = (data ?? []).map((r) => r.user_id);
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, display_name, avatar_url")
+        .in("user_id", userIds);
+      const profileMap = new Map((profiles ?? []).map((p) => [p.user_id, p]));
+      return (data ?? []).map((r) => ({
+        ...r,
+        display_name: profileMap.get(r.user_id)?.display_name ?? null,
+      }));
+    },
+  });
+
+  const inviteTeamMember = useMutation({
+    mutationFn: async () => {
+      if (!inviteEmail.trim()) throw new Error("Email is required");
+      const { data, error } = await supabase.functions.invoke("invite-admin", {
+        body: { email: inviteEmail.trim(), display_name: inviteName.trim() || undefined, role: inviteRole },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success(`Invite sent to ${inviteEmail}`);
+      setInviteEmail("");
+      setInviteName("");
+      queryClient.invalidateQueries({ queryKey: ["team-members"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   const triggerReminders = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke("send-reminders");
