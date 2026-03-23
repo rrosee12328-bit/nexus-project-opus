@@ -68,6 +68,7 @@ export default function AIAgentChat({
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -177,13 +178,28 @@ export default function AIAgentChat({
     [activeConvoId]
   );
 
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    window.requestAnimationFrame(() => {
+      const viewport = scrollRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLDivElement | null;
+      if (!viewport) return;
+      viewport.scrollTo({ top: viewport.scrollHeight, behavior });
+      messagesEndRef.current?.scrollIntoView({ block: "end", behavior });
+    });
+  }, []);
+
   /* ── Auto-scroll ── */
   useEffect(() => {
-    if (scrollRef.current) {
-      const viewport = scrollRef.current.querySelector("[data-radix-scroll-area-viewport]");
-      if (viewport) viewport.scrollTop = viewport.scrollHeight;
-    }
-  }, [messages, isLoading]);
+    const behavior: ScrollBehavior = messages.length > 1 || isLoading ? "smooth" : "auto";
+    scrollToBottom(behavior);
+    const timeoutId = window.setTimeout(() => scrollToBottom("auto"), 180);
+    return () => window.clearTimeout(timeoutId);
+  }, [activeConvoId, isLoading, messages.length, scrollToBottom]);
+
+  useEffect(() => {
+    const handleViewportChange = () => scrollToBottom("auto");
+    window.visualViewport?.addEventListener("resize", handleViewportChange);
+    return () => window.visualViewport?.removeEventListener("resize", handleViewportChange);
+  }, [scrollToBottom]);
 
   /* ── Send message ── */
   const handleSend = async () => {
@@ -379,7 +395,7 @@ export default function AIAgentChat({
 
   /* ── Render ── */
   return (
-    <div className="flex h-[calc(100vh-theme(spacing.12)-theme(spacing.12))] gap-0 md:gap-0 max-w-6xl mx-auto relative">
+    <div className="relative mx-auto flex h-[calc(100dvh-theme(spacing.12)-theme(spacing.12))] max-w-6xl min-h-0 gap-0 md:h-[calc(100vh-theme(spacing.12)-theme(spacing.12))] md:gap-0">
       {/* Mobile sidebar toggle */}
       <Button
         variant="ghost"
@@ -394,7 +410,7 @@ export default function AIAgentChat({
       <div
         className={`${
           sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-        } absolute md:relative z-10 md:z-auto inset-y-0 left-0 w-72 flex-shrink-0 flex flex-col bg-card md:bg-card/50 border-r border-border/50 transition-transform duration-200`}
+        } absolute md:relative z-10 md:z-auto inset-y-0 left-0 w-72 min-h-0 flex-shrink-0 flex flex-col bg-card md:bg-card/50 border-r border-border/50 transition-transform duration-200`}
       >
         {/* Sidebar header */}
         <div className="p-3 space-y-2 border-b border-border/50">
@@ -463,7 +479,7 @@ export default function AIAgentChat({
       )}
 
       {/* Chat area */}
-      <div className="flex-1 flex flex-col min-w-0 pl-10 md:pl-0">
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col pl-10 md:pl-0">
         {/* Header */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-border/30">
           <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center ring-1 ring-primary/20">
@@ -481,7 +497,7 @@ export default function AIAgentChat({
         </div>
 
         {/* Messages */}
-        <ScrollArea className="flex-1" ref={scrollRef}>
+        <ScrollArea className="flex-1 min-h-0 touch-pan-y overscroll-contain" ref={scrollRef}>
           <div className="max-w-3xl mx-auto px-4 py-4">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center text-center py-16 gap-5">
@@ -589,6 +605,7 @@ export default function AIAgentChat({
                 </button>
               </div>
             )}
+            <div ref={messagesEndRef} className="h-px w-full" />
           </div>
         </ScrollArea>
 
@@ -621,6 +638,7 @@ export default function AIAgentChat({
                 ref={textareaRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
+                onFocus={() => scrollToBottom("smooth")}
                 onKeyDown={handleKeyDown}
                 placeholder="Ask anything..."
                 className="min-h-[40px] max-h-32 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 text-sm placeholder:text-muted-foreground/50"

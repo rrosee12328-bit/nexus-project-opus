@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -136,19 +136,33 @@ export default function AICommandCenter({
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    window.requestAnimationFrame(() => {
+      const viewport = scrollRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLDivElement | null;
+      if (!viewport) return;
+      viewport.scrollTo({ top: viewport.scrollHeight, behavior });
+      messagesEndRef.current?.scrollIntoView({ block: "end", behavior });
+    });
+  }, []);
 
   /* ── Auto-scroll ── */
   useEffect(() => {
-    requestAnimationFrame(() => {
-      if (scrollRef.current) {
-        const viewport = scrollRef.current.querySelector("[data-radix-scroll-area-viewport]");
-        if (viewport) {
-          viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
-        }
-      }
-    });
-  }, [messages, isLoading]);
+    if (!expanded || messages.length === 0) return;
+    const behavior: ScrollBehavior = messages.length > 1 || isLoading ? "smooth" : "auto";
+    scrollToBottom(behavior);
+    const timeoutId = window.setTimeout(() => scrollToBottom("auto"), 180);
+    return () => window.clearTimeout(timeoutId);
+  }, [expanded, messages.length, isLoading, scrollToBottom]);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const handleViewportChange = () => scrollToBottom("auto");
+    window.visualViewport?.addEventListener("resize", handleViewportChange);
+    return () => window.visualViewport?.removeEventListener("resize", handleViewportChange);
+  }, [expanded, scrollToBottom]);
 
   /* ── Markdown components ── */
   const mdComponents = useMemo(() => ({
@@ -336,7 +350,7 @@ export default function AICommandCenter({
 
               {/* Chat messages */}
               {messages.length > 0 && (
-                <ScrollArea className="max-h-[400px]" ref={scrollRef}>
+                <ScrollArea className="max-h-[min(52vh,400px)] touch-pan-y overscroll-contain" ref={scrollRef}>
                   <div className="px-4 py-3 space-y-3">
                     {messages.map((msg, i) => (
                       <motion.div
@@ -408,6 +422,7 @@ export default function AICommandCenter({
                         </button>
                       </div>
                     )}
+                    <div ref={messagesEndRef} className="h-px w-full" />
                   </div>
                 </ScrollArea>
               )}
@@ -419,6 +434,7 @@ export default function AICommandCenter({
                     ref={textareaRef}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
+                    onFocus={() => scrollToBottom("smooth")}
                     onKeyDown={handleKeyDown}
                     placeholder="Ask anything about this page..."
                     className="min-h-[32px] max-h-20 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 text-xs placeholder:text-muted-foreground/50"
