@@ -175,6 +175,7 @@ export default function ClientDashboard() {
         )}
       </AnimatePresence>
     <div className="space-y-8">
+      <AICommandCenter pageContext={{ pageType: "dashboard", title: "Client Dashboard" }} />
       {/* Hero greeting */}
       <motion.div {...anim(0)} className="relative overflow-hidden rounded-2xl border border-border bg-card">
         {/* Decorative gradient blobs */}

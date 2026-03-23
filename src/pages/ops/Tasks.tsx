@@ -466,6 +466,7 @@ export default function OpsTasks() {
 
   return (
     <div className="space-y-6">
+      <AICommandCenter pageContext={{ pageType: "tasks", title: "Tasks" }} />
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
