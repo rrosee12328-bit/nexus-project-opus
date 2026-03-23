@@ -71,7 +71,7 @@ export default function ResetPassword() {
             Set New Password
           </CardTitle>
           <CardDescription className="text-muted-foreground">
-            {ready ? "Enter your new password below." : "Verifying your reset link..."}
+            {ready ? "Enter your new password below." : expired ? "This reset link has expired or is invalid." : "Verifying your reset link..."}
           </CardDescription>
         </CardHeader>
         <CardContent>
