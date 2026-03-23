@@ -16,7 +16,6 @@ import remarkGfm from "remark-gfm";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
-  type AISuggestion,
   type AIPageContext,
   type AIRole,
   getAISuggestions,
