@@ -30,6 +30,9 @@ export default function AdminSettings() {
   const [showCurrentPw, setShowCurrentPw] = useState(false);
   const [showNewPw, setShowNewPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteName, setInviteName] = useState("");
+  const [inviteRole, setInviteRole] = useState<"admin" | "ops">("admin");
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ["admin-profile", user?.id],
