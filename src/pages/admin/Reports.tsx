@@ -375,6 +375,7 @@ export default function AdminReports() {
 
   return (
     <div className="space-y-6">
+      <AICommandCenter pageContext={{ pageType: "reports", title: "Reports & Analytics" }} />
       {/* Header */}
       <motion.div {...anim(0)} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
