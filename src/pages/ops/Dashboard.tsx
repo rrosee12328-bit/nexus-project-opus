@@ -1,4 +1,5 @@
 import { useState } from "react";
+import AICommandCenter from "@/components/AICommandCenter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logActivity } from "@/lib/activityLogger";
@@ -182,6 +183,7 @@ export default function OpsDashboard() {
 
   return (
     <div className="space-y-6">
+      <AICommandCenter pageContext={{ pageType: "dashboard", title: "Ops Dashboard" }} />
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <h1 className="text-2xl font-bold tracking-tight">Ops Dashboard</h1>
         <p className="text-muted-foreground">Your team's task overview and project status.</p>

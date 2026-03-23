@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import AICommandCenter from "@/components/AICommandCenter";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -375,6 +376,7 @@ export default function AdminReports() {
 
   return (
     <div className="space-y-6">
+      <AICommandCenter pageContext={{ pageType: "reports", title: "Reports & Analytics" }} />
       {/* Header */}
       <motion.div {...anim(0)} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

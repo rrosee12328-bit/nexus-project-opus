@@ -1,4 +1,5 @@
 import { useState } from "react";
+import AICommandCenter from "@/components/AICommandCenter";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +46,7 @@ export default function AdminLeads() {
 
   return (
     <div className="space-y-6">
+      <AICommandCenter pageContext={{ pageType: "leads", title: "Sales Pipeline" }} />
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}

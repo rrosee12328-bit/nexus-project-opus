@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import AICommandCenter from "@/components/AICommandCenter";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -96,6 +97,7 @@ export default function ClientProjects() {
 
   return (
     <div className="space-y-8">
+      <AICommandCenter pageContext={{ pageType: "projects", title: "Your Projects" }} />
       <motion.div {...anim(0)}>
         <h1 className="text-2xl font-bold tracking-tight">Your Projects</h1>
         <p className="text-muted-foreground mt-1">Track progress across every phase of your creative projects.</p>

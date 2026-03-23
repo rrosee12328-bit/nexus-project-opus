@@ -1,4 +1,5 @@
 import { useState } from "react";
+import AICommandCenter from "@/components/AICommandCenter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logActivity } from "@/lib/activityLogger";
@@ -258,6 +259,7 @@ export default function AdminProjects() {
 
   return (
     <div className="space-y-6">
+      <AICommandCenter pageContext={{ pageType: "projects", title: "Project Management" }} />
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}

@@ -21,6 +21,7 @@ import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { motion } from "framer-motion";
 import { ExecutiveKPICards } from "@/components/dashboard/ExecutiveKPICards";
+import AICommandCenter from "@/components/AICommandCenter";
 
 function formatCurrency(val: number) {
   return new Intl.NumberFormat("en-US", {
@@ -131,6 +132,9 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* AI Command Center */}
+      <AICommandCenter pageContext={{ pageType: "dashboard", title: "Admin Dashboard" }} />
+
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
