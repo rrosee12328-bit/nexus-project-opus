@@ -13,7 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, FileText, Calendar, Trash2 } from "lucide-react";
+import { Plus, FileText, Calendar, Trash2, Download } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
@@ -174,16 +174,35 @@ export default function AdminSummaries() {
                   {format(new Date(selected.summary_date), "MMMM d, yyyy")}
                 </p>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                onClick={() => {
-                  if (confirm("Delete this summary?")) deleteMutation.mutate(selected.id);
-                }}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    const blob = new Blob([`# ${selected.title}\n\n${selected.content}`], { type: "text/markdown" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `${selected.title.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, "_")}.md`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    toast.success("Downloaded");
+                  }}
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  onClick={() => {
+                    if (confirm("Delete this summary?")) deleteMutation.mutate(selected.id);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             <ScrollArea className="flex-1">
               <article className="px-6 md:px-10 lg:px-16 py-6 md:py-10 max-w-4xl mx-auto summary-doc">
