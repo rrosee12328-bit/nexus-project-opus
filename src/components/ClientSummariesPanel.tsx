@@ -25,8 +25,12 @@ type ClientWithNote = {
   latest_note: { title: string; content: string | null; created_at: string } | null;
 };
 
-export function ClientSummariesPanel() {
-  const [open, setOpen] = useState(false);
+interface ClientSummariesPanelProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function ClientSummariesPanel({ open, onOpenChange }: ClientSummariesPanelProps) {
   const [search, setSearch] = useState("");
 
   const { data: clients = [], isLoading } = useQuery({
