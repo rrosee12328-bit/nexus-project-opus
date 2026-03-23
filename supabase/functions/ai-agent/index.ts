@@ -631,6 +631,15 @@ async function executeTool(
         stale_projects: { items: staleProjects ?? [], count: staleProjects?.length ?? 0 },
       }
     }
+    case 'query_company_summaries': {
+      const limit = Math.min(Number(args.limit) || 3, 10)
+      let query = supabase.from('company_summaries').select('id, title, content, summary_date, created_at')
+        .order('summary_date', { ascending: false }).limit(limit)
+      if (args.search) query = query.or(`title.ilike.%${args.search}%,content.ilike.%${args.search}%`)
+      const { data, error } = await query
+      if (error) return { error: error.message }
+      return { summaries: data ?? [], count: data?.length ?? 0 }
+    }
     case 'query_recent_activity': {
       const limit = Math.min(Number(args.limit) || 20, 50)
       let query = supabase.from('admin_activity_log').select('*')
