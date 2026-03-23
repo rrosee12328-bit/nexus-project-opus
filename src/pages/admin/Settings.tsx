@@ -140,8 +140,11 @@ export default function AdminSettings() {
       if (data?.error) throw new Error(data.error);
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success(`Invite sent to ${inviteEmail}`);
+      if (data?.invite_link) {
+        setGeneratedLink(data.invite_link);
+      }
       setInviteEmail("");
       setInviteName("");
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
