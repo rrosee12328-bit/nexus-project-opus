@@ -244,6 +244,22 @@ const ADMIN_ONLY_TOOLS = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'query_sops',
+      description: 'Search SOPs (Standard Operating Procedures). Use this when asked about processes, workflows, policies, how things should be done, or operational questions. Can filter by category or search by keyword.',
+      parameters: {
+        type: 'object',
+        properties: {
+          category: { type: 'string', enum: ['onboarding', 'operations', 'development', 'design', 'communication', 'finance', 'general'] },
+          search: { type: 'string', description: 'Keyword to search in title or content' },
+        },
+        required: [],
+        additionalProperties: false,
+      },
+    },
+  },
 ]
 
 const OPS_ONLY_TOOLS = [
