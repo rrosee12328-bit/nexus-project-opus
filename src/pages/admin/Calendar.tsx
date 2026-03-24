@@ -443,7 +443,7 @@ export default function AdminCalendar() {
                   </Button>
                 </div>
               ) : (
-                <div className="h-full overflow-y-auto overscroll-contain px-4 pb-4 [scrollbar-gutter:stable]">
+                <div className="overflow-y-auto overscroll-contain px-4 pb-4" style={{ maxHeight: "calc(70vh - 80px)" }}>
                   <div className="space-y-3 pt-1">
                     {(() => {
                       const withTime = selectedEvents
