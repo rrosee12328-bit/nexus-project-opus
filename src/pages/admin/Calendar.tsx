@@ -88,7 +88,7 @@ export default function AdminCalendar() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tasks")
-        .select("id, title, due_date, status, priority, client_id")
+        .select("id, title, due_date, status, priority, client_id, description")
         .not("due_date", "is", null);
       if (error) throw error;
       return data;
