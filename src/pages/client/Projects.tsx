@@ -372,7 +372,6 @@ export default function ClientProjects() {
                          </div>
                         </>
                       )}
-                    )}
 
                     {/* Completed Work / Activity History */}
                     {(() => {
