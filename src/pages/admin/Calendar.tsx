@@ -25,6 +25,7 @@ interface CalendarEvent {
   meta?: string;
   description?: string;
   timeRange?: string;
+  startTime?: string;
   link?: string;
   rawEvent?: any;
 }
@@ -46,6 +47,11 @@ const CUSTOM_TYPE_ICONS: Record<string, typeof Star> = {
 };
 
 type EventType = keyof typeof TYPE_CONFIG;
+
+const formatEventTime = (time: string) => {
+  const [hours, minutes] = time.split(":").map(Number);
+  return format(new Date(2000, 0, 1, hours, minutes), "h:mm a");
+};
 
 export default function AdminCalendar() {
   const navigate = useNavigate();
