@@ -404,10 +404,10 @@ export default function AdminCalendar() {
           </Card>
         </motion.div>
 
-        {/* Selected day detail */}
+        {/* Selected day detail — time-block schedule */}
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
-          <Card className="sticky top-20">
-            <CardHeader className="pb-3">
+          <Card className="sticky top-20 flex flex-col" style={{ maxHeight: "calc(100vh - 120px)" }}>
+            <CardHeader className="pb-2 shrink-0">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2">
                   <CalIcon className="h-4 w-4 text-primary" />
@@ -419,10 +419,13 @@ export default function AdminCalendar() {
                   </Button>
                 )}
               </div>
+              {selectedEvents.length > 0 && (
+                <p className="text-[11px] text-muted-foreground">{selectedEvents.length} event{selectedEvents.length !== 1 ? "s" : ""}</p>
+              )}
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1 overflow-hidden p-0">
               {selectedEvents.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 gap-3">
+                <div className="flex flex-col items-center justify-center py-10 gap-3 px-6">
                   <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
                     <CalIcon className="h-5 w-5 text-primary/40" />
                   </div>
@@ -432,67 +435,86 @@ export default function AdminCalendar() {
                   </Button>
                 </div>
               ) : (
-                <ScrollArea className="max-h-[500px]">
-                  <div className="space-y-3">
-                    {selectedEvents.map((event) => {
-                      const cfg = TYPE_CONFIG[event.type];
-                      const CustomIcon = event.rawEvent
-                        ? (CUSTOM_TYPE_ICONS[event.rawEvent.event_type] || Star)
-                        : cfg.icon;
-                      const isExpanded = expandedEventId === event.id;
-                      return (
-                        <div
-                          key={event.id}
-                          className="rounded-lg border border-border overflow-hidden transition-colors hover:bg-accent/30"
-                        >
+                <ScrollArea className="h-full px-4 pb-4">
+                  <div className="space-y-2 pt-1">
+                    {/* Events with times first, sorted by start_time */}
+                    {(() => {
+                      const withTime = selectedEvents.filter(e => e.timeRange).sort((a, b) => (a.timeRange ?? "").localeCompare(b.timeRange ?? ""));
+                      const withoutTime = selectedEvents.filter(e => !e.timeRange);
+                      const sorted = [...withTime, ...withoutTime];
+
+                      return sorted.map((event) => {
+                        const cfg = TYPE_CONFIG[event.type];
+                        const CustomIcon = event.rawEvent
+                          ? (CUSTOM_TYPE_ICONS[event.rawEvent.event_type] || Star)
+                          : cfg.icon;
+                        const isExpanded = expandedEventId === event.id;
+                        const dotColor = event.rawEvent
+                          ? (event.color === "bg-orange-500" ? "bg-orange-500" : event.color === "bg-sky-500" ? "bg-sky-500" : event.color === "bg-red-500" ? "bg-red-500" : "bg-amber-500")
+                          : cfg.dotColor;
+
+                        return (
                           <div
-                            className="flex gap-3 items-start p-3 cursor-pointer"
+                            key={event.id}
+                            className="rounded-lg border border-border overflow-hidden transition-all hover:border-primary/30 cursor-pointer"
                             onClick={() => setExpandedEventId(isExpanded ? null : event.id)}
                           >
-                            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                              <CustomIcon className={`h-4 w-4 ${event.rawEvent ? "text-amber-500" : cfg.color}`} />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium leading-tight">{event.title}</p>
-                              {event.timeRange && (
-                                <p className="text-xs text-primary font-medium mt-0.5">{event.timeRange}</p>
-                              )}
-                              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                <Badge variant="outline" className="text-[10px] h-4 px-1">
-                                  {event.rawEvent ? event.rawEvent.event_type.replace("_", " ") : cfg.label}
-                                </Badge>
-                                {event.meta && (
-                                  <span className="text-[10px] text-muted-foreground">{event.meta}</span>
+                            {/* Time block header */}
+                            <div className="flex items-stretch">
+                              {/* Color bar */}
+                              <div className={`w-1 shrink-0 ${dotColor}`} />
+                              <div className="flex-1 p-2.5">
+                                {/* Time */}
+                                {event.timeRange ? (
+                                  <p className="text-[11px] font-semibold text-primary tracking-wide mb-0.5">{event.timeRange}</p>
+                                ) : (
+                                  <p className="text-[11px] font-medium text-muted-foreground/60 italic mb-0.5">No time set</p>
                                 )}
+                                {/* Title row */}
+                                <div className="flex items-start gap-2">
+                                  <CustomIcon className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${event.rawEvent ? "text-amber-500" : cfg.color}`} />
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-medium leading-tight">{event.title}</p>
+                                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                      <Badge variant="outline" className="text-[10px] h-4 px-1">
+                                        {event.rawEvent ? event.rawEvent.event_type.replace("_", " ") : cfg.label}
+                                      </Badge>
+                                      {event.meta && (
+                                        <span className="text-[10px] text-muted-foreground">{event.meta}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <ChevronRight className={`h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5 transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`} />
+                                </div>
                               </div>
                             </div>
-                            <ChevronRight className={`h-3.5 w-3.5 text-muted-foreground shrink-0 mt-1 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+
+                            {/* Expanded details */}
+                            {isExpanded && (
+                              <div className="border-t border-border/50 px-3 pb-3 pt-2 ml-1 space-y-2">
+                                {event.description ? (
+                                  <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">{event.description}</p>
+                                ) : (
+                                  <p className="text-xs text-muted-foreground italic">No additional details</p>
+                                )}
+                                <div className="flex gap-2 pt-1">
+                                  {event.rawEvent && (
+                                    <Button variant="outline" size="sm" className="h-6 text-[10px] px-2" onClick={(e) => { e.stopPropagation(); openEditEvent(event); }}>
+                                      Edit Event
+                                    </Button>
+                                  )}
+                                  {event.link && (
+                                    <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={(e) => { e.stopPropagation(); navigate(event.link!); }}>
+                                      <ExternalLink className="h-3 w-3 mr-1" /> View
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
-                          {isExpanded && (
-                            <div className="px-3 pb-3 pt-0 space-y-2 border-t border-border/50 mt-0">
-                              {event.description && (
-                                <p className="text-xs text-muted-foreground leading-relaxed pt-2 whitespace-pre-line">{event.description}</p>
-                              )}
-                              {!event.description && !event.rawEvent && (
-                                <p className="text-xs text-muted-foreground italic pt-2">No additional details</p>
-                              )}
-                              <div className="flex gap-2 pt-1">
-                                {event.rawEvent && (
-                                  <Button variant="outline" size="sm" className="h-6 text-[10px] px-2" onClick={(e) => { e.stopPropagation(); openEditEvent(event); }}>
-                                    Edit Event
-                                  </Button>
-                                )}
-                                {event.link && (
-                                  <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={(e) => { e.stopPropagation(); navigate(event.link!); }}>
-                                    <ExternalLink className="h-3 w-3 mr-1" /> Go to source
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                        );
+                      });
+                    })()}
                   </div>
                 </ScrollArea>
               )}
