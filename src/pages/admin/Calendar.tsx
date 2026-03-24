@@ -24,6 +24,8 @@ interface CalendarEvent {
   type: "follow_up" | "task_deadline" | "project_milestone" | "meeting" | "custom";
   color: string;
   meta?: string;
+  description?: string;
+  timeRange?: string;
   link?: string;
   rawEvent?: any;
 }
@@ -55,6 +57,7 @@ export default function AdminCalendar() {
   );
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<any>(null);
+  const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
 
   const toggleFilter = (type: EventType) => {
     setActiveFilters((prev) => {
@@ -85,7 +88,7 @@ export default function AdminCalendar() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tasks")
-        .select("id, title, due_date, status, priority, client_id")
+        .select("id, title, due_date, status, priority, client_id, description")
         .not("due_date", "is", null);
       if (error) throw error;
       return data;
@@ -177,6 +180,7 @@ export default function AdminCalendar() {
           type: "task_deadline",
           color: isDone ? "bg-muted" : task.priority === "urgent" ? "bg-destructive" : task.priority === "high" ? "bg-amber-500" : "bg-emerald-500",
           meta: [isDone ? "✓ Done" : `${task.priority} priority · ${task.status}`, clientName ? `· ${clientName}` : ""].join(" "),
+          description: task.description ?? undefined,
           link: "/ops/tasks",
         });
       }
@@ -220,7 +224,9 @@ export default function AdminCalendar() {
           : evt.event_type === "call" ? "bg-sky-500"
           : evt.event_type === "deadline" ? "bg-red-500"
           : "bg-amber-500",
-        meta: [timeStr, clientName, evt.event_type.replace("_", " ")].filter(Boolean).join(" · "),
+        meta: [clientName, evt.event_type.replace("_", " ")].filter(Boolean).join(" · "),
+        timeRange: timeStr ?? undefined,
+        description: evt.description ?? undefined,
         rawEvent: evt,
       });
     }
@@ -433,28 +439,56 @@ export default function AdminCalendar() {
                       const CustomIcon = event.rawEvent
                         ? (CUSTOM_TYPE_ICONS[event.rawEvent.event_type] || Star)
                         : cfg.icon;
+                      const isExpanded = expandedEventId === event.id;
                       return (
                         <div
                           key={event.id}
-                          className="flex gap-3 items-start rounded-lg border border-border p-3 transition-colors hover:bg-accent/30 cursor-pointer"
-                          onClick={() => openEditEvent(event)}
+                          className="rounded-lg border border-border overflow-hidden transition-colors hover:bg-accent/30"
                         >
-                          <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                            <CustomIcon className={`h-4 w-4 ${event.rawEvent ? "text-amber-500" : cfg.color}`} />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium leading-tight">{event.title}</p>
-                            <div className="flex items-center gap-2 mt-1 flex-wrap">
-                              <Badge variant="outline" className="text-[10px] h-4 px-1">
-                                {event.rawEvent ? event.rawEvent.event_type.replace("_", " ") : cfg.label}
-                              </Badge>
-                              {event.meta && (
-                                <span className="text-[10px] text-muted-foreground">{event.meta}</span>
-                              )}
+                          <div
+                            className="flex gap-3 items-start p-3 cursor-pointer"
+                            onClick={() => setExpandedEventId(isExpanded ? null : event.id)}
+                          >
+                            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                              <CustomIcon className={`h-4 w-4 ${event.rawEvent ? "text-amber-500" : cfg.color}`} />
                             </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium leading-tight">{event.title}</p>
+                              {event.timeRange && (
+                                <p className="text-xs text-primary font-medium mt-0.5">{event.timeRange}</p>
+                              )}
+                              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                <Badge variant="outline" className="text-[10px] h-4 px-1">
+                                  {event.rawEvent ? event.rawEvent.event_type.replace("_", " ") : cfg.label}
+                                </Badge>
+                                {event.meta && (
+                                  <span className="text-[10px] text-muted-foreground">{event.meta}</span>
+                                )}
+                              </div>
+                            </div>
+                            <ChevronRight className={`h-3.5 w-3.5 text-muted-foreground shrink-0 mt-1 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
                           </div>
-                          {(event.link || event.rawEvent) && (
-                            <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0 mt-1" />
+                          {isExpanded && (
+                            <div className="px-3 pb-3 pt-0 space-y-2 border-t border-border/50 mt-0">
+                              {event.description && (
+                                <p className="text-xs text-muted-foreground leading-relaxed pt-2 whitespace-pre-line">{event.description}</p>
+                              )}
+                              {!event.description && !event.rawEvent && (
+                                <p className="text-xs text-muted-foreground italic pt-2">No additional details</p>
+                              )}
+                              <div className="flex gap-2 pt-1">
+                                {event.rawEvent && (
+                                  <Button variant="outline" size="sm" className="h-6 text-[10px] px-2" onClick={(e) => { e.stopPropagation(); openEditEvent(event); }}>
+                                    Edit Event
+                                  </Button>
+                                )}
+                                {event.link && (
+                                  <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={(e) => { e.stopPropagation(); navigate(event.link!); }}>
+                                    <ExternalLink className="h-3 w-3 mr-1" /> Go to source
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
                           )}
                         </div>
                       );
