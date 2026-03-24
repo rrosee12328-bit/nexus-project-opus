@@ -163,6 +163,7 @@ export default function OpsTasks() {
       const { data, error } = await supabase
         .from("tasks")
         .select("*, clients(name)")
+        .is("archived_at", null)
         .order("sort_order");
       if (error) throw error;
       return data;

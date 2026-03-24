@@ -1404,6 +1404,7 @@ export type Database = {
       }
       tasks: {
         Row: {
+          archived_at: string | null
           assigned_to: string | null
           client_id: string | null
           created_at: string
@@ -1419,6 +1420,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archived_at?: string | null
           assigned_to?: string | null
           client_id?: string | null
           created_at?: string
@@ -1434,6 +1436,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archived_at?: string | null
           assigned_to?: string | null
           client_id?: string | null
           created_at?: string
@@ -1526,6 +1529,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      archive_done_tasks: { Args: never; Returns: undefined }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
