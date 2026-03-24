@@ -49,6 +49,7 @@ const anim = (delay: number) => ({
 export default function ClientProjects() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [expandedActivity, setExpandedActivity] = useState<Record<string, boolean>>({});
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ["client-projects"],
