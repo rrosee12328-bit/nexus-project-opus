@@ -205,11 +205,14 @@ export default function AdminCalendar() {
 
     for (const meeting of meetings) {
       if (meeting.meeting_date) {
+        const meetingDate = parseISO(meeting.meeting_date);
         const clientName = meeting.client_id ? clientMap.get(meeting.client_id) : null;
         result.push({
-          id: `meeting-${meeting.id}`, date: parseISO(meeting.meeting_date),
+          id: `meeting-${meeting.id}`, date: meetingDate,
           title: meeting.title, type: "meeting", color: "bg-blue-500",
           meta: clientName ? clientName : undefined,
+          timeRange: format(meetingDate, "h:mm a"),
+          startTime: format(meetingDate, "HH:mm"),
           link: meeting.client_id ? `/admin/clients/${meeting.client_id}` : undefined,
         });
       }
@@ -219,7 +222,7 @@ export default function AdminCalendar() {
     for (const evt of customEvents) {
       const clientName = evt.client_id ? clientMap.get(evt.client_id) : null;
       const timeStr = evt.start_time
-        ? `${evt.start_time.slice(0, 5)}${evt.end_time ? ` – ${evt.end_time.slice(0, 5)}` : ""}`
+        ? `${formatEventTime(evt.start_time)}${evt.end_time ? ` – ${formatEventTime(evt.end_time)}` : ""}`
         : null;
       result.push({
         id: `custom-${evt.id}`, date: parseISO(evt.event_date),
@@ -230,6 +233,7 @@ export default function AdminCalendar() {
           : "bg-amber-500",
         meta: [clientName, evt.event_type.replace("_", " ")].filter(Boolean).join(" · "),
         timeRange: timeStr ?? undefined,
+        startTime: evt.start_time ?? undefined,
         description: evt.description ?? undefined,
         rawEvent: evt,
       });
