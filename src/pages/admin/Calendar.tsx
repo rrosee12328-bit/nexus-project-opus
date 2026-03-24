@@ -62,7 +62,6 @@ export default function AdminCalendar() {
   );
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<any>(null);
-  const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
 
   const toggleFilter = (type: EventType) => {
     setActiveFilters((prev) => {
