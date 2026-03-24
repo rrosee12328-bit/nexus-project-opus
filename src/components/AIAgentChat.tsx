@@ -340,6 +340,16 @@ export default function AIAgentChat({
     recognition.lang = "en-US";
     recognitionRef.current = recognition;
     let finalTranscript = "";
+    let silenceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const resetSilenceTimer = () => {
+      if (silenceTimer) clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(() => {
+        // Auto-stop after 2.5s of silence
+        recognition.stop();
+      }, 2500);
+    };
+
     recognition.onresult = (event: any) => {
       let interim = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -348,17 +358,24 @@ export default function AIAgentChat({
         else interim = transcript;
       }
       setInput(finalTranscript + interim);
+      resetSilenceTimer();
     };
     recognition.onerror = (event: any) => {
       console.error("Speech error:", event.error);
+      if (silenceTimer) clearTimeout(silenceTimer);
       if (event.error !== "aborted") toast.error("Microphone error: " + event.error);
       stopAudioVisualizer();
       setIsListening(false);
     };
-    recognition.onend = () => { stopAudioVisualizer(); setIsListening(false); };
+    recognition.onend = () => {
+      if (silenceTimer) clearTimeout(silenceTimer);
+      stopAudioVisualizer();
+      setIsListening(false);
+    };
     recognition.start();
     startAudioVisualizer();
     setIsListening(true);
+    resetSilenceTimer();
   }, [isListening, startAudioVisualizer, stopAudioVisualizer]);
 
   useEffect(() => {
