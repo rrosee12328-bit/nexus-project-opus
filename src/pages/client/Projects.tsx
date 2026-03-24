@@ -369,9 +369,79 @@ export default function ClientProjects() {
                               <span>Target {new Date(project.target_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span>
                             </div>
                           )}
-                        </div>
-                      </>
+                         </div>
+                        </>
+                      )}
                     )}
+
+                    {/* Completed Work / Activity History */}
+                    {(() => {
+                      const projectActivity = activityByProject[project.id] ?? [];
+                      const milestones = projectActivity.filter((a: any) =>
+                        ["status_change", "phase_change", "phase_status_change"].includes(a.action)
+                      );
+                      const taskCompletions = projectActivity.filter((a: any) => a.action === "task_completed");
+                      const isExpanded = expandedActivity[project.id] ?? false;
+
+                      if (milestones.length === 0 && taskCompletions.length === 0) return null;
+
+                      return (
+                        <>
+                          <Separator />
+                          <div>
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <ListChecks className="h-4 w-4 text-muted-foreground" />
+                                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Completed Work</p>
+                              </div>
+                              {taskCompletions.length > 0 && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 text-xs text-muted-foreground"
+                                  onClick={() => setExpandedActivity(prev => ({ ...prev, [project.id]: !isExpanded }))}
+                                >
+                                  {isExpanded ? "Hide details" : `${taskCompletions.length} task${taskCompletions.length !== 1 ? "s" : ""}`}
+                                  {isExpanded ? <ChevronUp className="h-3 w-3 ml-1" /> : <ChevronDown className="h-3 w-3 ml-1" />}
+                                </Button>
+                              )}
+                            </div>
+
+                            {/* Milestones always visible */}
+                            {milestones.length > 0 && (
+                              <div className="space-y-2 mb-3">
+                                {milestones.slice(0, 5).map((m: any) => (
+                                  <div key={m.id} className="flex items-start gap-2.5 text-sm">
+                                    <CheckCircle2 className="h-4 w-4 text-success shrink-0 mt-0.5" />
+                                    <div className="flex-1">
+                                      <p className="text-foreground">{m.details}</p>
+                                      <p className="text-xs text-muted-foreground font-mono">
+                                        {new Date(m.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                      </p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Task completions - expandable */}
+                            {isExpanded && taskCompletions.length > 0 && (
+                              <div className="space-y-1.5 rounded-lg bg-muted/30 border border-border p-3">
+                                {taskCompletions.map((t: any) => (
+                                  <div key={t.id} className="flex items-center gap-2 text-xs">
+                                    <div className="h-1.5 w-1.5 rounded-full bg-success shrink-0" />
+                                    <span className="text-foreground flex-1">{t.details}</span>
+                                    <span className="text-muted-foreground font-mono">
+                                      {new Date(t.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      );
+                    })()}
                   </CardContent>
                 </Card>
               </motion.div>
