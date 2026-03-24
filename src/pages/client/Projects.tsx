@@ -76,6 +76,25 @@ export default function ClientProjects() {
     enabled: !!user?.id,
   });
 
+  // Fetch activity logs for all projects
+  const { data: activityLogs = [] } = useQuery({
+    queryKey: ["client-project-activity"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("project_activity_log")
+        .select("id, project_id, action, details, created_at")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const activityByProject = (activityLogs as any[]).reduce((acc: Record<string, any[]>, a) => {
+    if (!acc[a.project_id]) acc[a.project_id] = [];
+    acc[a.project_id].push(a);
+    return acc;
+  }, {} as Record<string, any[]>);
+
   const approvalsByProject = (approvals as any[]).reduce((acc: Record<string, any[]>, a) => {
     if (!acc[a.project_id]) acc[a.project_id] = [];
     acc[a.project_id].push(a);
