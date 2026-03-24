@@ -327,56 +327,54 @@ export default function OpsSops() {
                         onClick={() => setExpandedId(isExpanded ? null : sop.id)}
                       >
                         <CardContent className="p-4">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-start gap-3 flex-1 min-w-0">
-                              {isExpanded ? (
-                                <ChevronDown className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium">{sop.title}</p>
-                                {!isExpanded && (
-                                  <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                                    {sop.content}
-                                  </p>
+                          <div className="flex items-start gap-3">
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-sm font-medium mr-auto">{sop.title}</p>
+                                {sop.tags.map((tag) => (
+                                  <Badge key={tag} variant="outline" className="text-xs">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                                <Badge className={`text-xs ${categoryColor[sop.category]}`}>
+                                  {sop.category}
+                                </Badge>
+                                {isAdmin && (
+                                  <div className="flex gap-1 ml-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openEdit(sop);
+                                      }}
+                                    >
+                                      <Pencil className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 text-destructive hover:text-destructive"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setDeleteTarget(sop);
+                                      }}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
                                 )}
                               </div>
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              {sop.tags.map((tag) => (
-                                <Badge key={tag} variant="outline" className="text-xs">
-                                  {tag}
-                                </Badge>
-                              ))}
-                              <Badge className={`text-xs ${categoryColor[sop.category]}`}>
-                                {sop.category}
-                              </Badge>
-                              {isAdmin && (
-                                <div className="flex gap-1 ml-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      openEdit(sop);
-                                    }}
-                                  >
-                                    <Pencil className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 text-destructive hover:text-destructive"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setDeleteTarget(sop);
-                                    }}
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
+                              {!isExpanded && (
+                                <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                                  {sop.content}
+                                </p>
                               )}
                             </div>
                           </div>
