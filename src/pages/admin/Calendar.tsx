@@ -222,7 +222,9 @@ export default function AdminCalendar() {
           : evt.event_type === "call" ? "bg-sky-500"
           : evt.event_type === "deadline" ? "bg-red-500"
           : "bg-amber-500",
-        meta: [timeStr, clientName, evt.event_type.replace("_", " ")].filter(Boolean).join(" · "),
+        meta: [clientName, evt.event_type.replace("_", " ")].filter(Boolean).join(" · "),
+        timeRange: timeStr ?? undefined,
+        description: evt.description ?? undefined,
         rawEvent: evt,
       });
     }
