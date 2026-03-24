@@ -414,7 +414,7 @@ export default function AdminCalendar() {
 
         {/* Selected day detail — time-block schedule */}
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
-          <Card className="sticky top-20 flex h-[calc(100vh-120px)] min-h-0 flex-col overflow-hidden">
+          <Card className="flex max-h-[70vh] min-h-[400px] flex-col overflow-hidden">
             <CardHeader className="shrink-0 pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -443,7 +443,7 @@ export default function AdminCalendar() {
                   </Button>
                 </div>
               ) : (
-                <div className="h-full overflow-y-auto overscroll-contain px-4 pb-4 [scrollbar-gutter:stable]">
+                <div className="overflow-y-auto overscroll-contain px-4 pb-4" style={{ maxHeight: "calc(70vh - 80px)" }}>
                   <div className="space-y-3 pt-1">
                     {(() => {
                       const withTime = selectedEvents
