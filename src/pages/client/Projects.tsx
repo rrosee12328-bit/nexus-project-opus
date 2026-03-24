@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import AICommandCenter from "@/components/AICommandCenter";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,8 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 
-import { CheckCircle2, Circle, Clock, Pause, Calendar, Target, Rocket, FileCheck, ArrowRight, BarChart3 } from "lucide-react";
+import { CheckCircle2, Circle, Clock, Pause, Calendar, Target, Rocket, FileCheck, ArrowRight, BarChart3, ChevronDown, ChevronUp, ListChecks } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
