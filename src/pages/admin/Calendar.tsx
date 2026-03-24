@@ -180,6 +180,7 @@ export default function AdminCalendar() {
           type: "task_deadline",
           color: isDone ? "bg-muted" : task.priority === "urgent" ? "bg-destructive" : task.priority === "high" ? "bg-amber-500" : "bg-emerald-500",
           meta: [isDone ? "✓ Done" : `${task.priority} priority · ${task.status}`, clientName ? `· ${clientName}` : ""].join(" "),
+          description: task.description ?? undefined,
           link: "/ops/tasks",
         });
       }
