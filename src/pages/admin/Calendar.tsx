@@ -24,6 +24,8 @@ interface CalendarEvent {
   type: "follow_up" | "task_deadline" | "project_milestone" | "meeting" | "custom";
   color: string;
   meta?: string;
+  description?: string;
+  timeRange?: string;
   link?: string;
   rawEvent?: any;
 }
