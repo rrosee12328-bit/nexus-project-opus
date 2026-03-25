@@ -20,7 +20,7 @@ interface CalendarEvent {
   id: string;
   date: Date;
   title: string;
-  type: "follow_up" | "task_deadline" | "project_milestone" | "meeting" | "custom";
+  type: "follow_up" | "task_deadline" | "project_milestone" | "meeting" | "custom" | "time_block";
   color: string;
   meta?: string;
   description?: string;
