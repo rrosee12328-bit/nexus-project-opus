@@ -1,27 +1,35 @@
 
 
-## Fix Payment Created Dates
+## Problem
 
-### Problem
-All `client_payments` records have `created_at = 2026-03-17` because they were bulk-inserted. This makes date-based queries and sorting misleading.
+The calendar currently does NOT display `time_entries` (timesheet data) -- the records you've been logging with start/end times for client work, video edits, portal work, etc. It only shows tasks (which have a due date but no time), follow-ups, project milestones, meetings, and custom calendar events.
 
-### Solution
-Run a single SQL migration to set each payment's `created_at` to the 1st of its `payment_month`/`payment_year`. Projected payments keep their current timestamp since they represent future forecasts.
+So all those logged time blocks (e.g. "Goodland Church video edit 11:00-12:00") are invisible on the calendar.
 
-### Migration SQL
+## Plan
 
-```sql
-UPDATE client_payments
-SET created_at = make_timestamptz(payment_year, payment_month, 1, 12, 0, 0, 'UTC')
-WHERE notes IS DISTINCT FROM 'Projected'
-  AND stripe_invoice_id IS NULL;
-```
+### 1. Fetch time_entries on the calendar page
 
-This updates 13 actual payment records across all clients (Rose Credit Repair, Goodland Church, J&J Elite Auto Repair, Jarvis Johnson, Porsche) while leaving the 9 projected payments unchanged.
+Add a new `useQuery` hook in `AdminCalendar` to fetch from the `time_entries` table, pulling `id`, `entry_date`, `start_time`, `end_time`, `description`, `category`, and `user_id`.
 
-### Result
-- Jan 2026 payments → `2026-01-01T12:00:00Z`
-- Feb 2026 payments → `2026-02-01T12:00:00Z`
-- Mar 2026 payments → `2026-03-01T12:00:00Z`
-- Projected (Apr–Jun) → unchanged
+### 2. Add a new event type for time entries
+
+Add a `"time_block"` type to the calendar's `TYPE_CONFIG` with a distinct icon (e.g. Clock) and color (e.g. teal). Add it to the filter chips so time blocks can be toggled on/off.
+
+### 3. Map time_entries into CalendarEvent objects
+
+In the `allEvents` memo, iterate over fetched time entries and create `CalendarEvent` objects with:
+- `date` from `entry_date`
+- `startTime` / `timeRange` from `start_time` and `end_time`
+- `title` from `description`
+- `type: "time_block"`
+
+### 4. Update the CalendarEvent interface and filter state
+
+- Add `"time_block"` to the `type` union and `TYPE_CONFIG`
+- Include it in the default `activeFilters` set
+- Add it to the filter/summary row
+
+### Files modified
+- `src/pages/admin/Calendar.tsx` -- all changes in this single file
 
