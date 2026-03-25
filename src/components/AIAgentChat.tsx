@@ -712,6 +712,21 @@ export default function AIAgentChat({
                         : "bg-card border border-border/40 text-card-foreground rounded-bl-md"
                     }`}
                   >
+                    {/* Show attached files */}
+                    {msg.attachments && msg.attachments.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {msg.attachments.map((att, i) => (
+                          <div key={i} className="flex items-center gap-1.5 rounded-md bg-primary-foreground/10 px-2 py-1 text-[11px]">
+                            {att.dataUrl && IMAGE_TYPES.includes(att.type) ? (
+                              <ImageIcon className="h-3 w-3 shrink-0" />
+                            ) : (
+                              <FileText className="h-3 w-3 shrink-0" />
+                            )}
+                            <span className="truncate max-w-[120px]">{att.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {msg.role === "assistant" ? (
                       <div className="prose prose-sm dark:prose-invert max-w-none [&_p]:my-1.5 [&_ul]:my-2 [&_ol]:my-2 [&_li]:my-0.5 [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_h1]:font-bold [&_h2]:font-semibold [&_h3]:font-medium [&_blockquote]:border-l-primary/40 [&_blockquote]:text-muted-foreground [&_a]:text-primary [&_a]:underline [&_hr]:border-border [&_strong]:text-foreground">
                         <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
