@@ -16,8 +16,8 @@ import remarkGfm from "remark-gfm";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
-type Msg = { role: "user" | "assistant"; content: string | any[] };
-type Conversation = { id: string; title: string; updated_at: string };
+type MsgAttachment = { name: string; type: string; dataUrl: string };
+type Msg = { role: "user" | "assistant"; content: string; attachments?: MsgAttachment[] };
 
 interface AttachedFile {
   file: File;
