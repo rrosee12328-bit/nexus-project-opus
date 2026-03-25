@@ -253,8 +253,24 @@ export default function AdminCalendar() {
       });
     }
 
+    // Time entries (timesheet blocks)
+    for (const entry of timeEntries) {
+      const timeStr = `${formatEventTime(entry.start_time)} – ${formatEventTime(entry.end_time)}`;
+      result.push({
+        id: `time-${entry.id}`,
+        date: parseISO(entry.entry_date),
+        title: entry.description,
+        type: "time_block",
+        color: "bg-teal-500",
+        meta: entry.category.replace("_", " "),
+        timeRange: timeStr,
+        startTime: entry.start_time,
+        link: "/ops/timesheets",
+      });
+    }
+
     return result;
-  }, [leads, tasks, projects, meetings, customEvents, clientMap]);
+  }, [leads, tasks, projects, meetings, customEvents, timeEntries, clientMap]);
 
   const events = useMemo(
     () => allEvents.filter((e) => activeFilters.has(e.type)),
