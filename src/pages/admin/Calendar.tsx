@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   ChevronLeft, ChevronRight, Calendar as CalIcon, Plus,
-  Users, CheckSquare, FolderKanban, Phone, ExternalLink, Video, PhoneCall, Flag, Star,
+  Users, CheckSquare, FolderKanban, Phone, ExternalLink, Video, PhoneCall, Flag, Star, Clock,
 } from "lucide-react";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth,
@@ -20,7 +20,7 @@ interface CalendarEvent {
   id: string;
   date: Date;
   title: string;
-  type: "follow_up" | "task_deadline" | "project_milestone" | "meeting" | "custom";
+  type: "follow_up" | "task_deadline" | "project_milestone" | "meeting" | "custom" | "time_block";
   color: string;
   meta?: string;
   description?: string;
@@ -36,6 +36,7 @@ const TYPE_CONFIG = {
   project_milestone: { icon: FolderKanban, label: "Project", color: "text-purple-500", dotColor: "bg-purple-500" },
   meeting: { icon: Users, label: "Meeting", color: "text-blue-500", dotColor: "bg-blue-500" },
   custom: { icon: Star, label: "Event", color: "text-amber-500", dotColor: "bg-amber-500" },
+  time_block: { icon: Clock, label: "Time Block", color: "text-teal-500", dotColor: "bg-teal-500" },
 } as const;
 
 const CUSTOM_TYPE_ICONS: Record<string, typeof Star> = {
@@ -58,7 +59,7 @@ export default function AdminCalendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [activeFilters, setActiveFilters] = useState<Set<EventType>>(
-    new Set(["follow_up", "task_deadline", "project_milestone", "meeting", "custom"])
+    new Set(["follow_up", "task_deadline", "project_milestone", "meeting", "custom", "time_block"])
   );
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<any>(null);
@@ -152,6 +153,19 @@ export default function AdminCalendar() {
     },
   });
 
+  // Fetch time entries (timesheet data)
+  const { data: timeEntries = [] } = useQuery({
+    queryKey: ["calendar-time-entries"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("time_entries")
+        .select("id, entry_date, start_time, end_time, description, category, user_id")
+        .order("entry_date");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const allEvents = useMemo<CalendarEvent[]>(() => {
     const result: CalendarEvent[] = [];
 
@@ -239,8 +253,24 @@ export default function AdminCalendar() {
       });
     }
 
+    // Time entries (timesheet blocks)
+    for (const entry of timeEntries) {
+      const timeStr = `${formatEventTime(entry.start_time)} – ${formatEventTime(entry.end_time)}`;
+      result.push({
+        id: `time-${entry.id}`,
+        date: parseISO(entry.entry_date),
+        title: entry.description,
+        type: "time_block",
+        color: "bg-teal-500",
+        meta: entry.category.replace("_", " "),
+        timeRange: timeStr,
+        startTime: entry.start_time,
+        link: "/ops/timesheets",
+      });
+    }
+
     return result;
-  }, [leads, tasks, projects, meetings, customEvents, clientMap]);
+  }, [leads, tasks, projects, meetings, customEvents, timeEntries, clientMap]);
 
   const events = useMemo(
     () => allEvents.filter((e) => activeFilters.has(e.type)),
@@ -263,6 +293,7 @@ export default function AdminCalendar() {
     project_milestone: monthEvents.filter((e) => e.type === "project_milestone").length,
     meeting: monthEvents.filter((e) => e.type === "meeting").length,
     custom: monthEvents.filter((e) => e.type === "custom").length,
+    time_block: monthEvents.filter((e) => e.type === "time_block").length,
   };
 
   const goToToday = () => {
@@ -302,13 +333,14 @@ export default function AdminCalendar() {
       </motion.div>
 
       {/* Filter + summary row */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {([
           { key: "follow_up" as EventType, count: typeCounts.follow_up },
           { key: "task_deadline" as EventType, count: typeCounts.task_deadline },
           { key: "project_milestone" as EventType, count: typeCounts.project_milestone },
           { key: "meeting" as EventType, count: typeCounts.meeting },
           { key: "custom" as EventType, count: typeCounts.custom },
+          { key: "time_block" as EventType, count: typeCounts.time_block },
         ]).map((item, i) => {
           const cfg = TYPE_CONFIG[item.key];
           const active = activeFilters.has(item.key);
