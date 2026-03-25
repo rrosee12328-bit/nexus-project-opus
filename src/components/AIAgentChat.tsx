@@ -802,6 +802,24 @@ export default function AIAgentChat({
             )}
           </AnimatePresence>
           <div className="max-w-3xl mx-auto">
+            {/* Pending files preview */}
+            {pendingFiles.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2 px-1">
+                {pendingFiles.map((file, i) => (
+                  <div key={i} className="flex items-center gap-1.5 rounded-lg bg-muted/60 border border-border/50 px-2.5 py-1.5 text-xs">
+                    {IMAGE_TYPES.includes(file.type) ? (
+                      <ImageIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    ) : (
+                      <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    )}
+                    <span className="truncate max-w-[140px]">{file.name}</span>
+                    <button onClick={() => removePendingFile(i)} className="ml-0.5 text-muted-foreground hover:text-foreground transition-colors">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="flex gap-2 items-end bg-background/80 rounded-xl border border-border/50 p-1.5 focus-within:border-primary/30 focus-within:ring-1 focus-within:ring-primary/10 transition-all">
               <Textarea
                 ref={textareaRef}
@@ -809,11 +827,29 @@ export default function AIAgentChat({
                 onChange={(e) => setInput(e.target.value)}
                 onFocus={() => scrollToBottom("smooth")}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask anything..."
+                placeholder={pendingFiles.length > 0 ? "Add a message about the file(s)..." : "Ask anything..."}
                 className="min-h-[40px] max-h-32 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 text-sm placeholder:text-muted-foreground/50"
                 rows={1}
               />
               <div className="flex gap-1 pb-0.5">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*,.txt,.md,.csv,.json,.xml,.html,.css,.js,.ts,.tsx,.jsx,.py,.sql,.yaml,.yml,.toml,.log,.sh,.pdf,.doc,.docx"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <Button
+                  onClick={() => fileInputRef.current?.click()}
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
+                  title="Attach file"
+                  disabled={isLoading}
+                >
+                  <Paperclip className="h-4 w-4" />
+                </Button>
                 <Button
                   onClick={toggleVoice}
                   variant="ghost"
@@ -829,7 +865,7 @@ export default function AIAgentChat({
                 </Button>
                 <Button
                   onClick={handleSend}
-                  disabled={!input.trim() || isLoading}
+                  disabled={(!input.trim() && pendingFiles.length === 0) || isLoading}
                   size="icon"
                   className="h-8 w-8 shrink-0 rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-30"
                 >
