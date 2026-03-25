@@ -176,11 +176,27 @@ export default function CalendarEventDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label htmlFor="start-time">Start time</Label>
-              <Input id="start-time" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+              <Select value={startTime || "none"} onValueChange={(v) => setStartTime(v === "none" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="No start time" /></SelectTrigger>
+                <SelectContent className="max-h-60">
+                  <SelectItem value="none">No start time</SelectItem>
+                  {TIME_OPTIONS.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="end-time">End time</Label>
-              <Input id="end-time" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+              <Select value={endTime || "none"} onValueChange={(v) => setEndTime(v === "none" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="No end time" /></SelectTrigger>
+                <SelectContent className="max-h-60">
+                  <SelectItem value="none">No end time</SelectItem>
+                  {TIME_OPTIONS.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
