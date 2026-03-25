@@ -36,6 +36,7 @@ const TYPE_CONFIG = {
   project_milestone: { icon: FolderKanban, label: "Project", color: "text-purple-500", dotColor: "bg-purple-500" },
   meeting: { icon: Users, label: "Meeting", color: "text-blue-500", dotColor: "bg-blue-500" },
   custom: { icon: Star, label: "Event", color: "text-amber-500", dotColor: "bg-amber-500" },
+  time_block: { icon: Clock, label: "Time Block", color: "text-teal-500", dotColor: "bg-teal-500" },
 } as const;
 
 const CUSTOM_TYPE_ICONS: Record<string, typeof Star> = {
