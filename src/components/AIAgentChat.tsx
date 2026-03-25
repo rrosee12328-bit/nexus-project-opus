@@ -39,7 +39,6 @@ function isTextFile(file: File) {
 function isImageFile(file: File) {
   return IMAGE_TYPES.includes(file.type);
 }
-type Conversation = { id: string; title: string; updated_at: string };
 
 interface AIAgentChatProps {
   title?: string;
