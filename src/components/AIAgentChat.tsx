@@ -237,10 +237,65 @@ export default function AIAgentChat({
     return () => window.visualViewport?.removeEventListener("resize", handleViewportChange);
   }, [scrollToBottom]);
 
+  /* ── File handling ── */
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    const valid = files.filter(f => {
+      if (f.size > maxSize) { toast.error(`${f.name} is too large (max 10MB)`); return false; }
+      return true;
+    });
+    setPendingFiles(prev => [...prev, ...valid].slice(0, 5));
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removePendingFile = (index: number) => {
+    setPendingFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const processFilesForApi = async (files: File[]): Promise<{ attachments: MsgAttachment[]; apiContent: any[] }> => {
+    const attachments: MsgAttachment[] = [];
+    const apiContent: any[] = [];
+
+    for (const file of files) {
+      if (isImageFile(file)) {
+        const dataUrl = await readFileAsDataUrl(file);
+        attachments.push({ name: file.name, type: file.type, dataUrl });
+        apiContent.push({
+          type: "image_url",
+          image_url: { url: dataUrl },
+        });
+      } else if (isTextFile(file)) {
+        const text = await readFileAsText(file);
+        const truncated = text.slice(0, 50000); // limit to ~50k chars
+        attachments.push({ name: file.name, type: file.type, dataUrl: "" });
+        apiContent.push({
+          type: "text",
+          text: `--- File: ${file.name} ---\n${truncated}${text.length > 50000 ? "\n[...truncated]" : ""}`,
+        });
+      } else {
+        // For other files, try to read as text
+        try {
+          const text = await readFileAsText(file);
+          const truncated = text.slice(0, 50000);
+          attachments.push({ name: file.name, type: file.type, dataUrl: "" });
+          apiContent.push({
+            type: "text",
+            text: `--- File: ${file.name} ---\n${truncated}${text.length > 50000 ? "\n[...truncated]" : ""}`,
+          });
+        } catch {
+          toast.error(`Could not read ${file.name}`);
+        }
+      }
+    }
+    return { attachments, apiContent };
+  };
+
   /* ── Send message ── */
   const handleSend = async () => {
     const text = input.trim();
-    if (!text || isLoading || !user) return;
+    if ((!text && pendingFiles.length === 0) || isLoading || !user) return;
 
     let convoId = activeConvoId;
     if (!convoId) {
@@ -256,11 +311,57 @@ export default function AIAgentChat({
       convoId = convo.id;
     }
 
-    const userMsg: Msg = { role: "user", content: text };
+    // Process attached files
+    const filesToProcess = [...pendingFiles];
+    setPendingFiles([]);
+
+    let attachments: MsgAttachment[] = [];
+    let apiContent: any[] = [];
+    if (filesToProcess.length > 0) {
+      const result = await processFilesForApi(filesToProcess);
+      attachments = result.attachments;
+      apiContent = result.apiContent;
+    }
+
+    const displayText = text || `[Attached ${attachments.length} file${attachments.length !== 1 ? "s" : ""}]`;
+    const userMsg: Msg = { role: "user", content: displayText, attachments: attachments.length > 0 ? attachments : undefined };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput("");
     setIsLoading(true);
+
+    // Build API messages — for messages with attachments, use multipart content
+    const apiMessages = newMessages.map((m) => {
+      if (m.attachments && m.attachments.length > 0) {
+        const parts: any[] = [];
+        // Add file content parts
+        for (const att of m.attachments) {
+          if (att.dataUrl && isImageFile({ type: att.type } as File)) {
+            parts.push({ type: "image_url", image_url: { url: att.dataUrl } });
+          }
+        }
+        // Add text part
+        if (m.content) {
+          parts.push({ type: "text", text: m.content });
+        }
+        return { role: m.role, content: parts };
+      }
+      return { role: m.role, content: m.content };
+    });
+
+    // For the current message, also include any text file content
+    if (apiContent.length > 0) {
+      const lastMsg = apiMessages[apiMessages.length - 1];
+      if (Array.isArray(lastMsg.content)) {
+        // Merge apiContent into existing parts (before the text)
+        const textPart = lastMsg.content.find((p: any) => p.type === "text");
+        const nonTextParts = lastMsg.content.filter((p: any) => p.type !== "text");
+        lastMsg.content = [...nonTextParts, ...apiContent.filter(p => p.type === "text"), ...(textPart ? [textPart] : [])];
+      } else {
+        const textContent = lastMsg.content;
+        lastMsg.content = [...apiContent, { type: "text", text: textContent }];
+      }
+    }
 
     try {
       const resp = await supabase.functions.invoke("ai-agent", {
