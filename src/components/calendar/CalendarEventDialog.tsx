@@ -87,7 +87,7 @@ export default function CalendarEventDialog({
         start_time: startTime || null,
         end_time: endTime || null,
         event_type: eventType,
-        client_id: clientId || null,
+        client_id: (clientId && clientId !== "none") ? clientId : null,
         created_by: user!.id,
       };
 
