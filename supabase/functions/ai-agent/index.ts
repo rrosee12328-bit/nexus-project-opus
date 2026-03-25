@@ -827,15 +827,15 @@ Deno.serve(async (req) => {
       if (!aiResponse.ok) {
         const status = aiResponse.status
         const text = await aiResponse.text()
-        console.error('AI gateway error:', status, text)
+        console.error('OpenAI API error:', status, text)
         if (status === 429) {
           return new Response(JSON.stringify({ error: 'Rate limit exceeded. Please try again in a moment.' }), {
             status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           })
         }
-        if (status === 402) {
-          return new Response(JSON.stringify({ error: 'AI credits exhausted. Please add funds.' }), {
-            status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        if (status === 401) {
+          return new Response(JSON.stringify({ error: 'Invalid OpenAI API key. Please check your configuration.' }), {
+            status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           })
         }
         return new Response(JSON.stringify({ error: 'AI service error' }), {
