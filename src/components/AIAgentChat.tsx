@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import {
   Bot, Send, Loader2, User, Sparkles, Plus, MessageSquare,
   Trash2, Mic, MicOff, Search, PanelLeftClose, PanelLeft, Copy, Check,
-  RotateCcw, Zap,
+  RotateCcw, Zap, Paperclip, X, FileText, ImageIcon,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -16,7 +16,29 @@ import remarkGfm from "remark-gfm";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
-type Msg = { role: "user" | "assistant"; content: string };
+type Msg = { role: "user" | "assistant"; content: string | any[] };
+type Conversation = { id: string; title: string; updated_at: string };
+
+interface AttachedFile {
+  file: File;
+  preview?: string; // data URL for images
+  extractedText?: string; // text content for text files
+}
+
+const TEXT_EXTENSIONS = ["txt", "md", "csv", "json", "xml", "html", "css", "js", "ts", "tsx", "jsx", "py", "sql", "yaml", "yml", "toml", "log", "env", "sh"];
+const IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+
+function getFileExtension(name: string) {
+  return name.split(".").pop()?.toLowerCase() ?? "";
+}
+
+function isTextFile(file: File) {
+  return file.type.startsWith("text/") || TEXT_EXTENSIONS.includes(getFileExtension(file.name));
+}
+
+function isImageFile(file: File) {
+  return IMAGE_TYPES.includes(file.type);
+}
 type Conversation = { id: string; title: string; updated_at: string };
 
 interface AIAgentChatProps {
