@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import {
   Bot, Send, Loader2, User, Sparkles, Plus, MessageSquare,
   Trash2, Mic, MicOff, Search, PanelLeftClose, PanelLeft, Copy, Check,
-  RotateCcw, Zap,
+  RotateCcw, Zap, Paperclip, X, FileText, ImageIcon,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -16,8 +16,42 @@ import remarkGfm from "remark-gfm";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
-type Msg = { role: "user" | "assistant"; content: string };
+type MsgAttachment = { name: string; type: string; dataUrl: string };
+type Msg = { role: "user" | "assistant"; content: string; attachments?: MsgAttachment[] };
 type Conversation = { id: string; title: string; updated_at: string };
+
+const IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+const TEXT_EXTENSIONS = ["txt", "md", "csv", "json", "xml", "html", "css", "js", "ts", "tsx", "jsx", "py", "sql", "yaml", "yml", "toml", "log", "sh"];
+
+function getFileExtension(name: string) {
+  return name.split(".").pop()?.toLowerCase() ?? "";
+}
+
+function isTextFile(file: File) {
+  return file.type.startsWith("text/") || TEXT_EXTENSIONS.includes(getFileExtension(file.name));
+}
+
+function isImageFile(file: File) {
+  return IMAGE_TYPES.includes(file.type);
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function readFileAsText(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
+}
 
 interface AIAgentChatProps {
   title?: string;
@@ -66,6 +100,8 @@ export default function AIAgentChat({
   const [audioLevels, setAudioLevels] = useState<number[]>(new Array(24).fill(0));
   const [searchQuery, setSearchQuery] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -201,10 +237,65 @@ export default function AIAgentChat({
     return () => window.visualViewport?.removeEventListener("resize", handleViewportChange);
   }, [scrollToBottom]);
 
+  /* ── File handling ── */
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    const valid = files.filter(f => {
+      if (f.size > maxSize) { toast.error(`${f.name} is too large (max 10MB)`); return false; }
+      return true;
+    });
+    setPendingFiles(prev => [...prev, ...valid].slice(0, 5));
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removePendingFile = (index: number) => {
+    setPendingFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const processFilesForApi = async (files: File[]): Promise<{ attachments: MsgAttachment[]; apiContent: any[] }> => {
+    const attachments: MsgAttachment[] = [];
+    const apiContent: any[] = [];
+
+    for (const file of files) {
+      if (isImageFile(file)) {
+        const dataUrl = await readFileAsDataUrl(file);
+        attachments.push({ name: file.name, type: file.type, dataUrl });
+        apiContent.push({
+          type: "image_url",
+          image_url: { url: dataUrl },
+        });
+      } else if (isTextFile(file)) {
+        const text = await readFileAsText(file);
+        const truncated = text.slice(0, 50000); // limit to ~50k chars
+        attachments.push({ name: file.name, type: file.type, dataUrl: "" });
+        apiContent.push({
+          type: "text",
+          text: `--- File: ${file.name} ---\n${truncated}${text.length > 50000 ? "\n[...truncated]" : ""}`,
+        });
+      } else {
+        // For other files, try to read as text
+        try {
+          const text = await readFileAsText(file);
+          const truncated = text.slice(0, 50000);
+          attachments.push({ name: file.name, type: file.type, dataUrl: "" });
+          apiContent.push({
+            type: "text",
+            text: `--- File: ${file.name} ---\n${truncated}${text.length > 50000 ? "\n[...truncated]" : ""}`,
+          });
+        } catch {
+          toast.error(`Could not read ${file.name}`);
+        }
+      }
+    }
+    return { attachments, apiContent };
+  };
+
   /* ── Send message ── */
   const handleSend = async () => {
     const text = input.trim();
-    if (!text || isLoading || !user) return;
+    if ((!text && pendingFiles.length === 0) || isLoading || !user) return;
 
     let convoId = activeConvoId;
     if (!convoId) {
@@ -220,15 +311,61 @@ export default function AIAgentChat({
       convoId = convo.id;
     }
 
-    const userMsg: Msg = { role: "user", content: text };
+    // Process attached files
+    const filesToProcess = [...pendingFiles];
+    setPendingFiles([]);
+
+    let attachments: MsgAttachment[] = [];
+    let apiContent: any[] = [];
+    if (filesToProcess.length > 0) {
+      const result = await processFilesForApi(filesToProcess);
+      attachments = result.attachments;
+      apiContent = result.apiContent;
+    }
+
+    const displayText = text || `[Attached ${attachments.length} file${attachments.length !== 1 ? "s" : ""}]`;
+    const userMsg: Msg = { role: "user", content: displayText, attachments: attachments.length > 0 ? attachments : undefined };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput("");
     setIsLoading(true);
 
+    // Build API messages — for messages with attachments, use multipart content
+    const apiMessages = newMessages.map((m) => {
+      if (m.attachments && m.attachments.length > 0) {
+        const parts: any[] = [];
+        // Add file content parts
+        for (const att of m.attachments) {
+          if (att.dataUrl && isImageFile({ type: att.type } as File)) {
+            parts.push({ type: "image_url", image_url: { url: att.dataUrl } });
+          }
+        }
+        // Add text part
+        if (m.content) {
+          parts.push({ type: "text", text: m.content });
+        }
+        return { role: m.role, content: parts };
+      }
+      return { role: m.role, content: m.content };
+    });
+
+    // For the current message, also include any text file content
+    if (apiContent.length > 0) {
+      const lastMsg = apiMessages[apiMessages.length - 1];
+      if (Array.isArray(lastMsg.content)) {
+        // Merge apiContent into existing parts (before the text)
+        const textPart = lastMsg.content.find((p: any) => p.type === "text");
+        const nonTextParts = lastMsg.content.filter((p: any) => p.type !== "text");
+        lastMsg.content = [...nonTextParts, ...apiContent.filter(p => p.type === "text"), ...(textPart ? [textPart] : [])];
+      } else {
+        const textContent = lastMsg.content;
+        lastMsg.content = [...apiContent, { type: "text", text: textContent }];
+      }
+    }
+
     try {
       const resp = await supabase.functions.invoke("ai-agent", {
-        body: { messages: newMessages.map((m) => ({ role: m.role, content: m.content })) },
+        body: { messages: apiMessages },
       });
       if (resp.error) throw new Error(resp.error.message || "Failed to get response");
       const data = resp.data;
@@ -575,6 +712,21 @@ export default function AIAgentChat({
                         : "bg-card border border-border/40 text-card-foreground rounded-bl-md"
                     }`}
                   >
+                    {/* Show attached files */}
+                    {msg.attachments && msg.attachments.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {msg.attachments.map((att, i) => (
+                          <div key={i} className="flex items-center gap-1.5 rounded-md bg-primary-foreground/10 px-2 py-1 text-[11px]">
+                            {att.dataUrl && IMAGE_TYPES.includes(att.type) ? (
+                              <ImageIcon className="h-3 w-3 shrink-0" />
+                            ) : (
+                              <FileText className="h-3 w-3 shrink-0" />
+                            )}
+                            <span className="truncate max-w-[120px]">{att.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {msg.role === "assistant" ? (
                       <div className="prose prose-sm dark:prose-invert max-w-none [&_p]:my-1.5 [&_ul]:my-2 [&_ol]:my-2 [&_li]:my-0.5 [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_h1]:font-bold [&_h2]:font-semibold [&_h3]:font-medium [&_blockquote]:border-l-primary/40 [&_blockquote]:text-muted-foreground [&_a]:text-primary [&_a]:underline [&_hr]:border-border [&_strong]:text-foreground">
                         <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
@@ -650,6 +802,24 @@ export default function AIAgentChat({
             )}
           </AnimatePresence>
           <div className="max-w-3xl mx-auto">
+            {/* Pending files preview */}
+            {pendingFiles.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2 px-1">
+                {pendingFiles.map((file, i) => (
+                  <div key={i} className="flex items-center gap-1.5 rounded-lg bg-muted/60 border border-border/50 px-2.5 py-1.5 text-xs">
+                    {IMAGE_TYPES.includes(file.type) ? (
+                      <ImageIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    ) : (
+                      <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    )}
+                    <span className="truncate max-w-[140px]">{file.name}</span>
+                    <button onClick={() => removePendingFile(i)} className="ml-0.5 text-muted-foreground hover:text-foreground transition-colors">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="flex gap-2 items-end bg-background/80 rounded-xl border border-border/50 p-1.5 focus-within:border-primary/30 focus-within:ring-1 focus-within:ring-primary/10 transition-all">
               <Textarea
                 ref={textareaRef}
@@ -657,11 +827,29 @@ export default function AIAgentChat({
                 onChange={(e) => setInput(e.target.value)}
                 onFocus={() => scrollToBottom("smooth")}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask anything..."
+                placeholder={pendingFiles.length > 0 ? "Add a message about the file(s)..." : "Ask anything..."}
                 className="min-h-[40px] max-h-32 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 text-sm placeholder:text-muted-foreground/50"
                 rows={1}
               />
               <div className="flex gap-1 pb-0.5">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*,.txt,.md,.csv,.json,.xml,.html,.css,.js,.ts,.tsx,.jsx,.py,.sql,.yaml,.yml,.toml,.log,.sh,.pdf,.doc,.docx"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <Button
+                  onClick={() => fileInputRef.current?.click()}
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
+                  title="Attach file"
+                  disabled={isLoading}
+                >
+                  <Paperclip className="h-4 w-4" />
+                </Button>
                 <Button
                   onClick={toggleVoice}
                   variant="ghost"
@@ -677,7 +865,7 @@ export default function AIAgentChat({
                 </Button>
                 <Button
                   onClick={handleSend}
-                  disabled={!input.trim() || isLoading}
+                  disabled={(!input.trim() && pendingFiles.length === 0) || isLoading}
                   size="icon"
                   className="h-8 w-8 shrink-0 rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-30"
                 >
