@@ -22,6 +22,7 @@ import { formatDistanceToNow } from "date-fns";
 import { motion } from "framer-motion";
 import { ExecutiveKPICards } from "@/components/dashboard/ExecutiveKPICards";
 import AICommandCenter from "@/components/AICommandCenter";
+import { AIInsightsWidget } from "@/components/dashboard/AIInsightsWidget";
 
 function formatCurrency(val: number) {
   return new Intl.NumberFormat("en-US", {
@@ -169,11 +170,20 @@ export default function AdminDashboard() {
         ))}
       </div>
 
+      {/* AI Insights */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.32 }}
+      >
+        <AIInsightsWidget />
+      </motion.div>
+
       {/* Executive KPIs */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.35 }}
+        transition={{ duration: 0.5, delay: 0.4 }}
       >
         <ExecutiveKPICards />
       </motion.div>
