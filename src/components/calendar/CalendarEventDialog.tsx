@@ -20,6 +20,20 @@ const EVENT_TYPES = [
   { value: "other", label: "Other" },
 ] as const;
 
+const TIME_OPTIONS = (() => {
+  const options: { value: string; label: string }[] = [];
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      const value = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+      const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+      const ampm = h < 12 ? "AM" : "PM";
+      const label = `${hour12}:${String(m).padStart(2, "0")} ${ampm}`;
+      options.push({ value, label });
+    }
+  }
+  return options;
+})();
+
 interface CalendarEventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -176,11 +190,27 @@ export default function CalendarEventDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label htmlFor="start-time">Start time</Label>
-              <Input id="start-time" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+              <Select value={startTime || "none"} onValueChange={(v) => setStartTime(v === "none" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="No start time" /></SelectTrigger>
+                <SelectContent className="max-h-60">
+                  <SelectItem value="none">No start time</SelectItem>
+                  {TIME_OPTIONS.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="end-time">End time</Label>
-              <Input id="end-time" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+              <Select value={endTime || "none"} onValueChange={(v) => setEndTime(v === "none" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="No end time" /></SelectTrigger>
+                <SelectContent className="max-h-60">
+                  <SelectItem value="none">No end time</SelectItem>
+                  {TIME_OPTIONS.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
