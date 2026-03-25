@@ -153,6 +153,19 @@ export default function AdminCalendar() {
     },
   });
 
+  // Fetch time entries (timesheet data)
+  const { data: timeEntries = [] } = useQuery({
+    queryKey: ["calendar-time-entries"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("time_entries")
+        .select("id, entry_date, start_time, end_time, description, category, user_id")
+        .order("entry_date");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const allEvents = useMemo<CalendarEvent[]>(() => {
     const result: CalendarEvent[] = [];
 
