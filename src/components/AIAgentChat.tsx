@@ -365,7 +365,7 @@ export default function AIAgentChat({
 
     try {
       const resp = await supabase.functions.invoke("ai-agent", {
-        body: { messages: newMessages.map((m) => ({ role: m.role, content: m.content })) },
+        body: { messages: apiMessages },
       });
       if (resp.error) throw new Error(resp.error.message || "Failed to get response");
       const data = resp.data;
