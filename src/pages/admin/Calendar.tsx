@@ -293,6 +293,7 @@ export default function AdminCalendar() {
     project_milestone: monthEvents.filter((e) => e.type === "project_milestone").length,
     meeting: monthEvents.filter((e) => e.type === "meeting").length,
     custom: monthEvents.filter((e) => e.type === "custom").length,
+    time_block: monthEvents.filter((e) => e.type === "time_block").length,
   };
 
   const goToToday = () => {
