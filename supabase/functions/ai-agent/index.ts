@@ -750,13 +750,6 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')
-
-    if (!lovableApiKey) {
-      return new Response(JSON.stringify({ error: 'AI is not configured' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
 
     // Auth check
     const authHeader = req.headers.get('Authorization')
