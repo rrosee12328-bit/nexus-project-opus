@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   ChevronLeft, ChevronRight, Calendar as CalIcon, Plus,
-  Users, CheckSquare, FolderKanban, Phone, ExternalLink, Video, PhoneCall, Flag, Star,
+  Users, CheckSquare, FolderKanban, Phone, ExternalLink, Video, PhoneCall, Flag, Star, Clock,
 } from "lucide-react";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth,
