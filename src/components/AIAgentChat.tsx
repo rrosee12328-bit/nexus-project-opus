@@ -18,15 +18,10 @@ import { toast } from "sonner";
 
 type MsgAttachment = { name: string; type: string; dataUrl: string };
 type Msg = { role: "user" | "assistant"; content: string; attachments?: MsgAttachment[] };
+type Conversation = { id: string; title: string; updated_at: string };
 
-interface AttachedFile {
-  file: File;
-  preview?: string; // data URL for images
-  extractedText?: string; // text content for text files
-}
-
-const TEXT_EXTENSIONS = ["txt", "md", "csv", "json", "xml", "html", "css", "js", "ts", "tsx", "jsx", "py", "sql", "yaml", "yml", "toml", "log", "env", "sh"];
 const IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+const TEXT_EXTENSIONS = ["txt", "md", "csv", "json", "xml", "html", "css", "js", "ts", "tsx", "jsx", "py", "sql", "yaml", "yml", "toml", "log", "sh"];
 
 function getFileExtension(name: string) {
   return name.split(".").pop()?.toLowerCase() ?? "";
@@ -38,6 +33,24 @@ function isTextFile(file: File) {
 
 function isImageFile(file: File) {
   return IMAGE_TYPES.includes(file.type);
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function readFileAsText(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
 }
 
 interface AIAgentChatProps {
