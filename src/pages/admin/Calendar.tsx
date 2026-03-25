@@ -333,13 +333,14 @@ export default function AdminCalendar() {
       </motion.div>
 
       {/* Filter + summary row */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {([
           { key: "follow_up" as EventType, count: typeCounts.follow_up },
           { key: "task_deadline" as EventType, count: typeCounts.task_deadline },
           { key: "project_milestone" as EventType, count: typeCounts.project_milestone },
           { key: "meeting" as EventType, count: typeCounts.meeting },
           { key: "custom" as EventType, count: typeCounts.custom },
+          { key: "time_block" as EventType, count: typeCounts.time_block },
         ]).map((item, i) => {
           const cfg = TYPE_CONFIG[item.key];
           const active = activeFilters.has(item.key);
