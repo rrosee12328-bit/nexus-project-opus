@@ -329,6 +329,7 @@ export default function AdminCalendar() {
     meeting: monthEvents.filter((e) => e.type === "meeting").length,
     custom: monthEvents.filter((e) => e.type === "custom").length,
     time_block: monthEvents.filter((e) => e.type === "time_block").length,
+    calendly: monthEvents.filter((e) => e.type === "calendly").length,
   };
 
   const goToToday = () => {
