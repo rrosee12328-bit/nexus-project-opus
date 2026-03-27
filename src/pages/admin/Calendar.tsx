@@ -21,7 +21,7 @@ interface CalendarEvent {
   id: string;
   date: Date;
   title: string;
-  type: "follow_up" | "task_deadline" | "project_milestone" | "meeting" | "custom" | "time_block";
+  type: "follow_up" | "task_deadline" | "project_milestone" | "meeting" | "custom" | "time_block" | "calendly";
   color: string;
   meta?: string;
   description?: string;
@@ -38,6 +38,7 @@ const TYPE_CONFIG = {
   meeting: { icon: Users, label: "Meeting", color: "text-blue-500", dotColor: "bg-blue-500" },
   custom: { icon: Star, label: "Event", color: "text-amber-500", dotColor: "bg-amber-500" },
   time_block: { icon: Clock, label: "Time Block", color: "text-teal-500", dotColor: "bg-teal-500" },
+  calendly: { icon: Video, label: "Calendly", color: "text-indigo-500", dotColor: "bg-indigo-500" },
 } as const;
 
 const CUSTOM_TYPE_ICONS: Record<string, typeof Star> = {
@@ -61,7 +62,7 @@ export default function AdminCalendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [activeFilters, setActiveFilters] = useState<Set<EventType>>(
-    new Set(["follow_up", "task_deadline", "project_milestone", "meeting", "custom", "time_block"])
+    new Set(["follow_up", "task_deadline", "project_milestone", "meeting", "custom", "time_block", "calendly"])
   );
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<any>(null);
@@ -257,19 +258,34 @@ export default function AdminCalendar() {
       const timeStr = evt.start_time
         ? `${formatEventTime(evt.start_time)}${evt.end_time ? ` – ${formatEventTime(evt.end_time)}` : ""}`
         : null;
-      result.push({
-        id: `custom-${evt.id}`, date: parseISO(evt.event_date),
-        title: evt.title, type: "custom",
-        color: evt.event_type === "content_shoot" ? "bg-orange-500"
-          : evt.event_type === "call" ? "bg-sky-500"
-          : evt.event_type === "deadline" ? "bg-red-500"
-          : "bg-amber-500",
-        meta: [clientName, evt.event_type.replace("_", " ")].filter(Boolean).join(" · "),
-        timeRange: timeStr ?? undefined,
-        startTime: evt.start_time ?? undefined,
-        description: evt.description ?? undefined,
-        rawEvent: evt,
-      });
+
+      // Calendly events get their own type
+      if (evt.event_type === "calendly") {
+        result.push({
+          id: `custom-${evt.id}`, date: parseISO(evt.event_date),
+          title: evt.title, type: "calendly",
+          color: "bg-indigo-500",
+          meta: clientName ?? undefined,
+          timeRange: timeStr ?? undefined,
+          startTime: evt.start_time ?? undefined,
+          description: evt.description ?? undefined,
+          rawEvent: evt,
+        });
+      } else {
+        result.push({
+          id: `custom-${evt.id}`, date: parseISO(evt.event_date),
+          title: evt.title, type: "custom",
+          color: evt.event_type === "content_shoot" ? "bg-orange-500"
+            : evt.event_type === "call" ? "bg-sky-500"
+            : evt.event_type === "deadline" ? "bg-red-500"
+            : "bg-amber-500",
+          meta: [clientName, evt.event_type.replace("_", " ")].filter(Boolean).join(" · "),
+          timeRange: timeStr ?? undefined,
+          startTime: evt.start_time ?? undefined,
+          description: evt.description ?? undefined,
+          rawEvent: evt,
+        });
+      }
     }
 
     // Time entries (timesheet blocks)
@@ -313,6 +329,7 @@ export default function AdminCalendar() {
     meeting: monthEvents.filter((e) => e.type === "meeting").length,
     custom: monthEvents.filter((e) => e.type === "custom").length,
     time_block: monthEvents.filter((e) => e.type === "time_block").length,
+    calendly: monthEvents.filter((e) => e.type === "calendly").length,
   };
 
   const goToToday = () => {
@@ -352,7 +369,7 @@ export default function AdminCalendar() {
       </motion.div>
 
       {/* Filter + summary row */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
         {([
           { key: "follow_up" as EventType, count: typeCounts.follow_up },
           { key: "task_deadline" as EventType, count: typeCounts.task_deadline },
@@ -360,6 +377,7 @@ export default function AdminCalendar() {
           { key: "meeting" as EventType, count: typeCounts.meeting },
           { key: "custom" as EventType, count: typeCounts.custom },
           { key: "time_block" as EventType, count: typeCounts.time_block },
+          { key: "calendly" as EventType, count: typeCounts.calendly },
         ]).map((item, i) => {
           const cfg = TYPE_CONFIG[item.key];
           const active = activeFilters.has(item.key);
