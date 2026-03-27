@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import {
   Bot, Send, Loader2, User, Sparkles, Zap, Copy, Check,
   RotateCcw, ChevronDown, ChevronUp, FileText, Shield,
@@ -146,10 +146,9 @@ export default function AICommandCenter({
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     window.requestAnimationFrame(() => {
-      const viewport = scrollRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLDivElement | null;
-      if (!viewport) return;
-      viewport.scrollTo({ top: viewport.scrollHeight, behavior });
-      messagesEndRef.current?.scrollIntoView({ block: "end", behavior });
+      const container = scrollRef.current;
+      if (!container) return;
+      container.scrollTo({ top: container.scrollHeight, behavior });
     });
   }, []);
 
