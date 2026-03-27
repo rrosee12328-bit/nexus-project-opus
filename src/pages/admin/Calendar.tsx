@@ -258,19 +258,34 @@ export default function AdminCalendar() {
       const timeStr = evt.start_time
         ? `${formatEventTime(evt.start_time)}${evt.end_time ? ` – ${formatEventTime(evt.end_time)}` : ""}`
         : null;
-      result.push({
-        id: `custom-${evt.id}`, date: parseISO(evt.event_date),
-        title: evt.title, type: "custom",
-        color: evt.event_type === "content_shoot" ? "bg-orange-500"
-          : evt.event_type === "call" ? "bg-sky-500"
-          : evt.event_type === "deadline" ? "bg-red-500"
-          : "bg-amber-500",
-        meta: [clientName, evt.event_type.replace("_", " ")].filter(Boolean).join(" · "),
-        timeRange: timeStr ?? undefined,
-        startTime: evt.start_time ?? undefined,
-        description: evt.description ?? undefined,
-        rawEvent: evt,
-      });
+
+      // Calendly events get their own type
+      if (evt.event_type === "calendly") {
+        result.push({
+          id: `custom-${evt.id}`, date: parseISO(evt.event_date),
+          title: evt.title, type: "calendly",
+          color: "bg-indigo-500",
+          meta: clientName ?? undefined,
+          timeRange: timeStr ?? undefined,
+          startTime: evt.start_time ?? undefined,
+          description: evt.description ?? undefined,
+          rawEvent: evt,
+        });
+      } else {
+        result.push({
+          id: `custom-${evt.id}`, date: parseISO(evt.event_date),
+          title: evt.title, type: "custom",
+          color: evt.event_type === "content_shoot" ? "bg-orange-500"
+            : evt.event_type === "call" ? "bg-sky-500"
+            : evt.event_type === "deadline" ? "bg-red-500"
+            : "bg-amber-500",
+          meta: [clientName, evt.event_type.replace("_", " ")].filter(Boolean).join(" · "),
+          timeRange: timeStr ?? undefined,
+          startTime: evt.start_time ?? undefined,
+          description: evt.description ?? undefined,
+          rawEvent: evt,
+        });
+      }
     }
 
     // Time entries (timesheet blocks)
