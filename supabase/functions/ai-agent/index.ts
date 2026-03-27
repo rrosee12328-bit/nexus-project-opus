@@ -1448,8 +1448,13 @@ Deno.serve(async (req) => {
             status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           })
         }
+        if (status === 402) {
+          return new Response(JSON.stringify({ error: 'AI credits exhausted. Please add funds in workspace settings.' }), {
+            status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
         if (status === 401) {
-          return new Response(JSON.stringify({ error: 'Invalid OpenAI API key.' }), {
+          return new Response(JSON.stringify({ error: 'Invalid AI API key.' }), {
             status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           })
         }
