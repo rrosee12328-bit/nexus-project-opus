@@ -413,13 +413,31 @@ export default function AdminCalendar() {
                   const todayFlag = isToday(day);
 
                   return (
-                    <button
+                    <div
                       key={day.toISOString()}
                       onClick={() => setSelectedDate(day)}
                       onDoubleClick={() => openNewEvent(day)}
-                      className={`group relative p-1 min-h-[64px] sm:min-h-[80px] border border-border/50 text-left transition-colors hover:bg-accent/20
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setDragOverDay(day.toISOString());
+                      }}
+                      onDragLeave={() => setDragOverDay(null)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setDragOverDay(null);
+                        const evt = dragEventRef.current;
+                        if (evt?.rawEvent && !isSameDay(evt.date, day)) {
+                          rescheduleMutation.mutate({
+                            eventId: evt.rawEvent.id,
+                            newDate: format(day, "yyyy-MM-dd"),
+                          });
+                        }
+                        dragEventRef.current = null;
+                      }}
+                      className={`group relative p-1 min-h-[64px] sm:min-h-[80px] border border-border/50 text-left transition-colors hover:bg-accent/20 cursor-pointer
                         ${!isCurrentMonth ? "opacity-30" : ""}
                         ${isSelected ? "bg-primary/10 ring-1 ring-primary/30" : ""}
+                        ${dragOverDay === day.toISOString() ? "bg-primary/20 ring-2 ring-primary/50" : ""}
                       `}
                     >
                       <div className="flex items-center justify-between">
@@ -439,7 +457,16 @@ export default function AdminCalendar() {
                       </div>
                       <div className="hidden sm:block space-y-0.5">
                         {dayEvents.slice(0, 3).map((e) => (
-                          <div key={e.id} className={`${e.color} text-white text-[9px] leading-tight rounded px-1 py-0.5 truncate`}>
+                          <div
+                            key={e.id}
+                            draggable={!!e.rawEvent}
+                            onDragStart={(ev) => {
+                              if (!e.rawEvent) { ev.preventDefault(); return; }
+                              dragEventRef.current = e;
+                              ev.dataTransfer.effectAllowed = "move";
+                            }}
+                            className={`${e.color} text-white text-[9px] leading-tight rounded px-1 py-0.5 truncate ${e.rawEvent ? "cursor-grab active:cursor-grabbing" : ""}`}
+                          >
                             {e.title}
                           </div>
                         ))}
@@ -455,7 +482,7 @@ export default function AdminCalendar() {
                           })}
                         </div>
                       )}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
