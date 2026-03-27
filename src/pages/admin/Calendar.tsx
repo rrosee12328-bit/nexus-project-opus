@@ -1,8 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,6 +57,7 @@ const formatEventTime = (time: string) => {
 
 export default function AdminCalendar() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [activeFilters, setActiveFilters] = useState<Set<EventType>>(
@@ -63,6 +65,23 @@ export default function AdminCalendar() {
   );
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<any>(null);
+  const [dragOverDay, setDragOverDay] = useState<string | null>(null);
+  const dragEventRef = useRef<CalendarEvent | null>(null);
+
+  const rescheduleMutation = useMutation({
+    mutationFn: async ({ eventId, newDate }: { eventId: string; newDate: string }) => {
+      const { error } = await supabase
+        .from("calendar_events")
+        .update({ event_date: newDate })
+        .eq("id", eventId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["calendar-custom-events"] });
+      toast.success("Event rescheduled");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
 
   const toggleFilter = (type: EventType) => {
     setActiveFilters((prev) => {
@@ -394,13 +413,31 @@ export default function AdminCalendar() {
                   const todayFlag = isToday(day);
 
                   return (
-                    <button
+                    <div
                       key={day.toISOString()}
                       onClick={() => setSelectedDate(day)}
                       onDoubleClick={() => openNewEvent(day)}
-                      className={`group relative p-1 min-h-[64px] sm:min-h-[80px] border border-border/50 text-left transition-colors hover:bg-accent/20
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setDragOverDay(day.toISOString());
+                      }}
+                      onDragLeave={() => setDragOverDay(null)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setDragOverDay(null);
+                        const evt = dragEventRef.current;
+                        if (evt?.rawEvent && !isSameDay(evt.date, day)) {
+                          rescheduleMutation.mutate({
+                            eventId: evt.rawEvent.id,
+                            newDate: format(day, "yyyy-MM-dd"),
+                          });
+                        }
+                        dragEventRef.current = null;
+                      }}
+                      className={`group relative p-1 min-h-[64px] sm:min-h-[80px] border border-border/50 text-left transition-colors hover:bg-accent/20 cursor-pointer
                         ${!isCurrentMonth ? "opacity-30" : ""}
                         ${isSelected ? "bg-primary/10 ring-1 ring-primary/30" : ""}
+                        ${dragOverDay === day.toISOString() ? "bg-primary/20 ring-2 ring-primary/50" : ""}
                       `}
                     >
                       <div className="flex items-center justify-between">
@@ -420,7 +457,16 @@ export default function AdminCalendar() {
                       </div>
                       <div className="hidden sm:block space-y-0.5">
                         {dayEvents.slice(0, 3).map((e) => (
-                          <div key={e.id} className={`${e.color} text-white text-[9px] leading-tight rounded px-1 py-0.5 truncate`}>
+                          <div
+                            key={e.id}
+                            draggable={!!e.rawEvent}
+                            onDragStart={(ev) => {
+                              if (!e.rawEvent) { ev.preventDefault(); return; }
+                              dragEventRef.current = e;
+                              ev.dataTransfer.effectAllowed = "move";
+                            }}
+                            className={`${e.color} text-white text-[9px] leading-tight rounded px-1 py-0.5 truncate ${e.rawEvent ? "cursor-grab active:cursor-grabbing" : ""}`}
+                          >
                             {e.title}
                           </div>
                         ))}
@@ -436,7 +482,7 @@ export default function AdminCalendar() {
                           })}
                         </div>
                       )}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
