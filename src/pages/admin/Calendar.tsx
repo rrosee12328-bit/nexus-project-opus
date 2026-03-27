@@ -57,6 +57,7 @@ const formatEventTime = (time: string) => {
 
 export default function AdminCalendar() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [activeFilters, setActiveFilters] = useState<Set<EventType>>(
@@ -64,6 +65,23 @@ export default function AdminCalendar() {
   );
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<any>(null);
+  const [dragOverDay, setDragOverDay] = useState<string | null>(null);
+  const dragEventRef = useRef<CalendarEvent | null>(null);
+
+  const rescheduleMutation = useMutation({
+    mutationFn: async ({ eventId, newDate }: { eventId: string; newDate: string }) => {
+      const { error } = await supabase
+        .from("calendar_events")
+        .update({ event_date: newDate })
+        .eq("id", eventId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["calendar-custom-events"] });
+      toast.success("Event rescheduled");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
 
   const toggleFilter = (type: EventType) => {
     setActiveFilters((prev) => {
