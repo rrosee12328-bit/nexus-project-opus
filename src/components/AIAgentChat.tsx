@@ -57,6 +57,12 @@ interface AIAgentChatProps {
   title?: string;
   subtitle?: string;
   suggestions?: string[];
+  sessionContext?: {
+    page?: string;
+    entityType?: string;
+    entityId?: string;
+    entityName?: string;
+  };
 }
 
 /* ── Copyable code block ── */
