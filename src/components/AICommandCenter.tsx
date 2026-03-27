@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import {
   Bot, Send, Loader2, User, Sparkles, Zap, Copy, Check,
   RotateCcw, ChevronDown, ChevronUp, FileText, Shield,
@@ -146,10 +146,9 @@ export default function AICommandCenter({
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     window.requestAnimationFrame(() => {
-      const viewport = scrollRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLDivElement | null;
-      if (!viewport) return;
-      viewport.scrollTo({ top: viewport.scrollHeight, behavior });
-      messagesEndRef.current?.scrollIntoView({ block: "end", behavior });
+      const container = scrollRef.current;
+      if (!container) return;
+      container.scrollTo({ top: container.scrollHeight, behavior });
     });
   }, []);
 
@@ -371,7 +370,10 @@ export default function AICommandCenter({
 
               {/* Chat messages */}
               {messages.length > 0 && (
-                <ScrollArea className="max-h-[min(52vh,400px)] touch-pan-y overscroll-contain" ref={scrollRef}>
+                <div
+                  ref={scrollRef}
+                  className="max-h-[min(52vh,400px)] overflow-y-auto touch-pan-y overscroll-contain [-webkit-overflow-scrolling:touch]"
+                >
                   <div className="px-4 py-3 space-y-3">
                     {messages.map((msg, i) => (
                       <motion.div
@@ -445,7 +447,7 @@ export default function AICommandCenter({
                     )}
                     <div ref={messagesEndRef} className="h-px w-full" />
                   </div>
-                </ScrollArea>
+                </div>
               )}
 
               {/* Input + actions */}
