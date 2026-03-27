@@ -448,7 +448,7 @@ export default function AICommandCenter({
                     )}
                     <div ref={messagesEndRef} className="h-px w-full" />
                   </div>
-                </ScrollArea>
+                </div>
               )}
 
               {/* Input + actions */}
