@@ -94,6 +94,7 @@ export default function AIAgentChat({
   title = "AI Agent",
   subtitle = "Ask questions, take actions, get insights",
   suggestions = [],
+  sessionContext,
 }: AIAgentChatProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -371,7 +372,7 @@ export default function AIAgentChat({
 
     try {
       const resp = await supabase.functions.invoke("ai-agent", {
-        body: { messages: apiMessages },
+        body: { messages: apiMessages, sessionContext },
       });
       if (resp.error) throw new Error(resp.error.message || "Failed to get response");
       const data = resp.data;
@@ -410,7 +411,7 @@ export default function AIAgentChat({
 
     try {
       const resp = await supabase.functions.invoke("ai-agent", {
-        body: { messages: trimmed.map((m) => ({ role: m.role, content: m.content })) },
+        body: { messages: trimmed.map((m) => ({ role: m.role, content: m.content })), sessionContext },
       });
       if (resp.error) throw new Error(resp.error.message);
       const data = resp.data;
