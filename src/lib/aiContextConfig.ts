@@ -155,14 +155,14 @@ const SUGGESTION_MAP: Record<AIRole, Record<string, AISuggestion[]>> = {
     emails: [],
     proposals: ADMIN_LEADS,
     settings: [],
-    agent: [],
+    agent: ADMIN_DASHBOARD,
   },
   ops: {
     dashboard: OPS_DASHBOARD,
     tasks: OPS_TASKS,
     timesheets: OPS_TIMESHEETS,
     sops: OPS_SOPS,
-    agent: [],
+    agent: OPS_DASHBOARD,
     settings: [],
   },
   client: {
@@ -172,7 +172,7 @@ const SUGGESTION_MAP: Record<AIRole, Record<string, AISuggestion[]>> = {
     messages: CLIENT_MESSAGES,
     assets: CLIENT_ASSETS,
     approvals: CLIENT_APPROVALS,
-    agent: [],
+    agent: CLIENT_DASHBOARD,
     settings: [],
   },
 };
