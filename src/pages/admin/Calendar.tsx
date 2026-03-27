@@ -21,7 +21,7 @@ interface CalendarEvent {
   id: string;
   date: Date;
   title: string;
-  type: "follow_up" | "task_deadline" | "project_milestone" | "meeting" | "custom" | "time_block";
+  type: "follow_up" | "task_deadline" | "project_milestone" | "meeting" | "custom" | "time_block" | "calendly";
   color: string;
   meta?: string;
   description?: string;

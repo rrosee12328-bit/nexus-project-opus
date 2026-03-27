@@ -13,6 +13,8 @@ project_id = "xtftehtsfnxsdsfmwkew"
     verify_jwt = false
   [functions.stripe-webhook]
     verify_jwt = false
+  [functions.calendly-webhook]
+    verify_jwt = false
   [functions.create-checkout]
     verify_jwt = false
   [functions.stripe-portal]
