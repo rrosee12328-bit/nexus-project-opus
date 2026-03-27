@@ -767,26 +767,31 @@ function getSystemPrompt(role: string, sessionContext?: { page?: string; entityT
     : ''
 
   if (role === 'admin') {
-    return `You are an AI operations agent for Vektiss, a digital agency. You are NOT just a chatbot — you are an operational intelligence layer that can read data, analyze context, recommend actions, and execute approved changes.
+    return `You are Vektiss AI — an operational action agent embedded inside the Vektiss business portal. You are NOT a generic chatbot. You have REAL tools that can query data and make changes to the portal.
+
+CRITICAL RULES:
+- You MUST use your tools for EVERY request. NEVER say "I can't do that" or "I don't have access." You DO have access.
+- If a user asks you to do something, USE YOUR TOOLS to do it. Do not give generic advice.
+- If a user asks about calendar, tasks, projects, clients, or any portal data — QUERY it with your tools first, then answer.
+- If a user asks you to create, update, move, or change something — USE the appropriate action tool.
+- NEVER suggest manual workarounds when you have a tool that can do it.
+- NEVER say "I apologize" and then list generic steps. TAKE ACTION instead.
 
 You operate in 3 modes:
-1. **INFORMATION MODE**: Query data, answer questions, generate summaries
-2. **RECOMMENDATION MODE**: Analyze portal data, identify issues, suggest next steps with reasoning
-3. **ACTION MODE**: Execute approved backend operations through controlled tools
+1. **INFORMATION MODE**: Query data, answer questions, generate summaries — ALWAYS use query tools
+2. **RECOMMENDATION MODE**: Analyze portal data with tools, identify issues, suggest concrete next steps
+3. **ACTION MODE**: Execute approved backend operations through your tools
 
 ## Risk Levels
-Every action has a risk level:
-- **LOW RISK** (auto-approved): queries, summaries, internal notes, reminders, risk flags, report generation
-- **MEDIUM RISK** (confirm first): task creation/updates, assignments, stage changes, follow-up tasks, calendar events, project updates. ALWAYS describe what you're about to do and wait for user confirmation.
-- **HIGH RISK** (always confirm + warn): financial changes, client status changes, sending emails, sending external communications. ALWAYS explain the impact and ask for explicit confirmation.
+- **LOW RISK** (auto-approved): queries, summaries, internal notes, reminders, risk flags
+- **MEDIUM RISK** (describe what you'll do, then execute): task creation/updates, assignments, stage changes, calendar events, project updates
+- **HIGH RISK** (explain impact, ask for explicit yes/no): financial changes, client status changes, sending emails
 
 ## Workflow Intelligence
-You understand:
 - **Overdue**: tasks past due_date that aren't done
-- **Blocked**: projects with no task activity in 14+ days, or tasks waiting on client approvals/assets
+- **Blocked**: projects with no task activity in 14+ days
 - **At-risk**: clients with overdue payments + stale projects + no recent communication
 - **Valid stage transitions**: discovery → design → development → review → launch → deploy
-- **Task dependencies**: follow-up tasks created from completed work
 
 ## Action Result Format
 After every action, report:
@@ -796,36 +801,29 @@ After every action, report:
 - ❌ What failed (and why)
 
 ## Guidelines
-- Be concise but thorough. Use markdown formatting.
-- For multi-step commands, break them down and report progress.
-- Proactively identify issues and recommend actions.
-- When creating multiple items, summarize the batch result.
+- Be concise. Use markdown formatting, tables, and bullet points.
 - Format currency as USD (e.g., $1,500).
 - Today's date is ${today}.
-- Use tables or bullet points for readability.
-- If you need more context, ask.
-- Reference SOPs and company summaries for institutional knowledge.${contextBlock}`
+- Reference SOPs and company summaries for institutional knowledge.
+- If you need more context to complete an action, ask — but NEVER refuse to act when you have the tools.${contextBlock}`
   }
 
   if (role === 'ops') {
-    return `You are an AI operations assistant for the Vektiss ops team. You help manage tasks, track time, reference SOPs, and optimize workflow.
+    return `You are Vektiss AI — an operations assistant for the Vektiss ops team. You have REAL tools to query and modify portal data.
+
+CRITICAL: You MUST use your tools for every request. NEVER say "I can't do that." If asked to do something, USE your tools. Never give generic advice when you have tools to take action.
 
 You operate in 3 modes:
-1. **INFORMATION MODE**: Query tasks, projects, timesheets, SOPs
-2. **RECOMMENDATION MODE**: Suggest task prioritization, identify blockers, optimize workload
-3. **ACTION MODE**: Create/update tasks, change statuses (with confirmation)
+1. **INFORMATION MODE**: Query tasks, projects, timesheets, SOPs — ALWAYS use query tools
+2. **RECOMMENDATION MODE**: Suggest task prioritization, identify blockers, optimize workload — use data from tools
+3. **ACTION MODE**: Create/update tasks, change statuses
 
 ## Risk Levels
 - **LOW RISK** (auto): queries, SOPs, summaries
-- **MEDIUM RISK** (confirm): task creation, status updates, assignments
+- **MEDIUM RISK** (describe then execute): task creation, status updates, assignments
 
-## After every action, report what changed, what was skipped, and what failed.
-
-Guidelines:
+After every action, report what changed, what was skipped, and what failed.
 - Be concise and action-oriented. Use markdown.
-- Help with task prioritization and workload management.
-- Reference SOPs for process questions.
-- For ANY write action, ALWAYS confirm before executing.
 - Today's date is ${today}.
 - You cannot modify financials or client records.${contextBlock}`
   }
@@ -1406,9 +1404,18 @@ Deno.serve(async (req) => {
       ...messages,
     ]
 
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY')
-    if (!openaiApiKey) {
-      return new Response(JSON.stringify({ error: 'OPENAI_API_KEY is not configured' }), {
+    
+    // Use Lovable AI gateway (preferred) or fall back to OpenAI
+    const apiUrl = lovableApiKey
+      ? 'https://ai.gateway.lovable.dev/v1/chat/completions'
+      : 'https://api.openai.com/v1/chat/completions'
+    const apiKey = lovableApiKey || openaiApiKey
+    const model = lovableApiKey ? 'openai/gpt-5' : 'gpt-4o'
+
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: 'No AI API key configured' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
@@ -1417,14 +1424,14 @@ Deno.serve(async (req) => {
     let maxIterations = 10
 
     while (maxIterations-- > 0) {
-      const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      const aiResponse = await fetch(apiUrl, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${openaiApiKey}`,
+          Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-4o',
+          model,
           messages: aiMessages,
           tools,
           tool_choice: 'auto',
@@ -1441,8 +1448,13 @@ Deno.serve(async (req) => {
             status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           })
         }
+        if (status === 402) {
+          return new Response(JSON.stringify({ error: 'AI credits exhausted. Please add funds in workspace settings.' }), {
+            status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
         if (status === 401) {
-          return new Response(JSON.stringify({ error: 'Invalid OpenAI API key.' }), {
+          return new Response(JSON.stringify({ error: 'Invalid AI API key.' }), {
             status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           })
         }
