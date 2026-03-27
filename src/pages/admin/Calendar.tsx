@@ -62,7 +62,7 @@ export default function AdminCalendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [activeFilters, setActiveFilters] = useState<Set<EventType>>(
-    new Set(["follow_up", "task_deadline", "project_milestone", "meeting", "custom", "time_block"])
+    new Set(["follow_up", "task_deadline", "project_milestone", "meeting", "custom", "time_block", "calendly"])
   );
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<any>(null);
