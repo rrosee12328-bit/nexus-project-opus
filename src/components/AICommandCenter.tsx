@@ -212,7 +212,15 @@ export default function AICommandCenter({
 
     try {
       const resp = await supabase.functions.invoke("ai-agent", {
-        body: { messages: newMessages.map((m) => ({ role: m.role, content: m.content })) },
+        body: {
+          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
+          sessionContext: {
+            page: pageContext.pageType,
+            entityType: pageContext.pageType,
+            entityId: pageContext.entityId,
+            entityName: pageContext.entityName,
+          },
+        },
       });
       if (resp.error) throw new Error(resp.error.message);
       const data = resp.data;
@@ -241,7 +249,15 @@ export default function AICommandCenter({
     setIsLoading(true);
     try {
       const resp = await supabase.functions.invoke("ai-agent", {
-        body: { messages: trimmed.map((m) => ({ role: m.role, content: m.content })) },
+        body: {
+          messages: trimmed.map((m) => ({ role: m.role, content: m.content })),
+          sessionContext: {
+            page: pageContext.pageType,
+            entityType: pageContext.pageType,
+            entityId: pageContext.entityId,
+            entityName: pageContext.entityName,
+          },
+        },
       });
       if (resp.error) throw new Error(resp.error.message);
       setMessages([...trimmed, { role: "assistant", content: resp.data?.content || "Failed." }]);
