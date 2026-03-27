@@ -72,13 +72,16 @@ export default function CalendarEventDialog({
     },
   });
 
+  // Normalize "HH:MM:SS" to "HH:MM" so it matches dropdown values
+  const normalizeTime = (t: string | null) => (t ? t.slice(0, 5) : "");
+
   useEffect(() => {
     if (editingEvent) {
       setTitle(editingEvent.title);
       setDescription(editingEvent.description ?? "");
       setEventDate(editingEvent.event_date);
-      setStartTime(editingEvent.start_time ?? "");
-      setEndTime(editingEvent.end_time ?? "");
+      setStartTime(normalizeTime(editingEvent.start_time));
+      setEndTime(normalizeTime(editingEvent.end_time));
       setEventType(editingEvent.event_type);
       setClientId(editingEvent.client_id ?? "");
     } else {
