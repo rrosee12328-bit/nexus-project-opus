@@ -1,35 +1,49 @@
 
 
-## Problem
+## Calendly Webhook Integration
 
-The calendar currently does NOT display `time_entries` (timesheet data) -- the records you've been logging with start/end times for client work, video edits, portal work, etc. It only shows tasks (which have a due date but no time), follow-ups, project milestones, meetings, and custom calendar events.
+You've shared your Calendly API token. Here's the plan to build the full integration so Calendly bookings automatically appear on your portal calendar.
 
-So all those logged time blocks (e.g. "Goodland Church video edit 11:00-12:00") are invisible on the calendar.
+### Overview
 
-## Plan
+1. **Store the Calendly API token** as a backend secret
+2. **Create a `calendly-webhook` edge function** that receives Calendly webhook events and inserts/deletes rows in `calendar_events`
+3. **Register the webhook** with Calendly's API using a one-time script
+4. **Add a "calendly" event type** to the calendar UI so Calendly bookings render with a distinct icon/color
 
-### 1. Fetch time_entries on the calendar page
+### Step 1 — Store the API token
 
-Add a new `useQuery` hook in `AdminCalendar` to fetch from the `time_entries` table, pulling `id`, `entry_date`, `start_time`, `end_time`, `description`, `category`, and `user_id`.
+Use the secrets tool to store `CALENDLY_API_TOKEN` so the edge function can use it to verify webhook ownership and for the initial registration call.
 
-### 2. Add a new event type for time entries
+### Step 2 — Create `calendly-webhook` edge function
 
-Add a `"time_block"` type to the calendar's `TYPE_CONFIG` with a distinct icon (e.g. Clock) and color (e.g. teal). Add it to the filter chips so time blocks can be toggled on/off.
+**File:** `supabase/functions/calendly-webhook/index.ts`
 
-### 3. Map time_entries into CalendarEvent objects
+- **Public endpoint** (no JWT required — Calendly sends unsigned POST requests)
+- Handles two Calendly events:
+  - `invitee.created` → insert a new row into `calendar_events` with `event_type = 'calendly'`, mapping the event name, date, start/end times, and invitee name/email into the title and description
+  - `invitee.canceled` → delete the matching `calendar_events` row (matched by storing the Calendly event URI in a metadata column or by convention in the title)
+- Uses the service role key to write to `calendar_events`
+- Stores `calendly_event_uri` in an existing nullable field or appends it to the description for later matching on cancellation
 
-In the `allEvents` memo, iterate over fetched time entries and create `CalendarEvent` objects with:
-- `date` from `entry_date`
-- `startTime` / `timeRange` from `start_time` and `end_time`
-- `title` from `description`
-- `type: "time_block"`
+**Config:** Add `[functions.calendly-webhook] verify_jwt = false` to `supabase/config.toml`
 
-### 4. Update the CalendarEvent interface and filter state
+### Step 3 — Register the webhook with Calendly
 
-- Add `"time_block"` to the `type` union and `TYPE_CONFIG`
-- Include it in the default `activeFilters` set
-- Add it to the filter/summary row
+After the edge function is deployed, run a one-time call from the edge function (or a setup script) to:
+1. `GET https://api.calendly.com/users/me` → retrieve the organization URI
+2. `POST https://api.calendly.com/webhook_subscriptions` → subscribe to `invitee.created` and `invitee.canceled` pointing at `https://xtftehtsfnxsdsfmwkew.supabase.co/functions/v1/calendly-webhook`
 
-### Files modified
-- `src/pages/admin/Calendar.tsx` -- all changes in this single file
+### Step 4 — Calendar UI update
+
+**File:** `src/pages/admin/Calendar.tsx`
+
+- Add `"calendly"` to the `CalendarEvent` type union and `TYPE_CONFIG` with a distinct icon (e.g., `Video` or a calendar icon) and color (e.g., indigo)
+- Include it in `activeFilters` defaults and filter chips
+- No new query needed — Calendly events are stored in `calendar_events` and already fetched by the existing custom events query; just map `event_type === 'calendly'` to the new type
+
+### Files changed
+- `supabase/functions/calendly-webhook/index.ts` (new)
+- `supabase/config.toml` (add function config)
+- `src/pages/admin/Calendar.tsx` (add calendly type to UI)
 
