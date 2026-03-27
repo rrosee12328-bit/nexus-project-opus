@@ -1404,9 +1404,18 @@ Deno.serve(async (req) => {
       ...messages,
     ]
 
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY')
-    if (!openaiApiKey) {
-      return new Response(JSON.stringify({ error: 'OPENAI_API_KEY is not configured' }), {
+    
+    // Use Lovable AI gateway (preferred) or fall back to OpenAI
+    const apiUrl = lovableApiKey
+      ? 'https://ai.gateway.lovable.dev/v1/chat/completions'
+      : 'https://api.openai.com/v1/chat/completions'
+    const apiKey = lovableApiKey || openaiApiKey
+    const model = lovableApiKey ? 'openai/gpt-5' : 'gpt-4o'
+
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: 'No AI API key configured' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
@@ -1415,14 +1424,14 @@ Deno.serve(async (req) => {
     let maxIterations = 10
 
     while (maxIterations-- > 0) {
-      const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      const aiResponse = await fetch(apiUrl, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${openaiApiKey}`,
+          Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-4o',
+          model,
           messages: aiMessages,
           tools,
           tool_choice: 'auto',
