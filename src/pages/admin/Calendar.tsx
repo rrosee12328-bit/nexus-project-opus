@@ -498,8 +498,7 @@ export default function AdminCalendar() {
                       {dayEvents.length > 0 && (
                         <div className="flex gap-0.5 sm:hidden mt-0.5">
                           {dayEvents.slice(0, 4).map((e) => {
-                            const dotCfg = TYPE_CONFIG[e.type];
-                            return <span key={e.id} className={`w-1.5 h-1.5 rounded-full ${dotCfg.dotColor}`} />;
+                            return <span key={e.id} className={`w-1.5 h-1.5 rounded-full ${e.color}`} />;
                           })}
                         </div>
                       )}
