@@ -3,7 +3,6 @@ import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Plus, Calendar as CalIcon } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface CalendarEvent {
   id: string;
@@ -87,7 +86,7 @@ export default function DayViewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg p-0 gap-0 max-h-[85vh] flex flex-col">
+      <DialogContent className="max-w-lg p-0 gap-0 max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader className="px-5 pt-5 pb-3 border-b border-border shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -114,7 +113,7 @@ export default function DayViewDialog({
           </div>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {/* All-day events */}
           {allDayEvents.length > 0 && (
             <div className="px-5 py-3 border-b border-border space-y-1.5">
@@ -222,7 +221,7 @@ export default function DayViewDialog({
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
