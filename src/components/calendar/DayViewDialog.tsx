@@ -113,7 +113,7 @@ export default function DayViewDialog({
           </div>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {/* All-day events */}
           {allDayEvents.length > 0 && (
             <div className="px-5 py-3 border-b border-border space-y-1.5">
