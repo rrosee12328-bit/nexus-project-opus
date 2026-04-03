@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { User, Lock, Bell, Save, Shield, Clock, RefreshCw, Send, Rocket, Eye, EyeOff, CheckCircle2, Mail, Users, UserPlus } from "lucide-react";
+import { User, Lock, Bell, Save, Shield, Clock, RefreshCw, Send, Rocket, Eye, EyeOff, CheckCircle2, Mail, Users, UserPlus, RotateCw } from "lucide-react";
 import { OnboardingTemplatesManager } from "@/components/admin/OnboardingTemplatesManager";
 import { NotificationPreferences } from "@/components/NotificationPreferences";
 import { motion } from "framer-motion";
@@ -150,6 +150,33 @@ export default function AdminSettings() {
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
     },
     onError: (err: Error) => toast.error(err.message),
+  });
+
+  const [resendingUserId, setResendingUserId] = useState<string | null>(null);
+  const [resendLink, setResendLink] = useState<string | null>(null);
+  const [resendLinkCopied, setResendLinkCopied] = useState(false);
+
+  const resendInvite = useMutation({
+    mutationFn: async (userId: string) => {
+      setResendingUserId(userId);
+      const { data, error } = await supabase.functions.invoke("resend-admin-invite", {
+        body: { user_id: userId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success("Invite resent successfully");
+      if (data?.invite_link) {
+        setResendLink(data.invite_link);
+      }
+      setResendingUserId(null);
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+      setResendingUserId(null);
+    },
   });
 
   const triggerReminders = useMutation({
@@ -569,7 +596,8 @@ export default function AdminSettings() {
                         <TableRow>
                           <TableHead>Name</TableHead>
                           <TableHead>Role</TableHead>
-                          <TableHead>Joined</TableHead>
+                         <TableHead>Joined</TableHead>
+                          <TableHead className="w-[120px]">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -589,10 +617,51 @@ export default function AdminSettings() {
                             <TableCell className="text-sm text-muted-foreground">
                               {format(new Date(member.created_at), "MMM d, yyyy")}
                             </TableCell>
+                            <TableCell>
+                              {member.user_id !== user?.id && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="gap-1.5 text-xs"
+                                  disabled={resendInvite.isPending && resendingUserId === member.user_id}
+                                  onClick={() => resendInvite.mutate(member.user_id)}
+                                >
+                                  <RotateCw className={`h-3.5 w-3.5 ${resendInvite.isPending && resendingUserId === member.user_id ? "animate-spin" : ""}`} />
+                                  {resendInvite.isPending && resendingUserId === member.user_id ? "Sending..." : "Resend Invite"}
+                                </Button>
+                              )}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
+
+                {resendLink && (
+                  <div className="mt-4 p-4 rounded-lg border border-primary/20 bg-primary/5 space-y-2">
+                    <p className="text-sm font-medium text-foreground flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-primary" />
+                      Invite link regenerated
+                    </p>
+                    <p className="text-xs text-muted-foreground">Share this link with the team member to set their password:</p>
+                    <div className="flex gap-2 items-center">
+                      <Input value={resendLink} readOnly className="text-xs font-mono" />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0 gap-1.5"
+                        onClick={() => {
+                          navigator.clipboard.writeText(resendLink);
+                          setResendLinkCopied(true);
+                          toast.success("Link copied to clipboard");
+                          setTimeout(() => setResendLinkCopied(false), 3000);
+                        }}
+                      >
+                        {resendLinkCopied ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Send className="h-3.5 w-3.5" />}
+                        {resendLinkCopied ? "Copied" : "Copy"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
                   </div>
                 )}
               </CardContent>
