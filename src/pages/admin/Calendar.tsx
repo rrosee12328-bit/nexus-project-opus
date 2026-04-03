@@ -16,6 +16,7 @@ import {
 } from "date-fns";
 import { motion } from "framer-motion";
 import CalendarEventDialog from "@/components/calendar/CalendarEventDialog";
+import DayViewDialog from "@/components/calendar/DayViewDialog";
 
 interface CalendarEvent {
   id: string;
