@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, ExternalLink, Calendar as CalIcon } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+interface CalendarEvent {
   id: string;
   date: Date;
   title: string;
