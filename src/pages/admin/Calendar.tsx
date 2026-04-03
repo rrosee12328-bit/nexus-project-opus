@@ -257,6 +257,7 @@ export default function AdminCalendar() {
     // Custom calendar events
     for (const evt of customEvents) {
       const clientName = evt.client_id ? clientMap.get(evt.client_id) : null;
+      const isVektiss = clientName?.toLowerCase() === "vektiss";
       const timeStr = evt.start_time
         ? `${formatEventTime(evt.start_time)}${evt.end_time ? ` – ${formatEventTime(evt.end_time)}` : ""}`
         : null;
@@ -266,7 +267,7 @@ export default function AdminCalendar() {
         result.push({
           id: `custom-${evt.id}`, date: parseISO(evt.event_date),
           title: evt.title, type: "calendly",
-          color: "bg-indigo-500",
+          color: isVektiss ? "bg-primary" : "bg-indigo-500",
           meta: clientName ?? undefined,
           timeRange: timeStr ?? undefined,
           startTime: evt.start_time ?? undefined,
@@ -274,13 +275,14 @@ export default function AdminCalendar() {
           rawEvent: evt,
         });
       } else {
+        const defaultColor = evt.event_type === "content_shoot" ? "bg-orange-500"
+          : evt.event_type === "call" ? "bg-sky-500"
+          : evt.event_type === "deadline" ? "bg-red-500"
+          : "bg-amber-500";
         result.push({
           id: `custom-${evt.id}`, date: parseISO(evt.event_date),
           title: evt.title, type: "custom",
-          color: evt.event_type === "content_shoot" ? "bg-orange-500"
-            : evt.event_type === "call" ? "bg-sky-500"
-            : evt.event_type === "deadline" ? "bg-red-500"
-            : "bg-amber-500",
+          color: isVektiss ? "bg-primary" : defaultColor,
           meta: [clientName, evt.event_type.replace("_", " ")].filter(Boolean).join(" · "),
           timeRange: timeStr ?? undefined,
           startTime: evt.start_time ?? undefined,
