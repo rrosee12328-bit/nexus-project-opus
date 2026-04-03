@@ -152,6 +152,33 @@ export default function AdminSettings() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const [resendingUserId, setResendingUserId] = useState<string | null>(null);
+  const [resendLink, setResendLink] = useState<string | null>(null);
+  const [resendLinkCopied, setResendLinkCopied] = useState(false);
+
+  const resendInvite = useMutation({
+    mutationFn: async (userId: string) => {
+      setResendingUserId(userId);
+      const { data, error } = await supabase.functions.invoke("resend-admin-invite", {
+        body: { user_id: userId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success("Invite resent successfully");
+      if (data?.invite_link) {
+        setResendLink(data.invite_link);
+      }
+      setResendingUserId(null);
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+      setResendingUserId(null);
+    },
+  });
+
   const triggerReminders = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke("send-reminders");
