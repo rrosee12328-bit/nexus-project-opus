@@ -596,7 +596,8 @@ export default function AdminSettings() {
                         <TableRow>
                           <TableHead>Name</TableHead>
                           <TableHead>Role</TableHead>
-                          <TableHead>Joined</TableHead>
+                         <TableHead>Joined</TableHead>
+                          <TableHead className="w-[120px]">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -616,10 +617,51 @@ export default function AdminSettings() {
                             <TableCell className="text-sm text-muted-foreground">
                               {format(new Date(member.created_at), "MMM d, yyyy")}
                             </TableCell>
+                            <TableCell>
+                              {member.user_id !== user?.id && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="gap-1.5 text-xs"
+                                  disabled={resendInvite.isPending && resendingUserId === member.user_id}
+                                  onClick={() => resendInvite.mutate(member.user_id)}
+                                >
+                                  <RotateCw className={`h-3.5 w-3.5 ${resendInvite.isPending && resendingUserId === member.user_id ? "animate-spin" : ""}`} />
+                                  {resendInvite.isPending && resendingUserId === member.user_id ? "Sending..." : "Resend Invite"}
+                                </Button>
+                              )}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
+
+                {resendLink && (
+                  <div className="mt-4 p-4 rounded-lg border border-primary/20 bg-primary/5 space-y-2">
+                    <p className="text-sm font-medium text-foreground flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-primary" />
+                      Invite link regenerated
+                    </p>
+                    <p className="text-xs text-muted-foreground">Share this link with the team member to set their password:</p>
+                    <div className="flex gap-2 items-center">
+                      <Input value={resendLink} readOnly className="text-xs font-mono" />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0 gap-1.5"
+                        onClick={() => {
+                          navigator.clipboard.writeText(resendLink);
+                          setResendLinkCopied(true);
+                          toast.success("Link copied to clipboard");
+                          setTimeout(() => setResendLinkCopied(false), 3000);
+                        }}
+                      >
+                        {resendLinkCopied ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Send className="h-3.5 w-3.5" />}
+                        {resendLinkCopied ? "Copied" : "Copy"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
                   </div>
                 )}
               </CardContent>
