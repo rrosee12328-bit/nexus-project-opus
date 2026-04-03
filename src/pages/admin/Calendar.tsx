@@ -66,6 +66,7 @@ export default function AdminCalendar() {
     new Set(["follow_up", "task_deadline", "project_milestone", "meeting", "custom", "time_block", "calendly"])
   );
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
+  const [dayViewOpen, setDayViewOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<any>(null);
   const [dragOverDay, setDragOverDay] = useState<string | null>(null);
   const dragEventRef = useRef<CalendarEvent | null>(null);
