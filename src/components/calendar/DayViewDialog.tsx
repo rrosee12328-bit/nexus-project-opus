@@ -2,8 +2,7 @@ import { useMemo } from "react";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Plus, ExternalLink, Calendar as CalIcon } from "lucide-react";
+import { Plus, Calendar as CalIcon } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface CalendarEvent {
