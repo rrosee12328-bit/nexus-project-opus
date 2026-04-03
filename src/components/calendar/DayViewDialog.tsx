@@ -3,7 +3,6 @@ import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Plus, Calendar as CalIcon } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface CalendarEvent {
   id: string;
