@@ -221,7 +221,7 @@ export default function DayViewDialog({
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
