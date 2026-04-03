@@ -177,6 +177,7 @@ export default function ClientLayout() {
 
           {/* User section */}
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <NotificationBell />
             <div className="hidden lg:flex flex-col items-end mr-1">
               <span className="text-xs font-medium">{displayName}</span>
