@@ -436,7 +436,7 @@ export default function AdminCalendar() {
                   return (
                     <div
                       key={day.toISOString()}
-                      onClick={() => setSelectedDate(day)}
+                      onClick={() => { setSelectedDate(day); setDayViewOpen(true); }}
                       onDoubleClick={() => openNewEvent(day)}
                       onDragOver={(e) => {
                         e.preventDefault();
