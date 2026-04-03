@@ -1,49 +1,50 @@
 
 
-## Calendly Webhook Integration
+## Dark/Light Mode Toggle
 
-You've shared your Calendly API token. Here's the plan to build the full integration so Calendly bookings automatically appear on your portal calendar.
+Currently the site is dark-only — all CSS variables are defined under `:root` with no `.dark` class variant. Tailwind is already configured with `darkMode: ["class"]`, so the infrastructure is ready.
 
-### Overview
+### What we'll build
 
-1. **Store the Calendly API token** as a backend secret
-2. **Create a `calendly-webhook` edge function** that receives Calendly webhook events and inserts/deletes rows in `calendar_events`
-3. **Register the webhook** with Calendly's API using a one-time script
-4. **Add a "calendly" event type** to the calendar UI so Calendly bookings render with a distinct icon/color
+1. **Add light mode CSS variables** — Define a new set of light-themed HSL values under `:root` (default = light) and move the current dark values under `.dark` in `src/index.css`
 
-### Step 1 — Store the API token
+2. **Create a `ThemeProvider` and `useTheme` hook** — New file `src/hooks/useTheme.tsx` that:
+   - Reads theme preference from `localStorage` (key: `theme`)
+   - Defaults to `dark` to preserve the current experience
+   - Toggles the `dark` class on `<html>`
+   - Provides `theme`, `setTheme`, and `toggleTheme` via React context
 
-Use the secrets tool to store `CALENDLY_API_TOKEN` so the edge function can use it to verify webhook ownership and for the initial registration call.
+3. **Create a `ThemeToggle` component** — New file `src/components/ThemeToggle.tsx`:
+   - A small button with Sun/Moon icons from lucide-react
+   - Calls `toggleTheme()` on click
+   - Fits into the existing header style
 
-### Step 2 — Create `calendly-webhook` edge function
+4. **Add the toggle to all layout headers** — Place `<ThemeToggle />` in:
+   - `src/layouts/AdminLayout.tsx` (next to GlobalSearch/NotificationBell)
+   - `src/layouts/OpsLayout.tsx` (next to NotificationBell)
+   - `src/layouts/ClientLayout.tsx` (in the header area)
 
-**File:** `supabase/functions/calendly-webhook/index.ts`
+### Light mode color values
 
-- **Public endpoint** (no JWT required — Calendly sends unsigned POST requests)
-- Handles two Calendly events:
-  - `invitee.created` → insert a new row into `calendar_events` with `event_type = 'calendly'`, mapping the event name, date, start/end times, and invitee name/email into the title and description
-  - `invitee.canceled` → delete the matching `calendar_events` row (matched by storing the Calendly event URI in a metadata column or by convention in the title)
-- Uses the service role key to write to `calendar_events`
-- Stores `calendly_event_uri` in an existing nullable field or appends it to the description for later matching on cancellation
+The light palette will use whites/grays for backgrounds and dark text for foreground, while keeping the same blue primary (`213 100% 58%`):
 
-**Config:** Add `[functions.calendly-webhook] verify_jwt = false` to `supabase/config.toml`
-
-### Step 3 — Register the webhook with Calendly
-
-After the edge function is deployed, run a one-time call from the edge function (or a setup script) to:
-1. `GET https://api.calendly.com/users/me` → retrieve the organization URI
-2. `POST https://api.calendly.com/webhook_subscriptions` → subscribe to `invitee.created` and `invitee.canceled` pointing at `https://xtftehtsfnxsdsfmwkew.supabase.co/functions/v1/calendly-webhook`
-
-### Step 4 — Calendar UI update
-
-**File:** `src/pages/admin/Calendar.tsx`
-
-- Add `"calendly"` to the `CalendarEvent` type union and `TYPE_CONFIG` with a distinct icon (e.g., `Video` or a calendar icon) and color (e.g., indigo)
-- Include it in `activeFilters` defaults and filter chips
-- No new query needed — Calendly events are stored in `calendar_events` and already fetched by the existing custom events query; just map `event_type === 'calendly'` to the new type
+| Variable | Dark (current) | Light |
+|----------|---------------|-------|
+| background | 0 0% 5% | 0 0% 100% |
+| foreground | 0 0% 100% | 0 0% 9% |
+| card | 0 0% 10% | 0 0% 98% |
+| popover | 0 0% 10% | 0 0% 100% |
+| muted | 0 0% 15% | 0 0% 96% |
+| muted-foreground | 0 0% 55% | 0 0% 45% |
+| border | 0 0% 18% | 0 0% 90% |
+| sidebar-background | 0 0% 7% | 0 0% 97% |
 
 ### Files changed
-- `supabase/functions/calendly-webhook/index.ts` (new)
-- `supabase/config.toml` (add function config)
-- `src/pages/admin/Calendar.tsx` (add calendly type to UI)
+- `src/index.css` — restructure variables (light as `:root`, dark under `.dark`)
+- `src/hooks/useTheme.tsx` (new)
+- `src/components/ThemeToggle.tsx` (new)
+- `src/layouts/AdminLayout.tsx` — add toggle
+- `src/layouts/OpsLayout.tsx` — add toggle
+- `src/layouts/ClientLayout.tsx` — add toggle
+- `src/App.tsx` — wrap with `ThemeProvider`
 
