@@ -87,7 +87,7 @@ export default function DayViewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg p-0 gap-0 max-h-[85vh] flex flex-col">
+      <DialogContent className="max-w-lg p-0 gap-0 max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader className="px-5 pt-5 pb-3 border-b border-border shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
