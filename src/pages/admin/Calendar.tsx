@@ -291,12 +291,13 @@ export default function AdminCalendar() {
     // Time entries (timesheet blocks)
     for (const entry of timeEntries) {
       const timeStr = `${formatEventTime(entry.start_time)} – ${formatEventTime(entry.end_time)}`;
+      const isVektiss = entry.category === "vektiss";
       result.push({
         id: `time-${entry.id}`,
         date: parseISO(entry.entry_date),
         title: entry.description,
         type: "time_block",
-        color: "bg-teal-500",
+        color: isVektiss ? "bg-primary" : "bg-teal-500",
         meta: entry.category.replace("_", " "),
         timeRange: timeStr,
         startTime: entry.start_time,
