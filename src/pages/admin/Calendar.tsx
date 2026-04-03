@@ -16,6 +16,7 @@ import {
 } from "date-fns";
 import { motion } from "framer-motion";
 import CalendarEventDialog from "@/components/calendar/CalendarEventDialog";
+import DayViewDialog from "@/components/calendar/DayViewDialog";
 
 interface CalendarEvent {
   id: string;
@@ -65,6 +66,7 @@ export default function AdminCalendar() {
     new Set(["follow_up", "task_deadline", "project_milestone", "meeting", "custom", "time_block", "calendly"])
   );
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
+  const [dayViewOpen, setDayViewOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<any>(null);
   const [dragOverDay, setDragOverDay] = useState<string | null>(null);
   const dragEventRef = useRef<CalendarEvent | null>(null);
@@ -403,7 +405,7 @@ export default function AdminCalendar() {
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
+      <div className="grid grid-cols-1 gap-6">
         {/* Calendar grid */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
           <Card>
@@ -434,7 +436,7 @@ export default function AdminCalendar() {
                   return (
                     <div
                       key={day.toISOString()}
-                      onClick={() => setSelectedDate(day)}
+                      onClick={() => { setSelectedDate(day); setDayViewOpen(true); }}
                       onDoubleClick={() => openNewEvent(day)}
                       onDragOver={(e) => {
                         e.preventDefault();
@@ -509,106 +511,17 @@ export default function AdminCalendar() {
           </Card>
         </motion.div>
 
-        {/* Selected day detail — time-block schedule */}
-        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
-          <Card className="flex max-h-[70vh] min-h-[400px] flex-col overflow-hidden">
-            <CardHeader className="shrink-0 pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <CalIcon className="h-4 w-4 text-primary" />
-                  {selectedDate ? format(selectedDate, "EEEE, MMMM d") : "Select a day"}
-                </CardTitle>
-                {selectedDate && (
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openNewEvent(selectedDate)}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-              {selectedEvents.length > 0 && (
-                <p className="text-[11px] text-muted-foreground">{selectedEvents.length} event{selectedEvents.length !== 1 ? "s" : ""}</p>
-              )}
-            </CardHeader>
-            <CardContent className="min-h-0 flex-1 p-0">
-              {selectedEvents.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-3 px-6 py-10">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                    <CalIcon className="h-5 w-5 text-primary/40" />
-                  </div>
-                  <p className="text-xs text-muted-foreground">No events this day</p>
-                  <Button variant="outline" size="sm" onClick={() => openNewEvent(selectedDate ?? new Date())}>
-                    <Plus className="mr-1 h-3 w-3" /> Add Event
-                  </Button>
-                </div>
-              ) : (
-                <div className="overflow-y-auto overscroll-contain px-4 pb-4" style={{ maxHeight: "calc(70vh - 80px)" }}>
-                  <div className="space-y-3 pt-1">
-                    {(() => {
-                      const withTime = selectedEvents
-                        .filter((event) => event.startTime)
-                        .sort((a, b) => (a.startTime ?? "").localeCompare(b.startTime ?? ""));
-                      const withoutTime = selectedEvents.filter((event) => !event.startTime);
-
-                      return [...withTime, ...withoutTime].map((event) => {
-                        const cfg = TYPE_CONFIG[event.type];
-                        const CustomIcon = event.rawEvent
-                          ? (CUSTOM_TYPE_ICONS[event.rawEvent.event_type] || Star)
-                          : cfg.icon;
-                        const accentBarClass = event.rawEvent ? event.color : cfg.dotColor;
-
-                        return (
-                          <div key={event.id} className="overflow-hidden rounded-lg border border-border bg-card">
-                            <div className="flex items-stretch">
-                              <div className={`w-1 shrink-0 ${accentBarClass}`} />
-                              <div className="flex-1 space-y-2 p-3">
-                                <div className="flex items-start gap-3">
-                                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10">
-                                    <CustomIcon className={`h-3.5 w-3.5 ${event.rawEvent ? "text-amber-500" : cfg.color}`} />
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                                      {event.timeRange ?? "No time set"}
-                                    </p>
-                                    <p className="text-sm font-medium leading-tight">{event.title}</p>
-                                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                                      <Badge variant="outline" className="h-4 px-1 text-[10px]">
-                                        {event.rawEvent ? event.rawEvent.event_type.replace("_", " ") : cfg.label}
-                                      </Badge>
-                                      {event.meta && <span className="text-[10px] text-muted-foreground">{event.meta}</span>}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {event.description && (
-                                  <p className="whitespace-pre-line text-xs leading-relaxed text-muted-foreground">{event.description}</p>
-                                )}
-
-                                {(event.rawEvent || event.link) && (
-                                  <div className="flex gap-2 pt-1">
-                                    {event.rawEvent && (
-                                      <Button variant="outline" size="sm" className="h-6 px-2 text-[10px]" onClick={(e) => { e.stopPropagation(); openEditEvent(event); }}>
-                                        Edit Event
-                                      </Button>
-                                    )}
-                                    {event.link && (
-                                      <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={(e) => { e.stopPropagation(); navigate(event.link!); }}>
-                                        <ExternalLink className="mr-1 h-3 w-3" /> View
-                                      </Button>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      });
-                    })()}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
       </div>
+
+      <DayViewDialog
+        open={dayViewOpen}
+        onOpenChange={setDayViewOpen}
+        date={selectedDate}
+        events={selectedEvents as any[]}
+        onAddEvent={() => { setDayViewOpen(false); openNewEvent(selectedDate ?? new Date()); }}
+        onEditEvent={(event: any) => { setDayViewOpen(false); openEditEvent(event as CalendarEvent); }}
+        onNavigate={(link) => { setDayViewOpen(false); navigate(link); }}
+      />
 
       <CalendarEventDialog
         open={eventDialogOpen}
