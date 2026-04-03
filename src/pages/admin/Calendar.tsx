@@ -517,9 +517,9 @@ export default function AdminCalendar() {
         open={dayViewOpen}
         onOpenChange={setDayViewOpen}
         date={selectedDate}
-        events={selectedEvents}
+        events={selectedEvents as any[]}
         onAddEvent={() => { setDayViewOpen(false); openNewEvent(selectedDate ?? new Date()); }}
-        onEditEvent={(event) => { setDayViewOpen(false); openEditEvent(event); }}
+        onEditEvent={(event: any) => { setDayViewOpen(false); openEditEvent(event as CalendarEvent); }}
         onNavigate={(link) => { setDayViewOpen(false); navigate(link); }}
       />
 
