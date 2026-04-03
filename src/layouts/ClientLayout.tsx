@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { NavLink } from "@/components/NavLink";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { NotificationBell } from "@/components/NotificationBell";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Badge } from "@/components/ui/badge";
 import {
   LayoutDashboard,
@@ -176,6 +177,7 @@ export default function ClientLayout() {
 
           {/* User section */}
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <NotificationBell />
             <div className="hidden lg:flex flex-col items-end mr-1">
               <span className="text-xs font-medium">{displayName}</span>
