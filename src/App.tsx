@@ -31,6 +31,7 @@ import AdminCalendar from "./pages/admin/Calendar";
 import AdminLeads from "./pages/admin/Leads";
 import AdminProposals from "./pages/admin/Proposals";
 import AdminSummaries from "./pages/admin/Summaries";
+import AdminClientTracker from "./pages/admin/ClientTracker";
 
 import OpsLayout from "./layouts/OpsLayout";
 import OpsDashboard from "./pages/ops/Dashboard";
@@ -99,6 +100,7 @@ const App = () => (
               <Route path="leads" element={<AdminLeads />} />
               <Route path="proposals" element={<AdminProposals />} />
               <Route path="summaries" element={<AdminSummaries />} />
+              <Route path="tracker" element={<AdminClientTracker />} />
             </Route>
 
             {/* Ops Portal */}

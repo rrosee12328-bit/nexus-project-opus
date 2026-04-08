@@ -62,7 +62,7 @@ export function OnboardingWizard({ onComplete, displayName }: OnboardingWizardPr
   const updateProfile = useMutation({
     mutationFn: async () => {
       if (!user?.id) return;
-      const updates: Record<string, string> = {};
+      const updates: { display_name?: string; avatar_url?: string } = {};
       if (name.trim()) updates.display_name = name.trim();
       if (avatarUrl) updates.avatar_url = avatarUrl;
       if (Object.keys(updates).length === 0) return;
