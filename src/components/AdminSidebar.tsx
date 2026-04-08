@@ -44,11 +44,11 @@ const navItems = [
   { title: "Project Management", url: "/admin/projects", icon: FolderKanban },
   { title: "Assets", url: "/admin/assets", icon: Upload },
   { title: "Messages", url: "/admin/messages", icon: MessageSquare },
+  { title: "Client Tracker", url: "/admin/tracker", icon: Sheet },
   { title: "Financial Tracking", url: "/admin/financials", icon: DollarSign },
   { title: "Reports", url: "/admin/reports", icon: BarChart3 },
   { title: "Ops Portal", url: "/ops", icon: ClipboardList },
   { title: "Email Dashboard", url: "/admin/emails", icon: Mail },
-  { title: "Client Tracker", url: "/admin/tracker", icon: Sheet },
   { title: "AI Agent", url: "/admin/agent", icon: Bot },
   { title: "Settings", url: "/admin/settings", icon: Settings },
 ];
