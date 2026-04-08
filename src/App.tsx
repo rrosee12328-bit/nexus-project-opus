@@ -100,6 +100,7 @@ const App = () => (
               <Route path="leads" element={<AdminLeads />} />
               <Route path="proposals" element={<AdminProposals />} />
               <Route path="summaries" element={<AdminSummaries />} />
+              <Route path="tracker" element={<AdminClientTracker />} />
             </Route>
 
             {/* Ops Portal */}
