@@ -214,7 +214,8 @@ export default function ClientContractsTab({ clientId, clientName }: Props) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Contract</TableHead>
+                  <TableHead>Document</TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead>Signed By</TableHead>
                   <TableHead>Date Signed</TableHead>
                   <TableHead>Monthly</TableHead>
@@ -227,6 +228,11 @@ export default function ClientContractsTab({ clientId, clientName }: Props) {
                 {allContracts.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell className="font-medium">{c.title}</TableCell>
+                    <TableCell>
+                      <Badge variant={c.docType === "NDA" ? "secondary" : "outline"} className="text-xs">
+                        {c.docType === "NDA" ? <><ShieldCheck className="h-3 w-3 mr-1" />NDA</> : "Contract"}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="text-muted-foreground text-sm">{c.signedBy ?? "—"}</TableCell>
                     <TableCell className="text-muted-foreground text-xs">
                       {c.signedAt ? format(new Date(c.signedAt), "MMM d, yyyy") : "—"}
