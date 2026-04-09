@@ -16,7 +16,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   Loader2, FileSignature, CheckCircle2, CreditCard, AlertCircle,
   ShieldCheck, ScrollText, ArrowRight, ArrowLeft, Sun, Moon,
-  ClipboardList, FileText, Lock, Zap,
+  FileText, Lock, Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -366,82 +366,187 @@ export default function ProposalPage() {
       {/* Main content */}
       <main className="flex-1 flex flex-col">
         <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-4 sm:py-6 flex-1 flex flex-col">
-          {/* Step 0: Proposal Overview */}
-          {step === "overview" && (
-            <Card className="flex-1">
-              <CardContent className="pt-6 space-y-6">
-                <div className="text-center space-y-2 pb-2">
-                  <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-                    <ClipboardList className="h-7 w-7 text-primary" />
-                  </div>
-                  <h2 className="text-xl sm:text-2xl font-bold">Welcome to Your Proposal</h2>
-                  <p className="text-sm text-muted-foreground max-w-lg mx-auto">
-                    Thank you for considering <strong>Vektiss LLC</strong>. Please review the details below before proceeding.
-                  </p>
-                </div>
+          {/* Step 0: Proposal Overview — Premium Landing */}
+          {step === "overview" && (() => {
+            const setupAmt = proposal.setup_fee;
+            const monthlyAmt = proposal.monthly_fee;
+            const parseBold = (text: string) =>
+              text.replace(/\*\*(.+?)\*\*/g, '<strong class="text-foreground font-semibold">$1</strong>');
 
-                <Separator />
-
-                {/* Services */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Zap className="h-4 w-4 text-primary" />
-                    <h3 className="font-semibold text-sm">Services Included</h3>
-                  </div>
-                  <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
-                    {proposal.services_description || "AI & Automation services tailored to your business needs. Full details will be outlined in the contract."}
-                  </div>
-                </div>
-
-                {/* Pricing */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-4 w-4 text-primary" />
-                    <h3 className="font-semibold text-sm">Pricing</h3>
-                  </div>
-                  <div className="bg-muted/50 rounded-lg p-4 grid gap-3 sm:grid-cols-2">
-                    {proposal.setup_fee > 0 && (
-                      <div>
-                        <p className="text-xs text-muted-foreground">One-Time Setup Fee</p>
-                        <p className="text-lg font-bold font-mono">{fmt(proposal.setup_fee)}</p>
-                      </div>
-                    )}
-                    <div>
-                      <p className="text-xs text-muted-foreground">Monthly Service Fee</p>
-                      <p className="text-lg font-bold font-mono">{fmt(proposal.monthly_fee)}/mo</p>
+            return (
+              <div className="flex-1 space-y-6">
+                {/* Hero Section */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6 }}
+                  className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 p-6 sm:p-10 text-center"
+                >
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent pointer-events-none" />
+                  <div className="relative z-10 space-y-4">
+                    <Badge variant="outline" className="text-xs border-primary/30 text-primary px-4 py-1">
+                      Prepared for {clientName || proposal.client_name || "You"}
+                    </Badge>
+                    <h2 className="text-2xl sm:text-4xl font-bold tracking-tight leading-tight">
+                      AI & Automation Services{" "}
+                      <span className="text-primary">Proposal</span>
+                    </h2>
+                    <p className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto">
+                      A tailored solution designed to streamline your operations and accelerate growth through intelligent automation.
+                    </p>
+                    <div className="flex flex-wrap justify-center gap-x-6 gap-y-1 text-xs sm:text-sm text-muted-foreground pt-2">
+                      {(clientName || proposal.client_name) && (
+                        <span>Client: <strong className="text-foreground">{clientName || proposal.client_name}</strong></span>
+                      )}
+                      {(companyName || proposal.company_name) && (
+                        <span>{companyName || proposal.company_name}</span>
+                      )}
+                      <span>Agency: <strong className="text-foreground">Vektiss LLC</strong></span>
                     </div>
                   </div>
-                </div>
+                </motion.div>
 
-                {/* What to expect */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-primary" />
-                    <h3 className="font-semibold text-sm">What to Expect</h3>
-                  </div>
-                  <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-                    {[
-                      { icon: <ArrowRight className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />, text: "Fill in your contact information" },
-                      { icon: <Lock className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />, text: "Review & sign a Mutual Non-Disclosure Agreement (NDA)" },
-                      { icon: <ScrollText className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />, text: "Review & sign the Service Agreement contract" },
-                      { icon: <CreditCard className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />, text: proposal.setup_fee > 0 ? "Complete your setup payment to get started" : "Set up your payment method for monthly billing" },
-                    ].map((item, i) => (
-                      <div key={i} className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                        {item.icon}
-                        <span>{item.text}</span>
+                {/* Key Metrics */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.15 }}
+                  className="grid grid-cols-2 sm:grid-cols-3 gap-3"
+                >
+                  {setupAmt > 0 && (
+                    <Card className="text-center border-primary/10">
+                      <CardContent className="pt-4 pb-3 px-3">
+                        <p className="text-xl sm:text-2xl font-bold font-mono text-primary">{fmt(setupAmt)}</p>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">One-Time Setup</p>
+                      </CardContent>
+                    </Card>
+                  )}
+                  <Card className="text-center border-primary/10">
+                    <CardContent className="pt-4 pb-3 px-3">
+                      <p className="text-xl sm:text-2xl font-bold font-mono text-primary">{fmt(monthlyAmt)}</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">Monthly Investment</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="text-center border-primary/10">
+                    <CardContent className="pt-4 pb-3 px-3">
+                      <div className="flex items-center justify-center gap-1">
+                        <Zap className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                        <p className="text-xl sm:text-2xl font-bold font-mono text-primary">AI</p>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">Powered Automation</p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
 
-                <div className="flex justify-end pt-2">
-                  <Button onClick={() => setStep("info")} size="lg">
-                    Get Started <ArrowRight className="h-4 w-4 ml-2" />
+                {/* Services Section */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                >
+                  <Card>
+                    <CardContent className="pt-5 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <Zap className="h-4 w-4 text-primary" />
+                        </div>
+                        <h3 className="font-semibold">Services Included</h3>
+                      </div>
+                      <div
+                        className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground leading-relaxed whitespace-pre-line"
+                        dangerouslySetInnerHTML={{
+                          __html: parseBold(
+                            proposal.services_description ||
+                            "AI & Automation services tailored to your business needs. Full details will be outlined in the contract."
+                          ),
+                        }}
+                      />
+                    </CardContent>
+                  </Card>
+                </motion.div>
+
+                {/* Investment Breakdown */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.45 }}
+                >
+                  <Card>
+                    <CardContent className="pt-5 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <CreditCard className="h-4 w-4 text-primary" />
+                        </div>
+                        <h3 className="font-semibold">Investment Structure</h3>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {setupAmt > 0 && (
+                          <div className="rounded-lg border border-border bg-muted/30 p-4">
+                            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">One-Time Setup</p>
+                            <p className="text-2xl font-bold font-mono">{fmt(setupAmt)}</p>
+                            <p className="text-xs text-muted-foreground mt-1">Due upon signing to begin onboarding</p>
+                          </div>
+                        )}
+                        <div className="rounded-lg border border-border bg-muted/30 p-4">
+                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Monthly Service</p>
+                          <p className="text-2xl font-bold font-mono">{fmt(monthlyAmt)}<span className="text-sm font-normal text-muted-foreground">/mo</span></p>
+                          <p className="text-xs text-muted-foreground mt-1">Ongoing management & optimization</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+
+                {/* Process Steps */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.6 }}
+                >
+                  <Card>
+                    <CardContent className="pt-5 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <FileText className="h-4 w-4 text-primary" />
+                        </div>
+                        <h3 className="font-semibold">Next Steps</h3>
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {[
+                          { num: "01", icon: <ArrowRight className="h-3.5 w-3.5 text-primary" />, title: "Your Information", desc: "Provide your contact details" },
+                          { num: "02", icon: <Lock className="h-3.5 w-3.5 text-primary" />, title: "Sign NDA", desc: "Mutual non-disclosure agreement" },
+                          { num: "03", icon: <ScrollText className="h-3.5 w-3.5 text-primary" />, title: "Sign Contract", desc: "Review & sign the service agreement" },
+                          { num: "04", icon: <CreditCard className="h-3.5 w-3.5 text-primary" />, title: "Payment", desc: setupAmt > 0 ? "Complete setup payment" : "Set up monthly billing" },
+                        ].map((s) => (
+                          <div key={s.num} className="flex items-start gap-3 rounded-lg border border-border p-3">
+                            <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                              <span className="text-xs font-bold text-primary">{s.num}</span>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">{s.title}</p>
+                              <p className="text-xs text-muted-foreground">{s.desc}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+
+                {/* CTA */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.75 }}
+                  className="flex justify-center pb-4"
+                >
+                  <Button onClick={() => setStep("info")} size="lg" className="px-8 text-base">
+                    Get Started <ArrowRight className="h-5 w-5 ml-2" />
                   </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                </motion.div>
+              </div>
+            );
+          })()}
 
           {/* Step 1: Client Info */}
           {step === "info" && (

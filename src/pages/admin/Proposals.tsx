@@ -279,9 +279,13 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
                     <h4 className="text-sm font-semibold flex items-center gap-1.5">
                       <Sparkles className="h-3.5 w-3.5 text-primary" /> Services Included
                     </h4>
-                    <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
-                      {polishedDescription || "AI & Automation services tailored to your business needs."}
-                    </div>
+                    <div
+                      className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground leading-relaxed whitespace-pre-line"
+                      dangerouslySetInnerHTML={{
+                        __html: (polishedDescription || "AI & Automation services tailored to your business needs.")
+                          .replace(/\*\*(.+?)\*\*/g, '<strong class="text-foreground font-semibold">$1</strong>'),
+                      }}
+                    />
                   </div>
 
                   {/* Pricing */}
