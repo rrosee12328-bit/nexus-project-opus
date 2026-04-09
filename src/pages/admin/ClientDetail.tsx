@@ -33,6 +33,7 @@ import { toast } from "sonner";
 import AdminClientBilling from "@/components/admin/AdminClientBilling";
 import { format, formatDistanceToNow } from "date-fns";
 import { SendProposalDialog } from "@/components/proposals/SendProposalDialog";
+import ClientContractsTab from "@/components/admin/ClientContractsTab";
 
 type NoteType = "meeting" | "document" | "action_item" | "note";
 
@@ -387,9 +388,14 @@ export default function ClientDetail() {
         );
       })()}
 
+      {/* Contracts */}
+      {client && (
+        <ClientContractsTab clientId={client.id} clientName={client.name} />
+      )}
+
       {/* Billing */}
       {client && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
           <AdminClientBilling
             clientId={client.id}
             clientName={client.name}
