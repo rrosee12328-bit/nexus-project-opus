@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { useTheme } from "@/hooks/useTheme";
 import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { renderContract } from "@/lib/contractTemplate";
@@ -65,30 +66,22 @@ export default function ProposalPage() {
   const [scrolledToBottom, setScrolledToBottom] = useState(false);
 
   // Theme: default to light for proposals
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("proposal-theme");
-      if (saved === "dark") return "dark";
-    }
-    return "light";
-  });
+  const { theme: appTheme, setTheme: setAppTheme } = useTheme();
 
-  // Capture original app theme once on mount
-  const originalAppTheme = useRef(
-    typeof window !== "undefined" ? localStorage.getItem("theme") || "dark" : "dark"
-  );
-
+  // Default proposal to light mode on first visit
   useEffect(() => {
-    const root = document.documentElement;
-    root.classList.toggle("dark", theme === "dark");
-    localStorage.setItem("proposal-theme", theme);
-    localStorage.setItem("theme", theme);
+    const saved = localStorage.getItem("proposal-theme");
+    if (!saved) {
+      setAppTheme("light");
+      localStorage.setItem("proposal-theme", "light");
+    }
+  }, []);
 
-    return () => {
-      localStorage.setItem("theme", originalAppTheme.current);
-      root.classList.toggle("dark", originalAppTheme.current === "dark");
-    };
-  }, [theme]);
+  const toggleProposalTheme = useCallback(() => {
+    const next = appTheme === "dark" ? "light" : "dark";
+    setAppTheme(next);
+    localStorage.setItem("proposal-theme", next);
+  }, [appTheme, setAppTheme]);
 
   const docRef = useRef<HTMLDivElement>(null);
 
