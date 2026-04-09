@@ -255,6 +255,72 @@ export type Database = {
           },
         ]
       }
+      client_contracts: {
+        Row: {
+          client_id: string
+          contract_type: string
+          created_at: string
+          file_path: string
+          id: string
+          monthly_fee: number | null
+          notes: string | null
+          proposal_id: string | null
+          setup_fee: number | null
+          signed_at: string | null
+          signed_by: string | null
+          title: string
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          client_id: string
+          contract_type?: string
+          created_at?: string
+          file_path: string
+          id?: string
+          monthly_fee?: number | null
+          notes?: string | null
+          proposal_id?: string | null
+          setup_fee?: number | null
+          signed_at?: string | null
+          signed_by?: string | null
+          title: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          client_id?: string
+          contract_type?: string
+          created_at?: string
+          file_path?: string
+          id?: string
+          monthly_fee?: number | null
+          notes?: string | null
+          proposal_id?: string | null
+          setup_fee?: number | null
+          signed_at?: string | null
+          signed_by?: string | null
+          title?: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_contracts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_contracts_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_costs: {
         Row: {
           amount: number
