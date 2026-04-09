@@ -73,19 +73,20 @@ export default function ProposalPage() {
     return "light";
   });
 
+  // Capture original app theme once on mount
+  const originalAppTheme = useRef(
+    typeof window !== "undefined" ? localStorage.getItem("theme") || "dark" : "dark"
+  );
+
   useEffect(() => {
     const root = document.documentElement;
-    const originalTheme = localStorage.getItem("theme") || "dark";
-
-    // Override both keys so ThemeProvider doesn't fight back
     root.classList.toggle("dark", theme === "dark");
     localStorage.setItem("proposal-theme", theme);
     localStorage.setItem("theme", theme);
 
     return () => {
-      // Restore original app theme on unmount
-      localStorage.setItem("theme", originalTheme);
-      root.classList.toggle("dark", originalTheme === "dark");
+      localStorage.setItem("theme", originalAppTheme.current);
+      root.classList.toggle("dark", originalAppTheme.current === "dark");
     };
   }, [theme]);
 
