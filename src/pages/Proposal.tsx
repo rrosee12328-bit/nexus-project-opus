@@ -61,6 +61,11 @@ export default function ProposalPage() {
   const [clientEmail, setClientEmail] = useState("");
 
   const [step, setStep] = useState<Step>("info");
+
+  // Scroll to top on step change
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+  }, [step]);
   const [ndaSigned, setNdaSigned] = useState(false);
   const [ndaSignature, setNdaSignature] = useState<{ type: "typed"; value: string } | null>(null);
   const [contractSignature, setContractSignature] = useState<{ type: "typed"; value: string } | null>(null);
