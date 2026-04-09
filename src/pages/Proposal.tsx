@@ -193,6 +193,12 @@ export default function ProposalPage() {
         body: { proposal_token: proposal.token },
       });
       if (payError) throw payError;
+      // Bi-monthly billing creates subscriptions directly (no redirect)
+      if (data?.bimonthly) {
+        toast.success(data.message || "Bi-monthly billing activated!");
+        setStep("done");
+        return;
+      }
       if (data?.url) window.location.href = data.url;
     } catch (err: any) {
       toast.error(err.message || "Failed to start payment");
