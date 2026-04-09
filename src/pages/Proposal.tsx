@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
   Loader2, FileSignature, CheckCircle2, CreditCard, AlertCircle,
-  ShieldCheck, ScrollText, ArrowRight, ArrowLeft,
+  ShieldCheck, ScrollText, ArrowRight, ArrowLeft, Sun, Moon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -59,10 +59,24 @@ export default function ProposalPage() {
 
   const [step, setStep] = useState<Step>("info");
   const [ndaSigned, setNdaSigned] = useState(false);
-  const [ndaSignature, setNdaSignature] = useState<{ type: "typed" | "drawn"; value: string } | null>(null);
-  const [contractSignature, setContractSignature] = useState<{ type: "typed" | "drawn"; value: string } | null>(null);
+  const [ndaSignature, setNdaSignature] = useState<{ type: "typed"; value: string } | null>(null);
+  const [contractSignature, setContractSignature] = useState<{ type: "typed"; value: string } | null>(null);
   const [signing, setSigning] = useState(false);
   const [scrolledToBottom, setScrolledToBottom] = useState(false);
+
+  // Theme: default to light for proposals
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("proposal-theme");
+      if (saved === "dark") return "dark";
+    }
+    return "light";
+  });
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    localStorage.setItem("proposal-theme", theme);
+  }, [theme]);
 
   const docRef = useRef<HTMLDivElement>(null);
 
@@ -103,7 +117,6 @@ export default function ProposalPage() {
     void load();
   }, [token]);
 
-  // Track scroll to bottom for document views
   const handleDocScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
@@ -126,7 +139,7 @@ export default function ProposalPage() {
 
   const handleNdaSign = () => {
     if (!ndaSignature) {
-      toast.error("Please provide your signature for the NDA");
+      toast.error("Please check the agreement box to sign the NDA");
       return;
     }
     setNdaSigned(true);
@@ -137,15 +150,13 @@ export default function ProposalPage() {
 
   const handleSign = async () => {
     if (!contractSignature) {
-      toast.error("Please provide your signature");
+      toast.error("Please check the agreement box to sign");
       return;
     }
     if (!proposal) return;
     setSigning(true);
     try {
-      const signedName = contractSignature.type === "typed"
-        ? contractSignature.value
-        : clientName.trim();
+      const signedName = contractSignature.value;
 
       const { error: signError } = await supabase.functions.invoke("sign-proposal", {
         body: {
@@ -155,7 +166,6 @@ export default function ProposalPage() {
           company_name: companyName.trim(),
           client_address: clientAddress.trim(),
           client_email: clientEmail.trim(),
-          signature_data: contractSignature.type === "drawn" ? contractSignature.value : undefined,
         },
       });
       if (signError) throw signError;
@@ -225,14 +235,12 @@ export default function ProposalPage() {
   const stepCfg = STEP_CONFIG[step];
   const progress = (stepCfg.num / stepCfg.total) * 100;
 
-  // Render full document view (like DocuSign)
   const renderDocumentView = (
     sections: { title: string; content: string }[],
     heading: string,
     icon: React.ReactNode
   ) => (
     <div className="flex flex-col h-full">
-      {/* Document header */}
       <div className="shrink-0 border-b border-border bg-card px-4 sm:px-6 py-3 flex items-center gap-3">
         {icon}
         <div>
@@ -241,7 +249,6 @@ export default function ProposalPage() {
         </div>
       </div>
 
-      {/* Scrollable document body */}
       <div
         ref={docRef}
         onScroll={handleDocScroll}
@@ -249,7 +256,6 @@ export default function ProposalPage() {
         style={{ maxHeight: "calc(100vh - 320px)", minHeight: 300 }}
       >
         <div className="max-w-3xl mx-auto px-4 sm:px-8 py-6 sm:py-8 space-y-6">
-          {/* Document title page */}
           <div className="text-center pb-6 border-b border-border">
             <h1 className="text-xl sm:text-2xl font-bold mb-2">{heading}</h1>
             <p className="text-sm text-muted-foreground">
@@ -260,7 +266,6 @@ export default function ProposalPage() {
             </p>
           </div>
 
-          {/* Sections */}
           {sections.map((section, idx) => (
             <div key={idx} className="space-y-2">
               <h3 className="text-sm font-bold text-foreground">{section.title}</h3>
@@ -271,7 +276,6 @@ export default function ProposalPage() {
             </div>
           ))}
 
-          {/* Signature block placeholder */}
           <div className="border-t-2 border-border pt-6 mt-8 text-center">
             <p className="text-sm text-muted-foreground mb-2">— End of Document —</p>
             <p className="text-xs text-muted-foreground">Please sign below to acknowledge and agree to the terms above.</p>
@@ -279,7 +283,6 @@ export default function ProposalPage() {
         </div>
       </div>
 
-      {/* Scroll indicator */}
       {!scrolledToBottom && (
         <div className="shrink-0 border-t border-border bg-muted/50 px-4 py-2 text-center">
           <p className="text-xs text-muted-foreground animate-pulse">↓ Scroll down to read the full document before signing ↓</p>
@@ -298,12 +301,23 @@ export default function ProposalPage() {
               <h1 className="text-lg sm:text-2xl font-bold tracking-tight">Vektiss LLC</h1>
               <p className="text-xs sm:text-sm text-muted-foreground">Service Agreement</p>
             </div>
-            <Badge variant={step === "done" ? "default" : "secondary"} className="text-[10px] sm:text-xs shrink-0">
-              Step {stepCfg.num} of {stepCfg.total} — {stepCfg.label}
-            </Badge>
+            <div className="flex items-center gap-2">
+              {/* Theme toggle */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+                title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+              >
+                {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+              </Button>
+              <Badge variant={step === "done" ? "default" : "secondary"} className="text-[10px] sm:text-xs shrink-0">
+                Step {stepCfg.num} of {stepCfg.total} — {stepCfg.label}
+              </Badge>
+            </div>
           </div>
           <Progress value={progress} className="mt-3 h-1.5" />
-          {/* Fee summary */}
           <div className="mt-3 flex gap-4 sm:gap-6 text-xs sm:text-sm">
             {proposal.setup_fee > 0 && (
               <div>
@@ -368,20 +382,19 @@ export default function ProposalPage() {
                 )}
               </Card>
 
-              {/* NDA Signature Area */}
               <Card className="shrink-0 border-primary/30">
                 <CardContent className="pt-5 pb-5 space-y-4">
                   <div className="flex items-center gap-2">
                     <FileSignature className="h-5 w-5 text-primary" />
                     <h3 className="font-semibold">Sign NDA</h3>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    By signing below, you agree to the Non-Disclosure Agreement terms above.
-                  </p>
-                  <SignaturePad onSignatureChange={(sig) => {
-                    setNdaSignature(sig);
-                    if (step !== "nda-sign") setStep("nda-sign");
-                  }} />
+                  <SignaturePad
+                    signerName={clientName}
+                    onSignatureChange={(sig) => {
+                      setNdaSignature(sig);
+                      if (sig && step !== "nda-sign") setStep("nda-sign");
+                    }}
+                  />
                   <div className="flex items-center justify-between pt-2">
                     <Button variant="outline" size="sm" onClick={() => { resetScroll(); setStep("info"); }}>
                       <ArrowLeft className="h-4 w-4 mr-1" /> Back
@@ -406,20 +419,19 @@ export default function ProposalPage() {
                 )}
               </Card>
 
-              {/* Contract Signature Area */}
               <Card className="shrink-0 border-primary/30">
                 <CardContent className="pt-5 pb-5 space-y-4">
                   <div className="flex items-center gap-2">
                     <FileSignature className="h-5 w-5 text-primary" />
                     <h3 className="font-semibold">Sign Contract</h3>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    By signing below, you acknowledge that you have read, understood, and agree to be bound by all terms and conditions above.
-                  </p>
-                  <SignaturePad onSignatureChange={(sig) => {
-                    setContractSignature(sig);
-                    if (step !== "sign") setStep("sign");
-                  }} />
+                  <SignaturePad
+                    signerName={clientName}
+                    onSignatureChange={(sig) => {
+                      setContractSignature(sig);
+                      if (sig && step !== "sign") setStep("sign");
+                    }}
+                  />
                   <div className="flex items-center justify-between pt-2">
                     <div className="flex items-center gap-3">
                       <Button variant="outline" size="sm" onClick={() => { resetScroll(); setStep("nda"); }}>
