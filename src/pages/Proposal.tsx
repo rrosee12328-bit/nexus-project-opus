@@ -108,7 +108,7 @@ export default function ProposalPage() {
 
       if (p.paid_at || searchParams.get("paid") === "true") setStep("done");
       else if (p.signed_at) setStep("pay");
-      else setStep("info");
+      else setStep("overview");
 
       setLoading(false);
 
