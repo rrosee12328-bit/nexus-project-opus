@@ -109,6 +109,11 @@ Deno.serve(async (req: Request) => {
           customer: customerId,
           mode: "setup",
           payment_method_types: ["card"],
+          custom_text: {
+            submit: {
+              message: `You are setting up bi-monthly billing for ${proposal.client_name || "your services"} — two payments of $${(proposal.monthly_fee / 2).toFixed(2)} each month (on the 15th and 30th). Total: $${proposal.monthly_fee.toFixed(2)}/mo. Your first charge will begin on the next upcoming billing date.`,
+            },
+          },
           success_url: `${appUrl}/proposal/${proposal_token}?paid=true`,
           cancel_url: `${appUrl}/proposal/${proposal_token}?canceled=true`,
           metadata: {
@@ -145,6 +150,11 @@ Deno.serve(async (req: Request) => {
             },
             quantity: 1,
           }],
+          custom_text: {
+            submit: {
+              message: `Monthly service fee of $${proposal.monthly_fee.toFixed(2)} for ${proposal.client_name || "your services"}. You will be charged automatically each month.`,
+            },
+          },
           success_url: `${appUrl}/proposal/${proposal_token}?paid=true`,
           cancel_url: `${appUrl}/proposal/${proposal_token}?canceled=true`,
           metadata: {
@@ -182,6 +192,11 @@ Deno.serve(async (req: Request) => {
         customer: customerId,
         mode: "payment",
         line_items: lineItems,
+        custom_text: {
+          submit: {
+            message: `One-time setup fee of $${proposal.setup_fee.toFixed(2)} for ${proposal.client_name || "your services"}${proposal.monthly_fee > 0 ? `. Monthly billing of $${proposal.monthly_fee.toFixed(2)}/mo will begin separately after setup.` : "."}`,
+          },
+        },
         success_url: `${appUrl}/proposal/${proposal_token}?paid=true`,
         cancel_url: `${appUrl}/proposal/${proposal_token}?canceled=true`,
         metadata: {
