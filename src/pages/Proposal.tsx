@@ -446,7 +446,10 @@ export default function ProposalPage() {
                     <Input type="email" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} placeholder="john@company.com" />
                   </div>
                 </div>
-                <div className="flex justify-end">
+                <div className="flex items-center justify-between">
+                  <Button variant="outline" size="sm" onClick={() => setStep("overview")}>
+                    <ArrowLeft className="h-4 w-4 mr-1" /> Back
+                  </Button>
                   <Button onClick={handleInfoSubmit} disabled={!clientName.trim() || !clientEmail.trim()} size="lg">
                     Continue to NDA <ArrowRight className="h-4 w-4 ml-2" />
                   </Button>
