@@ -105,13 +105,17 @@ Deno.serve(async (req: Request) => {
       // ── Bi-monthly billing: use setup mode to collect payment method first ──
       // After Checkout completes, the webhook will create the two subscriptions
       if (!hasSetupFee && hasMonthlyFee && billingSchedule === "bimonthly") {
+        const halfAmt = (proposal.monthly_fee / 2).toFixed(2);
         const session = await stripe.checkout.sessions.create({
           customer: customerId,
           mode: "setup",
           payment_method_types: ["card"],
           custom_text: {
             submit: {
-              message: `You are setting up bi-monthly billing for ${proposal.client_name || "your services"} — two payments of $${(proposal.monthly_fee / 2).toFixed(2)} each month (on the 15th and 30th). Total: $${proposal.monthly_fee.toFixed(2)}/mo. Your first charge will begin on the next upcoming billing date.`,
+              message: `💳 BILLING SUMMARY\n\n• Service: Vektiss AI & Automation\n• Total Monthly: $${proposal.monthly_fee.toFixed(2)}/mo\n• Schedule: $${halfAmt} on the 15th + $${halfAmt} on the 30th\n• First charge: Next upcoming billing date\n\nBy saving your card you authorize Vektiss LLC to charge the above amounts automatically each month.`,
+            },
+            after_submit: {
+              message: `Your bi-monthly billing of $${proposal.monthly_fee.toFixed(2)}/mo has been set up with Vektiss LLC. You will be redirected back shortly.`,
             },
           },
           success_url: `${appUrl}/proposal/${proposal_token}?paid=true`,
@@ -144,7 +148,10 @@ Deno.serve(async (req: Request) => {
           line_items: [{
             price_data: {
               currency: "usd",
-              product_data: { name: `Monthly Service — ${proposal.client_name || "Client"}` },
+              product_data: {
+                name: `Vektiss AI & Automation — Monthly Service`,
+                description: `Monthly service for ${proposal.client_name || "Client"} — $${proposal.monthly_fee.toFixed(2)}/mo billed automatically`,
+              },
               unit_amount: Math.round(proposal.monthly_fee * 100),
               recurring: { interval: "month" },
             },
@@ -152,7 +159,7 @@ Deno.serve(async (req: Request) => {
           }],
           custom_text: {
             submit: {
-              message: `Monthly service fee of $${proposal.monthly_fee.toFixed(2)} for ${proposal.client_name || "your services"}. You will be charged automatically each month.`,
+              message: `You are subscribing to Vektiss AI & Automation services at $${proposal.monthly_fee.toFixed(2)}/month. This will renew automatically each month until canceled.`,
             },
           },
           success_url: `${appUrl}/proposal/${proposal_token}?paid=true`,
@@ -181,7 +188,10 @@ Deno.serve(async (req: Request) => {
         lineItems.push({
           price_data: {
             currency: "usd",
-            product_data: { name: `Setup Fee — ${proposal.client_name || "Client"}` },
+            product_data: {
+              name: `Vektiss AI & Automation — Setup Fee`,
+              description: `One-time setup fee for ${proposal.client_name || "Client"}`,
+            },
             unit_amount: Math.round(proposal.setup_fee * 100),
           },
           quantity: 1,
@@ -194,7 +204,7 @@ Deno.serve(async (req: Request) => {
         line_items: lineItems,
         custom_text: {
           submit: {
-            message: `One-time setup fee of $${proposal.setup_fee.toFixed(2)} for ${proposal.client_name || "your services"}${proposal.monthly_fee > 0 ? `. Monthly billing of $${proposal.monthly_fee.toFixed(2)}/mo will begin separately after setup.` : "."}`,
+            message: `One-time setup fee of $${proposal.setup_fee.toFixed(2)} for Vektiss AI & Automation services.${proposal.monthly_fee > 0 ? `\n\nAfter setup, monthly billing of $${proposal.monthly_fee.toFixed(2)}/mo begins automatically.` : ""}`,
           },
         },
         success_url: `${appUrl}/proposal/${proposal_token}?paid=true`,
