@@ -296,9 +296,12 @@ export default function ProposalPage() {
           {sections.map((section, idx) => (
             <div key={idx} className="space-y-2">
               <h3 className="text-sm font-bold text-foreground">{section.title}</h3>
-              <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
-                {section.content}
-              </div>
+              <div
+                className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line"
+                dangerouslySetInnerHTML={{
+                  __html: section.content.replace(/\*\*(.+?)\*\*/g, '<strong class="text-foreground font-semibold">$1</strong>'),
+                }}
+              />
               {idx < sections.length - 1 && <Separator className="mt-4" />}
             </div>
           ))}

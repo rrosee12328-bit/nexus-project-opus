@@ -206,6 +206,24 @@ async function handleEventEmail(
       break
     }
 
+    case 'proposal_link': {
+      const { recipient_email, client_name, proposal_url } = data as {
+        recipient_email: string; client_name: string; proposal_url: string
+      }
+      if (!recipient_email || !proposal_url) return { error: 'Missing recipient_email or proposal_url' }
+
+      to = recipient_email
+      subject = 'Your Proposal from Vektiss'
+      emailLabel = 'proposal_link'
+      html = buildEmailHtml(
+        'Your Proposal is Ready',
+        `Hi ${client_name || 'there'}, we've prepared a proposal for you. Please review the details, sign the agreement, and complete payment to get started.`,
+        'View Proposal', proposal_url
+      )
+      plainText = `Hi ${client_name || 'there'}, your proposal from Vektiss is ready. View it here: ${proposal_url}`
+      break
+    }
+
     default:
       return { error: `Unknown event: ${event}` }
   }
