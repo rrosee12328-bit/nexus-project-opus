@@ -103,20 +103,47 @@ Deno.serve(async (req: Request) => {
         );
       }
 
-      // ── Bi-monthly billing: use setup mode to collect payment method first ──
-      // After Checkout completes, the webhook will create the two subscriptions
+      // ── Bi-monthly billing: subscription mode so Stripe shows two-panel checkout ──
+      // Checkout creates the 15th subscription; webhook creates the 30th subscription
       if (!hasSetupFee && hasMonthlyFee && billingSchedule === "bimonthly") {
+        const halfAmount = Math.round((proposal.monthly_fee / 2) * 100);
         const halfAmt = (proposal.monthly_fee / 2).toFixed(2);
+
+        // Calculate next 15th for billing anchor
+        const now = new Date();
+        let anchor15 = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 15));
+        if (anchor15.getTime() / 1000 <= Math.floor(Date.now() / 1000)) {
+          anchor15 = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 15));
+        }
+
         const session = await stripe.checkout.sessions.create({
           customer: customerId,
-          mode: "setup",
-          payment_method_types: ["card"],
+          mode: "subscription",
+          line_items: [{
+            price_data: {
+              currency: "usd",
+              product_data: {
+                name: `Vektiss AI & Automation — Bi-Monthly Service`,
+                description: `$${halfAmt} charged on the 15th of each month\n$${halfAmt} charged on the 30th of each month\nTotal: $${proposal.monthly_fee.toFixed(2)}/mo`,
+                images: [logoUrl],
+              },
+              unit_amount: halfAmount,
+              recurring: { interval: "month" },
+            },
+            quantity: 1,
+          }],
+          subscription_data: {
+            billing_cycle_anchor: Math.floor(anchor15.getTime() / 1000),
+            proration_behavior: "none",
+            metadata: {
+              client_id: proposal.client_id || "",
+              proposal_id: proposal.id,
+              billing_half: "15th",
+            },
+          },
           custom_text: {
             submit: {
-              message: `💳 BILLING SUMMARY\n\n• Service: Vektiss AI & Automation\n• Total Monthly: $${proposal.monthly_fee.toFixed(2)}/mo\n• Schedule: $${halfAmt} on the 15th + $${halfAmt} on the 30th\n• First charge: Next upcoming billing date\n\nBy saving your card you authorize Vektiss LLC to charge the above amounts automatically each month.`,
-            },
-            after_submit: {
-              message: `Your bi-monthly billing of $${proposal.monthly_fee.toFixed(2)}/mo has been set up with Vektiss LLC. You will be redirected back shortly.`,
+              message: `You are subscribing to Vektiss AI & Automation services.\n\n• Total: $${proposal.monthly_fee.toFixed(2)}/mo\n• Schedule: $${halfAmt} on the 15th + $${halfAmt} on the 30th\n• First charge: ${anchor15.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`,
             },
           },
           success_url: `${appUrl}/proposal/${proposal_token}?paid=true`,
