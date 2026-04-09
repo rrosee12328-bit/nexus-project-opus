@@ -120,8 +120,8 @@ serve(async (req: Request) => {
             .eq("id", session.metadata.client_id);
         }
 
-        // Handle bi-monthly setup checkout: create two subscriptions
-        if (session.mode === "setup" && session.metadata?.billing_schedule === "bimonthly") {
+        // Handle bi-monthly checkout: checkout created the 15th sub, now create the 30th sub
+        if (session.metadata?.billing_schedule === "bimonthly") {
           await handleBimonthlySetup(supabase, session);
         }
         // Handle proposal-based payment checkout completion
