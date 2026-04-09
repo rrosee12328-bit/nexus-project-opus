@@ -35,17 +35,18 @@ interface ProposalData {
   paid_at: string | null;
 }
 
-type Step = "overview" | "info" | "nda" | "nda-sign" | "review" | "sign" | "pay" | "done";
+type Step = "overview" | "info" | "nda" | "nda-sign" | "nda-done" | "review" | "sign" | "pay" | "done";
 
 const STEP_CONFIG: Record<Step, { label: string; num: number; total: number }> = {
-  overview: { label: "Proposal Overview", num: 1, total: 6 },
-  info: { label: "Your Information", num: 2, total: 6 },
-  nda: { label: "Non-Disclosure Agreement", num: 3, total: 6 },
-  "nda-sign": { label: "Sign NDA", num: 3, total: 6 },
-  review: { label: "Review Contract", num: 4, total: 6 },
-  sign: { label: "Sign Contract", num: 4, total: 6 },
-  pay: { label: "Payment", num: 5, total: 6 },
-  done: { label: "Complete", num: 6, total: 6 },
+  overview: { label: "Proposal Overview", num: 1, total: 7 },
+  info: { label: "Your Information", num: 2, total: 7 },
+  nda: { label: "Non-Disclosure Agreement", num: 3, total: 7 },
+  "nda-sign": { label: "Sign NDA", num: 3, total: 7 },
+  "nda-done": { label: "NDA Complete", num: 4, total: 7 },
+  review: { label: "Review Contract", num: 5, total: 7 },
+  sign: { label: "Sign Contract", num: 5, total: 7 },
+  pay: { label: "Payment", num: 6, total: 7 },
+  done: { label: "Complete", num: 7, total: 7 },
 };
 
 export default function ProposalPage() {
