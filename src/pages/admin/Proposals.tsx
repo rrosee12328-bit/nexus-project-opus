@@ -8,13 +8,17 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { FileText, CheckCircle, CreditCard, ExternalLink, Eye, Plus, Mail, Send, Copy, Check } from "lucide-react";
+import {
+  FileText, CheckCircle, CreditCard, ExternalLink, Eye, Plus, Mail,
+  Send, Copy, Check, ArrowLeft, Sparkles, Loader2, Edit3,
+} from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -35,12 +39,15 @@ function formatCurrency(val: number | null) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(val);
 }
 
+type DialogStep = "input" | "preview" | "done";
+
 function QuickCreateDialog({ open, onOpenChange, onCreated }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onCreated: () => void;
 }) {
   const { user } = useAuth();
+  const [step, setStep] = useState<DialogStep>("input");
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [companyName, setCompanyName] = useState("");
@@ -48,16 +55,20 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
   const [setupFee, setSetupFee] = useState("");
   const [billingSchedule, setBillingSchedule] = useState("monthly");
   const [servicesDescription, setServicesDescription] = useState("");
+  const [polishedDescription, setPolishedDescription] = useState("");
+  const [polishing, setPolishing] = useState(false);
   const [creating, setCreating] = useState(false);
   const [proposalUrl, setProposalUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
 
   const reset = () => {
+    setStep("input");
     setClientName(""); setClientEmail(""); setCompanyName("");
     setMonthlyFee(""); setSetupFee(""); setBillingSchedule("monthly");
-    setServicesDescription(""); setProposalUrl(null); setCopied(false);
-    setCreating(false);
+    setServicesDescription(""); setPolishedDescription("");
+    setProposalUrl(null); setCopied(false);
+    setCreating(false); setPolishing(false);
   };
 
   const handleOpen = (o: boolean) => {
@@ -65,17 +76,48 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
     onOpenChange(o);
   };
 
+  const handlePolishAndPreview = async () => {
+    setPolishing(true);
+    try {
+      if (servicesDescription.trim()) {
+        const { data, error } = await supabase.functions.invoke("polish-proposal", {
+          body: {
+            servicesDescription: servicesDescription.trim(),
+            clientName: clientName.trim(),
+            companyName: companyName.trim(),
+            setupFee: Number(setupFee) || 0,
+            monthlyFee: Number(monthlyFee) || 0,
+            billingSchedule,
+          },
+        });
+        if (error) throw error;
+        setPolishedDescription(data.polished || servicesDescription.trim());
+      } else {
+        setPolishedDescription("");
+      }
+      setStep("preview");
+    } catch (err: any) {
+      console.error("Polish error:", err);
+      toast.error("AI polish failed, showing original text");
+      setPolishedDescription(servicesDescription.trim());
+      setStep("preview");
+    } finally {
+      setPolishing(false);
+    }
+  };
+
   const handleCreate = async () => {
     if (!user || !clientName.trim()) return;
     setCreating(true);
     try {
+      const finalDescription = polishedDescription.trim() || servicesDescription.trim() || null;
       const { data, error } = await supabase.from("proposals").insert({
         client_name: clientName.trim(),
         client_email: clientEmail.trim() || null,
         company_name: companyName.trim() || null,
         monthly_fee: Number(monthlyFee) || 0,
         setup_fee: Number(setupFee) || 0,
-        services_description: servicesDescription.trim() || null,
+        services_description: finalDescription,
         billing_schedule: billingSchedule,
         status: "draft",
         created_by: user.id,
@@ -83,6 +125,7 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
       if (error) throw error;
       const url = `${window.location.origin}/proposal/${data.token}`;
       setProposalUrl(url);
+      setStep("done");
       onCreated();
       toast.success("Proposal created!");
       logActivity("created_proposal", "proposal", undefined, `Created proposal for "${clientName}"`);
@@ -127,17 +170,29 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
     }
   };
 
+  const fmtCurrency = (v: string) => {
+    const n = Number(v);
+    if (!n) return "$0";
+    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(n);
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleOpen}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5 text-primary" /> Quick Create Proposal
+            {step === "input" && <><Plus className="h-5 w-5 text-primary" /> New Proposal</>}
+            {step === "preview" && <><Eye className="h-5 w-5 text-primary" /> Review Draft</>}
+            {step === "done" && <><CheckCircle className="h-5 w-5 text-primary" /> Proposal Ready</>}
           </DialogTitle>
-          <DialogDescription>Enter client details and fees to generate a proposal link instantly.</DialogDescription>
+          <DialogDescription>
+            {step === "input" && "Enter client details and describe the services."}
+            {step === "preview" && "Review the polished proposal before creating it."}
+            {step === "done" && "Copy the link or send it via email."}
+          </DialogDescription>
         </DialogHeader>
 
-        {!proposalUrl ? (
+        {step === "input" && (
           <>
             <div className="space-y-4 py-2">
               <div className="grid grid-cols-2 gap-3">
@@ -178,18 +233,112 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
                 )}
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Services Description (optional)</Label>
-                <Textarea value={servicesDescription} onChange={(e) => setServicesDescription(e.target.value)} placeholder="Describe specific services..." rows={2} />
+                <Label className="text-xs flex items-center gap-1.5">
+                  Services Description
+                  <Badge variant="outline" className="text-[10px] font-normal"><Sparkles className="h-3 w-3 mr-0.5" />AI polished</Badge>
+                </Label>
+                <Textarea
+                  value={servicesDescription}
+                  onChange={(e) => setServicesDescription(e.target.value)}
+                  placeholder="Describe services in your own words — AI will clean it up. e.g. 'set up their AI chatbot, automate their email follow-ups, and integrate with their CRM'"
+                  rows={3}
+                />
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button onClick={handleCreate} disabled={creating || !clientName.trim()}>
-                {creating ? "Creating..." : <><Send className="h-4 w-4 mr-2" /> Generate</>}
+              <Button onClick={handlePolishAndPreview} disabled={polishing || !clientName.trim()}>
+                {polishing ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Polishing...</>
+                ) : (
+                  <><Sparkles className="h-4 w-4 mr-2" /> Preview Draft</>
+                )}
               </Button>
             </DialogFooter>
           </>
-        ) : (
+        )}
+
+        {step === "preview" && (
+          <>
+            <div className="space-y-4 py-2">
+              {/* Proposal Preview Card */}
+              <div className="rounded-lg border border-border bg-card">
+                <div className="px-4 py-3 border-b border-border bg-muted/30">
+                  <p className="text-xs font-medium text-muted-foreground">PROPOSAL PREVIEW — HOW YOUR CLIENT WILL SEE IT</p>
+                </div>
+                <div className="p-4 space-y-4">
+                  <div className="text-center space-y-1">
+                    <h3 className="text-lg font-bold">Vektiss LLC</h3>
+                    <p className="text-xs text-muted-foreground">Service Agreement for {clientName}{companyName ? ` — ${companyName}` : ""}</p>
+                  </div>
+
+                  <Separator />
+
+                  {/* Services */}
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-semibold flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5 text-primary" /> Services Included
+                    </h4>
+                    <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
+                      {polishedDescription || "AI & Automation services tailored to your business needs."}
+                    </div>
+                  </div>
+
+                  {/* Pricing */}
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-semibold flex items-center gap-1.5">
+                      <CreditCard className="h-3.5 w-3.5 text-primary" /> Pricing
+                    </h4>
+                    <div className="bg-muted/50 rounded-lg p-3 grid gap-3 sm:grid-cols-2">
+                      {Number(setupFee) > 0 && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">One-Time Setup Fee</p>
+                          <p className="text-lg font-bold font-mono">{fmtCurrency(setupFee)}</p>
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-xs text-muted-foreground">Monthly Service Fee</p>
+                        <p className="text-lg font-bold font-mono">{fmtCurrency(monthlyFee)}/mo</p>
+                        {billingSchedule === "bimonthly" && (
+                          <p className="text-xs text-muted-foreground">Billed bi-monthly (15th & 30th)</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Editable polished description */}
+              {polishedDescription && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs flex items-center gap-1.5">
+                    <Edit3 className="h-3 w-3" /> Edit polished description
+                  </Label>
+                  <Textarea
+                    value={polishedDescription}
+                    onChange={(e) => setPolishedDescription(e.target.value)}
+                    rows={4}
+                    className="text-sm"
+                  />
+                </div>
+              )}
+            </div>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={() => setStep("input")} className="w-full sm:w-auto">
+                <ArrowLeft className="h-4 w-4 mr-1" /> Edit Details
+              </Button>
+              <Button onClick={handleCreate} disabled={creating} className="w-full sm:w-auto">
+                {creating ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</>
+                ) : (
+                  <><Send className="h-4 w-4 mr-2" /> Create Proposal</>
+                )}
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+
+        {step === "done" && proposalUrl && (
           <div className="space-y-4 py-4">
             <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3">
               <p className="text-sm text-muted-foreground">Proposal created! Copy the link or send it via email.</p>
