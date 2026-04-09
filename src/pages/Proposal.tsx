@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
+import { motion } from "framer-motion";
 import { useTheme } from "@/hooks/useTheme";
 import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,17 +36,18 @@ interface ProposalData {
   paid_at: string | null;
 }
 
-type Step = "overview" | "info" | "nda" | "nda-sign" | "review" | "sign" | "pay" | "done";
+type Step = "overview" | "info" | "nda" | "nda-sign" | "nda-done" | "review" | "sign" | "pay" | "done";
 
 const STEP_CONFIG: Record<Step, { label: string; num: number; total: number }> = {
-  overview: { label: "Proposal Overview", num: 1, total: 6 },
-  info: { label: "Your Information", num: 2, total: 6 },
-  nda: { label: "Non-Disclosure Agreement", num: 3, total: 6 },
-  "nda-sign": { label: "Sign NDA", num: 3, total: 6 },
-  review: { label: "Review Contract", num: 4, total: 6 },
-  sign: { label: "Sign Contract", num: 4, total: 6 },
-  pay: { label: "Payment", num: 5, total: 6 },
-  done: { label: "Complete", num: 6, total: 6 },
+  overview: { label: "Proposal Overview", num: 1, total: 7 },
+  info: { label: "Your Information", num: 2, total: 7 },
+  nda: { label: "Non-Disclosure Agreement", num: 3, total: 7 },
+  "nda-sign": { label: "Sign NDA", num: 3, total: 7 },
+  "nda-done": { label: "NDA Complete", num: 4, total: 7 },
+  review: { label: "Review Contract", num: 5, total: 7 },
+  sign: { label: "Sign Contract", num: 5, total: 7 },
+  pay: { label: "Payment", num: 6, total: 7 },
+  done: { label: "Complete", num: 7, total: 7 },
 };
 
 export default function ProposalPage() {
@@ -156,8 +158,7 @@ export default function ProposalPage() {
     }
     setNdaSigned(true);
     resetScroll();
-    setStep("review");
-    toast.success("NDA signed successfully!");
+    setStep("nda-done");
   };
 
   const handleSign = async () => {
@@ -199,14 +200,11 @@ export default function ProposalPage() {
       });
       if (payError) throw payError;
       if (data?.error) throw new Error(data.error);
-      // Bi-monthly billing creates subscriptions directly (no redirect)
-      if (data?.bimonthly) {
-        toast.success(data.message || "Bi-monthly billing activated!");
-        setStep("done");
-        return;
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("No checkout URL returned");
       }
-      if (data?.url) window.location.href = data.url;
-      else throw new Error("No checkout URL returned");
     } catch (err: any) {
       toast.error(err.message || "Failed to start payment");
     }
@@ -506,6 +504,54 @@ export default function ProposalPage() {
                 </CardContent>
               </Card>
             </div>
+          )}
+
+          {/* NDA Signed — Transition Screen */}
+          {step === "nda-done" && (
+            <Card className="flex-1">
+              <CardContent className="pt-6 flex flex-col items-center justify-center text-center space-y-6 min-h-[350px]">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.1 }}
+                  className="h-20 w-20 rounded-full bg-emerald-500/20 flex items-center justify-center"
+                >
+                  <CheckCircle2 className="h-10 w-10 text-emerald-500" />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3, duration: 0.5 }}
+                  className="space-y-2"
+                >
+                  <h2 className="text-xl font-bold">NDA Signed Successfully!</h2>
+                  <p className="text-sm text-muted-foreground max-w-md">
+                    Your Non-Disclosure Agreement has been signed. Next, you'll review and sign the Service Agreement contract.
+                  </p>
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.7, duration: 0.4 }}
+                >
+                  <Separator className="w-48 mx-auto" />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 1, duration: 0.4 }}
+                  className="flex flex-col items-center gap-3"
+                >
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <ScrollText className="h-4 w-4 text-primary" />
+                    <span>Up next: AI & Automation Services Contract</span>
+                  </div>
+                  <Button size="lg" onClick={() => { resetScroll(); setStep("review"); }}>
+                    Review Contract <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </motion.div>
+              </CardContent>
+            </Card>
           )}
 
           {/* Step 3: Contract Review & Sign */}

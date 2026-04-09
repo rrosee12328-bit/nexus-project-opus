@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import Stripe from "npm:stripe@14.21.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,7 +26,6 @@ async function verifyStripeSignature(
 
   if (!parts.timestamp || parts.signatures.length === 0) return false;
 
-  // Reject if timestamp is older than 5 minutes
   const now = Math.floor(Date.now() / 1000);
   if (Math.abs(now - parseInt(parts.timestamp)) > 300) return false;
 
@@ -120,8 +120,12 @@ serve(async (req: Request) => {
             .eq("id", session.metadata.client_id);
         }
 
-        // Handle proposal-based checkout completion
-        if (session.metadata?.proposal_id) {
+        // Handle bi-monthly setup checkout: create two subscriptions
+        if (session.mode === "setup" && session.metadata?.billing_schedule === "bimonthly") {
+          await handleBimonthlySetup(supabase, session);
+        }
+        // Handle proposal-based payment checkout completion
+        else if (session.metadata?.proposal_id) {
           await handleProposalPayment(supabase, session);
         }
         break;
@@ -144,8 +148,151 @@ serve(async (req: Request) => {
   }
 });
 
+async function handleBimonthlySetup(supabase: any, session: any) {
+  const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+  if (!stripeKey) {
+    console.error("STRIPE_SECRET_KEY not configured for bimonthly setup");
+    return;
+  }
+
+  const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
+  const customerId = session.customer;
+  const proposalId = session.metadata?.proposal_id;
+  const clientId = session.metadata?.client_id;
+  const monthlyFee = parseFloat(session.metadata?.monthly_fee || "0");
+
+  if (!customerId || !proposalId || monthlyFee <= 0) {
+    console.error("Missing data for bimonthly setup", { customerId, proposalId, monthlyFee });
+    return;
+  }
+
+  // Get the payment method from the setup intent
+  const setupIntentId = session.setup_intent;
+  if (setupIntentId) {
+    const setupIntent = await stripe.setupIntents.retrieve(setupIntentId);
+    if (setupIntent.payment_method) {
+      // Set as default payment method for the customer
+      await stripe.customers.update(customerId, {
+        invoice_settings: {
+          default_payment_method: setupIntent.payment_method as string,
+        },
+      });
+    }
+  }
+
+  const halfAmount = Math.round((monthlyFee / 2) * 100);
+
+  // Get proposal client name
+  const { data: proposal } = await supabase
+    .from("proposals")
+    .select("client_name, setup_fee, monthly_fee, client_email")
+    .eq("id", proposalId)
+    .single();
+
+  const clientLabel = proposal?.client_name || "Client";
+
+  // Calculate next 15th and 30th
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+
+  let anchor15 = new Date(Date.UTC(year, month, 15));
+  if (anchor15.getTime() / 1000 <= Math.floor(Date.now() / 1000)) {
+    anchor15 = new Date(Date.UTC(year, month + 1, 15));
+  }
+  let anchor30 = new Date(Date.UTC(year, month, 30));
+  if (anchor30.getTime() / 1000 <= Math.floor(Date.now() / 1000)) {
+    anchor30 = new Date(Date.UTC(year, month + 1, 30));
+  }
+
+  // Create Stripe products and prices
+  const product15 = await stripe.products.create({
+    name: `Service — ${clientLabel} (15th)`,
+    metadata: { client_id: clientId || "", proposal_id: proposalId },
+  });
+  const price15 = await stripe.prices.create({
+    product: product15.id,
+    unit_amount: halfAmount,
+    currency: "usd",
+    recurring: { interval: "month" },
+  });
+
+  const product30 = await stripe.products.create({
+    name: `Service — ${clientLabel} (30th)`,
+    metadata: { client_id: clientId || "", proposal_id: proposalId },
+  });
+  const price30 = await stripe.prices.create({
+    product: product30.id,
+    unit_amount: halfAmount,
+    currency: "usd",
+    recurring: { interval: "month" },
+  });
+
+  // Create the two subscriptions
+  const sub1 = await stripe.subscriptions.create({
+    customer: customerId,
+    items: [{ price: price15.id }],
+    billing_cycle_anchor: Math.floor(anchor15.getTime() / 1000),
+    proration_behavior: "none",
+    metadata: {
+      client_id: clientId || "",
+      proposal_id: proposalId,
+      billing_half: "15th",
+    },
+  });
+
+  const sub2 = await stripe.subscriptions.create({
+    customer: customerId,
+    items: [{ price: price30.id }],
+    billing_cycle_anchor: Math.floor(anchor30.getTime() / 1000),
+    proration_behavior: "none",
+    metadata: {
+      client_id: clientId || "",
+      proposal_id: proposalId,
+      billing_half: "30th",
+    },
+  });
+
+  console.log(`Bimonthly subscriptions created: ${sub1.id}, ${sub2.id}`);
+
+  // Mark proposal as paid
+  await supabase
+    .from("proposals")
+    .update({
+      status: "paid",
+      paid_at: new Date().toISOString(),
+      stripe_checkout_session_id: `bimonthly:${sub1.id},${sub2.id}`,
+    })
+    .eq("id", proposalId);
+
+  // Record initial payment and update client
+  if (clientId) {
+    const paidNow = new Date();
+    await supabase.from("client_payments").insert({
+      client_id: clientId,
+      amount: 0,
+      payment_month: paidNow.getMonth() + 1,
+      payment_year: paidNow.getFullYear(),
+      notes: `Bi-monthly billing activated: $${(halfAmount / 100).toFixed(2)} on 15th & 30th`,
+      stripe_invoice_id: session.id,
+      payment_source: "stripe",
+    });
+
+    if (proposal) {
+      await supabase
+        .from("clients")
+        .update({
+          setup_fee: proposal.setup_fee,
+          monthly_fee: proposal.monthly_fee,
+          email: proposal.client_email,
+          name: proposal.client_name,
+        })
+        .eq("id", clientId);
+    }
+  }
+}
+
 async function handleInvoice(supabase: any, invoice: any) {
-  // Find client by stripe customer id
   const { data: client } = await supabase
     .from("clients")
     .select("id")
@@ -192,13 +339,11 @@ async function handleInvoice(supabase: any, invoice: any) {
     throw error;
   }
 
-  // On paid: also record in client_payments for unified history
   if (invoice.status === "paid" && invoice.amount_paid > 0) {
     const paidDate = invoice.status_transitions?.paid_at
       ? new Date(invoice.status_transitions.paid_at * 1000)
       : new Date();
 
-    // Check if already recorded
     const { data: existing } = await supabase
       .from("client_payments")
       .select("id")
@@ -208,7 +353,7 @@ async function handleInvoice(supabase: any, invoice: any) {
     if (!existing) {
       const { error: payErr } = await supabase.from("client_payments").insert({
         client_id: client.id,
-        amount: invoice.amount_paid / 100, // cents → dollars
+        amount: invoice.amount_paid / 100,
         payment_month: paidDate.getMonth() + 1,
         payment_year: paidDate.getFullYear(),
         notes: invoice.number
@@ -266,7 +411,6 @@ async function handleProposalPayment(supabase: any, session: any) {
 
   if (!proposalId) return;
 
-  // Mark proposal as paid
   const { error: updateErr } = await supabase
     .from("proposals")
     .update({
@@ -280,11 +424,9 @@ async function handleProposalPayment(supabase: any, session: any) {
     console.error("Failed to update proposal paid status:", updateErr);
   }
 
-  // Record payment in client_payments (this triggers auto_invite_on_first_payment)
   if (clientId && session.amount_total > 0) {
     const now = new Date();
 
-    // Check if already recorded for this session
     const { data: existing } = await supabase
       .from("client_payments")
       .select("id")
@@ -294,7 +436,7 @@ async function handleProposalPayment(supabase: any, session: any) {
     if (!existing) {
       const { error: payErr } = await supabase.from("client_payments").insert({
         client_id: clientId,
-        amount: session.amount_total / 100, // cents → dollars
+        amount: session.amount_total / 100,
         payment_month: now.getMonth() + 1,
         payment_year: now.getFullYear(),
         notes: "Setup fee — proposal signed & paid",
@@ -310,7 +452,6 @@ async function handleProposalPayment(supabase: any, session: any) {
     }
   }
 
-  // Also update client fees from the proposal
   if (clientId) {
     const { data: proposal } = await supabase
       .from("proposals")
