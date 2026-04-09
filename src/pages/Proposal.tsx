@@ -74,8 +74,18 @@ export default function ProposalPage() {
   });
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
+    const root = document.documentElement;
+    const wasAlreadyDark = root.classList.contains("dark");
+
+    // Force the proposal theme
+    root.classList.toggle("dark", theme === "dark");
     localStorage.setItem("proposal-theme", theme);
+
+    // Restore original theme on unmount
+    return () => {
+      const originalTheme = localStorage.getItem("theme") || "dark";
+      root.classList.toggle("dark", originalTheme === "dark");
+    };
   }, [theme]);
 
   const docRef = useRef<HTMLDivElement>(null);
