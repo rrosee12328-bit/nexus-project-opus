@@ -110,10 +110,12 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
     try {
       const { error } = await supabase.functions.invoke("send-transactional-email", {
         body: {
-          templateName: "proposal-link",
-          recipientEmail: clientEmail.trim(),
-          idempotencyKey: `proposal-link-${proposalUrl}`,
-          templateData: { name: clientName, proposalUrl },
+          event: "proposal_link",
+          eventData: {
+            recipient_email: clientEmail.trim(),
+            client_name: clientName,
+            proposal_url: proposalUrl,
+          },
         },
       });
       if (error) throw error;
@@ -231,10 +233,12 @@ function EmailProposalDialog({ open, onOpenChange, proposalToken, clientEmail: d
     try {
       const { error } = await supabase.functions.invoke("send-transactional-email", {
         body: {
-          templateName: "proposal-link",
-          recipientEmail: email.trim(),
-          idempotencyKey: `proposal-link-${proposalToken}-${email.trim()}`,
-          templateData: { name: clientName, proposalUrl },
+          event: "proposal_link",
+          eventData: {
+            recipient_email: email.trim(),
+            client_name: clientName,
+            proposal_url: proposalUrl,
+          },
         },
       });
       if (error) throw error;
