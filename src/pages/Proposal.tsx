@@ -64,9 +64,18 @@ export default function ProposalPage() {
 
   const [step, setStep] = useState<Step>("info");
 
-  // Scroll to top on step change
+  // Scroll to top only on major step changes (not sub-steps like nda→nda-sign or review→sign)
+  const prevStepRef = useRef<Step | null>(null);
   useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+    const subStepTransitions: Record<string, string[]> = {
+      "nda-sign": ["nda"],
+      "sign": ["review"],
+    };
+    const isSubStep = subStepTransitions[step]?.includes(prevStepRef.current || "");
+    if (!isSubStep) {
+      window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+    }
+    prevStepRef.current = step;
   }, [step]);
   const [ndaSigned, setNdaSigned] = useState(false);
   const [ndaSignature, setNdaSignature] = useState<{ type: "typed"; value: string } | null>(null);
@@ -601,49 +610,123 @@ export default function ProposalPage() {
           )}
 
           {/* Step 4: Payment */}
-          {step === "pay" && (
-            <Card className="flex-1">
-              <CardContent className="pt-6 flex flex-col items-center justify-center text-center space-y-6 min-h-[300px]">
-                <div className="h-16 w-16 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                  <CheckCircle2 className="h-8 w-8 text-emerald-500" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold">Contract Signed!</h2>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Signed by <strong>{proposal.signed_name || contractSignature?.value || clientName}</strong> on{" "}
-                    {new Date(proposal.signed_at || Date.now()).toLocaleDateString("en-US", {
-                      year: "numeric", month: "long", day: "numeric",
-                    })}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    A copy of the signed contract has been sent to your email.
-                  </p>
-                </div>
-                <Separator />
-                {proposal.setup_fee > 0 ? (
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Complete your setup payment of <strong className="text-foreground">{fmt(proposal.setup_fee)}</strong> to get started.
+          {step === "pay" && (() => {
+            const hasSetup = proposal.setup_fee > 0;
+            const hasMonthly = proposal.monthly_fee > 0;
+            const halfAmount = proposal.monthly_fee / 2;
+            // Determine next 15th & 30th for display
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = now.getMonth();
+            let next15 = new Date(y, m, 15);
+            if (next15 <= now) next15 = new Date(y, m + 1, 15);
+            let next30 = new Date(y, m, 30);
+            if (next30 <= now) next30 = new Date(y, m + 1, 30);
+            const dateFmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+            return (
+              <Card className="flex-1">
+                <CardContent className="pt-6 space-y-6">
+                  {/* Contract signed confirmation */}
+                  <div className="flex flex-col items-center text-center space-y-2">
+                    <div className="h-14 w-14 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                      <CheckCircle2 className="h-7 w-7 text-emerald-500" />
+                    </div>
+                    <h2 className="text-xl font-bold">Contract Signed!</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Signed by <strong>{proposal.signed_name || contractSignature?.value || clientName}</strong> on{" "}
+                      {new Date(proposal.signed_at || Date.now()).toLocaleDateString("en-US", {
+                        year: "numeric", month: "long", day: "numeric",
+                      })}
                     </p>
-                    <Button size="lg" onClick={handlePay}>
-                      <CreditCard className="h-4 w-4 mr-2" />
-                      Pay {fmt(proposal.setup_fee)} — Get Started
-                    </Button>
                   </div>
-                ) : (
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Your monthly service fee of <strong className="text-foreground">{fmt(proposal.monthly_fee)}/mo</strong> will be invoiced separately.
+
+                  <Separator />
+
+                  {/* Billing Summary */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-5 w-5 text-primary" />
+                      <h3 className="font-semibold">Payment Summary</h3>
+                    </div>
+
+                    <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                      {hasSetup && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">One-Time Setup Fee</span>
+                          <span className="text-sm font-bold font-mono">{fmt(proposal.setup_fee)}</span>
+                        </div>
+                      )}
+                      {hasMonthly && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Monthly Service Fee</span>
+                          <span className="text-sm font-bold font-mono">{fmt(proposal.monthly_fee)}/mo</span>
+                        </div>
+                      )}
+
+                      {hasMonthly && !hasSetup && (
+                        <>
+                          <Separator />
+                          <div className="space-y-1.5">
+                            <p className="text-xs font-semibold text-foreground">Billing Schedule</p>
+                            <p className="text-xs text-muted-foreground">
+                              Two payments of <strong className="text-foreground">{fmt(halfAmount)}</strong> each month:
+                            </p>
+                            <div className="grid grid-cols-2 gap-2 mt-1">
+                              <div className="bg-background rounded p-2 text-center">
+                                <p className="text-[10px] text-muted-foreground">1st Payment</p>
+                                <p className="text-xs font-semibold">{fmt(halfAmount)}</p>
+                                <p className="text-[10px] text-muted-foreground">on the 15th</p>
+                                <p className="text-[10px] text-primary font-medium">starts {dateFmt(next15)}</p>
+                              </div>
+                              <div className="bg-background rounded p-2 text-center">
+                                <p className="text-[10px] text-muted-foreground">2nd Payment</p>
+                                <p className="text-xs font-semibold">{fmt(halfAmount)}</p>
+                                <p className="text-[10px] text-muted-foreground">on the 30th</p>
+                                <p className="text-[10px] text-primary font-medium">starts {dateFmt(next30)}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* CTA */}
+                  <div className="flex flex-col items-center text-center space-y-3">
+                    {hasSetup ? (
+                      <>
+                        <p className="text-sm text-muted-foreground">
+                          Complete your setup payment of <strong className="text-foreground">{fmt(proposal.setup_fee)}</strong> to get started.
+                        </p>
+                        <Button size="lg" onClick={handlePay}>
+                          <CreditCard className="h-4 w-4 mr-2" />
+                          Pay {fmt(proposal.setup_fee)} — Get Started
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm text-muted-foreground">
+                          You'll be redirected to our secure payment provider to save your card. Your first charge of{" "}
+                          <strong className="text-foreground">{fmt(halfAmount)}</strong> will be on{" "}
+                          <strong className="text-foreground">{dateFmt(next15 < next30 ? next15 : next30)}</strong>.
+                        </p>
+                        <Button size="lg" onClick={handlePay}>
+                          <CreditCard className="h-4 w-4 mr-2" />
+                          Set Up Payment — {fmt(proposal.monthly_fee)}/mo
+                        </Button>
+                      </>
+                    )}
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Lock className="h-3 w-3" /> Secure payment powered by Stripe
                     </p>
-                    <Button size="lg" onClick={handlePay}>
-                      <CreditCard className="h-4 w-4 mr-2" />
-                      Set Up Payment Method
-                    </Button>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           {/* Done */}
           {step === "done" && (
