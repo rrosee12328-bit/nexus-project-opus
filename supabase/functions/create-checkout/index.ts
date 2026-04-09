@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import Stripe from "https://esm.sh/stripe@14.21.0?target=deno";
+import Stripe from "npm:stripe@14.21.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -29,10 +29,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const stripe = new Stripe(stripeKey, {
-      apiVersion: "2023-10-16",
-      httpClient: Stripe.createFetchHttpClient(),
-    });
+    const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
 
     // ── Proposal-based checkout (public, no auth required) ──
     if (proposal_token) {
@@ -91,13 +88,56 @@ Deno.serve(async (req: Request) => {
         customerId = customer.id;
       }
 
-      const baseUrl = Deno.env.get("SUPABASE_URL")?.replace(".supabase.co", "").replace("https://", "") || "";
-      const appUrl = "https://nexus-project-opus.lovable.app";
+      const appUrl = "https://portal.vektiss.com";
 
-      const lineItems: any[] = [];
+      // Determine checkout mode based on fees
+      const hasSetupFee = proposal.setup_fee > 0;
+      const hasMonthlyFee = proposal.monthly_fee > 0;
+
+      if (!hasSetupFee && !hasMonthlyFee) {
+        return new Response(
+          JSON.stringify({ error: "No amount to charge" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      // If only monthly fee (no setup), create a subscription checkout
+      if (!hasSetupFee && hasMonthlyFee) {
+        const session = await stripe.checkout.sessions.create({
+          customer: customerId,
+          mode: "subscription",
+          line_items: [{
+            price_data: {
+              currency: "usd",
+              product_data: { name: `Monthly Service — ${proposal.client_name || "Client"}` },
+              unit_amount: Math.round(proposal.monthly_fee * 100),
+              recurring: { interval: "month" },
+            },
+            quantity: 1,
+          }],
+          success_url: `${appUrl}/proposal/${proposal_token}?paid=true`,
+          cancel_url: `${appUrl}/proposal/${proposal_token}?canceled=true`,
+          metadata: {
+            client_id: proposal.client_id || "",
+            proposal_id: proposal.id,
+            proposal_token: proposal_token,
+          },
+        });
+
+        await supabase
+          .from("proposals")
+          .update({ stripe_checkout_session_id: session.id })
+          .eq("id", proposal.id);
+
+        return new Response(
+          JSON.stringify({ url: session.url }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
 
       // Setup fee as one-time payment
-      if (proposal.setup_fee > 0) {
+      const lineItems: any[] = [];
+      if (hasSetupFee) {
         lineItems.push({
           price_data: {
             currency: "usd",
@@ -106,13 +146,6 @@ Deno.serve(async (req: Request) => {
           },
           quantity: 1,
         });
-      }
-
-      if (lineItems.length === 0) {
-        return new Response(
-          JSON.stringify({ error: "No amount to charge" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
       }
 
       const session = await stripe.checkout.sessions.create({
@@ -129,7 +162,6 @@ Deno.serve(async (req: Request) => {
         invoice_creation: { enabled: true },
       });
 
-      // Store checkout session on proposal
       await supabase
         .from("proposals")
         .update({ stripe_checkout_session_id: session.id })
@@ -175,7 +207,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Verify caller has access
     const { data: userRole } = await supabase.rpc("get_user_role", { _user_id: userId });
     const { data: clientRecord } = await supabase
       .from("clients")
@@ -237,8 +268,8 @@ Deno.serve(async (req: Request) => {
       customer: customerId2,
       mode: checkoutMode,
       line_items: lineItems2,
-      success_url: success_url || "https://nexus-project-opus.lovable.app/portal/billing?success=true",
-      cancel_url: cancel_url || "https://nexus-project-opus.lovable.app/portal/billing?canceled=true",
+      success_url: success_url || "https://portal.vektiss.com/portal/billing?success=true",
+      cancel_url: cancel_url || "https://portal.vektiss.com/portal/billing?canceled=true",
       metadata: { client_id },
       invoice_creation: checkoutMode === "payment" ? { enabled: true } : undefined,
     });
