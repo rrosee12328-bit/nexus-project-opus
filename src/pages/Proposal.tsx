@@ -75,15 +75,16 @@ export default function ProposalPage() {
 
   useEffect(() => {
     const root = document.documentElement;
-    const wasAlreadyDark = root.classList.contains("dark");
+    const originalTheme = localStorage.getItem("theme") || "dark";
 
-    // Force the proposal theme
+    // Override both keys so ThemeProvider doesn't fight back
     root.classList.toggle("dark", theme === "dark");
     localStorage.setItem("proposal-theme", theme);
+    localStorage.setItem("theme", theme);
 
-    // Restore original theme on unmount
     return () => {
-      const originalTheme = localStorage.getItem("theme") || "dark";
+      // Restore original app theme on unmount
+      localStorage.setItem("theme", originalTheme);
       root.classList.toggle("dark", originalTheme === "dark");
     };
   }, [theme]);
