@@ -10,7 +10,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   FileText, CheckCircle, CreditCard, ExternalLink, Eye, Plus, Mail,
-  Send, Copy, Check, ArrowLeft, ArrowRight, Sparkles, Loader2, Edit3,
+  Send, Copy, Check, ArrowLeft, Sparkles, Loader2, Edit3,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
