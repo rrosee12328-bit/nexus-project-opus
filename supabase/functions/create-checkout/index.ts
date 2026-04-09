@@ -179,6 +179,7 @@ Deno.serve(async (req: Request) => {
               product_data: {
                 name: `Vektiss AI & Automation — Monthly Service`,
                 description: `Monthly service for ${proposal.client_name || "Client"} — $${proposal.monthly_fee.toFixed(2)}/mo billed automatically`,
+                images: [logoUrl],
               },
               unit_amount: Math.round(proposal.monthly_fee * 100),
               recurring: { interval: "month" },
@@ -219,6 +220,7 @@ Deno.serve(async (req: Request) => {
             product_data: {
               name: `Vektiss AI & Automation — Setup Fee`,
               description: `One-time setup fee for ${proposal.client_name || "Client"}`,
+              images: [logoUrl],
             },
             unit_amount: Math.round(proposal.setup_fee * 100),
           },
