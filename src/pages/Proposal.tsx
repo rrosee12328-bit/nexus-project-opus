@@ -312,10 +312,10 @@ export default function ProposalPage() {
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
-                onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-                title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+                onClick={toggleProposalTheme}
+                title={appTheme === "light" ? "Switch to dark mode" : "Switch to light mode"}
               >
-                {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                {appTheme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
               </Button>
               <Badge variant={step === "done" ? "default" : "secondary"} className="text-[10px] sm:text-xs shrink-0">
                 Step {stepCfg.num} of {stepCfg.total} — {stepCfg.label}
