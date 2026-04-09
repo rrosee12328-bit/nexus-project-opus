@@ -89,6 +89,7 @@ Deno.serve(async (req: Request) => {
       }
 
       const appUrl = "https://portal.vektiss.com";
+      const logoUrl = `${appUrl}/vektiss-logo.png`;
 
       // Determine checkout mode based on fees
       const hasSetupFee = proposal.setup_fee > 0;
