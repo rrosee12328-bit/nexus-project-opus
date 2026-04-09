@@ -1,15 +1,28 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { FileText, CheckCircle, CreditCard, ExternalLink, Eye } from "lucide-react";
+import { FileText, CheckCircle, CreditCard, ExternalLink, Eye, Plus, Mail, Send, Copy, Check } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { logActivity } from "@/lib/activityLogger";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   draft: { label: "Sent", color: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
@@ -22,8 +35,249 @@ function formatCurrency(val: number | null) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(val);
 }
 
+function QuickCreateDialog({ open, onOpenChange, onCreated }: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  onCreated: () => void;
+}) {
+  const { user } = useAuth();
+  const [clientName, setClientName] = useState("");
+  const [clientEmail, setClientEmail] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [monthlyFee, setMonthlyFee] = useState("");
+  const [setupFee, setSetupFee] = useState("");
+  const [billingSchedule, setBillingSchedule] = useState("monthly");
+  const [servicesDescription, setServicesDescription] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [proposalUrl, setProposalUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
+
+  const reset = () => {
+    setClientName(""); setClientEmail(""); setCompanyName("");
+    setMonthlyFee(""); setSetupFee(""); setBillingSchedule("monthly");
+    setServicesDescription(""); setProposalUrl(null); setCopied(false);
+    setCreating(false);
+  };
+
+  const handleOpen = (o: boolean) => {
+    if (o) reset();
+    onOpenChange(o);
+  };
+
+  const handleCreate = async () => {
+    if (!user || !clientName.trim()) return;
+    setCreating(true);
+    try {
+      const { data, error } = await supabase.from("proposals").insert({
+        client_name: clientName.trim(),
+        client_email: clientEmail.trim() || null,
+        company_name: companyName.trim() || null,
+        monthly_fee: Number(monthlyFee) || 0,
+        setup_fee: Number(setupFee) || 0,
+        services_description: servicesDescription.trim() || null,
+        billing_schedule: billingSchedule,
+        status: "draft",
+        created_by: user.id,
+      } as any).select("token").single();
+      if (error) throw error;
+      const url = `${window.location.origin}/proposal/${data.token}`;
+      setProposalUrl(url);
+      onCreated();
+      toast.success("Proposal created!");
+      logActivity("created_proposal", "proposal", undefined, `Created proposal for "${clientName}"`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create proposal");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleCopy = async () => {
+    if (!proposalUrl) return;
+    await navigator.clipboard.writeText(proposalUrl);
+    setCopied(true);
+    toast.success("Link copied");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSendEmail = async () => {
+    if (!proposalUrl || !clientEmail.trim()) {
+      toast.error("Client email is required to send");
+      return;
+    }
+    setSendingEmail(true);
+    try {
+      const { error } = await supabase.functions.invoke("send-transactional-email", {
+        body: {
+          templateName: "proposal-link",
+          recipientEmail: clientEmail.trim(),
+          idempotencyKey: `proposal-link-${proposalUrl}`,
+          templateData: { name: clientName, proposalUrl },
+        },
+      });
+      if (error) throw error;
+      toast.success(`Proposal link sent to ${clientEmail}`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send email");
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpen}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Plus className="h-5 w-5 text-primary" /> Quick Create Proposal
+          </DialogTitle>
+          <DialogDescription>Enter client details and fees to generate a proposal link instantly.</DialogDescription>
+        </DialogHeader>
+
+        {!proposalUrl ? (
+          <>
+            <div className="space-y-4 py-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Client Name *</Label>
+                  <Input value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="e.g. Greg McCann" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Company Name</Label>
+                  <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="e.g. Crown & Associates" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Client Email</Label>
+                <Input type="email" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} placeholder="client@example.com" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Setup Fee</Label>
+                  <Input type="number" min={0} value={setupFee} onChange={(e) => setSetupFee(e.target.value)} placeholder="0" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Monthly Fee</Label>
+                  <Input type="number" min={0} value={monthlyFee} onChange={(e) => setMonthlyFee(e.target.value)} placeholder="e.g. 625" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Billing Schedule</Label>
+                <Select value={billingSchedule} onValueChange={setBillingSchedule}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly (full amount)</SelectItem>
+                    <SelectItem value="bimonthly">Bi-monthly (15th & 30th)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {billingSchedule === "bimonthly" && monthlyFee && Number(monthlyFee) > 0 && (
+                  <p className="text-xs text-muted-foreground">Two payments of ${(Number(monthlyFee) / 2).toFixed(2)} each</p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Services Description (optional)</Label>
+                <Textarea value={servicesDescription} onChange={(e) => setServicesDescription(e.target.value)} placeholder="Describe specific services..." rows={2} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button onClick={handleCreate} disabled={creating || !clientName.trim()}>
+                {creating ? "Creating..." : <><Send className="h-4 w-4 mr-2" /> Generate</>}
+              </Button>
+            </DialogFooter>
+          </>
+        ) : (
+          <div className="space-y-4 py-4">
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3">
+              <p className="text-sm text-muted-foreground">Proposal created! Copy the link or send it via email.</p>
+              <div className="flex gap-2">
+                <Input value={proposalUrl} readOnly className="font-mono text-xs" />
+                <Button size="icon" variant="outline" onClick={handleCopy}>
+                  {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              </div>
+              {clientEmail.trim() && (
+                <Button variant="default" className="w-full" onClick={handleSendEmail} disabled={sendingEmail}>
+                  <Mail className="h-4 w-4 mr-2" />
+                  {sendingEmail ? "Sending..." : `Send to ${clientEmail}`}
+                </Button>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Done</Button>
+            </DialogFooter>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EmailProposalDialog({ open, onOpenChange, proposalToken, clientEmail: defaultEmail, clientName }: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  proposalToken: string;
+  clientEmail?: string | null;
+  clientName: string;
+}) {
+  const [email, setEmail] = useState(defaultEmail || "");
+  const [sending, setSending] = useState(false);
+
+  const handleSend = async () => {
+    if (!email.trim()) return;
+    setSending(true);
+    const proposalUrl = `${window.location.origin}/proposal/${proposalToken}`;
+    try {
+      const { error } = await supabase.functions.invoke("send-transactional-email", {
+        body: {
+          templateName: "proposal-link",
+          recipientEmail: email.trim(),
+          idempotencyKey: `proposal-link-${proposalToken}-${email.trim()}`,
+          templateData: { name: clientName, proposalUrl },
+        },
+      });
+      if (error) throw error;
+      toast.success(`Proposal sent to ${email}`);
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send email");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Mail className="h-5 w-5 text-primary" /> Email Proposal</DialogTitle>
+          <DialogDescription>Send the proposal link to {clientName}.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Recipient Email</Label>
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="client@example.com" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleSend} disabled={sending || !email.trim()}>
+            {sending ? "Sending..." : <><Send className="h-4 w-4 mr-2" /> Send</>}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function AdminProposals() {
-  const { data: proposals, isLoading } = useQuery({
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+  const [emailDialog, setEmailDialog] = useState<{ open: boolean; token: string; email?: string | null; name: string }>({
+    open: false, token: "", name: "",
+  });
+
+  const { data: proposals, isLoading, refetch } = useQuery({
     queryKey: ["proposals"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -50,9 +304,14 @@ export default function AdminProposals() {
 
   return (
     <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Proposals</h1>
-        <p className="text-sm text-muted-foreground hidden sm:block">Track proposals from sent to signed to paid.</p>
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Proposals</h1>
+          <p className="text-sm text-muted-foreground hidden sm:block">Track proposals from sent to signed to paid.</p>
+        </div>
+        <Button onClick={() => setQuickCreateOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" /> New Proposal
+        </Button>
       </motion.div>
 
       <div className="grid gap-4 sm:grid-cols-4">
@@ -98,7 +357,7 @@ export default function AdminProposals() {
                     <TableHead>Signed</TableHead>
                     <TableHead>Paid</TableHead>
                     <TableHead>Created</TableHead>
-                    <TableHead className="w-10" />
+                    <TableHead className="w-20" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -144,11 +403,21 @@ export default function AdminProposals() {
                           {format(new Date(p.created_at), "MMM d, yyyy")}
                         </TableCell>
                         <TableCell>
-                          <Button variant="ghost" size="icon" asChild>
-                            <a href={`/proposal/${p.token}`} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="h-4 w-4" />
-                            </a>
-                          </Button>
+                          <div className="flex gap-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={() => setEmailDialog({ open: true, token: p.token, email: p.client_email, name: clientName })}>
+                                  <Mail className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Email proposal link</TooltipContent>
+                            </Tooltip>
+                            <Button variant="ghost" size="icon" asChild>
+                              <a href={`/proposal/${p.token}`} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="h-4 w-4" />
+                              </a>
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -159,6 +428,15 @@ export default function AdminProposals() {
           </CardContent>
         </Card>
       </motion.div>
+
+      <QuickCreateDialog open={quickCreateOpen} onOpenChange={setQuickCreateOpen} onCreated={() => refetch()} />
+      <EmailProposalDialog
+        open={emailDialog.open}
+        onOpenChange={(o) => setEmailDialog((prev) => ({ ...prev, open: o }))}
+        proposalToken={emailDialog.token}
+        clientEmail={emailDialog.email}
+        clientName={emailDialog.name}
+      />
     </div>
   );
 }
