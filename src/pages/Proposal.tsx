@@ -505,6 +505,54 @@ export default function ProposalPage() {
             </div>
           )}
 
+          {/* NDA Signed — Transition Screen */}
+          {step === "nda-done" && (
+            <Card className="flex-1">
+              <CardContent className="pt-6 flex flex-col items-center justify-center text-center space-y-6 min-h-[350px]">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.1 }}
+                  className="h-20 w-20 rounded-full bg-emerald-500/20 flex items-center justify-center"
+                >
+                  <CheckCircle2 className="h-10 w-10 text-emerald-500" />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3, duration: 0.5 }}
+                  className="space-y-2"
+                >
+                  <h2 className="text-xl font-bold">NDA Signed Successfully!</h2>
+                  <p className="text-sm text-muted-foreground max-w-md">
+                    Your Non-Disclosure Agreement has been signed. Next, you'll review and sign the Service Agreement contract.
+                  </p>
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.7, duration: 0.4 }}
+                >
+                  <Separator className="w-48 mx-auto" />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 1, duration: 0.4 }}
+                  className="flex flex-col items-center gap-3"
+                >
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <ScrollText className="h-4 w-4 text-primary" />
+                    <span>Up next: AI & Automation Services Contract</span>
+                  </div>
+                  <Button size="lg" onClick={() => { resetScroll(); setStep("review"); }}>
+                    Review Contract <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </motion.div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Step 3: Contract Review & Sign */}
           {(step === "review" || step === "sign") && (
             <div className="flex-1 flex flex-col gap-4">
