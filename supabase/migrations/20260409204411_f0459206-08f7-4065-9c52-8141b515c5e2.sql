@@ -1,0 +1,1 @@
+ALTER TABLE public.proposals ADD COLUMN billing_schedule text NOT NULL DEFAULT 'monthly';

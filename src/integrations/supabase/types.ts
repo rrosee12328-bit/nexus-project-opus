@@ -1144,6 +1144,7 @@ export type Database = {
       }
       proposals: {
         Row: {
+          billing_schedule: string
           client_address: string | null
           client_email: string | null
           client_id: string | null
@@ -1168,6 +1169,7 @@ export type Database = {
           view_count: number
         }
         Insert: {
+          billing_schedule?: string
           client_address?: string | null
           client_email?: string | null
           client_id?: string | null
@@ -1192,6 +1194,7 @@ export type Database = {
           view_count?: number
         }
         Update: {
+          billing_schedule?: string
           client_address?: string | null
           client_email?: string | null
           client_id?: string | null
