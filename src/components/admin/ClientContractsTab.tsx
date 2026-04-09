@@ -14,7 +14,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  FileSignature, Upload, Download, Eye, Loader2, Plus, Trash2, Calendar,
+  FileSignature, Upload, Download, Eye, Loader2, Plus, Trash2, Calendar, ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -152,19 +152,35 @@ export default function ClientContractsTab({ clientId, clientName }: Props) {
       setupFee: c.setup_fee,
       filePath: c.file_path,
       type: "uploaded" as const,
+      docType: "Contract" as const,
       createdAt: c.created_at,
     })),
-    ...proposalContracts.map((p: any) => ({
-      id: `proposal-${p.id}`,
-      title: `${p.services_description ? p.services_description.slice(0, 50) : "Service"} Contract`,
-      signedBy: p.signed_name,
-      signedAt: p.signed_at,
-      monthlyFee: p.monthly_fee,
-      setupFee: p.setup_fee,
-      filePath: p.contract_pdf_path,
-      type: "generated" as const,
-      createdAt: p.created_at,
-    })),
+    ...proposalContracts.flatMap((p: any) => [
+      {
+        id: `nda-${p.id}`,
+        title: "Mutual Non-Disclosure Agreement",
+        signedBy: p.signed_name,
+        signedAt: p.signed_at,
+        monthlyFee: null,
+        setupFee: null,
+        filePath: null,
+        type: "generated" as const,
+        docType: "NDA" as const,
+        createdAt: p.created_at,
+      },
+      {
+        id: `proposal-${p.id}`,
+        title: `${p.services_description ? p.services_description.slice(0, 50) : "Service"} Contract`,
+        signedBy: p.signed_name,
+        signedAt: p.signed_at,
+        monthlyFee: p.monthly_fee,
+        setupFee: p.setup_fee,
+        filePath: p.contract_pdf_path,
+        type: "generated" as const,
+        docType: "Contract" as const,
+        createdAt: p.created_at,
+      },
+    ]),
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   return (
@@ -198,7 +214,8 @@ export default function ClientContractsTab({ clientId, clientName }: Props) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Contract</TableHead>
+                  <TableHead>Document</TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead>Signed By</TableHead>
                   <TableHead>Date Signed</TableHead>
                   <TableHead>Monthly</TableHead>
@@ -211,6 +228,11 @@ export default function ClientContractsTab({ clientId, clientName }: Props) {
                 {allContracts.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell className="font-medium">{c.title}</TableCell>
+                    <TableCell>
+                      <Badge variant={c.docType === "NDA" ? "secondary" : "outline"} className="text-xs">
+                        {c.docType === "NDA" ? <><ShieldCheck className="h-3 w-3 mr-1" />NDA</> : "Contract"}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="text-muted-foreground text-sm">{c.signedBy ?? "—"}</TableCell>
                     <TableCell className="text-muted-foreground text-xs">
                       {c.signedAt ? format(new Date(c.signedAt), "MMM d, yyyy") : "—"}

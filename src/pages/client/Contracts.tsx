@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileSignature, Download, Loader2, Calendar } from "lucide-react";
+import { FileSignature, Download, Loader2, Calendar, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
@@ -70,17 +70,34 @@ export default function ClientContracts() {
       setupFee: c.setup_fee,
       filePath: c.file_path,
       createdAt: c.created_at,
+      docType: "Contract" as const,
     })),
-    ...proposalContracts.map((p: any) => ({
-      id: `proposal-${p.id}`,
-      title: `${p.services_description ? p.services_description.slice(0, 50) : "Service"} Contract`,
-      signedBy: p.signed_name,
-      signedAt: p.signed_at,
-      monthlyFee: p.monthly_fee,
-      setupFee: p.setup_fee,
-      filePath: p.contract_pdf_path,
-      createdAt: p.created_at,
-    })),
+    ...proposalContracts.flatMap((p: any) => [
+      // NDA entry
+      {
+        id: `nda-${p.id}`,
+        title: "Mutual Non-Disclosure Agreement",
+        signedBy: p.signed_name,
+        signedAt: p.signed_at,
+        monthlyFee: null,
+        setupFee: null,
+        filePath: null,
+        createdAt: p.created_at,
+        docType: "NDA" as const,
+      },
+      // Contract entry
+      {
+        id: `proposal-${p.id}`,
+        title: `${p.services_description ? p.services_description.slice(0, 50) : "Service"} Contract`,
+        signedBy: p.signed_name,
+        signedAt: p.signed_at,
+        monthlyFee: p.monthly_fee,
+        setupFee: p.setup_fee,
+        filePath: p.contract_pdf_path,
+        createdAt: p.created_at,
+        docType: "Contract" as const,
+      },
+    ]),
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const handleDownload = async (filePath: string) => {
@@ -130,8 +147,8 @@ export default function ClientContracts() {
                 <Card className="hover:border-primary/20 transition-colors">
                   <CardContent className="pt-5 pb-5">
                     <div className="flex items-start gap-4">
-                      <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                        <FileSignature className="h-6 w-6 text-primary" />
+                      <div className={`h-12 w-12 rounded-xl flex items-center justify-center shrink-0 ${c.docType === "NDA" ? "bg-amber-500/10" : "bg-primary/10"}`}>
+                        {c.docType === "NDA" ? <ShieldCheck className="h-6 w-6 text-amber-500" /> : <FileSignature className="h-6 w-6 text-primary" />}
                       </div>
                       <div className="flex-1 min-w-0 space-y-1">
                         <p className="font-semibold">{c.title}</p>
