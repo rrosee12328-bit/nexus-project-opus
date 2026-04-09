@@ -120,8 +120,8 @@ serve(async (req: Request) => {
             .eq("id", session.metadata.client_id);
         }
 
-        // Handle bi-monthly setup checkout: create two subscriptions
-        if (session.mode === "setup" && session.metadata?.billing_schedule === "bimonthly") {
+        // Handle bi-monthly checkout: checkout created the 15th sub, now create the 30th sub
+        if (session.metadata?.billing_schedule === "bimonthly") {
           await handleBimonthlySetup(supabase, session);
         }
         // Handle proposal-based payment checkout completion
@@ -166,20 +166,6 @@ async function handleBimonthlySetup(supabase: any, session: any) {
     return;
   }
 
-  // Get the payment method from the setup intent
-  const setupIntentId = session.setup_intent;
-  if (setupIntentId) {
-    const setupIntent = await stripe.setupIntents.retrieve(setupIntentId);
-    if (setupIntent.payment_method) {
-      // Set as default payment method for the customer
-      await stripe.customers.update(customerId, {
-        invoice_settings: {
-          default_payment_method: setupIntent.payment_method as string,
-        },
-      });
-    }
-  }
-
   const halfAmount = Math.round((monthlyFee / 2) * 100);
 
   // Get proposal client name
@@ -191,34 +177,15 @@ async function handleBimonthlySetup(supabase: any, session: any) {
 
   const clientLabel = proposal?.client_name || "Client";
 
-  // Calculate next 15th and 30th
+  // The 15th subscription was already created by checkout — now create the 30th
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-
-  let anchor15 = new Date(Date.UTC(year, month, 15));
-  if (anchor15.getTime() / 1000 <= Math.floor(Date.now() / 1000)) {
-    anchor15 = new Date(Date.UTC(year, month + 1, 15));
-  }
-  let anchor30 = new Date(Date.UTC(year, month, 30));
+  let anchor30 = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 30));
   if (anchor30.getTime() / 1000 <= Math.floor(Date.now() / 1000)) {
-    anchor30 = new Date(Date.UTC(year, month + 1, 30));
+    anchor30 = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 30));
   }
-
-  // Create Stripe products and prices
-  const product15 = await stripe.products.create({
-    name: `Service — ${clientLabel} (15th)`,
-    metadata: { client_id: clientId || "", proposal_id: proposalId },
-  });
-  const price15 = await stripe.prices.create({
-    product: product15.id,
-    unit_amount: halfAmount,
-    currency: "usd",
-    recurring: { interval: "month" },
-  });
 
   const product30 = await stripe.products.create({
-    name: `Service — ${clientLabel} (30th)`,
+    name: `Vektiss AI & Automation — ${clientLabel} (30th)`,
     metadata: { client_id: clientId || "", proposal_id: proposalId },
   });
   const price30 = await stripe.prices.create({
@@ -226,19 +193,6 @@ async function handleBimonthlySetup(supabase: any, session: any) {
     unit_amount: halfAmount,
     currency: "usd",
     recurring: { interval: "month" },
-  });
-
-  // Create the two subscriptions
-  const sub1 = await stripe.subscriptions.create({
-    customer: customerId,
-    items: [{ price: price15.id }],
-    billing_cycle_anchor: Math.floor(anchor15.getTime() / 1000),
-    proration_behavior: "none",
-    metadata: {
-      client_id: clientId || "",
-      proposal_id: proposalId,
-      billing_half: "15th",
-    },
   });
 
   const sub2 = await stripe.subscriptions.create({
@@ -253,7 +207,10 @@ async function handleBimonthlySetup(supabase: any, session: any) {
     },
   });
 
-  console.log(`Bimonthly subscriptions created: ${sub1.id}, ${sub2.id}`);
+  // Get the subscription ID from checkout (the 15th sub)
+  const sub1Id = session.subscription || "checkout-sub";
+
+  console.log(`Bimonthly subscriptions: 15th=${sub1Id}, 30th=${sub2.id}`);
 
   // Mark proposal as paid
   await supabase
@@ -261,7 +218,7 @@ async function handleBimonthlySetup(supabase: any, session: any) {
     .update({
       status: "paid",
       paid_at: new Date().toISOString(),
-      stripe_checkout_session_id: `bimonthly:${sub1.id},${sub2.id}`,
+      stripe_checkout_session_id: `bimonthly:${sub1Id},${sub2.id}`,
     })
     .eq("id", proposalId);
 
