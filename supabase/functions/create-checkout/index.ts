@@ -123,17 +123,33 @@ Deno.serve(async (req: Request) => {
           anchor30 = new Date(Date.UTC(year, month + 1, 30));
         }
 
+        // Create Stripe products and prices for each half
+        const product15 = await stripe.products.create({
+          name: `Service — ${clientLabel} (15th)`,
+          metadata: { client_id: proposal.client_id || "", proposal_id: proposal.id },
+        });
+        const price15 = await stripe.prices.create({
+          product: product15.id,
+          unit_amount: halfAmount,
+          currency: "usd",
+          recurring: { interval: "month" },
+        });
+
+        const product30 = await stripe.products.create({
+          name: `Service — ${clientLabel} (30th)`,
+          metadata: { client_id: proposal.client_id || "", proposal_id: proposal.id },
+        });
+        const price30 = await stripe.prices.create({
+          product: product30.id,
+          unit_amount: halfAmount,
+          currency: "usd",
+          recurring: { interval: "month" },
+        });
+
         // Use Stripe API to create two subscriptions directly (not via Checkout)
         const sub1 = await stripe.subscriptions.create({
           customer: customerId!,
-          items: [{
-            price_data: {
-              currency: "usd",
-              product_data: { name: `Service — ${clientLabel} (15th)` },
-              unit_amount: halfAmount,
-              recurring: { interval: "month" },
-            },
-          }],
+          items: [{ price: price15.id }],
           billing_cycle_anchor: Math.floor(anchor15.getTime() / 1000),
           proration_behavior: "none",
           metadata: {
@@ -146,14 +162,7 @@ Deno.serve(async (req: Request) => {
 
         const sub2 = await stripe.subscriptions.create({
           customer: customerId!,
-          items: [{
-            price_data: {
-              currency: "usd",
-              product_data: { name: `Service — ${clientLabel} (30th)` },
-              unit_amount: halfAmount,
-              recurring: { interval: "month" },
-            },
-          }],
+          items: [{ price: price30.id }],
           billing_cycle_anchor: Math.floor(anchor30.getTime() / 1000),
           proration_behavior: "none",
           metadata: {
