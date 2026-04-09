@@ -93,11 +93,94 @@ Deno.serve(async (req: Request) => {
       // Determine checkout mode based on fees
       const hasSetupFee = proposal.setup_fee > 0;
       const hasMonthlyFee = proposal.monthly_fee > 0;
+      const billingSchedule = proposal.billing_schedule || "monthly";
 
       if (!hasSetupFee && !hasMonthlyFee) {
         return new Response(
           JSON.stringify({ error: "No amount to charge" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      // ── Bi-monthly billing: create two subscriptions (15th and 30th) ──
+      if (!hasSetupFee && hasMonthlyFee && billingSchedule === "bimonthly") {
+        const halfAmount = Math.round((proposal.monthly_fee / 2) * 100);
+        const clientLabel = proposal.client_name || "Client";
+
+        // Create first subscription anchored to the 15th
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+
+        // Calculate next 15th
+        let anchor15 = new Date(Date.UTC(year, month, 15));
+        if (anchor15.getTime() / 1000 <= Math.floor(Date.now() / 1000)) {
+          anchor15 = new Date(Date.UTC(year, month + 1, 15));
+        }
+        // Calculate next 30th
+        let anchor30 = new Date(Date.UTC(year, month, 30));
+        if (anchor30.getTime() / 1000 <= Math.floor(Date.now() / 1000)) {
+          anchor30 = new Date(Date.UTC(year, month + 1, 30));
+        }
+
+        // Use Stripe API to create two subscriptions directly (not via Checkout)
+        const sub1 = await stripe.subscriptions.create({
+          customer: customerId!,
+          items: [{
+            price_data: {
+              currency: "usd",
+              product_data: { name: `Service — ${clientLabel} (15th)` },
+              unit_amount: halfAmount,
+              recurring: { interval: "month" },
+            },
+          }],
+          billing_cycle_anchor: Math.floor(anchor15.getTime() / 1000),
+          proration_behavior: "none",
+          metadata: {
+            client_id: proposal.client_id || "",
+            proposal_id: proposal.id,
+            proposal_token: proposal_token,
+            billing_half: "15th",
+          },
+        });
+
+        const sub2 = await stripe.subscriptions.create({
+          customer: customerId!,
+          items: [{
+            price_data: {
+              currency: "usd",
+              product_data: { name: `Service — ${clientLabel} (30th)` },
+              unit_amount: halfAmount,
+              recurring: { interval: "month" },
+            },
+          }],
+          billing_cycle_anchor: Math.floor(anchor30.getTime() / 1000),
+          proration_behavior: "none",
+          metadata: {
+            client_id: proposal.client_id || "",
+            proposal_id: proposal.id,
+            proposal_token: proposal_token,
+            billing_half: "30th",
+          },
+        });
+
+        // Mark proposal as paid since subscriptions are created directly
+        await supabase
+          .from("proposals")
+          .update({
+            status: "paid",
+            paid_at: new Date().toISOString(),
+            stripe_checkout_session_id: `bimonthly:${sub1.id},${sub2.id}`,
+          })
+          .eq("id", proposal.id);
+
+        return new Response(
+          JSON.stringify({
+            bimonthly: true,
+            subscription_ids: [sub1.id, sub2.id],
+            message: `Two subscriptions created: $${(halfAmount / 100).toFixed(2)} on the 15th and 30th`,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
 
