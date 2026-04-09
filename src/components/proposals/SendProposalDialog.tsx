@@ -8,6 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { FileSignature, DollarSign, Send, Copy, Check } from "lucide-react";
@@ -32,6 +35,7 @@ export function SendProposalDialog({
   const [monthlyFee, setMonthlyFee] = useState(String(defaultMonthlyFee || ""));
   const [setupFee, setSetupFee] = useState(String(defaultSetupFee || ""));
   const [servicesDescription, setServicesDescription] = useState("");
+  const [billingSchedule, setBillingSchedule] = useState("monthly");
   const [proposalUrl, setProposalUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -40,6 +44,7 @@ export function SendProposalDialog({
       setMonthlyFee(String(defaultMonthlyFee || ""));
       setSetupFee(String(defaultSetupFee || ""));
       setServicesDescription("");
+      setBillingSchedule("monthly");
       setProposalUrl(null);
       setCopied(false);
     }
@@ -59,9 +64,10 @@ export function SendProposalDialog({
           monthly_fee: Number(monthlyFee) || 0,
           setup_fee: Number(setupFee) || 0,
           services_description: servicesDescription.trim() || null,
+          billing_schedule: billingSchedule,
           status: "sent",
           created_by: user.id,
-        })
+        } as any)
         .select("token")
         .single();
 
@@ -130,7 +136,24 @@ export function SendProposalDialog({
                     />
                   </div>
                 </div>
-              </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Billing Schedule</Label>
+                  <Select value={billingSchedule} onValueChange={setBillingSchedule}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="monthly">Monthly (full amount)</SelectItem>
+                      <SelectItem value="bimonthly">Bi-monthly (15th & 30th)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {billingSchedule === "bimonthly" && monthlyFee && Number(monthlyFee) > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Two payments of ${(Number(monthlyFee) / 2).toFixed(2)} each
+                    </p>
+                  )}
+                </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Services Description (optional)</Label>
                 <Textarea
