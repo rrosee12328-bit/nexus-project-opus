@@ -15,6 +15,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   Loader2, FileSignature, CheckCircle2, CreditCard, AlertCircle,
   ShieldCheck, ScrollText, ArrowRight, ArrowLeft, Sun, Moon,
+  ClipboardList, FileText, Lock, Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -34,16 +35,17 @@ interface ProposalData {
   paid_at: string | null;
 }
 
-type Step = "info" | "nda" | "nda-sign" | "review" | "sign" | "pay" | "done";
+type Step = "overview" | "info" | "nda" | "nda-sign" | "review" | "sign" | "pay" | "done";
 
 const STEP_CONFIG: Record<Step, { label: string; num: number; total: number }> = {
-  info: { label: "Your Information", num: 1, total: 5 },
-  nda: { label: "Non-Disclosure Agreement", num: 2, total: 5 },
-  "nda-sign": { label: "Sign NDA", num: 2, total: 5 },
-  review: { label: "Review Contract", num: 3, total: 5 },
-  sign: { label: "Sign Contract", num: 3, total: 5 },
-  pay: { label: "Payment", num: 4, total: 5 },
-  done: { label: "Complete", num: 5, total: 5 },
+  overview: { label: "Proposal Overview", num: 1, total: 6 },
+  info: { label: "Your Information", num: 2, total: 6 },
+  nda: { label: "Non-Disclosure Agreement", num: 3, total: 6 },
+  "nda-sign": { label: "Sign NDA", num: 3, total: 6 },
+  review: { label: "Review Contract", num: 4, total: 6 },
+  sign: { label: "Sign Contract", num: 4, total: 6 },
+  pay: { label: "Payment", num: 5, total: 6 },
+  done: { label: "Complete", num: 6, total: 6 },
 };
 
 export default function ProposalPage() {
@@ -107,7 +109,7 @@ export default function ProposalPage() {
 
       if (p.paid_at || searchParams.get("paid") === "true") setStep("done");
       else if (p.signed_at) setStep("pay");
-      else setStep("info");
+      else setStep("overview");
 
       setLoading(false);
 
@@ -341,6 +343,83 @@ export default function ProposalPage() {
       {/* Main content */}
       <main className="flex-1 flex flex-col">
         <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-4 sm:py-6 flex-1 flex flex-col">
+          {/* Step 0: Proposal Overview */}
+          {step === "overview" && (
+            <Card className="flex-1">
+              <CardContent className="pt-6 space-y-6">
+                <div className="text-center space-y-2 pb-2">
+                  <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+                    <ClipboardList className="h-7 w-7 text-primary" />
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-bold">Welcome to Your Proposal</h2>
+                  <p className="text-sm text-muted-foreground max-w-lg mx-auto">
+                    Thank you for considering <strong>Vektiss LLC</strong>. Please review the details below before proceeding.
+                  </p>
+                </div>
+
+                <Separator />
+
+                {/* Services */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-primary" />
+                    <h3 className="font-semibold text-sm">Services Included</h3>
+                  </div>
+                  <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
+                    {proposal.services_description || "AI & Automation services tailored to your business needs. Full details will be outlined in the contract."}
+                  </div>
+                </div>
+
+                {/* Pricing */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-4 w-4 text-primary" />
+                    <h3 className="font-semibold text-sm">Pricing</h3>
+                  </div>
+                  <div className="bg-muted/50 rounded-lg p-4 grid gap-3 sm:grid-cols-2">
+                    {proposal.setup_fee > 0 && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">One-Time Setup Fee</p>
+                        <p className="text-lg font-bold font-mono">{fmt(proposal.setup_fee)}</p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-xs text-muted-foreground">Monthly Service Fee</p>
+                      <p className="text-lg font-bold font-mono">{fmt(proposal.monthly_fee)}/mo</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* What to expect */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-primary" />
+                    <h3 className="font-semibold text-sm">What to Expect</h3>
+                  </div>
+                  <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                    {[
+                      { icon: <ArrowRight className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />, text: "Fill in your contact information" },
+                      { icon: <Lock className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />, text: "Review & sign a Mutual Non-Disclosure Agreement (NDA)" },
+                      { icon: <ScrollText className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />, text: "Review & sign the Service Agreement contract" },
+                      { icon: <CreditCard className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />, text: proposal.setup_fee > 0 ? "Complete your setup payment to get started" : "Set up your payment method for monthly billing" },
+                    ].map((item, i) => (
+                      <div key={i} className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                        {item.icon}
+                        <span>{item.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <Button onClick={() => setStep("info")} size="lg">
+                    Get Started <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Step 1: Client Info */}
           {step === "info" && (
             <Card className="flex-1">
@@ -367,7 +446,10 @@ export default function ProposalPage() {
                     <Input type="email" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} placeholder="john@company.com" />
                   </div>
                 </div>
-                <div className="flex justify-end">
+                <div className="flex items-center justify-between">
+                  <Button variant="outline" size="sm" onClick={() => setStep("overview")}>
+                    <ArrowLeft className="h-4 w-4 mr-1" /> Back
+                  </Button>
                   <Button onClick={handleInfoSubmit} disabled={!clientName.trim() || !clientEmail.trim()} size="lg">
                     Continue to NDA <ArrowRight className="h-4 w-4 ml-2" />
                   </Button>
