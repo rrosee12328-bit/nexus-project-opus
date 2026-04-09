@@ -50,6 +50,7 @@ import ClientBilling from "./pages/client/Billing";
 import ClientSettings from "./pages/client/Settings";
 import ClientAgent from "./pages/client/Agent";
 import ClientApprovals from "./pages/client/Approvals";
+import ClientContracts from "./pages/client/Contracts";
 
 const queryClient = new QueryClient();
 
@@ -133,6 +134,7 @@ const App = () => (
               <Route path="billing" element={<ClientBilling />} />
               <Route path="payments" element={<Navigate to="/portal/billing" replace />} />
               <Route path="approvals" element={<ClientApprovals />} />
+              <Route path="contracts" element={<ClientContracts />} />
               <Route path="agent" element={<ClientAgent />} />
               <Route path="settings" element={<ClientSettings />} />
             </Route>
