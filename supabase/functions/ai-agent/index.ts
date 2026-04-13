@@ -1424,25 +1424,38 @@ Deno.serve(async (req) => {
     let maxIterations = 10
 
     while (maxIterations-- > 0) {
-      const aiResponse = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model,
-          messages: aiMessages,
-          tools,
-          tool_choice: 'auto',
-          stream: false,
-        }),
-      })
+      let aiResponse: Response | null = null
+      const maxRetries = 3
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        aiResponse = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model,
+            messages: aiMessages,
+            tools,
+            tool_choice: 'auto',
+            stream: false,
+          }),
+        })
 
-      if (!aiResponse.ok) {
+        if (aiResponse.ok) break
+
         const status = aiResponse.status
         const text = await aiResponse.text()
-        console.error('OpenAI API error:', status, text)
+        console.error(`AI API error (attempt ${attempt + 1}/${maxRetries}):`, status, text)
+
+        // Retryable: 503 Service Unavailable, 500 Internal Server Error
+        if ((status === 503 || status === 500) && attempt < maxRetries - 1) {
+          const delay = 1000 * Math.pow(2, attempt) // 1s, 2s
+          console.log(`Retrying in ${delay}ms...`)
+          await new Promise(r => setTimeout(r, delay))
+          continue
+        }
+
         if (status === 429) {
           return new Response(JSON.stringify({ error: 'Rate limit exceeded. Please try again in a moment.' }), {
             status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -1458,8 +1471,14 @@ Deno.serve(async (req) => {
             status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           })
         }
-        return new Response(JSON.stringify({ error: 'AI service error' }), {
-          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        return new Response(JSON.stringify({ error: 'AI service temporarily unavailable. Please try again.' }), {
+          status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      if (!aiResponse || !aiResponse.ok) {
+        return new Response(JSON.stringify({ error: 'AI service temporarily unavailable after retries. Please try again.' }), {
+          status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
 
