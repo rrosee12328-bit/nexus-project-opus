@@ -6,19 +6,38 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// Convert a UTC ISO string to America/Chicago local date and time parts
+function toChicago(isoString: string): { date: string; time: string } {
+  const dt = new Date(isoString);
+  // Use Intl to get the Chicago local parts
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(dt);
+
+  const get = (type: string) => parts.find((p) => p.type === type)?.value || "";
+  const date = `${get("year")}-${get("month")}-${get("day")}`;
+  const time = `${get("hour")}:${get("minute")}`;
+  return { date, time };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Only accept POST (webhook payloads)
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405, headers: corsHeaders });
   }
 
   try {
     const body = await req.json();
-    const event = body.event; // "invitee.created" or "invitee.canceled"
+    const event = body.event;
     const payload = body.payload;
 
     if (!event || !payload) {
@@ -34,13 +53,12 @@ Deno.serve(async (req) => {
     );
 
     if (event === "invitee.created") {
-      // Extract event details
       const scheduledEvent = payload.scheduled_event;
       const invitee = payload;
 
       const eventName = scheduledEvent?.name || "Calendly Meeting";
-      const startTime = scheduledEvent?.start_time; // ISO string
-      const endTime = scheduledEvent?.end_time;     // ISO string
+      const startTime = scheduledEvent?.start_time;
+      const endTime = scheduledEvent?.end_time;
       const inviteeName = invitee?.name || "";
       const inviteeEmail = invitee?.email || "";
       const calendlyEventUri = scheduledEvent?.uri || "";
@@ -52,14 +70,9 @@ Deno.serve(async (req) => {
         });
       }
 
-      const startDate = new Date(startTime);
-      const endDate = endTime ? new Date(endTime) : null;
-
-      const eventDate = startDate.toISOString().split("T")[0];
-      const startTimeFormatted = startDate.toISOString().split("T")[1].substring(0, 5);
-      const endTimeFormatted = endDate
-        ? endDate.toISOString().split("T")[1].substring(0, 5)
-        : null;
+      // Convert UTC to Central Time
+      const start = toChicago(startTime);
+      const end = endTime ? toChicago(endTime) : null;
 
       const title = inviteeName
         ? `${eventName} — ${inviteeName}`
@@ -72,7 +85,6 @@ Deno.serve(async (req) => {
         .filter(Boolean)
         .join("\n");
 
-      // Get an admin user to set as created_by
       const { data: adminRole } = await supabase
         .from("user_roles")
         .select("user_id")
@@ -92,9 +104,9 @@ Deno.serve(async (req) => {
       const { error } = await supabase.from("calendar_events").insert({
         title,
         description,
-        event_date: eventDate,
-        start_time: startTimeFormatted,
-        end_time: endTimeFormatted,
+        event_date: start.date,
+        start_time: start.time,
+        end_time: end?.time || null,
         event_type: "calendly",
         created_by: createdBy,
       });
@@ -107,7 +119,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      console.log("Calendly event created:", title, eventDate);
+      console.log("Calendly event created:", title, start.date, start.time, "CT");
       return new Response(JSON.stringify({ ok: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -118,7 +130,6 @@ Deno.serve(async (req) => {
       const calendlyEventUri = scheduledEvent?.uri || "";
 
       if (calendlyEventUri) {
-        // Find and delete the matching calendar event by searching description
         const { data: events } = await supabase
           .from("calendar_events")
           .select("id, description")
@@ -144,7 +155,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Unknown event type — acknowledge anyway
     return new Response(JSON.stringify({ ok: true, ignored: event }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
