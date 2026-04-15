@@ -351,6 +351,7 @@ export default function AdminCalendar() {
     custom: monthEvents.filter((e) => e.type === "custom").length,
     time_block: monthEvents.filter((e) => e.type === "time_block").length,
     calendly: monthEvents.filter((e) => e.type === "calendly").length,
+    outlook: monthEvents.filter((e) => e.type === "outlook").length,
   };
 
   const goToToday = () => {
@@ -379,7 +380,7 @@ export default function AdminCalendar() {
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Calendar</h1>
-          <p className="text-muted-foreground text-sm">Follow-ups, deadlines, milestones, meetings & events</p>
+          <p className="text-muted-foreground text-sm">Follow-ups, deadlines, milestones, meetings & events · <span className="font-medium">Central Time (CT)</span></p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={goToToday}>Today</Button>
@@ -399,6 +400,7 @@ export default function AdminCalendar() {
           { key: "custom" as EventType, count: typeCounts.custom },
           { key: "time_block" as EventType, count: typeCounts.time_block },
           { key: "calendly" as EventType, count: typeCounts.calendly },
+          { key: "outlook" as EventType, count: typeCounts.outlook },
         ]).map((item, i) => {
           const cfg = TYPE_CONFIG[item.key];
           const active = activeFilters.has(item.key);
