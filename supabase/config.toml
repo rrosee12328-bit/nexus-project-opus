@@ -19,3 +19,7 @@ project_id = "xtftehtsfnxsdsfmwkew"
     verify_jwt = false
   [functions.stripe-portal]
     verify_jwt = false
+  [functions.sync-outlook-calendar]
+    verify_jwt = false
+  [functions.push-outlook-event]
+    verify_jwt = false
