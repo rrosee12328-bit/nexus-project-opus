@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   ChevronLeft, ChevronRight, Calendar as CalIcon, Plus,
-  Users, CheckSquare, FolderKanban, Phone, ExternalLink, Video, PhoneCall, Flag, Star, Clock,
+  Users, CheckSquare, FolderKanban, Phone, ExternalLink, Video, PhoneCall, Flag, Star, Clock, Mail,
 } from "lucide-react";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth,
@@ -22,7 +22,7 @@ interface CalendarEvent {
   id: string;
   date: Date;
   title: string;
-  type: "follow_up" | "task_deadline" | "project_milestone" | "meeting" | "custom" | "time_block" | "calendly";
+  type: "follow_up" | "task_deadline" | "project_milestone" | "meeting" | "custom" | "time_block" | "calendly" | "outlook";
   color: string;
   meta?: string;
   description?: string;
@@ -40,6 +40,7 @@ const TYPE_CONFIG = {
   custom: { icon: Star, label: "Event", color: "text-amber-500", dotColor: "bg-amber-500" },
   time_block: { icon: Clock, label: "Time Block", color: "text-teal-500", dotColor: "bg-teal-500" },
   calendly: { icon: Video, label: "Calendly", color: "text-indigo-500", dotColor: "bg-indigo-500" },
+  outlook: { icon: Mail, label: "Outlook", color: "text-blue-600", dotColor: "bg-blue-600" },
 } as const;
 
 const CUSTOM_TYPE_ICONS: Record<string, typeof Star> = {
@@ -63,7 +64,7 @@ export default function AdminCalendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [activeFilters, setActiveFilters] = useState<Set<EventType>>(
-    new Set(["follow_up", "task_deadline", "project_milestone", "meeting", "custom", "time_block", "calendly"])
+    new Set(["follow_up", "task_deadline", "project_milestone", "meeting", "custom", "time_block", "calendly", "outlook"])
   );
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
   const [dayViewOpen, setDayViewOpen] = useState(false);
