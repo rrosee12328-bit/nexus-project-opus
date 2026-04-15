@@ -1,50 +1,46 @@
 
 
-## Dark/Light Mode Toggle
+# Outlook Calendar Sync + Central Time Fix
 
-Currently the site is dark-only — all CSS variables are defined under `:root` with no `.dark` class variant. Tailwind is already configured with `darkMode: ["class"]`, so the infrastructure is ready.
+## What's Happening Now
 
-### What we'll build
+1. **No Outlook integration** — the calendar only pulls from internal DB tables and Calendly.
+2. **Timezone bug** — the Calendly webhook converts times via `.toISOString()`, which outputs UTC. Your events are stored in UTC but displayed as-is, so a 2 PM CT meeting shows as 7 PM (or similar offset).
 
-1. **Add light mode CSS variables** — Define a new set of light-themed HSL values under `:root` (default = light) and move the current dark values under `.dark` in `src/index.css`
+## Plan
 
-2. **Create a `ThemeProvider` and `useTheme` hook** — New file `src/hooks/useTheme.tsx` that:
-   - Reads theme preference from `localStorage` (key: `theme`)
-   - Defaults to `dark` to preserve the current experience
-   - Toggles the `dark` class on `<html>`
-   - Provides `theme`, `setTheme`, and `toggleTheme` via React context
+### 1. Connect Microsoft Outlook
 
-3. **Create a `ThemeToggle` component** — New file `src/components/ThemeToggle.tsx`:
-   - A small button with Sun/Moon icons from lucide-react
-   - Calls `toggleTheme()` on click
-   - Fits into the existing header style
+- Use the **Microsoft Outlook connector** to link your Outlook account. This provides gateway credentials for reading calendar events.
+- Create a new Edge Function **`sync-outlook-calendar`** that:
+  - Calls the Microsoft Graph API via the connector gateway (`/me/calendarView?startDateTime=...&endDateTime=...`)
+  - Fetches events for a rolling 60-day window (30 past, 30 future)
+  - Upserts them into `calendar_events` with `event_type = 'outlook'` and stores the Outlook event ID in the description for dedup
+  - Converts all times to **America/Chicago** before storing
+- Create a new Edge Function **`push-outlook-event`** that:
+  - When a custom event is created/updated in the portal, pushes it to Outlook via `POST /me/events`
+  - Stores the returned Outlook event ID back on the `calendar_events` row for future sync
+- Set up a **cron job** (pg_cron) to run `sync-outlook-calendar` every 15 minutes for automatic pull sync
+- Wire the portal's "Create Event" / "Update Event" flow to also call `push-outlook-event` so changes go both directions
 
-4. **Add the toggle to all layout headers** — Place `<ThemeToggle />` in:
-   - `src/layouts/AdminLayout.tsx` (next to GlobalSearch/NotificationBell)
-   - `src/layouts/OpsLayout.tsx` (next to NotificationBell)
-   - `src/layouts/ClientLayout.tsx` (in the header area)
+### 2. Fix Timezone Handling
 
-### Light mode color values
+- Update **`calendly-webhook`** Edge Function to convert UTC times to `America/Chicago` before storing `event_date`, `start_time`, and `end_time`
+- Update the **Calendar UI** (`AdminCalendar`, `CalendarEventDialog`, `DayViewDialog`) to treat all stored times as Central Time
+- Add a timezone indicator ("CT") next to time displays so it's clear
 
-The light palette will use whites/grays for backgrounds and dark text for foreground, while keeping the same blue primary (`213 100% 58%`):
+### 3. Add Outlook to Calendar UI
 
-| Variable | Dark (current) | Light |
-|----------|---------------|-------|
-| background | 0 0% 5% | 0 0% 100% |
-| foreground | 0 0% 100% | 0 0% 9% |
-| card | 0 0% 10% | 0 0% 98% |
-| popover | 0 0% 10% | 0 0% 100% |
-| muted | 0 0% 15% | 0 0% 96% |
-| muted-foreground | 0 0% 55% | 0 0% 45% |
-| border | 0 0% 18% | 0 0% 90% |
-| sidebar-background | 0 0% 7% | 0 0% 97% |
+- Add a new event type `"outlook"` to `TYPE_CONFIG` with a distinct icon and color (e.g., blue Microsoft icon)
+- Include it in the filter row alongside Calendly, Tasks, etc.
+- Outlook events will be read-only in the day view (clicking opens in Outlook) unless they originated from the portal
 
-### Files changed
-- `src/index.css` — restructure variables (light as `:root`, dark under `.dark`)
-- `src/hooks/useTheme.tsx` (new)
-- `src/components/ThemeToggle.tsx` (new)
-- `src/layouts/AdminLayout.tsx` — add toggle
-- `src/layouts/OpsLayout.tsx` — add toggle
-- `src/layouts/ClientLayout.tsx` — add toggle
-- `src/App.tsx` — wrap with `ThemeProvider`
+### Technical Details
+
+- **Connector**: `microsoft_outlook` — provides `MICROSOFT_OUTLOOK_API_KEY` + `LOVABLE_API_KEY` for gateway calls
+- **Gateway URL**: `https://connector-gateway.lovable.dev/microsoft_outlook/me/calendarView`
+- **DB change**: Add `outlook` to the `calendar_events.event_type` allowed values (or keep as text since it's already flexible)
+- **New secrets needed**: None — the connector handles OAuth token refresh automatically
+- **Files modified**: `calendly-webhook/index.ts`, `Calendar.tsx`, `CalendarEventDialog.tsx`, `DayViewDialog.tsx`
+- **Files created**: `supabase/functions/sync-outlook-calendar/index.ts`, `supabase/functions/push-outlook-event/index.ts`
 
