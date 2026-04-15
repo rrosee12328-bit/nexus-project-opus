@@ -255,7 +255,7 @@ export default function AdminCalendar() {
       }
     }
 
-    // Custom calendar events
+    // Custom calendar events (including calendly and outlook)
     for (const evt of customEvents) {
       const clientName = evt.client_id ? clientMap.get(evt.client_id) : null;
       const isVektiss = clientName?.toLowerCase() === "vektiss";
@@ -270,9 +270,24 @@ export default function AdminCalendar() {
           title: evt.title, type: "calendly",
           color: isVektiss ? "bg-primary" : "bg-indigo-500",
           meta: clientName ?? undefined,
-          timeRange: timeStr ?? undefined,
+          timeRange: timeStr ? `${timeStr} CT` : undefined,
           startTime: evt.start_time ?? undefined,
           description: evt.description ?? undefined,
+          rawEvent: evt,
+        });
+      } else if (evt.event_type === "outlook") {
+        // Extract web link from description if available
+        const linkMatch = evt.description?.match(/outlook_link:(.+)/);
+        const outlookLink = linkMatch?.[1] || undefined;
+        result.push({
+          id: `custom-${evt.id}`, date: parseISO(evt.event_date),
+          title: evt.title, type: "outlook",
+          color: isVektiss ? "bg-primary" : "bg-blue-600",
+          meta: clientName ?? "Outlook",
+          timeRange: timeStr ? `${timeStr} CT` : undefined,
+          startTime: evt.start_time ?? undefined,
+          description: evt.description?.replace(/\noutlook_link:.+/, "") ?? undefined,
+          link: outlookLink,
           rawEvent: evt,
         });
       } else {
@@ -285,7 +300,7 @@ export default function AdminCalendar() {
           title: evt.title, type: "custom",
           color: isVektiss ? "bg-primary" : defaultColor,
           meta: [clientName, evt.event_type.replace("_", " ")].filter(Boolean).join(" · "),
-          timeRange: timeStr ?? undefined,
+          timeRange: timeStr ? `${timeStr} CT` : undefined,
           startTime: evt.start_time ?? undefined,
           description: evt.description ?? undefined,
           rawEvent: evt,
