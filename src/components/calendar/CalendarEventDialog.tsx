@@ -108,17 +108,35 @@ export default function CalendarEventDialog({
         created_by: user!.id,
       };
 
+      let eventId: string;
+
       if (editingEvent) {
         const { error } = await supabase
           .from("calendar_events")
           .update(payload)
           .eq("id", editingEvent.id);
         if (error) throw error;
+        eventId = editingEvent.id;
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("calendar_events")
-          .insert(payload);
+          .insert(payload)
+          .select("id")
+          .single();
         if (error) throw error;
+        eventId = data.id;
+      }
+
+      // Push to Outlook (fire-and-forget)
+      try {
+        await supabase.functions.invoke("push-outlook-event", {
+          body: {
+            calendar_event_id: eventId,
+            action: editingEvent ? "update" : "create",
+          },
+        });
+      } catch (e) {
+        console.warn("Outlook push failed (non-blocking):", e);
       }
     },
     onSuccess: () => {
@@ -132,6 +150,19 @@ export default function CalendarEventDialog({
   const deleteMutation = useMutation({
     mutationFn: async () => {
       if (!editingEvent) return;
+
+      // Delete from Outlook first if it has an outlook_event_id
+      try {
+        await supabase.functions.invoke("push-outlook-event", {
+          body: {
+            calendar_event_id: editingEvent.id,
+            action: "delete",
+          },
+        });
+      } catch (e) {
+        console.warn("Outlook delete failed (non-blocking):", e);
+      }
+
       const { error } = await supabase
         .from("calendar_events")
         .delete()

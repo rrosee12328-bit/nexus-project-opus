@@ -215,6 +215,7 @@ export type Database = {
           event_date: string
           event_type: string
           id: string
+          outlook_event_id: string | null
           start_time: string | null
           title: string
           updated_at: string
@@ -228,6 +229,7 @@ export type Database = {
           event_date: string
           event_type?: string
           id?: string
+          outlook_event_id?: string | null
           start_time?: string | null
           title: string
           updated_at?: string
@@ -241,6 +243,7 @@ export type Database = {
           event_date?: string
           event_type?: string
           id?: string
+          outlook_event_id?: string | null
           start_time?: string | null
           title?: string
           updated_at?: string

@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   ChevronLeft, ChevronRight, Calendar as CalIcon, Plus,
-  Users, CheckSquare, FolderKanban, Phone, ExternalLink, Video, PhoneCall, Flag, Star, Clock,
+  Users, CheckSquare, FolderKanban, Phone, ExternalLink, Video, PhoneCall, Flag, Star, Clock, Mail,
 } from "lucide-react";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth,
@@ -22,7 +22,7 @@ interface CalendarEvent {
   id: string;
   date: Date;
   title: string;
-  type: "follow_up" | "task_deadline" | "project_milestone" | "meeting" | "custom" | "time_block" | "calendly";
+  type: "follow_up" | "task_deadline" | "project_milestone" | "meeting" | "custom" | "time_block" | "calendly" | "outlook";
   color: string;
   meta?: string;
   description?: string;
@@ -40,6 +40,7 @@ const TYPE_CONFIG = {
   custom: { icon: Star, label: "Event", color: "text-amber-500", dotColor: "bg-amber-500" },
   time_block: { icon: Clock, label: "Time Block", color: "text-teal-500", dotColor: "bg-teal-500" },
   calendly: { icon: Video, label: "Calendly", color: "text-indigo-500", dotColor: "bg-indigo-500" },
+  outlook: { icon: Mail, label: "Outlook", color: "text-blue-600", dotColor: "bg-blue-600" },
 } as const;
 
 const CUSTOM_TYPE_ICONS: Record<string, typeof Star> = {
@@ -63,7 +64,7 @@ export default function AdminCalendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [activeFilters, setActiveFilters] = useState<Set<EventType>>(
-    new Set(["follow_up", "task_deadline", "project_milestone", "meeting", "custom", "time_block", "calendly"])
+    new Set(["follow_up", "task_deadline", "project_milestone", "meeting", "custom", "time_block", "calendly", "outlook"])
   );
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
   const [dayViewOpen, setDayViewOpen] = useState(false);
@@ -254,7 +255,7 @@ export default function AdminCalendar() {
       }
     }
 
-    // Custom calendar events
+    // Custom calendar events (including calendly and outlook)
     for (const evt of customEvents) {
       const clientName = evt.client_id ? clientMap.get(evt.client_id) : null;
       const isVektiss = clientName?.toLowerCase() === "vektiss";
@@ -269,9 +270,24 @@ export default function AdminCalendar() {
           title: evt.title, type: "calendly",
           color: isVektiss ? "bg-primary" : "bg-indigo-500",
           meta: clientName ?? undefined,
-          timeRange: timeStr ?? undefined,
+          timeRange: timeStr ? `${timeStr} CT` : undefined,
           startTime: evt.start_time ?? undefined,
           description: evt.description ?? undefined,
+          rawEvent: evt,
+        });
+      } else if (evt.event_type === "outlook") {
+        // Extract web link from description if available
+        const linkMatch = evt.description?.match(/outlook_link:(.+)/);
+        const outlookLink = linkMatch?.[1] || undefined;
+        result.push({
+          id: `custom-${evt.id}`, date: parseISO(evt.event_date),
+          title: evt.title, type: "outlook",
+          color: isVektiss ? "bg-primary" : "bg-blue-600",
+          meta: clientName ?? "Outlook",
+          timeRange: timeStr ? `${timeStr} CT` : undefined,
+          startTime: evt.start_time ?? undefined,
+          description: evt.description?.replace(/\noutlook_link:.+/, "") ?? undefined,
+          link: outlookLink,
           rawEvent: evt,
         });
       } else {
@@ -284,7 +300,7 @@ export default function AdminCalendar() {
           title: evt.title, type: "custom",
           color: isVektiss ? "bg-primary" : defaultColor,
           meta: [clientName, evt.event_type.replace("_", " ")].filter(Boolean).join(" · "),
-          timeRange: timeStr ?? undefined,
+          timeRange: timeStr ? `${timeStr} CT` : undefined,
           startTime: evt.start_time ?? undefined,
           description: evt.description ?? undefined,
           rawEvent: evt,
@@ -335,6 +351,7 @@ export default function AdminCalendar() {
     custom: monthEvents.filter((e) => e.type === "custom").length,
     time_block: monthEvents.filter((e) => e.type === "time_block").length,
     calendly: monthEvents.filter((e) => e.type === "calendly").length,
+    outlook: monthEvents.filter((e) => e.type === "outlook").length,
   };
 
   const goToToday = () => {
@@ -363,7 +380,7 @@ export default function AdminCalendar() {
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Calendar</h1>
-          <p className="text-muted-foreground text-sm">Follow-ups, deadlines, milestones, meetings & events</p>
+          <p className="text-muted-foreground text-sm">Follow-ups, deadlines, milestones, meetings & events · <span className="font-medium">Central Time (CT)</span></p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={goToToday}>Today</Button>
@@ -383,6 +400,7 @@ export default function AdminCalendar() {
           { key: "custom" as EventType, count: typeCounts.custom },
           { key: "time_block" as EventType, count: typeCounts.time_block },
           { key: "calendly" as EventType, count: typeCounts.calendly },
+          { key: "outlook" as EventType, count: typeCounts.outlook },
         ]).map((item, i) => {
           const cfg = TYPE_CONFIG[item.key];
           const active = activeFilters.has(item.key);
