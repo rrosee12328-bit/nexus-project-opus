@@ -28,9 +28,14 @@ Email: info@vektiss.com
 
 2.2 Client
 Client Name: {{CLIENT_NAME}}
+Client Number: {{CLIENT_NUMBER}}
 Business Name: {{COMPANY_NAME}}
 Client Address: {{CLIENT_ADDRESS}}
 Client Email: {{CLIENT_EMAIL}}
+
+2.2A Project Reference
+Project Name: {{PROJECT_NAME}}
+Project Number: {{PROJECT_NUMBER}}
 
 2.3 Updates to Contact Information — Each Party agrees to promptly notify the other Party in writing of any changes to its contact information.`,
   },
@@ -206,6 +211,9 @@ function renderSections(data: {
   companyName: string;
   clientAddress: string;
   clientEmail: string;
+  clientNumber?: string;
+  projectName?: string;
+  projectNumber?: string;
   setupFee: number;
   monthlyFee: number;
   servicesDescription?: string;
@@ -262,6 +270,9 @@ function renderSections(data: {
       .replace(/\{\{COMPANY_NAME\}\}/g, data.companyName || "_______________")
       .replace(/\{\{CLIENT_ADDRESS\}\}/g, data.clientAddress || "_______________")
       .replace(/\{\{CLIENT_EMAIL\}\}/g, data.clientEmail || "_______________")
+      .replace(/\{\{CLIENT_NUMBER\}\}/g, data.clientNumber || "—")
+      .replace(/\{\{PROJECT_NAME\}\}/g, data.projectName || "—")
+      .replace(/\{\{PROJECT_NUMBER\}\}/g, data.projectNumber || "—")
       .replace(/\{\{SETUP_FEE\}\}/g, formatCurrency(data.setupFee))
       .replace(/\{\{MONTHLY_FEE\}\}/g, formatCurrency(data.monthlyFee))
       .replace(/\{\{HOURLY_RATE\}\}/g, formatCurrency(data.hourlyRate || 0))
@@ -441,6 +452,17 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Look up client_number when proposal is linked to a client
+    let clientNumber: string | undefined;
+    if (proposal.client_id) {
+      const { data: clientRow } = await supabaseAdmin
+        .from("clients")
+        .select("client_number")
+        .eq("id", proposal.client_id)
+        .maybeSingle();
+      clientNumber = clientRow?.client_number || undefined;
+    }
+
     // For admin_generate mode, signature is not required (admin generated, no client sign)
     if (!admin_generate && (!proposal.signed_at || !proposal.signed_name)) {
       return new Response(
@@ -455,6 +477,9 @@ Deno.serve(async (req) => {
       companyName: proposal.company_name || "",
       clientAddress: proposal.client_address || "",
       clientEmail: proposal.client_email || "",
+      clientNumber,
+      projectName: (proposal as any).project_name || undefined,
+      projectNumber: (proposal as any).project_number || undefined,
       setupFee: Number(proposal.setup_fee) || 0,
       monthlyFee: Number(proposal.monthly_fee) || 0,
       servicesDescription: proposal.services_description || undefined,

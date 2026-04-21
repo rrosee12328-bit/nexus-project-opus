@@ -45,6 +45,8 @@ export function SendProposalDialog({
   const queryClient = useQueryClient();
 
   const [proposalType, setProposalType] = useState<ProposalType>("retainer");
+  const [projectName, setProjectName] = useState("");
+  const [projectNumber, setProjectNumber] = useState("");
   const [monthlyFee, setMonthlyFee] = useState(String(defaultMonthlyFee || ""));
   const [setupFee, setSetupFee] = useState(String(defaultSetupFee || ""));
   const [hourlyRate, setHourlyRate] = useState("");
@@ -60,6 +62,8 @@ export function SendProposalDialog({
 
   const reset = () => {
     setProposalType("retainer");
+    setProjectName("");
+    setProjectNumber("");
     setMonthlyFee(String(defaultMonthlyFee || ""));
     setSetupFee(String(defaultSetupFee || ""));
     setHourlyRate("");
@@ -92,6 +96,8 @@ export function SendProposalDialog({
     client_name: clientName,
     client_email: clientEmail || null,
     proposal_type: proposalType,
+    project_name: projectName.trim() || null,
+    project_number: projectNumber.trim() || null,
     monthly_fee: proposalType === "retainer" ? (Number(monthlyFee) || 0) : 0,
     setup_fee: proposalType === "retainer" ? (Number(setupFee) || 0) : 0,
     hourly_rate: proposalType === "hourly" ? (Number(hourlyRate) || 0) : 0,
@@ -233,6 +239,20 @@ export function SendProposalDialog({
                     );
                   })}
                 </RadioGroup>
+              </div>
+
+              {/* Project identity */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Project Name</Label>
+                  <Input value={projectName} onChange={(e) => setProjectName(e.target.value)}
+                    placeholder="e.g. AI Chatbot Implementation" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Project Number</Label>
+                  <Input value={projectNumber} onChange={(e) => setProjectNumber(e.target.value)}
+                    placeholder="Optional, e.g. PR-1024" />
+                </div>
               </div>
 
               {/* Financial Terms — varies by type */}

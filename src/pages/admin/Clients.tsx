@@ -274,7 +274,14 @@ export default function AdminClients() {
                             {client.name.charAt(0).toUpperCase()}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="font-medium truncate">{client.name}</p>
+                            <p className="font-medium truncate flex items-center gap-2">
+                              {client.name}
+                              {(client as any).client_number && (
+                                <span className="text-[11px] font-mono font-normal text-muted-foreground">
+                                  {(client as any).client_number}
+                                </span>
+                              )}
+                            </p>
                             <p className="text-xs text-muted-foreground">{client.type ?? "No type set"}</p>
                           </div>
                         </button>

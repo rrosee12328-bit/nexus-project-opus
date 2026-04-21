@@ -67,6 +67,7 @@ const STATUS_ICONS: Record<string, typeof Circle> = {
 type ProjectForm = {
   client_id: string;
   name: string;
+  project_number: string;
   description: string;
   status: string;
   current_phase: string;
@@ -78,6 +79,7 @@ type ProjectForm = {
 const emptyForm: ProjectForm = {
   client_id: "",
   name: "",
+  project_number: "",
   description: "",
   status: "not_started",
   current_phase: "discovery",
@@ -141,7 +143,7 @@ export default function AdminProjects() {
   // Save project (create or update)
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const payload = {
+      const payload: any = {
         client_id: form.client_id,
         name: form.name,
         description: form.description || null,
@@ -151,6 +153,10 @@ export default function AdminProjects() {
         start_date: form.start_date || null,
         target_date: form.target_date || null,
       };
+      // Only include project_number when user provided one (otherwise DB default assigns PR-####)
+      if (form.project_number?.trim()) {
+        payload.project_number = form.project_number.trim();
+      }
 
       if (editingId) {
         const { error } = await supabase.from("projects").update(payload).eq("id", editingId);
@@ -227,6 +233,7 @@ export default function AdminProjects() {
     setForm({
       client_id: project.client_id,
       name: project.name,
+      project_number: project.project_number || "",
       description: project.description || "",
       status: project.status,
       current_phase: project.current_phase,
@@ -321,6 +328,11 @@ export default function AdminProjects() {
                       <div className="flex-1 min-w-0 space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-semibold">{project.name}</h3>
+                          {project.project_number && (
+                            <span className="text-[11px] font-mono text-muted-foreground">
+                              {project.project_number}
+                            </span>
+                          )}
                           <Badge className={`${STATUS_COLORS[project.status]} text-xs`}>
                             <StatusIcon className="h-3 w-3 mr-1" />
                             {STATUS_LABELS[project.status]}
@@ -412,6 +424,14 @@ export default function AdminProjects() {
             <div className="space-y-2">
               <Label>Project Name</Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Website Redesign" />
+            </div>
+            <div className="space-y-2">
+              <Label>Project Number</Label>
+              <Input
+                value={form.project_number}
+                onChange={(e) => setForm({ ...form, project_number: e.target.value })}
+                placeholder={editingId ? "" : "Auto (e.g. PR-1024)"}
+              />
             </div>
             <div className="space-y-2">
               <Label>Description</Label>

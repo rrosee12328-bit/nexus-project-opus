@@ -52,6 +52,7 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
 
   const [form, setForm] = useState<Partial<ClientInsert> & { pipeline_stage?: string; follow_up_start?: string; follow_up_end?: string; last_contact_date?: string; lead_source?: string }>({
     name: client?.name ?? "",
+    client_number: (client as any)?.client_number ?? "",
     type: client?.type ?? "",
     status: client?.status ?? "lead",
     start_date: client?.start_date ?? "",
@@ -79,6 +80,8 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
       if (!form.name?.trim()) throw new Error("Name is required");
       const payload: any = {
         name: form.name.trim(),
+        // Only send client_number if user provided one (otherwise DB default assigns CL-####)
+        ...(((form as any).client_number?.trim?.()) ? { client_number: (form as any).client_number.trim() } : {}),
         type: form.type?.trim() || null,
         status: form.status ?? "lead",
         start_date: form.start_date || null,
@@ -133,11 +136,20 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
               <Input value={form.name ?? ""} onChange={(e) => set("name", e.target.value)} placeholder="Client name" maxLength={100} />
             </div>
             <div className="space-y-2">
-              <Label>Type</Label>
-              <Input value={form.type ?? ""} onChange={(e) => set("type", e.target.value)} placeholder="e.g. Financial Services" maxLength={100} />
+              <Label>Client Number</Label>
+              <Input
+                value={(form as any).client_number ?? ""}
+                onChange={(e) => set("client_number", e.target.value)}
+                placeholder={isEdit ? "" : "Auto (e.g. CL-1024)"}
+                maxLength={50}
+              />
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <Input value={form.type ?? ""} onChange={(e) => set("type", e.target.value)} placeholder="e.g. Financial Services" maxLength={100} />
+            </div>
             <div className="space-y-2">
               <Label>Status</Label>
               <Select value={form.status} onValueChange={(v) => set("status", v)}>
@@ -149,10 +161,13 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Start Date</Label>
               <Input type="date" value={form.start_date ?? ""} onChange={(e) => set("start_date", e.target.value)} />
             </div>
+            <div />
           </div>
           {showPipeline && (
             <>

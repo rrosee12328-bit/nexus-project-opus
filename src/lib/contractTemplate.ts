@@ -26,9 +26,14 @@ Email: info@vektiss.com
 
 **2.2 Client**
 Client Name: {{CLIENT_NAME}}
+Client Number: {{CLIENT_NUMBER}}
 Business Name: {{COMPANY_NAME}}
 Client Address: {{CLIENT_ADDRESS}}
 Client Email: {{CLIENT_EMAIL}}
+
+**2.2A Project Reference**
+Project Name: {{PROJECT_NAME}}
+Project Number: {{PROJECT_NUMBER}}
 
 **2.3 Updates to Contact Information** — Each Party agrees to promptly notify the other Party in writing of any changes to its contact information.`,
   },
@@ -200,6 +205,9 @@ export function renderContract(data: {
   companyName: string;
   clientAddress: string;
   clientEmail: string;
+  clientNumber?: string;
+  projectName?: string;
+  projectNumber?: string;
   setupFee: number;
   monthlyFee: number;
   servicesDescription?: string;
@@ -271,6 +279,9 @@ export function renderContract(data: {
       .replace(/\{\{COMPANY_NAME\}\}/g, data.companyName || "_______________")
       .replace(/\{\{CLIENT_ADDRESS\}\}/g, data.clientAddress || "_______________")
       .replace(/\{\{CLIENT_EMAIL\}\}/g, data.clientEmail || "_______________")
+      .replace(/\{\{CLIENT_NUMBER\}\}/g, data.clientNumber || "—")
+      .replace(/\{\{PROJECT_NAME\}\}/g, data.projectName || "—")
+      .replace(/\{\{PROJECT_NUMBER\}\}/g, data.projectNumber || "—")
       .replace(/\{\{SETUP_FEE\}\}/g, fmt(data.setupFee))
       .replace(/\{\{MONTHLY_FEE\}\}/g, fmt(data.monthlyFee))
       .replace(/\{\{HOURLY_RATE\}\}/g, fmt(data.hourlyRate || 0))
