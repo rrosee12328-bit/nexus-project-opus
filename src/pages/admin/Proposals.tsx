@@ -294,17 +294,11 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
                 <Label className="text-xs">Client Email</Label>
                 <Input type="email" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} placeholder="client@example.com" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Project Name</Label>
-                  <Input value={projectName} onChange={(e) => setProjectName(e.target.value)}
-                    placeholder="e.g. AI Chatbot Implementation" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Project Number</Label>
-                  <Input value={projectNumber} onChange={(e) => setProjectNumber(e.target.value)}
-                    placeholder="Optional, e.g. PR-1024" />
-                </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Project Name</Label>
+                <Input value={projectName} onChange={(e) => setProjectName(e.target.value)}
+                  placeholder="e.g. AI Chatbot Implementation" />
+                <p className="text-[11px] text-muted-foreground">Project number is auto-generated.</p>
               </div>
               {/* Proposal Type */}
               <div className="space-y-2">
