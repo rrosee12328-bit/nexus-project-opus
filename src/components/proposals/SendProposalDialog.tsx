@@ -46,7 +46,6 @@ export function SendProposalDialog({
 
   const [proposalType, setProposalType] = useState<ProposalType>("retainer");
   const [projectName, setProjectName] = useState("");
-  const [projectNumber, setProjectNumber] = useState("");
   const [monthlyFee, setMonthlyFee] = useState(String(defaultMonthlyFee || ""));
   const [setupFee, setSetupFee] = useState(String(defaultSetupFee || ""));
   const [hourlyRate, setHourlyRate] = useState("");
@@ -63,7 +62,6 @@ export function SendProposalDialog({
   const reset = () => {
     setProposalType("retainer");
     setProjectName("");
-    setProjectNumber("");
     setMonthlyFee(String(defaultMonthlyFee || ""));
     setSetupFee(String(defaultSetupFee || ""));
     setHourlyRate("");
@@ -97,7 +95,6 @@ export function SendProposalDialog({
     client_email: clientEmail || null,
     proposal_type: proposalType,
     project_name: projectName.trim() || null,
-    project_number: projectNumber.trim() || null,
     monthly_fee: proposalType === "retainer" ? (Number(monthlyFee) || 0) : 0,
     setup_fee: proposalType === "retainer" ? (Number(setupFee) || 0) : 0,
     hourly_rate: proposalType === "hourly" ? (Number(hourlyRate) || 0) : 0,
