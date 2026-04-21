@@ -96,6 +96,24 @@ export default function ProposalPage() {
   // Theme: default to light for proposals
   const { theme: appTheme, setTheme: setAppTheme } = useTheme();
 
+  // Detect if the current viewer is an admin (only admins see internal links)
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) { if (active) setIsAdmin(false); return; }
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+      if (active) setIsAdmin(!!data);
+    })();
+    return () => { active = false; };
+  }, []);
+
   // Default proposal to light mode on first visit
   useEffect(() => {
     const saved = localStorage.getItem("proposal-theme");
