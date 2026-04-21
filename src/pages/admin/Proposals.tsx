@@ -62,7 +62,6 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
   const [companyName, setCompanyName] = useState("");
   const [proposalType, setProposalType] = useState<ProposalType>("retainer");
   const [projectName, setProjectName] = useState("");
-  const [projectNumber, setProjectNumber] = useState("");
   const [monthlyFee, setMonthlyFee] = useState("");
   const [setupFee, setSetupFee] = useState("");
   const [hourlyRate, setHourlyRate] = useState("");
@@ -84,7 +83,7 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
     setStep("input");
     setClientName(""); setClientEmail(""); setCompanyName("");
     setProposalType("retainer");
-    setProjectName(""); setProjectNumber("");
+    setProjectName("");
     setMonthlyFee(""); setSetupFee(""); setBillingSchedule("monthly");
     setHourlyRate(""); setProjectTotal("");
     setScopeDescription(""); setDeliverables(""); setTimeline("");
@@ -139,7 +138,6 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
         company_name: companyName.trim() || null,
         proposal_type: proposalType,
         project_name: projectName.trim() || null,
-        project_number: projectNumber.trim() || null,
         monthly_fee: proposalType === "retainer" ? (Number(monthlyFee) || 0) : 0,
         setup_fee: proposalType === "retainer" ? (Number(setupFee) || 0) : 0,
         hourly_rate: proposalType === "hourly" ? (Number(hourlyRate) || 0) : 0,
@@ -180,7 +178,6 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
           company_name: companyName.trim() || null,
           proposal_type: proposalType,
           project_name: projectName.trim() || null,
-          project_number: projectNumber.trim() || null,
           monthly_fee: proposalType === "retainer" ? (Number(monthlyFee) || 0) : 0,
           setup_fee: proposalType === "retainer" ? (Number(setupFee) || 0) : 0,
           hourly_rate: proposalType === "hourly" ? (Number(hourlyRate) || 0) : 0,
