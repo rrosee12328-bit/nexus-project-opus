@@ -426,6 +426,14 @@ export default function AdminProjects() {
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Website Redesign" />
             </div>
             <div className="space-y-2">
+              <Label>Project Number</Label>
+              <Input
+                value={form.project_number}
+                onChange={(e) => setForm({ ...form, project_number: e.target.value })}
+                placeholder={editingId ? "" : "Auto (e.g. PR-1024)"}
+              />
+            </div>
+            <div className="space-y-2">
               <Label>Description</Label>
               <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Brief description…" rows={2} />
             </div>
