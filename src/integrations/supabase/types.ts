@@ -515,6 +515,7 @@ export type Database = {
       clients: {
         Row: {
           balance_due: number | null
+          client_number: string | null
           created_at: string
           email: string | null
           follow_up_end: string | null
@@ -538,6 +539,7 @@ export type Database = {
         }
         Insert: {
           balance_due?: number | null
+          client_number?: string | null
           created_at?: string
           email?: string | null
           follow_up_end?: string | null
@@ -561,6 +563,7 @@ export type Database = {
         }
         Update: {
           balance_due?: number | null
+          client_number?: string | null
           created_at?: string
           email?: string | null
           follow_up_end?: string | null
@@ -1075,6 +1078,7 @@ export type Database = {
           id: string
           name: string
           progress: number
+          project_number: string | null
           start_date: string | null
           status: Database["public"]["Enums"]["project_status"]
           target_date: string | null
@@ -1088,6 +1092,7 @@ export type Database = {
           id?: string
           name: string
           progress?: number
+          project_number?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
           target_date?: string | null
@@ -1101,6 +1106,7 @@ export type Database = {
           id?: string
           name?: string
           progress?: number
+          project_number?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
           target_date?: string | null
@@ -1163,6 +1169,8 @@ export type Database = {
           last_viewed_at: string | null
           monthly_fee: number
           paid_at: string | null
+          project_name: string | null
+          project_number: string | null
           project_total: number | null
           proposal_type: string
           scope_description: string | null
@@ -1194,6 +1202,8 @@ export type Database = {
           last_viewed_at?: string | null
           monthly_fee?: number
           paid_at?: string | null
+          project_name?: string | null
+          project_number?: string | null
           project_total?: number | null
           proposal_type?: string
           scope_description?: string | null
@@ -1225,6 +1235,8 @@ export type Database = {
           last_viewed_at?: string | null
           monthly_fee?: number
           paid_at?: string | null
+          project_name?: string | null
+          project_number?: string | null
           project_total?: number | null
           proposal_type?: string
           scope_description?: string | null
