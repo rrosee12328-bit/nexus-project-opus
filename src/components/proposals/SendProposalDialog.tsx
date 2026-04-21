@@ -96,6 +96,8 @@ export function SendProposalDialog({
     client_name: clientName,
     client_email: clientEmail || null,
     proposal_type: proposalType,
+    project_name: projectName.trim() || null,
+    project_number: projectNumber.trim() || null,
     monthly_fee: proposalType === "retainer" ? (Number(monthlyFee) || 0) : 0,
     setup_fee: proposalType === "retainer" ? (Number(setupFee) || 0) : 0,
     hourly_rate: proposalType === "hourly" ? (Number(hourlyRate) || 0) : 0,
