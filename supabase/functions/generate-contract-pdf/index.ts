@@ -56,21 +56,9 @@ Client Email: {{CLIENT_EMAIL}}
     title: "3A. FEES, COMPENSATION, AND PAYMENT STRUCTURE",
     content: `3A.1 General Payment Obligation — Client agrees to pay all fees as described herein. All fees are non-refundable.
 
-3A.2 One-Time Setup and Build Fee — Client shall pay a one-time setup fee of {{SETUP_FEE}} covering initial planning, configuration, development, integration, and deployment.
+{{FEE_BLOCK}}
 
-3A.3 Monthly Service Fee — Monthly Service Fee Amount: {{MONTHLY_FEE}} per month, which may include:
-- Updates to AI prompts, responses, messaging, and logic
-- Technical troubleshooting and issue resolution
-- Monitoring system stability and performance
-- Adjustments for compatibility with External Service Providers
-- Updates to knowledge-bases or training materials
-- Routine support and guidance
-
-3A.4 Automatic Renewal — The Monthly Service will automatically renew on a month-to-month basis unless Client provides at least thirty (30) days' written notice of cancellation.
-
-3A.5 Effect of Nonpayment — If Client fails to timely pay any fee, Vektiss may suspend, limit, or deactivate the relevant systems until all outstanding amounts are paid.
-
-3A.6 Exclusions — The Monthly Service Fee does not cover new projects, new automations, major redesigns, or expanded scope beyond the original Deliverables.`,
+3A.X Effect of Nonpayment — If Client fails to timely pay any fee, Vektiss may suspend, limit, or deactivate the relevant systems until all outstanding amounts are paid.`,
   },
   {
     title: "4. TERM AND DURATION",
@@ -88,6 +76,8 @@ Client Email: {{CLIENT_EMAIL}}
 - Integration with External Service Providers
 - Development of AI email and messaging assistants
 - Technical consulting and strategy related to AI and automation
+
+{{SCOPE_BLOCK}}
 
 {{SERVICES_DESCRIPTION}}
 
