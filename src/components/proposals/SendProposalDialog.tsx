@@ -45,6 +45,8 @@ export function SendProposalDialog({
   const queryClient = useQueryClient();
 
   const [proposalType, setProposalType] = useState<ProposalType>("retainer");
+  const [projectName, setProjectName] = useState("");
+  const [projectNumber, setProjectNumber] = useState("");
   const [monthlyFee, setMonthlyFee] = useState(String(defaultMonthlyFee || ""));
   const [setupFee, setSetupFee] = useState(String(defaultSetupFee || ""));
   const [hourlyRate, setHourlyRate] = useState("");
@@ -60,6 +62,8 @@ export function SendProposalDialog({
 
   const reset = () => {
     setProposalType("retainer");
+    setProjectName("");
+    setProjectNumber("");
     setMonthlyFee(String(defaultMonthlyFee || ""));
     setSetupFee(String(defaultSetupFee || ""));
     setHourlyRate("");
