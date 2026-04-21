@@ -56,6 +56,7 @@ export function SendProposalDialog({
   const [timeline, setTimeline] = useState("");
   const [servicesDescription, setServicesDescription] = useState("");
   const [proposalUrl, setProposalUrl] = useState<string | null>(null);
+  const [costAnalysisUrl, setCostAnalysisUrl] = useState("");
   const [copied, setCopied] = useState(false);
   const [generating, setGenerating] = useState(false);
 
@@ -72,6 +73,7 @@ export function SendProposalDialog({
     setTimeline("");
     setServicesDescription("");
     setProposalUrl(null);
+    setCostAnalysisUrl("");
     setCopied(false);
     setGenerating(false);
   };
@@ -105,6 +107,7 @@ export function SendProposalDialog({
     timeline: timeline.trim() || null,
     billing_schedule: billingSchedule,
     status,
+    cost_analysis_url: costAnalysisUrl.trim() || null,
     created_by: user!.id,
   });
 
