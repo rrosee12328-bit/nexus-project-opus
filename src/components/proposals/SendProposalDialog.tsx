@@ -87,7 +87,7 @@ export function SendProposalDialog({
   })();
 
   // Build the proposal row payload
-  const buildPayload = (status: "sent" | "draft") => ({
+  const buildPayload = (status: "sent" | "draft" | "signed") => ({
     client_id: clientId,
     client_name: clientName,
     client_email: clientEmail || null,
@@ -362,7 +362,7 @@ export function SendProposalDialog({
               <div className="flex gap-2">
                 <Input value={proposalUrl} readOnly className="font-mono text-xs" />
                 <Button size="icon" variant="outline" onClick={handleCopy}>
-                  {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                  {copied ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
