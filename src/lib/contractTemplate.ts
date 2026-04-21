@@ -204,6 +204,12 @@ export function renderContract(data: {
   monthlyFee: number;
   servicesDescription?: string;
   effectiveDate?: string;
+  proposalType?: ProposalType;
+  hourlyRate?: number;
+  projectTotal?: number;
+  scopeDescription?: string;
+  deliverables?: string;
+  timeline?: string;
 }): { title: string; content: string }[] {
   const fmt = (n: number) =>
     n.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 });
@@ -216,6 +222,48 @@ export function renderContract(data: {
     ? `\n\n**Additional Services Description:**\n${data.servicesDescription}`
     : "";
 
+  const proposalType: ProposalType = data.proposalType || "retainer";
+
+  // Fee block changes per proposal type
+  let feeBlock = "";
+  if (proposalType === "hourly") {
+    feeBlock = `**3A.2 Hourly Rate Engagement** — Client engages Vektiss on an hourly basis at a rate of **${fmt(data.hourlyRate || 0)} per hour**. Time will be tracked and invoiced as worked. Invoices are due upon receipt.
+
+**3A.3 No Recurring Fee** — This engagement does not include a fixed monthly retainer or one‑time setup fee unless otherwise stated in writing. Either party may discontinue the engagement upon written notice; Client remains obligated for hours already worked.`;
+  } else if (proposalType === "project") {
+    feeBlock = `**3A.2 Fixed Project Fee** — Client shall pay a fixed project fee of **${fmt(data.projectTotal || 0)}** for the Services described in Section 5. Payment terms: 50% upon execution of this Contract and 50% upon delivery, unless otherwise agreed in writing.
+
+**3A.3 No Ongoing Obligation** — Upon completion and final payment, neither party has any further financial obligation under this Contract beyond the surviving provisions.`;
+  } else {
+    // retainer (existing default behavior)
+    feeBlock = `**3A.2 One‑Time Setup and Build Fee** — Client shall pay a one‑time setup fee of **${fmt(data.setupFee)}** covering initial planning, configuration, development, integration, and deployment.
+
+**3A.3 Monthly Service Fee** — Monthly Service Fee Amount: **${fmt(data.monthlyFee)}** per month, which may include:
+• Updates to AI prompts, responses, messaging, and logic
+• Technical troubleshooting and issue resolution
+• Monitoring system stability and performance
+• Adjustments for compatibility with External Service Providers
+• Updates to knowledge‑bases or training materials
+• Routine support and guidance
+
+**3A.4 Automatic Renewal** — The Monthly Service will automatically renew on a month‑to‑month basis unless Client provides at least thirty (30) days' written notice of cancellation.
+
+**3A.5 Exclusions** — The Monthly Service Fee does not cover new projects, new automations, major redesigns, or expanded scope beyond the original Deliverables.`;
+  }
+
+  // Scope block — assembled from optional structured fields
+  const scopeParts: string[] = [];
+  if (data.scopeDescription?.trim()) {
+    scopeParts.push(`**Scope of Work:**\n${data.scopeDescription.trim()}`);
+  }
+  if (data.deliverables?.trim()) {
+    scopeParts.push(`**Deliverables:**\n${data.deliverables.trim()}`);
+  }
+  if (data.timeline?.trim()) {
+    scopeParts.push(`**Timeline:**\n${data.timeline.trim()}`);
+  }
+  const scopeBlock = scopeParts.length ? scopeParts.join("\n\n") : "";
+
   return CONTRACT_SECTIONS.map((s) => ({
     title: s.title,
     content: s.content
@@ -225,6 +273,10 @@ export function renderContract(data: {
       .replace(/\{\{CLIENT_EMAIL\}\}/g, data.clientEmail || "_______________")
       .replace(/\{\{SETUP_FEE\}\}/g, fmt(data.setupFee))
       .replace(/\{\{MONTHLY_FEE\}\}/g, fmt(data.monthlyFee))
+      .replace(/\{\{HOURLY_RATE\}\}/g, fmt(data.hourlyRate || 0))
+      .replace(/\{\{PROJECT_TOTAL\}\}/g, fmt(data.projectTotal || 0))
+      .replace(/\{\{FEE_BLOCK\}\}/g, feeBlock)
+      .replace(/\{\{SCOPE_BLOCK\}\}/g, scopeBlock)
       .replace(/\{\{SERVICES_DESCRIPTION\}\}/g, servicesBlock)
       .replace(/\{\{EFFECTIVE_DATE\}\}/g, date),
   }));
