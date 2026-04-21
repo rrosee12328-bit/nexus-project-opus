@@ -328,6 +328,11 @@ export default function AdminProjects() {
                       <div className="flex-1 min-w-0 space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-semibold">{project.name}</h3>
+                          {project.project_number && (
+                            <span className="text-[11px] font-mono text-muted-foreground">
+                              {project.project_number}
+                            </span>
+                          )}
                           <Badge className={`${STATUS_COLORS[project.status]} text-xs`}>
                             <StatusIcon className="h-3 w-3 mr-1" />
                             {STATUS_LABELS[project.status]}
