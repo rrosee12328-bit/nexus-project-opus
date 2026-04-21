@@ -34,6 +34,12 @@ interface ProposalData {
   signed_at: string | null;
   signed_name: string | null;
   paid_at: string | null;
+  proposal_type?: string | null;
+  hourly_rate?: number | null;
+  project_total?: number | null;
+  scope_description?: string | null;
+  deliverables?: string | null;
+  timeline?: string | null;
 }
 
 type Step = "overview" | "info" | "nda" | "nda-sign" | "nda-done" | "review" | "sign" | "pay" | "done";
@@ -252,6 +258,12 @@ export default function ProposalPage() {
     setupFee: proposal.setup_fee,
     monthlyFee: proposal.monthly_fee,
     servicesDescription: proposal.services_description || undefined,
+    proposalType: (proposal.proposal_type as any) || "retainer",
+    hourlyRate: proposal.hourly_rate || 0,
+    projectTotal: proposal.project_total || 0,
+    scopeDescription: proposal.scope_description || undefined,
+    deliverables: proposal.deliverables || undefined,
+    timeline: proposal.timeline || undefined,
   });
 
   const ndaSections = renderNda({
