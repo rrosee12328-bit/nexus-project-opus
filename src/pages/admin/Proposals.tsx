@@ -11,7 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import {
   FileText, CheckCircle, CreditCard, ExternalLink, Eye, Plus, Mail,
   Send, Copy, Check, ArrowLeft, Sparkles, Loader2, Edit3,
-  Briefcase, Clock, Repeat, Download, Sheet as SheetIcon,
+  Briefcase, Clock, Repeat, Download,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
