@@ -205,6 +205,9 @@ export function renderContract(data: {
   companyName: string;
   clientAddress: string;
   clientEmail: string;
+  clientNumber?: string;
+  projectName?: string;
+  projectNumber?: string;
   setupFee: number;
   monthlyFee: number;
   servicesDescription?: string;
@@ -276,6 +279,9 @@ export function renderContract(data: {
       .replace(/\{\{COMPANY_NAME\}\}/g, data.companyName || "_______________")
       .replace(/\{\{CLIENT_ADDRESS\}\}/g, data.clientAddress || "_______________")
       .replace(/\{\{CLIENT_EMAIL\}\}/g, data.clientEmail || "_______________")
+      .replace(/\{\{CLIENT_NUMBER\}\}/g, data.clientNumber || "—")
+      .replace(/\{\{PROJECT_NAME\}\}/g, data.projectName || "—")
+      .replace(/\{\{PROJECT_NUMBER\}\}/g, data.projectNumber || "—")
       .replace(/\{\{SETUP_FEE\}\}/g, fmt(data.setupFee))
       .replace(/\{\{MONTHLY_FEE\}\}/g, fmt(data.monthlyFee))
       .replace(/\{\{HOURLY_RATE\}\}/g, fmt(data.hourlyRate || 0))
