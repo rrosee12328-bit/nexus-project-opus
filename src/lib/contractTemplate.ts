@@ -26,9 +26,14 @@ Email: info@vektiss.com
 
 **2.2 Client**
 Client Name: {{CLIENT_NAME}}
+Client Number: {{CLIENT_NUMBER}}
 Business Name: {{COMPANY_NAME}}
 Client Address: {{CLIENT_ADDRESS}}
 Client Email: {{CLIENT_EMAIL}}
+
+**2.2A Project Reference**
+Project Name: {{PROJECT_NAME}}
+Project Number: {{PROJECT_NUMBER}}
 
 **2.3 Updates to Contact Information** — Each Party agrees to promptly notify the other Party in writing of any changes to its contact information.`,
   },

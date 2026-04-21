@@ -241,6 +241,20 @@ export function SendProposalDialog({
                 </RadioGroup>
               </div>
 
+              {/* Project identity */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Project Name</Label>
+                  <Input value={projectName} onChange={(e) => setProjectName(e.target.value)}
+                    placeholder="e.g. AI Chatbot Implementation" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Project Number</Label>
+                  <Input value={projectNumber} onChange={(e) => setProjectNumber(e.target.value)}
+                    placeholder="Optional, e.g. PR-1024" />
+                </div>
+              </div>
+
               {/* Financial Terms — varies by type */}
               <div className="space-y-3">
                 <p className="text-xs font-semibold flex items-center gap-1.5">

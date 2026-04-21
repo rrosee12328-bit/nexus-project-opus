@@ -61,6 +61,8 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
   const [clientEmail, setClientEmail] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [proposalType, setProposalType] = useState<ProposalType>("retainer");
+  const [projectName, setProjectName] = useState("");
+  const [projectNumber, setProjectNumber] = useState("");
   const [monthlyFee, setMonthlyFee] = useState("");
   const [setupFee, setSetupFee] = useState("");
   const [hourlyRate, setHourlyRate] = useState("");
@@ -82,6 +84,7 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
     setStep("input");
     setClientName(""); setClientEmail(""); setCompanyName("");
     setProposalType("retainer");
+    setProjectName(""); setProjectNumber("");
     setMonthlyFee(""); setSetupFee(""); setBillingSchedule("monthly");
     setHourlyRate(""); setProjectTotal("");
     setScopeDescription(""); setDeliverables(""); setTimeline("");
