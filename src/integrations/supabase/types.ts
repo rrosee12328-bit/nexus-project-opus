@@ -1156,17 +1156,23 @@ export type Database = {
           contract_pdf_path: string | null
           created_at: string
           created_by: string
+          deliverables: string | null
           first_viewed_at: string | null
+          hourly_rate: number | null
           id: string
           last_viewed_at: string | null
           monthly_fee: number
           paid_at: string | null
+          project_total: number | null
+          proposal_type: string
+          scope_description: string | null
           services_description: string | null
           setup_fee: number
           signed_at: string | null
           signed_name: string | null
           status: string
           stripe_checkout_session_id: string | null
+          timeline: string | null
           token: string
           updated_at: string
           view_count: number
@@ -1181,17 +1187,23 @@ export type Database = {
           contract_pdf_path?: string | null
           created_at?: string
           created_by: string
+          deliverables?: string | null
           first_viewed_at?: string | null
+          hourly_rate?: number | null
           id?: string
           last_viewed_at?: string | null
           monthly_fee?: number
           paid_at?: string | null
+          project_total?: number | null
+          proposal_type?: string
+          scope_description?: string | null
           services_description?: string | null
           setup_fee?: number
           signed_at?: string | null
           signed_name?: string | null
           status?: string
           stripe_checkout_session_id?: string | null
+          timeline?: string | null
           token?: string
           updated_at?: string
           view_count?: number
@@ -1206,17 +1218,23 @@ export type Database = {
           contract_pdf_path?: string | null
           created_at?: string
           created_by?: string
+          deliverables?: string | null
           first_viewed_at?: string | null
+          hourly_rate?: number | null
           id?: string
           last_viewed_at?: string | null
           monthly_fee?: number
           paid_at?: string | null
+          project_total?: number | null
+          proposal_type?: string
+          scope_description?: string | null
           services_description?: string | null
           setup_fee?: number
           signed_at?: string | null
           signed_name?: string | null
           status?: string
           stripe_checkout_session_id?: string | null
+          timeline?: string | null
           token?: string
           updated_at?: string
           view_count?: number
