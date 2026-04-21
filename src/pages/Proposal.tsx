@@ -16,7 +16,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   Loader2, FileSignature, CheckCircle2, CreditCard, AlertCircle,
   ShieldCheck, ScrollText, ArrowRight, ArrowLeft, Sun, Moon,
-  FileText, Lock, Zap,
+  FileText, Lock, Zap, ExternalLink, Briefcase, Clock, Repeat, CalendarDays,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -40,6 +40,10 @@ interface ProposalData {
   scope_description?: string | null;
   deliverables?: string | null;
   timeline?: string | null;
+  project_name?: string | null;
+  project_number?: string | null;
+  billing_schedule?: string | null;
+  cost_analysis_url?: string | null;
 }
 
 type Step = "overview" | "info" | "nda" | "nda-sign" | "nda-done" | "review" | "sign" | "pay" | "done";
