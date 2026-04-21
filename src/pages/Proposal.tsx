@@ -253,6 +253,25 @@ export default function ProposalPage() {
   const fmt = (n: number) =>
     n.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 });
 
+  const handleSaveCostAnalysis = async () => {
+    if (!proposal) return;
+    const url = costAnalysisInput.trim();
+    setSavingCostUrl(true);
+    try {
+      const { error: upErr } = await supabase
+        .from("proposals")
+        .update({ cost_analysis_url: url || null })
+        .eq("id", proposal.id);
+      if (upErr) throw upErr;
+      setProposal((p) => p ? { ...p, cost_analysis_url: url || null } : p);
+      toast.success(url ? "Cost analysis link saved" : "Cost analysis link removed");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save link");
+    } finally {
+      setSavingCostUrl(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
