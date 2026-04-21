@@ -60,13 +60,20 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [companyName, setCompanyName] = useState("");
+  const [proposalType, setProposalType] = useState<ProposalType>("retainer");
   const [monthlyFee, setMonthlyFee] = useState("");
   const [setupFee, setSetupFee] = useState("");
+  const [hourlyRate, setHourlyRate] = useState("");
+  const [projectTotal, setProjectTotal] = useState("");
+  const [scopeDescription, setScopeDescription] = useState("");
+  const [deliverables, setDeliverables] = useState("");
+  const [timeline, setTimeline] = useState("");
   const [billingSchedule, setBillingSchedule] = useState("monthly");
   const [servicesDescription, setServicesDescription] = useState("");
   const [polishedDescription, setPolishedDescription] = useState("");
   const [polishing, setPolishing] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [proposalUrl, setProposalUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
@@ -74,10 +81,13 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
   const reset = () => {
     setStep("input");
     setClientName(""); setClientEmail(""); setCompanyName("");
+    setProposalType("retainer");
     setMonthlyFee(""); setSetupFee(""); setBillingSchedule("monthly");
+    setHourlyRate(""); setProjectTotal("");
+    setScopeDescription(""); setDeliverables(""); setTimeline("");
     setServicesDescription(""); setPolishedDescription("");
     setProposalUrl(null); setCopied(false);
-    setCreating(false); setPolishing(false);
+    setCreating(false); setPolishing(false); setGenerating(false);
   };
 
   const handleOpen = (o: boolean) => {
