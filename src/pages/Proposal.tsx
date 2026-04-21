@@ -464,22 +464,45 @@ export default function ProposalPage() {
                     </div>
 
                     {/* Admin-only: Cost analysis link */}
-                    {isAdmin && proposal.cost_analysis_url && (
-                      <a
-                        href={proposal.cost_analysis_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 hover:bg-primary/10 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <ScrollText className="h-4 w-4 text-primary shrink-0" />
-                          <div>
-                            <p className="text-sm font-semibold text-foreground">Cost Analysis (Admin)</p>
-                            <p className="text-xs text-muted-foreground">Open the internal cost analysis spreadsheet for this client</p>
+                    {/* Admin-only: Cost Analysis section (editable) */}
+                    {isAdmin && (
+                      <section className="rounded-lg border border-dashed border-primary/40 bg-primary/5 p-4 space-y-3">
+                        <div className="flex items-start gap-3">
+                          <ScrollText className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                          <div className="flex-1 space-y-1">
+                            <p className="text-sm font-semibold text-foreground">Cost Analysis (Admin Only)</p>
+                            <p className="text-xs text-muted-foreground">
+                              Paste the Google Sheets URL with this project's cost analysis. Visible only to admins — never shown to the client.
+                            </p>
                           </div>
                         </div>
-                        <ArrowRight className="h-4 w-4 text-primary" />
-                      </a>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Input
+                            type="url"
+                            value={costAnalysisInput}
+                            onChange={(e) => setCostAnalysisInput(e.target.value)}
+                            placeholder="https://docs.google.com/spreadsheets/d/..."
+                            className="flex-1 bg-background"
+                          />
+                          <Button
+                            onClick={handleSaveCostAnalysis}
+                            disabled={savingCostUrl || costAnalysisInput.trim() === (proposal.cost_analysis_url || "")}
+                            size="sm"
+                          >
+                            {savingCostUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+                          </Button>
+                        </div>
+                        {proposal.cost_analysis_url && (
+                          <a
+                            href={proposal.cost_analysis_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+                          >
+                            Open current spreadsheet <ArrowRight className="h-3 w-3" />
+                          </a>
+                        )}
+                      </section>
                     )}
 
                     {/* Parties */}
