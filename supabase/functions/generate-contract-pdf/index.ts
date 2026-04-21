@@ -210,10 +210,50 @@ function renderSections(data: {
   monthlyFee: number;
   servicesDescription?: string;
   effectiveDate: string;
+  proposalType?: "hourly" | "project" | "retainer";
+  hourlyRate?: number;
+  projectTotal?: number;
+  scopeDescription?: string;
+  deliverables?: string;
+  timeline?: string;
 }): { title: string; content: string }[] {
   const servicesBlock = data.servicesDescription
     ? `\n\nAdditional Services Description:\n${data.servicesDescription}`
     : "";
+
+  const proposalType = data.proposalType || "retainer";
+  const fmt = formatCurrency;
+
+  let feeBlock = "";
+  if (proposalType === "hourly") {
+    feeBlock = `3A.2 Hourly Rate Engagement — Client engages Vektiss on an hourly basis at a rate of ${fmt(data.hourlyRate || 0)} per hour. Time will be tracked and invoiced as worked. Invoices are due upon receipt.
+
+3A.3 No Recurring Fee — This engagement does not include a fixed monthly retainer or one-time setup fee unless otherwise stated in writing. Either party may discontinue the engagement upon written notice; Client remains obligated for hours already worked.`;
+  } else if (proposalType === "project") {
+    feeBlock = `3A.2 Fixed Project Fee — Client shall pay a fixed project fee of ${fmt(data.projectTotal || 0)} for the Services described in Section 5. Payment terms: 50% upon execution of this Contract and 50% upon delivery, unless otherwise agreed in writing.
+
+3A.3 No Ongoing Obligation — Upon completion and final payment, neither party has any further financial obligation under this Contract beyond the surviving provisions.`;
+  } else {
+    feeBlock = `3A.2 One-Time Setup and Build Fee — Client shall pay a one-time setup fee of ${fmt(data.setupFee)} covering initial planning, configuration, development, integration, and deployment.
+
+3A.3 Monthly Service Fee — Monthly Service Fee Amount: ${fmt(data.monthlyFee)} per month, which may include:
+- Updates to AI prompts, responses, messaging, and logic
+- Technical troubleshooting and issue resolution
+- Monitoring system stability and performance
+- Adjustments for compatibility with External Service Providers
+- Updates to knowledge-bases or training materials
+- Routine support and guidance
+
+3A.4 Automatic Renewal — The Monthly Service will automatically renew on a month-to-month basis unless Client provides at least thirty (30) days' written notice of cancellation.
+
+3A.5 Exclusions — The Monthly Service Fee does not cover new projects, new automations, major redesigns, or expanded scope beyond the original Deliverables.`;
+  }
+
+  const scopeParts: string[] = [];
+  if (data.scopeDescription?.trim()) scopeParts.push(`Scope of Work:\n${data.scopeDescription.trim()}`);
+  if (data.deliverables?.trim()) scopeParts.push(`Deliverables:\n${data.deliverables.trim()}`);
+  if (data.timeline?.trim()) scopeParts.push(`Timeline:\n${data.timeline.trim()}`);
+  const scopeBlock = scopeParts.length ? scopeParts.join("\n\n") : "";
 
   return CONTRACT_SECTIONS.map((s) => ({
     title: s.title,
@@ -224,6 +264,10 @@ function renderSections(data: {
       .replace(/\{\{CLIENT_EMAIL\}\}/g, data.clientEmail || "_______________")
       .replace(/\{\{SETUP_FEE\}\}/g, formatCurrency(data.setupFee))
       .replace(/\{\{MONTHLY_FEE\}\}/g, formatCurrency(data.monthlyFee))
+      .replace(/\{\{HOURLY_RATE\}\}/g, formatCurrency(data.hourlyRate || 0))
+      .replace(/\{\{PROJECT_TOTAL\}\}/g, formatCurrency(data.projectTotal || 0))
+      .replace(/\{\{FEE_BLOCK\}\}/g, feeBlock)
+      .replace(/\{\{SCOPE_BLOCK\}\}/g, scopeBlock)
       .replace(/\{\{SERVICES_DESCRIPTION\}\}/g, servicesBlock)
       .replace(/\{\{EFFECTIVE_DATE\}\}/g, data.effectiveDate),
   }));
@@ -369,7 +413,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { proposal_id } = await req.json();
+    const { proposal_id, admin_generate } = await req.json();
 
     if (!proposal_id) {
       return new Response(
@@ -397,7 +441,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!proposal.signed_at || !proposal.signed_name) {
+    // For admin_generate mode, signature is not required (admin generated, no client sign)
+    if (!admin_generate && (!proposal.signed_at || !proposal.signed_name)) {
       return new Response(
         JSON.stringify({ error: "Proposal has not been signed yet" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -413,19 +458,28 @@ Deno.serve(async (req) => {
       setupFee: Number(proposal.setup_fee) || 0,
       monthlyFee: Number(proposal.monthly_fee) || 0,
       servicesDescription: proposal.services_description || undefined,
-      effectiveDate: new Date(proposal.signed_at).toLocaleDateString("en-US", {
+      effectiveDate: new Date(proposal.signed_at || new Date()).toLocaleDateString("en-US", {
         year: "numeric",
         month: "long",
         day: "numeric",
       }),
+      proposalType: (proposal.proposal_type as any) || "retainer",
+      hourlyRate: Number(proposal.hourly_rate) || 0,
+      projectTotal: Number(proposal.project_total) || 0,
+      scopeDescription: proposal.scope_description || undefined,
+      deliverables: proposal.deliverables || undefined,
+      timeline: proposal.timeline || undefined,
     });
 
     // Generate PDF
-    const pdfBytes = generateContractPdf(sections, proposal.signed_name, proposal.signed_at);
+    const signedName = proposal.signed_name || "Vektiss LLC (Admin Generated)";
+    const signedAt = proposal.signed_at || new Date().toISOString();
+    const pdfBytes = generateContractPdf(sections, signedName, signedAt);
 
     // Upload to storage
     const clientId = proposal.client_id;
-    const fileName = `contract-${proposal.id.slice(0, 8)}-signed.pdf`;
+    const suffix = admin_generate ? "admin" : "signed";
+    const fileName = `contract-${proposal.id.slice(0, 8)}-${suffix}.pdf`;
     const storagePath = clientId ? `${clientId}/${fileName}` : fileName;
 
     const { error: uploadError } = await supabaseAdmin.storage
@@ -455,6 +509,20 @@ Deno.serve(async (req) => {
         file_size: pdfBytes.byteLength || (pdfBytes as any).length || 0,
         file_type: "application/pdf",
         category: "contract",
+        uploaded_by: proposal.created_by,
+      });
+
+      // Also persist a client_contracts record so it appears in the contracts list
+      await supabaseAdmin.from("client_contracts").insert({
+        client_id: clientId,
+        proposal_id: proposal.id,
+        title: `${(proposal.proposal_type || "retainer").toString().toUpperCase()} Contract — ${proposal.client_name || "Client"}`,
+        file_path: storagePath,
+        contract_type: admin_generate ? "admin_generated" : "signed",
+        setup_fee: Number(proposal.setup_fee) || 0,
+        monthly_fee: Number(proposal.monthly_fee) || 0,
+        signed_at: proposal.signed_at,
+        signed_by: proposal.signed_name,
         uploaded_by: proposal.created_by,
       });
     }
