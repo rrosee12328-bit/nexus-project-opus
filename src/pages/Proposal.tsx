@@ -152,6 +152,7 @@ export default function ProposalPage() {
       setCompanyName(p.company_name || "");
       setClientAddress(p.client_address || "");
       setClientEmail(p.client_email || "");
+      setCostAnalysisInput(p.cost_analysis_url || "");
 
       if (p.paid_at || searchParams.get("paid") === "true") setStep("done");
       else if (p.signed_at) setStep("pay");
