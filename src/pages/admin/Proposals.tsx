@@ -817,16 +817,15 @@ function CostAnalysisCell({
   return (
     <div className="flex items-center gap-1">
       {initialUrl ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" asChild>
-              <a href={initialUrl} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="h-4 w-4 text-primary" />
-              </a>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Open cost analysis sheet</TooltipContent>
-        </Tooltip>
+        <a
+          href={initialUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          Google Sheets
+        </a>
       ) : (
         <span className="text-muted-foreground text-xs">—</span>
       )}
