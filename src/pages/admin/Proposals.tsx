@@ -134,8 +134,14 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
         client_name: clientName.trim(),
         client_email: clientEmail.trim() || null,
         company_name: companyName.trim() || null,
-        monthly_fee: Number(monthlyFee) || 0,
-        setup_fee: Number(setupFee) || 0,
+        proposal_type: proposalType,
+        monthly_fee: proposalType === "retainer" ? (Number(monthlyFee) || 0) : 0,
+        setup_fee: proposalType === "retainer" ? (Number(setupFee) || 0) : 0,
+        hourly_rate: proposalType === "hourly" ? (Number(hourlyRate) || 0) : 0,
+        project_total: proposalType === "project" ? (Number(projectTotal) || 0) : 0,
+        scope_description: scopeDescription.trim() || null,
+        deliverables: deliverables.trim() || null,
+        timeline: timeline.trim() || null,
         services_description: finalDescription,
         billing_schedule: billingSchedule,
         status: "draft",
@@ -152,6 +158,62 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
       toast.error(err.message || "Failed to create proposal");
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleGenerateNow = async () => {
+    if (!user || !clientName.trim()) return;
+    setGenerating(true);
+    try {
+      const adminName = user.email?.split("@")[0] || "Vektiss Admin";
+      const finalDescription = polishedDescription.trim() || servicesDescription.trim() || null;
+      const { data: proposal, error: insErr } = await supabase
+        .from("proposals")
+        .insert({
+          client_name: clientName.trim(),
+          client_email: clientEmail.trim() || null,
+          company_name: companyName.trim() || null,
+          proposal_type: proposalType,
+          monthly_fee: proposalType === "retainer" ? (Number(monthlyFee) || 0) : 0,
+          setup_fee: proposalType === "retainer" ? (Number(setupFee) || 0) : 0,
+          hourly_rate: proposalType === "hourly" ? (Number(hourlyRate) || 0) : 0,
+          project_total: proposalType === "project" ? (Number(projectTotal) || 0) : 0,
+          scope_description: scopeDescription.trim() || null,
+          deliverables: deliverables.trim() || null,
+          timeline: timeline.trim() || null,
+          services_description: finalDescription,
+          billing_schedule: billingSchedule,
+          status: "signed",
+          signed_at: new Date().toISOString(),
+          signed_name: `${adminName} (Admin Generated)`,
+          created_by: user.id,
+        } as any)
+        .select("id")
+        .single();
+      if (insErr) throw insErr;
+
+      const { data: genData, error: genErr } = await supabase.functions.invoke(
+        "generate-contract-pdf",
+        { body: { proposal_id: proposal.id, admin_generate: true } },
+      );
+      if (genErr) throw genErr;
+
+      const path = (genData as any)?.path;
+      if (path) {
+        const { data: signed } = await supabase.storage
+          .from("client-assets")
+          .createSignedUrl(path, 60);
+        if (signed?.signedUrl) window.open(signed.signedUrl, "_blank");
+      }
+
+      onCreated();
+      toast.success("Contract generated.");
+      logActivity("generated_contract", "proposal", undefined, `Generated ${proposalType} contract for "${clientName}"`);
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to generate contract");
+    } finally {
+      setGenerating(false);
     }
   };
 
