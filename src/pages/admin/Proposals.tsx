@@ -11,7 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import {
   FileText, CheckCircle, CreditCard, ExternalLink, Eye, Plus, Mail,
   Send, Copy, Check, ArrowLeft, Sparkles, Loader2, Edit3,
-  Briefcase, Clock, Repeat, Download, FileSignature,
+  Briefcase, Clock, Repeat, Download,
 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { motion } from "framer-motion";
