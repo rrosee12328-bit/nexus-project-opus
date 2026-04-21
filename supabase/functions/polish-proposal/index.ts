@@ -61,6 +61,7 @@ Rules:
 - Do NOT add services that weren't mentioned
 - Do NOT include pricing or payment terms (those are handled separately)
 - Do NOT include greetings, signatures, or meta-commentary
+- IMPORTANT: Output PLAIN TEXT only. Do NOT use markdown formatting of any kind — no **bold**, no *italics*, no #headings, no backticks. The text is rendered directly to clients and stray asterisks look unprofessional.
 - Just return the polished services description text, nothing else`
 
     const userPrompt = `Polish this services description for a proposal to ${clientName || 'the client'}${companyName ? ` at ${companyName}` : ''}:
@@ -100,7 +101,12 @@ Context: Setup fee is $${setupFee || 0}, billing is ${billingLabel}.`
     }
 
     const result = await aiResponse.json()
-    const polished = result.choices?.[0]?.message?.content?.trim() || servicesDescription
+    const raw = result.choices?.[0]?.message?.content?.trim() || servicesDescription
+    // Defensive: strip any markdown bold/italic markers the model may still emit
+    const polished = raw
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/(?<!\*)\*(?!\*)([^*\n]+)\*(?!\*)/g, '$1')
+      .replace(/^#+\s+/gm, '')
 
     return new Response(JSON.stringify({ polished }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
