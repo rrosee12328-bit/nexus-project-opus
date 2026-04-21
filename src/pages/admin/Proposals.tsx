@@ -62,7 +62,6 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
   const [companyName, setCompanyName] = useState("");
   const [proposalType, setProposalType] = useState<ProposalType>("retainer");
   const [projectName, setProjectName] = useState("");
-  const [projectNumber, setProjectNumber] = useState("");
   const [monthlyFee, setMonthlyFee] = useState("");
   const [setupFee, setSetupFee] = useState("");
   const [hourlyRate, setHourlyRate] = useState("");
@@ -84,7 +83,7 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
     setStep("input");
     setClientName(""); setClientEmail(""); setCompanyName("");
     setProposalType("retainer");
-    setProjectName(""); setProjectNumber("");
+    setProjectName("");
     setMonthlyFee(""); setSetupFee(""); setBillingSchedule("monthly");
     setHourlyRate(""); setProjectTotal("");
     setScopeDescription(""); setDeliverables(""); setTimeline("");
@@ -139,7 +138,6 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
         company_name: companyName.trim() || null,
         proposal_type: proposalType,
         project_name: projectName.trim() || null,
-        project_number: projectNumber.trim() || null,
         monthly_fee: proposalType === "retainer" ? (Number(monthlyFee) || 0) : 0,
         setup_fee: proposalType === "retainer" ? (Number(setupFee) || 0) : 0,
         hourly_rate: proposalType === "hourly" ? (Number(hourlyRate) || 0) : 0,
@@ -180,7 +178,6 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
           company_name: companyName.trim() || null,
           proposal_type: proposalType,
           project_name: projectName.trim() || null,
-          project_number: projectNumber.trim() || null,
           monthly_fee: proposalType === "retainer" ? (Number(monthlyFee) || 0) : 0,
           setup_fee: proposalType === "retainer" ? (Number(setupFee) || 0) : 0,
           hourly_rate: proposalType === "hourly" ? (Number(hourlyRate) || 0) : 0,
@@ -297,17 +294,11 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
                 <Label className="text-xs">Client Email</Label>
                 <Input type="email" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} placeholder="client@example.com" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Project Name</Label>
-                  <Input value={projectName} onChange={(e) => setProjectName(e.target.value)}
-                    placeholder="e.g. AI Chatbot Implementation" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Project Number</Label>
-                  <Input value={projectNumber} onChange={(e) => setProjectNumber(e.target.value)}
-                    placeholder="Optional, e.g. PR-1024" />
-                </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Project Name</Label>
+                <Input value={projectName} onChange={(e) => setProjectName(e.target.value)}
+                  placeholder="e.g. AI Chatbot Implementation" />
+                <p className="text-[11px] text-muted-foreground">Project number is auto-generated.</p>
               </div>
               {/* Proposal Type */}
               <div className="space-y-2">
