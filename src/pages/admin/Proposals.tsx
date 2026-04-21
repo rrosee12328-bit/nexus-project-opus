@@ -692,7 +692,7 @@ export default function AdminProposals() {
                     <TableHead>Signed</TableHead>
                     <TableHead>Paid</TableHead>
                     <TableHead>Created</TableHead>
-                    <TableHead>Cost Analysis</TableHead>
+                    <TableHead>Google Sheets Link</TableHead>
                     <TableHead className="w-20" />
                   </TableRow>
                 </TableHeader>
