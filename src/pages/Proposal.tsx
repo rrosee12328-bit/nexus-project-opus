@@ -378,16 +378,110 @@ export default function ProposalPage() {
       {/* Main content */}
       <main className="flex-1 flex flex-col">
         <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-4 sm:py-6 flex-1 flex flex-col">
-          {/* Step 0: Proposal Overview — Premium Landing */}
+          {/* Step 0: Proposal Overview — Document-style Preview */}
           {step === "overview" && (() => {
             const setupAmt = proposal.setup_fee;
             const monthlyAmt = proposal.monthly_fee;
-            const parseBold = (text: string) =>
-              text.replace(/\*\*(.+?)\*\*/g, '<strong class="text-foreground font-semibold">$1</strong>');
+            // Strip markdown bold/italic so AI-polished text reads cleanly
+            const cleanText = (t: string) =>
+              t.replace(/\*\*(.+?)\*\*/g, '$1')
+               .replace(/(?<!\*)\*(?!\*)([^*\n]+)\*(?!\*)/g, '$1')
+               .replace(/^#+\s+/gm, '');
+            const today = new Date().toLocaleDateString("en-US", {
+              year: "numeric", month: "long", day: "numeric",
+            });
 
             return (
+              <Card className="flex-1">
+                <CardContent className="pt-8 pb-8 px-4 sm:px-10">
+                  <div className="max-w-3xl mx-auto space-y-8">
+                    {/* Document header */}
+                    <div className="text-center pb-6 border-b border-border space-y-2">
+                      <p className="text-xs uppercase tracking-widest text-muted-foreground">Service Proposal</p>
+                      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">AI &amp; Automation Services</h1>
+                      <p className="text-sm text-muted-foreground">
+                        Between <strong className="text-foreground">Vektiss LLC</strong> and{" "}
+                        <strong className="text-foreground">{clientName || proposal.client_name || "Client"}</strong>
+                      </p>
+                      <p className="text-xs text-muted-foreground">Effective Date: {today}</p>
+                    </div>
+
+                    {/* Parties */}
+                    <section className="space-y-2">
+                      <h2 className="text-sm font-bold">Prepared For</h2>
+                      <div className="text-sm text-muted-foreground leading-relaxed">
+                        {(clientName || proposal.client_name) && (
+                          <p><span className="text-foreground font-medium">{clientName || proposal.client_name}</span></p>
+                        )}
+                        {(companyName || proposal.company_name) && (
+                          <p>{companyName || proposal.company_name}</p>
+                        )}
+                      </div>
+                    </section>
+
+                    <Separator />
+
+                    {/* Services */}
+                    <section className="space-y-2">
+                      <h2 className="text-sm font-bold">Scope of Services</h2>
+                      <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
+                        {cleanText(
+                          proposal.services_description ||
+                          "AI & Automation services tailored to your business needs. Full details are outlined in the contract on the following page."
+                        )}
+                      </p>
+                    </section>
+
+                    <Separator />
+
+                    {/* Investment */}
+                    <section className="space-y-3">
+                      <h2 className="text-sm font-bold">Investment</h2>
+                      <div className="space-y-2 text-sm">
+                        {setupAmt > 0 && (
+                          <div className="flex items-baseline justify-between border-b border-border/60 pb-2">
+                            <span className="text-muted-foreground">One-Time Setup Fee</span>
+                            <span className="font-mono font-semibold">{fmt(setupAmt)}</span>
+                          </div>
+                        )}
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-muted-foreground">Monthly Service Fee</span>
+                          <span className="font-mono font-semibold">{fmt(monthlyAmt)}<span className="text-xs text-muted-foreground font-normal"> /mo</span></span>
+                        </div>
+                      </div>
+                    </section>
+
+                    <Separator />
+
+                    {/* Next steps */}
+                    <section className="space-y-3">
+                      <h2 className="text-sm font-bold">Next Steps</h2>
+                      <ol className="text-sm text-muted-foreground leading-relaxed list-decimal list-inside space-y-1">
+                        <li>Provide your contact details</li>
+                        <li>Review &amp; sign the mutual Non-Disclosure Agreement</li>
+                        <li>Review &amp; sign the AI &amp; Automation Services Contract</li>
+                        <li>{setupAmt > 0 ? "Complete the setup payment to begin onboarding" : "Set up monthly billing to begin onboarding"}</li>
+                      </ol>
+                    </section>
+
+                    <div className="flex justify-center pt-4">
+                      <Button onClick={() => setStep("info")} size="lg" className="px-8">
+                        Get Started <ArrowRight className="h-4 w-4 ml-2" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
+
+          {/* Legacy hero block removed — replaced by document-style preview above */}
+          {false && (() => {
+            const setupAmt = proposal.setup_fee;
+            const monthlyAmt = proposal.monthly_fee;
+            const parseBold = (text: string) => text;
+            return (
               <div className="flex-1 space-y-6">
-                {/* Hero Section */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
