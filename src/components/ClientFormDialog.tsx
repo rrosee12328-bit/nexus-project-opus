@@ -52,6 +52,7 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
 
   const [form, setForm] = useState<Partial<ClientInsert> & { pipeline_stage?: string; follow_up_start?: string; follow_up_end?: string; last_contact_date?: string; lead_source?: string }>({
     name: client?.name ?? "",
+    client_number: (client as any)?.client_number ?? "",
     type: client?.type ?? "",
     status: client?.status ?? "lead",
     start_date: client?.start_date ?? "",
@@ -79,6 +80,8 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
       if (!form.name?.trim()) throw new Error("Name is required");
       const payload: any = {
         name: form.name.trim(),
+        // Only send client_number if user provided one (otherwise DB default assigns CL-####)
+        ...(((form as any).client_number?.trim?.()) ? { client_number: (form as any).client_number.trim() } : {}),
         type: form.type?.trim() || null,
         status: form.status ?? "lead",
         start_date: form.start_date || null,
