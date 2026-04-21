@@ -739,6 +739,13 @@ export default function AdminProposals() {
                           {format(new Date(p.created_at), "MMM d, yyyy")}
                         </TableCell>
                         <TableCell>
+                          <CostAnalysisCell
+                            proposalId={p.id}
+                            initialUrl={(p as any).cost_analysis_url ?? null}
+                            onSaved={() => refetch()}
+                          />
+                        </TableCell>
+                        <TableCell>
                           <div className="flex gap-1">
                             <Tooltip>
                               <TooltipTrigger asChild>
