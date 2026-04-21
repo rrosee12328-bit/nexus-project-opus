@@ -11,7 +11,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import {
   FileText, CheckCircle, CreditCard, ExternalLink, Eye, Plus, Mail,
   Send, Copy, Check, ArrowLeft, Sparkles, Loader2, Edit3,
+  Briefcase, Clock, Repeat, Download,
 } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -40,6 +42,13 @@ function formatCurrency(val: number | null) {
 }
 
 type DialogStep = "input" | "preview" | "done";
+type ProposalType = "retainer" | "project" | "hourly";
+
+const TYPE_OPTIONS: { value: ProposalType; label: string; description: string; icon: any }[] = [
+  { value: "retainer", label: "Retainer", description: "Setup + monthly recurring", icon: Repeat },
+  { value: "project", label: "Project", description: "Fixed total for defined scope", icon: Briefcase },
+  { value: "hourly", label: "Hourly", description: "Billed per hour as worked", icon: Clock },
+];
 
 function QuickCreateDialog({ open, onOpenChange, onCreated }: {
   open: boolean;
@@ -51,13 +60,20 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [companyName, setCompanyName] = useState("");
+  const [proposalType, setProposalType] = useState<ProposalType>("retainer");
   const [monthlyFee, setMonthlyFee] = useState("");
   const [setupFee, setSetupFee] = useState("");
+  const [hourlyRate, setHourlyRate] = useState("");
+  const [projectTotal, setProjectTotal] = useState("");
+  const [scopeDescription, setScopeDescription] = useState("");
+  const [deliverables, setDeliverables] = useState("");
+  const [timeline, setTimeline] = useState("");
   const [billingSchedule, setBillingSchedule] = useState("monthly");
   const [servicesDescription, setServicesDescription] = useState("");
   const [polishedDescription, setPolishedDescription] = useState("");
   const [polishing, setPolishing] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [proposalUrl, setProposalUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
@@ -65,10 +81,13 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
   const reset = () => {
     setStep("input");
     setClientName(""); setClientEmail(""); setCompanyName("");
+    setProposalType("retainer");
     setMonthlyFee(""); setSetupFee(""); setBillingSchedule("monthly");
+    setHourlyRate(""); setProjectTotal("");
+    setScopeDescription(""); setDeliverables(""); setTimeline("");
     setServicesDescription(""); setPolishedDescription("");
     setProposalUrl(null); setCopied(false);
-    setCreating(false); setPolishing(false);
+    setCreating(false); setPolishing(false); setGenerating(false);
   };
 
   const handleOpen = (o: boolean) => {
@@ -115,8 +134,14 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
         client_name: clientName.trim(),
         client_email: clientEmail.trim() || null,
         company_name: companyName.trim() || null,
-        monthly_fee: Number(monthlyFee) || 0,
-        setup_fee: Number(setupFee) || 0,
+        proposal_type: proposalType,
+        monthly_fee: proposalType === "retainer" ? (Number(monthlyFee) || 0) : 0,
+        setup_fee: proposalType === "retainer" ? (Number(setupFee) || 0) : 0,
+        hourly_rate: proposalType === "hourly" ? (Number(hourlyRate) || 0) : 0,
+        project_total: proposalType === "project" ? (Number(projectTotal) || 0) : 0,
+        scope_description: scopeDescription.trim() || null,
+        deliverables: deliverables.trim() || null,
+        timeline: timeline.trim() || null,
         services_description: finalDescription,
         billing_schedule: billingSchedule,
         status: "draft",
@@ -133,6 +158,62 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
       toast.error(err.message || "Failed to create proposal");
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleGenerateNow = async () => {
+    if (!user || !clientName.trim()) return;
+    setGenerating(true);
+    try {
+      const adminName = user.email?.split("@")[0] || "Vektiss Admin";
+      const finalDescription = polishedDescription.trim() || servicesDescription.trim() || null;
+      const { data: proposal, error: insErr } = await supabase
+        .from("proposals")
+        .insert({
+          client_name: clientName.trim(),
+          client_email: clientEmail.trim() || null,
+          company_name: companyName.trim() || null,
+          proposal_type: proposalType,
+          monthly_fee: proposalType === "retainer" ? (Number(monthlyFee) || 0) : 0,
+          setup_fee: proposalType === "retainer" ? (Number(setupFee) || 0) : 0,
+          hourly_rate: proposalType === "hourly" ? (Number(hourlyRate) || 0) : 0,
+          project_total: proposalType === "project" ? (Number(projectTotal) || 0) : 0,
+          scope_description: scopeDescription.trim() || null,
+          deliverables: deliverables.trim() || null,
+          timeline: timeline.trim() || null,
+          services_description: finalDescription,
+          billing_schedule: billingSchedule,
+          status: "signed",
+          signed_at: new Date().toISOString(),
+          signed_name: `${adminName} (Admin Generated)`,
+          created_by: user.id,
+        } as any)
+        .select("id")
+        .single();
+      if (insErr) throw insErr;
+
+      const { data: genData, error: genErr } = await supabase.functions.invoke(
+        "generate-contract-pdf",
+        { body: { proposal_id: proposal.id, admin_generate: true } },
+      );
+      if (genErr) throw genErr;
+
+      const path = (genData as any)?.path;
+      if (path) {
+        const { data: signed } = await supabase.storage
+          .from("client-assets")
+          .createSignedUrl(path, 60);
+        if (signed?.signedUrl) window.open(signed.signedUrl, "_blank");
+      }
+
+      onCreated();
+      toast.success("Contract generated.");
+      logActivity("generated_contract", "proposal", undefined, `Generated ${proposalType} contract for "${clientName}"`);
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to generate contract");
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -209,7 +290,45 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
                 <Label className="text-xs">Client Email</Label>
                 <Input type="email" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} placeholder="client@example.com" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              {/* Proposal Type */}
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-primary" /> Proposal Type
+                </Label>
+                <RadioGroup
+                  value={proposalType}
+                  onValueChange={(v) => setProposalType(v as ProposalType)}
+                  className="grid grid-cols-1 sm:grid-cols-3 gap-2"
+                >
+                  {TYPE_OPTIONS.map((opt) => {
+                    const Icon = opt.icon;
+                    return (
+                      <Label
+                        key={opt.value}
+                        htmlFor={`qpt-${opt.value}`}
+                        className={`flex items-start gap-2 rounded-lg border p-3 cursor-pointer transition-colors ${
+                          proposalType === opt.value
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:bg-muted/50"
+                        }`}
+                      >
+                        <RadioGroupItem value={opt.value} id={`qpt-${opt.value}`} className="mt-0.5" />
+                        <div className="flex-1 space-y-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <Icon className="h-3.5 w-3.5 text-primary" />
+                            <span className="text-sm font-semibold">{opt.label}</span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-tight">{opt.description}</p>
+                        </div>
+                      </Label>
+                    );
+                  })}
+                </RadioGroup>
+              </div>
+
+              {proposalType === "retainer" && (
+                <>
+                <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Setup Fee</Label>
                   <Input type="number" min={0} value={setupFee} onChange={(e) => setSetupFee(e.target.value)} placeholder="0" />
@@ -218,8 +337,8 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
                   <Label className="text-xs">Monthly Fee</Label>
                   <Input type="number" min={0} value={monthlyFee} onChange={(e) => setMonthlyFee(e.target.value)} placeholder="e.g. 625" />
                 </div>
-              </div>
-              <div className="space-y-1.5">
+                </div>
+                <div className="space-y-1.5">
                 <Label className="text-xs">Billing Schedule</Label>
                 <Select value={billingSchedule} onValueChange={setBillingSchedule}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -231,6 +350,45 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
                 {billingSchedule === "bimonthly" && monthlyFee && Number(monthlyFee) > 0 && (
                   <p className="text-xs text-muted-foreground">Two payments of ${(Number(monthlyFee) / 2).toFixed(2)} each</p>
                 )}
+                </div>
+                </>
+              )}
+
+              {proposalType === "hourly" && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Hourly Rate (USD/hr)</Label>
+                  <Input type="number" min={0} value={hourlyRate}
+                    onChange={(e) => setHourlyRate(e.target.value)} placeholder="e.g. 150" />
+                  <p className="text-[11px] text-muted-foreground">Billed as worked.</p>
+                </div>
+              )}
+
+              {proposalType === "project" && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Project Total (USD)</Label>
+                  <Input type="number" min={0} value={projectTotal}
+                    onChange={(e) => setProjectTotal(e.target.value)} placeholder="e.g. 12000" />
+                  <p className="text-[11px] text-muted-foreground">Fixed price. 50% upfront, 50% on delivery.</p>
+                </div>
+              )}
+
+              {/* Scope / Deliverables / Timeline */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Deliverables</Label>
+                  <Textarea value={deliverables} onChange={(e) => setDeliverables(e.target.value)}
+                    placeholder="• Item one&#10;• Item two" rows={3} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Timeline</Label>
+                  <Textarea value={timeline} onChange={(e) => setTimeline(e.target.value)}
+                    placeholder="e.g. Phase 1: weeks 1-2" rows={3} />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Scope Description</Label>
+                <Textarea value={scopeDescription} onChange={(e) => setScopeDescription(e.target.value)}
+                  placeholder="What's included in this engagement?" rows={2} />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center gap-1.5">
@@ -245,9 +403,18 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
                 />
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button onClick={handlePolishAndPreview} disabled={polishing || !clientName.trim()}>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={() => onOpenChange(false)} className="sm:mr-auto">Cancel</Button>
+              <Button variant="outline" onClick={handleGenerateNow}
+                disabled={generating || polishing || creating || !clientName.trim()}>
+                {generating ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Generating...</>
+                ) : (
+                  <><Download className="h-4 w-4 mr-2" /> Generate Contract Now</>
+                )}
+              </Button>
+              <Button onClick={handlePolishAndPreview}
+                disabled={polishing || generating || !clientName.trim()}>
                 {polishing ? (
                   <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Polishing...</>
                 ) : (
