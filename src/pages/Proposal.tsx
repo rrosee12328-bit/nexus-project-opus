@@ -40,6 +40,10 @@ interface ProposalData {
   scope_description?: string | null;
   deliverables?: string | null;
   timeline?: string | null;
+  project_name?: string | null;
+  project_number?: string | null;
+  billing_schedule?: string | null;
+  cost_analysis_url?: string | null;
 }
 
 type Step = "overview" | "info" | "nda" | "nda-sign" | "nda-done" | "review" | "sign" | "pay" | "done";
@@ -91,6 +95,24 @@ export default function ProposalPage() {
 
   // Theme: default to light for proposals
   const { theme: appTheme, setTheme: setAppTheme } = useTheme();
+
+  // Detect if the current viewer is an admin (only admins see internal links)
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) { if (active) setIsAdmin(false); return; }
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+      if (active) setIsAdmin(!!data);
+    })();
+    return () => { active = false; };
+  }, []);
 
   // Default proposal to light mode on first visit
   useEffect(() => {
@@ -390,6 +412,9 @@ export default function ProposalPage() {
             const today = new Date().toLocaleDateString("en-US", {
               year: "numeric", month: "long", day: "numeric",
             });
+            const ptype = (proposal.proposal_type || "retainer").toLowerCase();
+            const billing = (proposal.billing_schedule || "monthly").toLowerCase();
+            const billingLabel = billing === "bimonthly" ? "Bi-monthly (15th & 30th)" : "Monthly";
 
             return (
               <Card className="flex-1">
@@ -399,12 +424,41 @@ export default function ProposalPage() {
                     <div className="text-center pb-6 border-b border-border space-y-2">
                       <p className="text-xs uppercase tracking-widest text-muted-foreground">Service Proposal</p>
                       <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">AI &amp; Automation Services</h1>
+                      {proposal.project_name && (
+                        <p className="text-base sm:text-lg font-semibold text-foreground pt-1">
+                          {proposal.project_name}
+                        </p>
+                      )}
+                      {proposal.project_number && (
+                        <p className="text-xs font-mono text-muted-foreground">
+                          Project No. {proposal.project_number}
+                        </p>
+                      )}
                       <p className="text-sm text-muted-foreground">
                         Between <strong className="text-foreground">Vektiss LLC</strong> and{" "}
                         <strong className="text-foreground">{clientName || proposal.client_name || "Client"}</strong>
                       </p>
                       <p className="text-xs text-muted-foreground">Effective Date: {today}</p>
                     </div>
+
+                    {/* Admin-only: Cost analysis link */}
+                    {isAdmin && proposal.cost_analysis_url && (
+                      <a
+                        href={proposal.cost_analysis_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 hover:bg-primary/10 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <ScrollText className="h-4 w-4 text-primary shrink-0" />
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">Cost Analysis (Admin)</p>
+                            <p className="text-xs text-muted-foreground">Open the internal cost analysis spreadsheet for this client</p>
+                          </div>
+                        </div>
+                        <ArrowRight className="h-4 w-4 text-primary" />
+                      </a>
+                    )}
 
                     {/* Parties */}
                     <section className="space-y-2">
@@ -416,6 +470,12 @@ export default function ProposalPage() {
                         {(companyName || proposal.company_name) && (
                           <p>{companyName || proposal.company_name}</p>
                         )}
+                        <p className="text-xs mt-1">
+                          Engagement Type:{" "}
+                          <span className="text-foreground font-medium capitalize">
+                            {ptype === "retainer" ? "Monthly Retainer" : ptype === "project" ? "Fixed Project" : "Hourly"}
+                          </span>
+                        </p>
                       </div>
                     </section>
 
@@ -423,14 +483,45 @@ export default function ProposalPage() {
 
                     {/* Services */}
                     <section className="space-y-2">
-                      <h2 className="text-sm font-bold">Scope of Services</h2>
+                      <h2 className="text-sm font-bold">Project Overview</h2>
                       <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
                         {cleanText(
                           proposal.services_description ||
+                          proposal.scope_description ||
                           "AI & Automation services tailored to your business needs. Full details are outlined in the contract on the following page."
                         )}
                       </p>
                     </section>
+
+                    {/* Detailed scope (if separate from services_description) */}
+                    {proposal.scope_description && proposal.services_description && (
+                      <section className="space-y-2">
+                        <h2 className="text-sm font-bold">Scope of Services</h2>
+                        <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
+                          {cleanText(proposal.scope_description)}
+                        </p>
+                      </section>
+                    )}
+
+                    {/* Deliverables */}
+                    {proposal.deliverables && (
+                      <section className="space-y-2">
+                        <h2 className="text-sm font-bold">Deliverables</h2>
+                        <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
+                          {cleanText(proposal.deliverables)}
+                        </p>
+                      </section>
+                    )}
+
+                    {/* Timeline */}
+                    {proposal.timeline && (
+                      <section className="space-y-2">
+                        <h2 className="text-sm font-bold">Timeline</h2>
+                        <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
+                          {cleanText(proposal.timeline)}
+                        </p>
+                      </section>
+                    )}
 
                     <Separator />
 
@@ -438,16 +529,51 @@ export default function ProposalPage() {
                     <section className="space-y-3">
                       <h2 className="text-sm font-bold">Investment</h2>
                       <div className="space-y-2 text-sm">
-                        {setupAmt > 0 && (
+                        {ptype === "retainer" && setupAmt > 0 && (
                           <div className="flex items-baseline justify-between border-b border-border/60 pb-2">
                             <span className="text-muted-foreground">One-Time Setup Fee</span>
                             <span className="font-mono font-semibold">{fmt(setupAmt)}</span>
                           </div>
                         )}
-                        <div className="flex items-baseline justify-between">
-                          <span className="text-muted-foreground">Monthly Service Fee</span>
-                          <span className="font-mono font-semibold">{fmt(monthlyAmt)}<span className="text-xs text-muted-foreground font-normal"> /mo</span></span>
-                        </div>
+                        {ptype === "retainer" && (
+                          <>
+                            <div className="flex items-baseline justify-between">
+                              <span className="text-muted-foreground">Monthly Service Fee</span>
+                              <span className="font-mono font-semibold">{fmt(monthlyAmt)}<span className="text-xs text-muted-foreground font-normal"> /mo</span></span>
+                            </div>
+                            <div className="flex items-baseline justify-between border-t border-border/60 pt-2">
+                              <span className="text-muted-foreground">Billing Schedule</span>
+                              <span className="font-medium text-foreground">{billingLabel}</span>
+                            </div>
+                            {billing === "bimonthly" && monthlyAmt > 0 && (
+                              <p className="text-xs text-muted-foreground pt-1">
+                                Two payments of {fmt(monthlyAmt / 2)} each — on the 15th and 30th of every month.
+                              </p>
+                            )}
+                          </>
+                        )}
+                        {ptype === "project" && (
+                          <div className="flex items-baseline justify-between">
+                            <span className="text-muted-foreground">Project Total (Fixed)</span>
+                            <span className="font-mono font-semibold">{fmt(proposal.project_total || 0)}</span>
+                          </div>
+                        )}
+                        {ptype === "project" && (
+                          <p className="text-xs text-muted-foreground pt-1">
+                            50% due upfront to begin work, 50% due on delivery.
+                          </p>
+                        )}
+                        {ptype === "hourly" && (
+                          <div className="flex items-baseline justify-between">
+                            <span className="text-muted-foreground">Hourly Rate</span>
+                            <span className="font-mono font-semibold">{fmt(proposal.hourly_rate || 0)}<span className="text-xs text-muted-foreground font-normal"> /hr</span></span>
+                          </div>
+                        )}
+                        {ptype === "hourly" && (
+                          <p className="text-xs text-muted-foreground pt-1">
+                            Time tracked and invoiced as work is completed.
+                          </p>
+                        )}
                       </div>
                     </section>
 

@@ -1160,6 +1160,7 @@ export type Database = {
           client_name: string | null
           company_name: string | null
           contract_pdf_path: string | null
+          cost_analysis_url: string | null
           created_at: string
           created_by: string
           deliverables: string | null
@@ -1193,6 +1194,7 @@ export type Database = {
           client_name?: string | null
           company_name?: string | null
           contract_pdf_path?: string | null
+          cost_analysis_url?: string | null
           created_at?: string
           created_by: string
           deliverables?: string | null
@@ -1226,6 +1228,7 @@ export type Database = {
           client_name?: string | null
           company_name?: string | null
           contract_pdf_path?: string | null
+          cost_analysis_url?: string | null
           created_at?: string
           created_by?: string
           deliverables?: string | null

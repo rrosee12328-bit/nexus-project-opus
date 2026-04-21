@@ -56,6 +56,7 @@ export function SendProposalDialog({
   const [timeline, setTimeline] = useState("");
   const [servicesDescription, setServicesDescription] = useState("");
   const [proposalUrl, setProposalUrl] = useState<string | null>(null);
+  const [costAnalysisUrl, setCostAnalysisUrl] = useState("");
   const [copied, setCopied] = useState(false);
   const [generating, setGenerating] = useState(false);
 
@@ -72,6 +73,7 @@ export function SendProposalDialog({
     setTimeline("");
     setServicesDescription("");
     setProposalUrl(null);
+    setCostAnalysisUrl("");
     setCopied(false);
     setGenerating(false);
   };
@@ -105,6 +107,7 @@ export function SendProposalDialog({
     timeline: timeline.trim() || null,
     billing_schedule: billingSchedule,
     status,
+    cost_analysis_url: costAnalysisUrl.trim() || null,
     created_by: user!.id,
   });
 
@@ -336,6 +339,20 @@ export function SendProposalDialog({
                     onChange={(e) => setServicesDescription(e.target.value)}
                     placeholder="Any extra context that should appear in the contract..." rows={2} />
                 </div>
+              </div>
+
+              {/* Internal admin field — cost analysis link */}
+              <div className="space-y-1.5 rounded-lg border border-dashed border-border p-3 bg-muted/30">
+                <Label className="text-xs font-semibold">Cost Analysis Link (admin only)</Label>
+                <Input
+                  type="url"
+                  value={costAnalysisUrl}
+                  onChange={(e) => setCostAnalysisUrl(e.target.value)}
+                  placeholder="https://docs.google.com/spreadsheets/d/..."
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Internal Google Sheet (or any URL) for this client's cost analysis. Visible only to admins on the proposal page — never shown to the client.
+                </p>
               </div>
             </div>
 
