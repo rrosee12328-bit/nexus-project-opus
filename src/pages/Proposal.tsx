@@ -98,6 +98,8 @@ export default function ProposalPage() {
 
   // Detect if the current viewer is an admin (only admins see internal links)
   const [isAdmin, setIsAdmin] = useState(false);
+  const [costAnalysisInput, setCostAnalysisInput] = useState("");
+  const [savingCostUrl, setSavingCostUrl] = useState(false);
   useEffect(() => {
     let active = true;
     (async () => {
