@@ -783,3 +783,79 @@ export default function AdminProposals() {
     </div>
   );
 }
+
+function CostAnalysisCell({
+  proposalId,
+  initialUrl,
+  onSaved,
+}: {
+  proposalId: string;
+  initialUrl: string | null;
+  onSaved: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [url, setUrl] = useState(initialUrl ?? "");
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    const trimmed = url.trim() || null;
+    const { error } = await supabase
+      .from("proposals")
+      .update({ cost_analysis_url: trimmed } as any)
+      .eq("id", proposalId);
+    setSaving(false);
+    if (error) {
+      toast.error(error.message || "Failed to save link");
+      return;
+    }
+    toast.success(trimmed ? "Cost analysis link saved" : "Link cleared");
+    setOpen(false);
+    onSaved();
+  };
+
+  return (
+    <div className="flex items-center gap-1">
+      {initialUrl ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" asChild>
+              <a href={initialUrl} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-4 w-4 text-primary" />
+              </a>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Open cost analysis sheet</TooltipContent>
+        </Tooltip>
+      ) : (
+        <span className="text-muted-foreground text-xs">—</span>
+      )}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="icon" title="Edit cost analysis link">
+            <Edit3 className="h-3.5 w-3.5" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-80 space-y-2" align="end">
+          <Label className="text-xs font-semibold">Cost Analysis Link (admin only)</Label>
+          <Input
+            type="url"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://docs.google.com/spreadsheets/..."
+            className="text-xs"
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Internal Google Sheet for this proposal's cost analysis. Never shown to clients.
+          </p>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button size="sm" onClick={handleSave} disabled={saving}>
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save"}
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
