@@ -16,7 +16,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   Loader2, FileSignature, CheckCircle2, CreditCard, AlertCircle,
   ShieldCheck, ScrollText, ArrowRight, ArrowLeft, Sun, Moon,
-  FileText, Lock, Zap,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -98,6 +98,8 @@ export default function ProposalPage() {
 
   // Detect if the current viewer is an admin (only admins see internal links)
   const [isAdmin, setIsAdmin] = useState(false);
+  const [costAnalysisInput, setCostAnalysisInput] = useState("");
+  const [savingCostUrl, setSavingCostUrl] = useState(false);
   useEffect(() => {
     let active = true;
     (async () => {
@@ -150,6 +152,7 @@ export default function ProposalPage() {
       setCompanyName(p.company_name || "");
       setClientAddress(p.client_address || "");
       setClientEmail(p.client_email || "");
+      setCostAnalysisInput(p.cost_analysis_url || "");
 
       if (p.paid_at || searchParams.get("paid") === "true") setStep("done");
       else if (p.signed_at) setStep("pay");
@@ -249,6 +252,25 @@ export default function ProposalPage() {
 
   const fmt = (n: number) =>
     n.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 });
+
+  const handleSaveCostAnalysis = async () => {
+    if (!proposal) return;
+    const url = costAnalysisInput.trim();
+    setSavingCostUrl(true);
+    try {
+      const { error: upErr } = await supabase
+        .from("proposals")
+        .update({ cost_analysis_url: url || null })
+        .eq("id", proposal.id);
+      if (upErr) throw upErr;
+      setProposal((p) => p ? { ...p, cost_analysis_url: url || null } : p);
+      toast.success(url ? "Cost analysis link saved" : "Cost analysis link removed");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save link");
+    } finally {
+      setSavingCostUrl(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -442,22 +464,45 @@ export default function ProposalPage() {
                     </div>
 
                     {/* Admin-only: Cost analysis link */}
-                    {isAdmin && proposal.cost_analysis_url && (
-                      <a
-                        href={proposal.cost_analysis_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 hover:bg-primary/10 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <ScrollText className="h-4 w-4 text-primary shrink-0" />
-                          <div>
-                            <p className="text-sm font-semibold text-foreground">Cost Analysis (Admin)</p>
-                            <p className="text-xs text-muted-foreground">Open the internal cost analysis spreadsheet for this client</p>
+                    {/* Admin-only: Cost Analysis section (editable) */}
+                    {isAdmin && (
+                      <section className="rounded-lg border border-dashed border-primary/40 bg-primary/5 p-4 space-y-3">
+                        <div className="flex items-start gap-3">
+                          <ScrollText className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                          <div className="flex-1 space-y-1">
+                            <p className="text-sm font-semibold text-foreground">Cost Analysis (Admin Only)</p>
+                            <p className="text-xs text-muted-foreground">
+                              Paste the Google Sheets URL with this project's cost analysis. Visible only to admins — never shown to the client.
+                            </p>
                           </div>
                         </div>
-                        <ArrowRight className="h-4 w-4 text-primary" />
-                      </a>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Input
+                            type="url"
+                            value={costAnalysisInput}
+                            onChange={(e) => setCostAnalysisInput(e.target.value)}
+                            placeholder="https://docs.google.com/spreadsheets/d/..."
+                            className="flex-1 bg-background"
+                          />
+                          <Button
+                            onClick={handleSaveCostAnalysis}
+                            disabled={savingCostUrl || costAnalysisInput.trim() === (proposal.cost_analysis_url || "")}
+                            size="sm"
+                          >
+                            {savingCostUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+                          </Button>
+                        </div>
+                        {proposal.cost_analysis_url && (
+                          <a
+                            href={proposal.cost_analysis_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+                          >
+                            Open current spreadsheet <ArrowRight className="h-3 w-3" />
+                          </a>
+                        )}
+                      </section>
                     )}
 
                     {/* Parties */}
