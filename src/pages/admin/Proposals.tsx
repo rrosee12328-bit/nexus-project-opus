@@ -11,7 +11,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import {
   FileText, CheckCircle, CreditCard, ExternalLink, Eye, Plus, Mail,
   Send, Copy, Check, ArrowLeft, Sparkles, Loader2, Edit3,
+  Briefcase, Clock, Repeat, Download, FileSignature,
 } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -40,6 +42,13 @@ function formatCurrency(val: number | null) {
 }
 
 type DialogStep = "input" | "preview" | "done";
+type ProposalType = "retainer" | "project" | "hourly";
+
+const TYPE_OPTIONS: { value: ProposalType; label: string; description: string; icon: any }[] = [
+  { value: "retainer", label: "Retainer", description: "Setup + monthly recurring", icon: Repeat },
+  { value: "project", label: "Project", description: "Fixed total for defined scope", icon: Briefcase },
+  { value: "hourly", label: "Hourly", description: "Billed per hour as worked", icon: Clock },
+];
 
 function QuickCreateDialog({ open, onOpenChange, onCreated }: {
   open: boolean;
