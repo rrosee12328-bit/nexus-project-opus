@@ -16,7 +16,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   Loader2, FileSignature, CheckCircle2, CreditCard, AlertCircle,
   ShieldCheck, ScrollText, ArrowRight, ArrowLeft, Sun, Moon,
-  FileText, Lock, Zap, ExternalLink, Briefcase, Clock, Repeat, CalendarDays,
+  FileText, Lock, Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 
