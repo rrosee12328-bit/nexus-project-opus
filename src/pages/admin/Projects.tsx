@@ -106,7 +106,7 @@ export default function AdminProjects() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("projects")
-        .select("*, clients(name)")
+        .select("*, clients(name, profitability_sheet_url)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
