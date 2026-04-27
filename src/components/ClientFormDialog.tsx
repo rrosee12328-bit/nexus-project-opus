@@ -68,6 +68,7 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
     follow_up_end: (client as any)?.follow_up_end ?? "",
     last_contact_date: (client as any)?.last_contact_date ?? "",
     lead_source: (client as any)?.lead_source ?? "",
+    profitability_sheet_url: (client as any)?.profitability_sheet_url ?? "",
   });
 
   const set = (key: string, value: string | number) =>
@@ -97,6 +98,7 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
         follow_up_end: showPipeline && form.follow_up_end ? form.follow_up_end : null,
         last_contact_date: form.last_contact_date || null,
         lead_source: showPipeline ? (form.lead_source?.trim() || null) : null,
+        profitability_sheet_url: (form as any).profitability_sheet_url?.trim() || null,
       };
 
       if (isEdit) {
@@ -235,6 +237,16 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
           <div className="space-y-2">
             <Label>Notes</Label>
             <Textarea value={form.notes ?? ""} onChange={(e) => set("notes", e.target.value)} placeholder="Internal notes..." maxLength={1000} rows={3} />
+          </div>
+          <div className="space-y-2">
+            <Label>Profitability Sheet URL <span className="text-xs text-muted-foreground font-normal">(internal — admin only, default for all projects)</span></Label>
+            <Input
+              type="url"
+              value={(form as any).profitability_sheet_url ?? ""}
+              onChange={(e) => set("profitability_sheet_url", e.target.value)}
+              placeholder="https://docs.google.com/spreadsheets/d/..."
+              maxLength={500}
+            />
           </div>
         </div>
         <DialogFooter>
