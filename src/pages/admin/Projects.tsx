@@ -35,6 +35,7 @@ import {
   Clock,
   Pause,
   Circle,
+  Sheet as SheetIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -74,6 +75,7 @@ type ProjectForm = {
   progress: number;
   start_date: string;
   target_date: string;
+  profitability_sheet_url: string;
 };
 
 const emptyForm: ProjectForm = {
@@ -86,6 +88,7 @@ const emptyForm: ProjectForm = {
   progress: 0,
   start_date: "",
   target_date: "",
+  profitability_sheet_url: "",
 };
 
 export default function AdminProjects() {
@@ -103,7 +106,7 @@ export default function AdminProjects() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("projects")
-        .select("*, clients(name)")
+        .select("*, clients(name, profitability_sheet_url)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
@@ -152,6 +155,7 @@ export default function AdminProjects() {
         progress: form.progress,
         start_date: form.start_date || null,
         target_date: form.target_date || null,
+        profitability_sheet_url: form.profitability_sheet_url?.trim() || null,
       };
       // Only include project_number when user provided one (otherwise DB default assigns PR-####)
       if (form.project_number?.trim()) {
@@ -240,6 +244,7 @@ export default function AdminProjects() {
       progress: project.progress,
       start_date: project.start_date || "",
       target_date: project.target_date || "",
+      profitability_sheet_url: (project as any).profitability_sheet_url || "",
     });
     setFormOpen(true);
   };
@@ -361,6 +366,23 @@ export default function AdminProjects() {
 
                       {/* Actions */}
                       <div className="flex gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        {(() => {
+                          const url = (project as any).profitability_sheet_url
+                            || (project.clients as any)?.profitability_sheet_url;
+                          if (!url) return null;
+                          return (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              asChild
+                              title={(project as any).profitability_sheet_url ? "Project profitability sheet" : "Client profitability sheet"}
+                            >
+                              <a href={url} target="_blank" rel="noopener noreferrer">
+                                <SheetIcon className="h-4 w-4 text-emerald-600" />
+                              </a>
+                            </Button>
+                          );
+                        })()}
                         <Button variant="ghost" size="sm" onClick={() => setPhaseDialogId(project.id)}>
                           Phases
                         </Button>
@@ -479,6 +501,15 @@ export default function AdminProjects() {
                 <Label>Target Date</Label>
                 <Input type="date" value={form.target_date} onChange={(e) => setForm({ ...form, target_date: e.target.value })} />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Profitability Sheet URL <span className="text-xs text-muted-foreground font-normal">(internal — admin only)</span></Label>
+              <Input
+                type="url"
+                value={form.profitability_sheet_url}
+                onChange={(e) => setForm({ ...form, profitability_sheet_url: e.target.value })}
+                placeholder="https://docs.google.com/spreadsheets/d/..."
+              />
             </div>
           </div>
           <DialogFooter>

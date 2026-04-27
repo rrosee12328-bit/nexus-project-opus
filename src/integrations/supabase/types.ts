@@ -528,6 +528,7 @@ export type Database = {
           notes: string | null
           phone: string | null
           pipeline_stage: string | null
+          profitability_sheet_url: string | null
           setup_fee: number | null
           setup_paid: number | null
           start_date: string | null
@@ -552,6 +553,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           pipeline_stage?: string | null
+          profitability_sheet_url?: string | null
           setup_fee?: number | null
           setup_paid?: number | null
           start_date?: string | null
@@ -576,6 +578,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           pipeline_stage?: string | null
+          profitability_sheet_url?: string | null
           setup_fee?: number | null
           setup_paid?: number | null
           start_date?: string | null
@@ -1077,6 +1080,7 @@ export type Database = {
           description: string | null
           id: string
           name: string
+          profitability_sheet_url: string | null
           progress: number
           project_number: string | null
           start_date: string | null
@@ -1091,6 +1095,7 @@ export type Database = {
           description?: string | null
           id?: string
           name: string
+          profitability_sheet_url?: string | null
           progress?: number
           project_number?: string | null
           start_date?: string | null
@@ -1105,6 +1110,7 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
+          profitability_sheet_url?: string | null
           progress?: number
           project_number?: string | null
           start_date?: string | null
