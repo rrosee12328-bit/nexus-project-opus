@@ -485,6 +485,15 @@ export default function AdminProjects() {
                 <Input type="date" value={form.target_date} onChange={(e) => setForm({ ...form, target_date: e.target.value })} />
               </div>
             </div>
+            <div className="space-y-2">
+              <Label>Profitability Sheet URL <span className="text-xs text-muted-foreground font-normal">(internal — admin only)</span></Label>
+              <Input
+                type="url"
+                value={form.profitability_sheet_url}
+                onChange={(e) => setForm({ ...form, profitability_sheet_url: e.target.value })}
+                placeholder="https://docs.google.com/spreadsheets/d/..."
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeForm}>Cancel</Button>
