@@ -35,6 +35,7 @@ import {
   Clock,
   Pause,
   Circle,
+  Sheet as SheetIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -74,6 +75,7 @@ type ProjectForm = {
   progress: number;
   start_date: string;
   target_date: string;
+  profitability_sheet_url: string;
 };
 
 const emptyForm: ProjectForm = {
@@ -86,6 +88,7 @@ const emptyForm: ProjectForm = {
   progress: 0,
   start_date: "",
   target_date: "",
+  profitability_sheet_url: "",
 };
 
 export default function AdminProjects() {
@@ -152,6 +155,7 @@ export default function AdminProjects() {
         progress: form.progress,
         start_date: form.start_date || null,
         target_date: form.target_date || null,
+        profitability_sheet_url: form.profitability_sheet_url?.trim() || null,
       };
       // Only include project_number when user provided one (otherwise DB default assigns PR-####)
       if (form.project_number?.trim()) {
@@ -240,6 +244,7 @@ export default function AdminProjects() {
       progress: project.progress,
       start_date: project.start_date || "",
       target_date: project.target_date || "",
+      profitability_sheet_url: (project as any).profitability_sheet_url || "",
     });
     setFormOpen(true);
   };
