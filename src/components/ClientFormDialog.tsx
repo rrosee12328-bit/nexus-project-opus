@@ -50,7 +50,7 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [form, setForm] = useState<Partial<ClientInsert> & { pipeline_stage?: string; follow_up_start?: string; follow_up_end?: string; last_contact_date?: string; lead_source?: string }>({
+  const [form, setForm] = useState<Partial<ClientInsert> & { pipeline_stage?: string; follow_up_start?: string; follow_up_end?: string; last_contact_date?: string; lead_source?: string; profitability_sheet_url?: string }>({
     name: client?.name ?? "",
     client_number: (client as any)?.client_number ?? "",
     type: client?.type ?? "",
