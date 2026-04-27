@@ -366,6 +366,23 @@ export default function AdminProjects() {
 
                       {/* Actions */}
                       <div className="flex gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        {(() => {
+                          const url = (project as any).profitability_sheet_url
+                            || (project.clients as any)?.profitability_sheet_url;
+                          if (!url) return null;
+                          return (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              asChild
+                              title={(project as any).profitability_sheet_url ? "Project profitability sheet" : "Client profitability sheet"}
+                            >
+                              <a href={url} target="_blank" rel="noopener noreferrer">
+                                <SheetIcon className="h-4 w-4 text-emerald-600" />
+                              </a>
+                            </Button>
+                          );
+                        })()}
                         <Button variant="ghost" size="sm" onClick={() => setPhaseDialogId(project.id)}>
                           Phases
                         </Button>
