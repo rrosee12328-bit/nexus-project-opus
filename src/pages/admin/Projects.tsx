@@ -372,13 +372,15 @@ export default function AdminProjects() {
                           if (!url) return null;
                           return (
                             <Button
-                              variant="ghost"
-                              size="icon"
+                              variant="outline"
+                              size="sm"
                               asChild
+                              className="h-8 gap-1.5 border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10 hover:text-emerald-700 dark:text-emerald-400"
                               title={(project as any).profitability_sheet_url ? "Project profitability sheet" : "Client profitability sheet"}
                             >
                               <a href={url} target="_blank" rel="noopener noreferrer">
-                                <SheetIcon className="h-4 w-4 text-emerald-600" />
+                                <SheetIcon className="h-3.5 w-3.5" />
+                                <span className="text-xs font-medium">Sheet</span>
                               </a>
                             </Button>
                           );
