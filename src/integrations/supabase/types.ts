@@ -178,6 +178,45 @@ export type Database = {
           },
         ]
       }
+      audit_log: {
+        Row: {
+          action_type: string
+          actor_id: string | null
+          actor_type: string
+          created_at: string | null
+          id: string
+          new_data: Json | null
+          old_data: Json | null
+          risk_tier: string | null
+          target_id: string | null
+          target_table: string
+        }
+        Insert: {
+          action_type: string
+          actor_id?: string | null
+          actor_type: string
+          created_at?: string | null
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          risk_tier?: string | null
+          target_id?: string | null
+          target_table: string
+        }
+        Update: {
+          action_type?: string
+          actor_id?: string | null
+          actor_type?: string
+          created_at?: string | null
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          risk_tier?: string | null
+          target_id?: string | null
+          target_table?: string
+        }
+        Relationships: []
+      }
       business_overhead: {
         Row: {
           amount: number
@@ -254,6 +293,113 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      call_intelligence: {
+        Row: {
+          call_date: string
+          call_type: string
+          client_id: string | null
+          created_at: string | null
+          fathom_meeting_id: string | null
+          id: string
+          key_decisions: Json | null
+          project_id: string | null
+          sentiment: string | null
+          summary: string | null
+          transcript: string | null
+        }
+        Insert: {
+          call_date: string
+          call_type: string
+          client_id?: string | null
+          created_at?: string | null
+          fathom_meeting_id?: string | null
+          id?: string
+          key_decisions?: Json | null
+          project_id?: string | null
+          sentiment?: string | null
+          summary?: string | null
+          transcript?: string | null
+        }
+        Update: {
+          call_date?: string
+          call_type?: string
+          client_id?: string | null
+          created_at?: string | null
+          fathom_meeting_id?: string | null
+          id?: string
+          key_decisions?: Json | null
+          project_id?: string | null
+          sentiment?: string | null
+          summary?: string | null
+          transcript?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_intelligence_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_intelligence_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checklist_items: {
+        Row: {
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_completed: boolean | null
+          order_index: number
+          phase: string
+          project_id: string
+          requires_client_action: boolean | null
+          title: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_completed?: boolean | null
+          order_index?: number
+          phase: string
+          project_id: string
+          requires_client_action?: boolean | null
+          title: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_completed?: boolean | null
+          order_index?: number
+          phase?: string
+          project_id?: string
+          requires_client_action?: boolean | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_items_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -1082,6 +1228,7 @@ export type Database = {
           name: string
           profitability_sheet_url: string | null
           progress: number
+          progress_percentage: number | null
           project_number: string | null
           start_date: string | null
           status: Database["public"]["Enums"]["project_status"]
@@ -1097,6 +1244,7 @@ export type Database = {
           name: string
           profitability_sheet_url?: string | null
           progress?: number
+          progress_percentage?: number | null
           project_number?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
@@ -1112,6 +1260,7 @@ export type Database = {
           name?: string
           profitability_sheet_url?: string | null
           progress?: number
+          progress_percentage?: number | null
           project_number?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
@@ -1324,6 +1473,39 @@ export type Database = {
           tags?: string[]
           title?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      strategic_insights: {
+        Row: {
+          description: string
+          evidence: Json | null
+          generated_at: string | null
+          id: string
+          insight_type: string
+          recommended_action: string | null
+          status: string | null
+          title: string
+        }
+        Insert: {
+          description: string
+          evidence?: Json | null
+          generated_at?: string | null
+          id?: string
+          insight_type: string
+          recommended_action?: string | null
+          status?: string | null
+          title: string
+        }
+        Update: {
+          description?: string
+          evidence?: Json | null
+          generated_at?: string | null
+          id?: string
+          insight_type?: string
+          recommended_action?: string | null
+          status?: string | null
+          title?: string
         }
         Relationships: []
       }

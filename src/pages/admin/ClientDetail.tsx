@@ -26,7 +26,7 @@ import {
 import {
   ArrowLeft, Plus, Video, FileText, CircleDot, StickyNote,
   Pencil, Trash2, Loader2, ExternalLink, Calendar, Users, CheckCircle2, Clock,
-  Link as LinkIcon, ChevronDown, ChevronUp, Briefcase, FileSignature,
+  Link as LinkIcon, ChevronDown, ChevronUp, Briefcase, FileSignature, Sparkles, Download,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -104,6 +104,35 @@ export default function ClientDetail() {
   const [expandedNote, setExpandedNote] = useState<string | null>(null);
   const [reportExpanded, setReportExpanded] = useState(true);
   const [proposalOpen, setProposalOpen] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [summaryHtml, setSummaryHtml] = useState<string | null>(null);
+  const [summaryDate, setSummaryDate] = useState<string | null>(null);
+
+  const handleGenerateSummary = async () => {
+    if (!clientId) return;
+    setIsGenerating(true);
+    setSummaryHtml(null);
+    setSummaryDate(null);
+    setSummaryOpen(true);
+    try {
+      const res = await fetch("https://vektiss.app.n8n.cloud/webhook/admin-client-summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_id: clientId }),
+      });
+      if (!res.ok) throw new Error("Request failed");
+      const data = await res.json();
+      if (!data?.success || !data?.summary) throw new Error("Invalid response");
+      setSummaryHtml(data.summary);
+      setSummaryDate(data.generated_at ?? new Date().toISOString());
+    } catch (e) {
+      setSummaryOpen(false);
+      toast.error("Summary generation failed. Please try again.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const { data: client } = useQuery({
     queryKey: ["client-detail", clientId],
@@ -260,6 +289,13 @@ export default function ClientDetail() {
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
+          <Button onClick={handleGenerateSummary} size="sm" disabled={isGenerating}>
+            {isGenerating ? (
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating summary...</>
+            ) : (
+              <><Sparkles className="mr-2 h-4 w-4" /> Generate Executive Summary</>
+            )}
+          </Button>
           <Button onClick={() => setProposalOpen(true)} size="sm" variant="outline">
             <FileSignature className="mr-2 h-4 w-4" /> Send Proposal
           </Button>
