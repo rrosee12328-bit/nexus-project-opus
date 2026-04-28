@@ -730,6 +730,52 @@ export default function ClientDetail() {
           defaultSetupFee={client.setup_fee ?? 0}
         />
       )}
+
+      {/* Executive Summary modal */}
+      <Dialog open={summaryOpen} onOpenChange={setSummaryOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {summaryDate
+                ? `Executive Summary — ${format(new Date(summaryDate), "MMMM d, yyyy")}`
+                : "Executive Summary"}
+            </DialogTitle>
+          </DialogHeader>
+          {isGenerating || !summaryHtml ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">Generating summary...</p>
+            </div>
+          ) : (
+            <div
+              className="prose prose-sm dark:prose-invert max-w-none summary-doc"
+              dangerouslySetInnerHTML={{ __html: summaryHtml }}
+            />
+          )}
+          {summaryHtml && !isGenerating && (
+            <DialogFooter>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const safeName = (client?.name ?? "client").replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, "_");
+                  const dateStr = summaryDate ? format(new Date(summaryDate), "yyyy-MM-dd") : "summary";
+                  const blob = new Blob([summaryHtml], { type: "text/html" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `${safeName}_executive_summary_${dateStr}.html`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+              >
+                <Download className="mr-2 h-4 w-4" /> Download
+              </Button>
+              <Button size="sm" onClick={() => setSummaryOpen(false)}>Close</Button>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
