@@ -17,6 +17,7 @@ import {
   BookOpen,
   Sheet,
   Phone,
+  Brain,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -41,6 +42,7 @@ const navItems = [
   { title: "Client Management", url: "/admin/clients", icon: Users },
   { title: "Client Summaries", url: "/admin/summaries", icon: BookOpen },
   { title: "Call Intelligence", url: "/admin/calls", icon: Phone },
+  { title: "Knowledge Base", url: "/admin/knowledge-base", icon: Brain },
   { title: "Sales Pipeline", url: "/admin/leads", icon: Target },
   { title: "Proposals", url: "/admin/proposals", icon: FileText },
   { title: "Project Management", url: "/admin/projects", icon: FolderKanban },
