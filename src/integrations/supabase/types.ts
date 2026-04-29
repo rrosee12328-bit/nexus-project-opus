@@ -404,6 +404,42 @@ export type Database = {
           },
         ]
       }
+      checklist_templates: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_client_facing: boolean | null
+          is_conditional: boolean | null
+          order_index: number
+          phase: string
+          project_type: string
+          title: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_client_facing?: boolean | null
+          is_conditional?: boolean | null
+          order_index: number
+          phase: string
+          project_type?: string
+          title: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_client_facing?: boolean | null
+          is_conditional?: boolean | null
+          order_index?: number
+          phase?: string
+          project_type?: string
+          title?: string
+        }
+        Relationships: []
+      }
       client_contracts: {
         Row: {
           client_id: string
@@ -1230,6 +1266,7 @@ export type Database = {
           progress: number
           progress_percentage: number | null
           project_number: string | null
+          service_type: string
           start_date: string | null
           status: Database["public"]["Enums"]["project_status"]
           target_date: string | null
@@ -1246,6 +1283,7 @@ export type Database = {
           progress?: number
           progress_percentage?: number | null
           project_number?: string | null
+          service_type?: string
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
           target_date?: string | null
@@ -1262,6 +1300,7 @@ export type Database = {
           progress?: number
           progress_percentage?: number | null
           project_number?: string | null
+          service_type?: string
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
           target_date?: string | null
@@ -1328,6 +1367,7 @@ export type Database = {
           project_name: string | null
           project_number: string | null
           project_total: number | null
+          proposal_number: string | null
           proposal_type: string
           scope_description: string | null
           services_description: string | null
@@ -1362,6 +1402,7 @@ export type Database = {
           project_name?: string | null
           project_number?: string | null
           project_total?: number | null
+          proposal_number?: string | null
           proposal_type?: string
           scope_description?: string | null
           services_description?: string | null
@@ -1396,6 +1437,7 @@ export type Database = {
           project_name?: string | null
           project_number?: string | null
           project_total?: number | null
+          proposal_number?: string | null
           proposal_type?: string
           scope_description?: string | null
           services_description?: string | null
@@ -1796,6 +1838,103 @@ export type Database = {
         }
         Relationships: []
       }
+      time_tracking_codes: {
+        Row: {
+          category: string
+          code: string
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          is_billable: boolean | null
+          label: string
+          phase: string | null
+        }
+        Insert: {
+          category: string
+          code: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_billable?: boolean | null
+          label: string
+          phase?: string | null
+        }
+        Update: {
+          category?: string
+          code?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_billable?: boolean | null
+          label?: string
+          phase?: string | null
+        }
+        Relationships: []
+      }
+      timesheets: {
+        Row: {
+          created_at: string | null
+          date: string
+          description: string | null
+          hours: number
+          id: string
+          project_id: string | null
+          proposal_id: string | null
+          time_code_id: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          date?: string
+          description?: string | null
+          hours?: number
+          id?: string
+          project_id?: string | null
+          proposal_id?: string | null
+          time_code_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          date?: string
+          description?: string | null
+          hours?: number
+          id?: string
+          project_id?: string | null
+          proposal_id?: string | null
+          time_code_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timesheets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timesheets_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timesheets_time_code_id_fkey"
+            columns: ["time_code_id"]
+            isOneToOne: false
+            referencedRelation: "time_tracking_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1817,12 +1956,62 @@ export type Database = {
         }
         Relationships: []
       }
+      vendors: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          monthly_cost: number | null
+          name: string
+          notes: string | null
+          service_type: string | null
+          updated_at: string | null
+          vendor_number: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          monthly_cost?: number | null
+          name: string
+          notes?: string | null
+          service_type?: string | null
+          updated_at?: string | null
+          vendor_number?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          monthly_cost?: number | null
+          name?: string
+          notes?: string | null
+          service_type?: string | null
+          updated_at?: string | null
+          vendor_number?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       archive_done_tasks: { Args: never; Returns: undefined }
+      convert_proposal_to_client: {
+        Args: {
+          p_client_email: string
+          p_client_name: string
+          p_client_phone?: string
+          p_proposal_id: string
+          p_service_type?: string
+        }
+        Returns: {
+          new_client_id: string
+          new_client_number: string
+          proposal_number: string
+        }[]
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
