@@ -32,6 +32,7 @@ import AdminLeads from "./pages/admin/Leads";
 import AdminProposals from "./pages/admin/Proposals";
 import AdminSummaries from "./pages/admin/Summaries";
 import AdminClientTracker from "./pages/admin/ClientTracker";
+import AdminCalls from "./pages/admin/Calls";
 
 import OpsLayout from "./layouts/OpsLayout";
 import OpsDashboard from "./pages/ops/Dashboard";
@@ -102,6 +103,7 @@ const App = () => (
               <Route path="proposals" element={<AdminProposals />} />
               <Route path="summaries" element={<AdminSummaries />} />
               <Route path="tracker" element={<AdminClientTracker />} />
+              <Route path="calls" element={<AdminCalls />} />
             </Route>
 
             {/* Ops Portal */}
