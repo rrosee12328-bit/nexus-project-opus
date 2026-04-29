@@ -684,6 +684,7 @@ export default function AdminProposals() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Proposal #</TableHead>
                     <TableHead>Client</TableHead>
                     <TableHead>Setup Fee</TableHead>
                     <TableHead>Monthly Fee</TableHead>
@@ -705,6 +706,15 @@ export default function AdminProposals() {
                     const lastViewed = (p as any).last_viewed_at;
                     return (
                       <TableRow key={p.id}>
+                        <TableCell>
+                          {(p as any).proposal_number ? (
+                            <span className="font-mono text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
+                              {(p as any).proposal_number}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </TableCell>
                         <TableCell className="font-medium">{clientName}</TableCell>
                         <TableCell>{formatCurrency(p.setup_fee)}</TableCell>
                         <TableCell>{formatCurrency(p.monthly_fee)}</TableCell>
