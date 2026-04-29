@@ -277,7 +277,7 @@ export default function AdminClients() {
                             <p className="font-medium truncate flex items-center gap-2">
                               {client.name}
                               {(client as any).client_number && (
-                                <span className="text-[11px] font-mono font-normal text-muted-foreground">
+                        <span className="font-mono text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
                                   {(client as any).client_number}
                                 </span>
                               )}
