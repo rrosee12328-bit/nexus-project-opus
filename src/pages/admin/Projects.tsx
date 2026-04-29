@@ -334,7 +334,7 @@ export default function AdminProjects() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-semibold">{project.name}</h3>
                           {project.project_number && (
-                            <span className="text-[11px] font-mono text-muted-foreground">
+                        <span className="font-mono text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
                               {project.project_number}
                             </span>
                           )}
