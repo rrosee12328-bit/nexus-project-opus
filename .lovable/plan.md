@@ -1,54 +1,91 @@
-# Generate Executive Summary — Admin Client Detail
+## The problem
 
-Add a primary-styled action button to the top-right of the Admin Client Detail page that calls the n8n webhook and renders the returned HTML summary in a modal.
+The current `/admin/knowledge-base` is four tabs of text-heavy tables (SOPs, Summaries, Insights, Client Notes). It reads like a database admin tool — you scroll long content, expand rows, and re-read everything you already wrote. There's no synthesis, no visual hook, nothing that feels like a "brain." Today: 2 SOPs, 35 summaries, 0 insights, 27 client notes — plenty of data, zero overview.
 
-## Scope
+## The new vision: "The Brain"
 
-Single file change: `src/pages/admin/ClientDetail.tsx`
+Replace the tabbed table layout with a **visual command center** that surfaces *what's in the AI's memory at a glance*, with drilldowns only when needed. Reading full documents stays available, but it's not the default mode — that's what download/expand is for.
 
-## UI changes
-
-Header action row (currently `Send Proposal` + `Add Entry` at line ~262) gets a new primary button placed first:
+### Layout (top to bottom)
 
 ```text
-[ Sparkles  Generate Executive Summary ]  [ Send Proposal ]  [ Add Entry ]
+┌────────────────────────────────────────────────────────────┐
+│  THE BRAIN         [Feed the Brain +]  [Ask the Brain 🔍] │
+│  "Your AI's memory — everything it knows about your biz"   │
+├────────────────────────────────────────────────────────────┤
+│  4 stat orbs (animated):                                   │
+│   🧠 35 Memories  📋 2 SOPs  💡 0 Insights  📝 27 Notes   │
+├────────────────────────────────────────────────────────────┤
+│  KNOWLEDGE GRAPH (left, 60%)    │  PULSE FEED (right, 40%) │
+│  ┌──────────────────────┐       │  Last fed: 3d ago        │
+│  │   ●─────●            │       │  • Summary added (Acme)  │
+│  │  /│     │\           │       │  • SOP updated           │
+│  │ ● │     │ ●─●        │       │  • Note: meeting recap   │
+│  │  \│     │/           │       │  ────                    │
+│  │   ●─────●            │       │  GAPS DETECTED:          │
+│  └──────────────────────┘       │  ⚠ 3 clients no notes    │
+│  Nodes = clients/topics         │  ⚠ 0 strategic insights  │
+│  Edges = shared tags/mentions   │  ⚠ Onboarding SOP stale  │
+├────────────────────────────────────────────────────────────┤
+│  RECENT MEMORIES  (horizontal scroll of small cards)        │
+│  Each card: icon + title + 2-line preview + "by client"    │
+│  Click → side drawer with full content (no nav away)       │
+├────────────────────────────────────────────────────────────┤
+│  TOPIC CLOUD                                                │
+│  Tag chips sized by frequency across all knowledge          │
+│  (onboarding · pricing · content · reels · feedback...)     │
+└────────────────────────────────────────────────────────────┘
 ```
 
-- Variant: `default` (primary) — matches existing style guide
-- Icon: `Sparkles` from lucide-react
-- While loading: button shows `<Loader2 className="animate-spin" /> Generating summary...` and is disabled
+### Key UX shifts vs today
 
-## Behavior
+| Today | New |
+|---|---|
+| 4 separate tabs | 1 unified dashboard, content **filtered by lens** (chips: All / SOPs / Summaries / Notes / Insights) |
+| Open table row to read full content | Click card → **side drawer** slides in (keeps you on the page) |
+| Long markdown dump | Cards show **AI-generated 2-line gist** of each item (not the raw text) |
+| Manual hunt for what's missing | **Gaps panel** flags clients with no notes, missing SOPs, stale summaries |
+| No relationships | **Knowledge Graph** visualizes how clients/topics interconnect via shared tags & mentions |
+| Tags hidden in rows | **Topic Cloud** shows what your business is "thinking about" |
+| Boring CRUD | "Feed the Brain" CTA — single dialog that auto-routes to the right table by type |
 
-1. On click → set `isGenerating = true`, open modal immediately showing centered spinner + "Generating summary..." text.
-2. `fetch("https://vektiss.app.n8n.cloud/webhook/admin-client-summary", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ client_id: clientId }) })`
-3. On success (`{ success: true, summary, generated_at }`): store result in state, modal swaps spinner for rendered HTML.
-4. On failure (network error, non-2xx, or `success !== true`): close modal, show `toast.error("Summary generation failed. Please try again.")`.
+### What stays available (just not in your face)
 
-## Modal
+- Full read mode → side drawer with `<MarkdownRenderer>` + Download button
+- Edit / Delete → drawer footer actions (admin only)
+- Search → still there, top-right, but Cmd+K style instant filter across all types
 
-Uses existing `Dialog` from `@/components/ui/dialog`.
+## Implementation scope
 
-- `DialogContent` with `max-w-3xl max-h-[85vh] overflow-y-auto`
-- `DialogTitle`: `Executive Summary — {format(new Date(generated_at), "MMMM d, yyyy")}`
-- Body: `<div className="prose prose-sm dark:prose-invert max-w-none summary-doc" dangerouslySetInnerHTML={{ __html: summary }} />`
-- Loading state: centered `<Loader2 className="h-8 w-8 animate-spin text-primary" />` + "Generating summary..."
-- Footer: Close button + Download button (saves the HTML as `<client-name>_executive_summary_<date>.html`)
+### New file: `src/pages/admin/KnowledgeBase.tsx` (rewrite)
+Replace the current tabbed table file with the dashboard layout above. Reuse the existing queries (sops, company_summaries, strategic_insights, client_notes) — no schema changes needed.
 
-## State (added to ClientDetail component)
+### New components in `src/components/knowledge/`
+- `BrainStatsOrbs.tsx` — 4 animated stat tiles with counts + last-updated time
+- `KnowledgeGraph.tsx` — force-directed graph using `react-force-graph-2d` (nodes = clients + topic clusters, edges = co-occurrence in notes/summaries)
+- `PulseFeed.tsx` — chronological activity stream + "Gaps Detected" alerts (computed client-side: clients with 0 notes, summaries older than 30d, etc.)
+- `MemoryCard.tsx` — compact card with icon, title, 2-line preview, source badge, click → opens drawer
+- `MemoryDrawer.tsx` — Sheet component showing full content + edit/delete/download
+- `TopicCloud.tsx` — tag frequency cloud, click a tag to filter the whole dashboard
+- `FeedTheBrainDialog.tsx` — already exists at `src/components/FeedTheBrainDialog.tsx`, repurpose/wire it as the single "add" entry point
 
-```ts
-const [summaryOpen, setSummaryOpen] = useState(false);
-const [isGenerating, setIsGenerating] = useState(false);
-const [summaryHtml, setSummaryHtml] = useState<string | null>(null);
-const [summaryDate, setSummaryDate] = useState<string | null>(null);
-```
+### Dependency
+Add `react-force-graph-2d` for the knowledge graph (lightweight, canvas-based, mobile-friendly).
 
-## Security note
+### Reused
+- Existing CRUD mutations from current KnowledgeBase.tsx (lifted into a `useKnowledgeMutations` hook)
+- `AICommandCenter`, `Card`, `Sheet`, `Badge`, `Input` from existing UI kit
+- Vektiss Blue + dark/light theme tokens (per memory)
 
-The webhook returns trusted HTML from your own n8n workflow, so `dangerouslySetInnerHTML` is acceptable here (same approach used by `ClientSummariesPanel` / SOPs). No user-submitted content is rendered.
+## Out of scope (this pass)
 
-## Out of scope
+- AI-generated 2-line gists for existing items (would need an edge function pass — can be added later; for now show first 120 chars truncated cleanly)
+- Editing the underlying tables/RLS — schema is fine
+- Mobile graph interactions beyond pan/zoom (works, but not optimized for fat-finger node selection)
 
-- Persisting the generated summary to `company_summaries` table (can be added later if you want one-click "Save to Summaries").
-- Changes to any other page or to the n8n workflow itself.
+## Open questions
+
+Before I build, two quick choices:
+
+1. **Knowledge Graph vs simpler "Mind Map" style** — graph is interactive but can look messy with sparse data (you have 0 insights, 2 SOPs). A clean mind-map (Vektiss at center, branches to Clients → Notes/Summaries) might feel more "brain-like" with current data volume. Want graph or mind-map?
+2. **Gist generation** — want me to add a "Refresh gists" button that runs Lovable AI over each item once to store a 2-line summary in a new column? Or just truncate raw content for v1?
