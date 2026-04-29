@@ -11,10 +11,11 @@ import {
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { MoreHorizontal, Pencil, Trash2, Eye, Phone, Mail, Calendar, AlertTriangle, Clock, DollarSign, ArrowRightCircle, PartyPopper, Info, FileSignature } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Eye, Phone, Mail, Calendar, AlertTriangle, Clock, DollarSign, ArrowRightCircle, PartyPopper, Info, FileSignature, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { format, isWithinInterval, isBefore, isAfter, differenceInDays, parseISO } from "date-fns";
 import { ConvertLeadDialog } from "./ConvertLeadDialog";
+import { ConvertLeadToProposalDialog } from "./ConvertLeadToProposalDialog";
 import { SendProposalDialog } from "@/components/proposals/SendProposalDialog";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -85,6 +86,7 @@ export function LeadPipelineKanban({ leads, onEdit, onDelete }: LeadPipelineKanb
   const queryClient = useQueryClient();
   const [convertLead, setConvertLead] = useState<Client | null>(null);
   const [proposalLead, setProposalLead] = useState<Client | null>(null);
+  const [convertToProposal, setConvertToProposal] = useState<Client | null>(null);
 
   const updateStage = useMutation({
     mutationFn: async ({ id, stage }: { id: string; stage: string }) => {
@@ -254,6 +256,12 @@ export function LeadPipelineKanban({ leads, onEdit, onDelete }: LeadPipelineKanb
                                         <DropdownMenuItem onClick={() => setProposalLead(lead)} className="text-primary focus:text-primary">
                                           <FileSignature className="mr-2 h-3.5 w-3.5" /> Send Proposal
                                         </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                          onClick={() => setConvertToProposal(lead)}
+                                          className="text-primary focus:text-primary"
+                                        >
+                                          <FileText className="mr-2 h-3.5 w-3.5" /> Convert to Proposal
+                                        </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => setConvertLead(lead)} className="text-emerald-500 focus:text-emerald-500">
                                           <ArrowRightCircle className="mr-2 h-3.5 w-3.5" /> Convert to Client
                                         </DropdownMenuItem>
@@ -362,6 +370,12 @@ export function LeadPipelineKanban({ leads, onEdit, onDelete }: LeadPipelineKanb
         clientEmail={proposalLead?.email}
         defaultMonthlyFee={proposalLead?.monthly_fee ?? 0}
         defaultSetupFee={proposalLead?.setup_fee ?? 0}
+      />
+
+      <ConvertLeadToProposalDialog
+        open={!!convertToProposal}
+        onOpenChange={(open) => { if (!open) setConvertToProposal(null); }}
+        lead={convertToProposal}
       />
     </div>
   );
