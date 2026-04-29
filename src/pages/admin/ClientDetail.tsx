@@ -34,6 +34,7 @@ import AdminClientBilling from "@/components/admin/AdminClientBilling";
 import { format, formatDistanceToNow } from "date-fns";
 import { SendProposalDialog } from "@/components/proposals/SendProposalDialog";
 import ClientContractsTab from "@/components/admin/ClientContractsTab";
+import ClientCallsTab from "@/components/admin/ClientCallsTab";
 
 type NoteType = "meeting" | "document" | "action_item" | "note";
 
@@ -423,6 +424,13 @@ export default function ClientDetail() {
           </motion.div>
         );
       })()}
+
+      {/* Call Intelligence */}
+      {client && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+          <ClientCallsTab clientId={client.id} />
+        </motion.div>
+      )}
 
       {/* Contracts */}
       {client && (
