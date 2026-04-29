@@ -1,0 +1,566 @@
+import { useState, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { format, parseISO } from "date-fns";
+import { toast } from "sonner";
+import { motion } from "framer-motion";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Phone, Plus, Search, FileText, Mic, TrendingUp, Users,
+  ChevronDown, ChevronUp, Pencil, Trash2, ExternalLink,
+} from "lucide-react";
+
+type CallRecord = {
+  id: string;
+  call_date: string;
+  call_type: string;
+  client_id: string | null;
+  project_id: string | null;
+  fathom_meeting_id: string | null;
+  summary: string | null;
+  transcript: string | null;
+  sentiment: string | null;
+  key_decisions: any;
+  created_at: string | null;
+};
+
+type Client = { id: string; name: string };
+type Project = { id: string; name: string };
+
+const CALL_TYPES = [
+  { value: "discovery", label: "Discovery" },
+  { value: "onboarding", label: "Onboarding" },
+  { value: "check_in", label: "Check-In" },
+  { value: "sales", label: "Sales" },
+  { value: "internal", label: "Internal" },
+  { value: "other", label: "Other" },
+];
+
+const SENTIMENT_COLORS: Record<string, string> = {
+  positive: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  neutral: "bg-muted text-muted-foreground border-border",
+  negative: "bg-red-500/20 text-red-400 border-red-500/30",
+  mixed: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+};
+
+const TYPE_COLORS: Record<string, string> = {
+  discovery: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  onboarding: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+  check_in: "bg-teal-500/20 text-teal-400 border-teal-500/30",
+  sales: "bg-green-500/20 text-green-400 border-green-500/30",
+  internal: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+  other: "bg-muted text-muted-foreground border-border",
+};
+
+type FormData = {
+  call_date: string;
+  call_type: string;
+  client_id: string;
+  project_id: string;
+  fathom_meeting_id: string;
+  summary: string;
+  transcript: string;
+  sentiment: string;
+  key_decisions_text: string;
+};
+
+const emptyForm = (): FormData => ({
+  call_date: format(new Date(), "yyyy-MM-dd"),
+  call_type: "check_in",
+  client_id: "",
+  project_id: "",
+  fathom_meeting_id: "",
+  summary: "",
+  transcript: "",
+  sentiment: "neutral",
+  key_decisions_text: "",
+});
+
+export default function AdminCalls() {
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [filterType, setFilterType] = useState<string>("all");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingCall, setEditingCall] = useState<CallRecord | null>(null);
+  const [viewingCall, setViewingCall] = useState<CallRecord | null>(null);
+  const [transcriptExpanded, setTranscriptExpanded] = useState(false);
+  const [form, setForm] = useState<FormData>(emptyForm());
+
+  const { data: calls = [], isLoading } = useQuery({
+    queryKey: ["call-intelligence"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("call_intelligence")
+        .select("*")
+        .order("call_date", { ascending: false });
+      if (error) throw error;
+      return (data || []) as CallRecord[];
+    },
+  });
+
+  const { data: clients = [] } = useQuery({
+    queryKey: ["clients-list"],
+    queryFn: async () => {
+      const { data } = await supabase.from("clients").select("id, name").order("name");
+      return (data || []) as Client[];
+    },
+  });
+
+  const { data: projects = [] } = useQuery({
+    queryKey: ["projects-list"],
+    queryFn: async () => {
+      const { data } = await supabase.from("projects").select("id, name").order("name");
+      return (data || []) as Project[];
+    },
+  });
+
+  const addMutation = useMutation({
+    mutationFn: async (f: FormData) => {
+      const payload: any = {
+        call_date: f.call_date,
+        call_type: f.call_type,
+        client_id: f.client_id || null,
+        project_id: f.project_id || null,
+        fathom_meeting_id: f.fathom_meeting_id || null,
+        summary: f.summary || null,
+        transcript: f.transcript || null,
+        sentiment: f.sentiment || null,
+        key_decisions: f.key_decisions_text
+          ? f.key_decisions_text.split("\n").filter(Boolean).map((d) => d.trim())
+          : null,
+      };
+      const { error } = await (supabase as any).from("call_intelligence").insert(payload);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["call-intelligence"] });
+      toast.success("Call record added");
+      setDialogOpen(false);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, f }: { id: string; f: FormData }) => {
+      const payload: any = {
+        call_date: f.call_date,
+        call_type: f.call_type,
+        client_id: f.client_id || null,
+        project_id: f.project_id || null,
+        fathom_meeting_id: f.fathom_meeting_id || null,
+        summary: f.summary || null,
+        transcript: f.transcript || null,
+        sentiment: f.sentiment || null,
+        key_decisions: f.key_decisions_text
+          ? f.key_decisions_text.split("\n").filter(Boolean).map((d) => d.trim())
+          : null,
+      };
+      const { error } = await (supabase as any).from("call_intelligence").update(payload).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["call-intelligence"] });
+      toast.success("Call record updated");
+      setDialogOpen(false);
+      setEditingCall(null);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any).from("call_intelligence").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["call-intelligence"] });
+      toast.success("Call record deleted");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const filtered = useMemo(() => {
+    return calls.filter((c) => {
+      const clientName = clients.find((cl) => cl.id === c.client_id)?.name ?? "";
+      const matchesSearch =
+        !search ||
+        clientName.toLowerCase().includes(search.toLowerCase()) ||
+        c.summary?.toLowerCase().includes(search.toLowerCase()) ||
+        c.call_type.toLowerCase().includes(search.toLowerCase());
+      const matchesType = filterType === "all" || c.call_type === filterType;
+      return matchesSearch && matchesType;
+    });
+  }, [calls, clients, search, filterType]);
+
+  const stats = useMemo(() => ({
+    total: calls.length,
+    positive: calls.filter((c) => c.sentiment === "positive").length,
+    withTranscript: calls.filter((c) => c.transcript).length,
+    clients: new Set(calls.map((c) => c.client_id).filter(Boolean)).size,
+  }), [calls]);
+
+  const openAdd = () => {
+    setEditingCall(null);
+    setForm(emptyForm());
+    setDialogOpen(true);
+  };
+
+  const openEdit = (call: CallRecord) => {
+    setEditingCall(call);
+    const decisions = Array.isArray(call.key_decisions)
+      ? call.key_decisions.join("\n")
+      : typeof call.key_decisions === "string"
+      ? call.key_decisions
+      : "";
+    setForm({
+      call_date: call.call_date,
+      call_type: call.call_type,
+      client_id: call.client_id ?? "",
+      project_id: call.project_id ?? "",
+      fathom_meeting_id: call.fathom_meeting_id ?? "",
+      summary: call.summary ?? "",
+      transcript: call.transcript ?? "",
+      sentiment: call.sentiment ?? "neutral",
+      key_decisions_text: decisions,
+    });
+    setDialogOpen(true);
+  };
+
+  const openView = (call: CallRecord) => {
+    setViewingCall(call);
+    setTranscriptExpanded(false);
+  };
+
+  const handleSubmit = () => {
+    if (editingCall) {
+      updateMutation.mutate({ id: editingCall.id, f: form });
+    } else {
+      addMutation.mutate(form);
+    }
+  };
+
+  const getClientName = (id: string | null) =>
+    id ? (clients.find((c) => c.id === id)?.name ?? "—") : "—";
+
+  const getProjectName = (id: string | null) =>
+    id ? (projects.find((p) => p.id === id)?.name ?? "—") : "—";
+
+  return (
+    <div className="space-y-6 p-6">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Call Intelligence</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            All Fathom, Retell, and manual call records linked to clients and projects.
+          </p>
+        </div>
+        <Button onClick={openAdd}>
+          <Plus className="h-4 w-4 mr-2" /> Log Call
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: "Total Calls", value: stats.total, icon: Phone, color: "text-primary" },
+          { label: "Positive Sentiment", value: stats.positive, icon: TrendingUp, color: "text-emerald-400" },
+          { label: "With Transcript", value: stats.withTranscript, icon: Mic, color: "text-blue-400" },
+          { label: "Clients Covered", value: stats.clients, icon: Users, color: "text-purple-400" },
+        ].map((s, i) => (
+          <motion.div key={s.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground">{s.label}</p>
+                    <p className="text-2xl font-semibold mt-1">{s.value}</p>
+                  </div>
+                  <s.icon className={`h-5 w-5 ${s.color}`} />
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+
+      <div className="flex gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[240px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search calls…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Select value={filterType} onValueChange={setFilterType}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            {CALL_TYPES.map((t) => (
+              <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <p className="p-6 text-sm text-muted-foreground">Loading calls…</p>
+          ) : filtered.length === 0 ? (
+            <p className="p-6 text-sm text-muted-foreground text-center">
+              No call records found. Click "Log Call" to add one.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Project</TableHead>
+                  <TableHead>Sentiment</TableHead>
+                  <TableHead>Summary</TableHead>
+                  <TableHead>Src</TableHead>
+                  <TableHead className="w-[100px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((call) => (
+                  <TableRow
+                    key={call.id}
+                    className="cursor-pointer hover:bg-muted/40"
+                    onClick={() => openView(call)}
+                  >
+                    <TableCell className="text-xs">
+                      {format(parseISO(call.call_date), "MM/dd/yy")}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={TYPE_COLORS[call.call_type] ?? TYPE_COLORS.other}>
+                        {CALL_TYPES.find((t) => t.value === call.call_type)?.label ?? call.call_type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm">{getClientName(call.client_id)}</TableCell>
+                    <TableCell className="text-sm">{getProjectName(call.project_id)}</TableCell>
+                    <TableCell>
+                      {call.sentiment ? (
+                        <Badge variant="outline" className={SENTIMENT_COLORS[call.sentiment] ?? SENTIMENT_COLORS.neutral}>
+                          {call.sentiment}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm max-w-[280px] truncate">
+                      {call.summary ?? "—"}
+                    </TableCell>
+                    <TableCell>
+                      {call.fathom_meeting_id && (
+                        <Badge variant="outline" className="text-xs">
+                          <ExternalLink className="h-3 w-3" />
+                        </Badge>
+                      )}
+                      {call.transcript && !call.fathom_meeting_id && (
+                        <Badge variant="outline" className="text-xs">
+                          <FileText className="h-3 w-3" />
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <div className="flex gap-1">
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(call)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => deleteMutation.mutate(call.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={!!viewingCall} onOpenChange={(o) => !o && setViewingCall(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          {viewingCall && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Phone className="h-4 w-4" />
+                  {CALL_TYPES.find((t) => t.value === viewingCall.call_type)?.label ?? viewingCall.call_type} Call
+                  <span className="text-sm font-normal text-muted-foreground">
+                    — {format(parseISO(viewingCall.call_date), "MMMM d, yyyy")}
+                  </span>
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="flex flex-wrap gap-2">
+                  {viewingCall.sentiment && (
+                    <Badge variant="outline" className={SENTIMENT_COLORS[viewingCall.sentiment] ?? SENTIMENT_COLORS.neutral}>
+                      {viewingCall.sentiment}
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className={TYPE_COLORS[viewingCall.call_type] ?? TYPE_COLORS.other}>
+                    {CALL_TYPES.find((t) => t.value === viewingCall.call_type)?.label}
+                  </Badge>
+                  {viewingCall.client_id && <Badge variant="outline">{getClientName(viewingCall.client_id)}</Badge>}
+                  {viewingCall.project_id && <Badge variant="outline">{getProjectName(viewingCall.project_id)}</Badge>}
+                  {viewingCall.fathom_meeting_id && (
+                    <a
+                      href={`https://fathom.video/calls/${viewingCall.fathom_meeting_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                    >
+                      <ExternalLink className="h-3 w-3" /> View in Fathom
+                    </a>
+                  )}
+                </div>
+                {viewingCall.summary && (
+                  <div>
+                    <h3 className="text-sm font-semibold mb-1">Summary</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{viewingCall.summary}</p>
+                  </div>
+                )}
+                {viewingCall.key_decisions && (
+                  <div>
+                    <h3 className="text-sm font-semibold mb-1">Key Decisions</h3>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      {(Array.isArray(viewingCall.key_decisions) ? viewingCall.key_decisions : [viewingCall.key_decisions]).map((d: string, i: number) => (
+                        <li key={i} className="flex gap-2">
+                          <span>•</span><span>{d}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {viewingCall.transcript && (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setTranscriptExpanded((v) => !v)}
+                      className="inline-flex items-center gap-2 text-sm font-semibold hover:text-primary"
+                    >
+                      <FileText className="h-4 w-4" />
+                      Transcript
+                      {transcriptExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </button>
+                    {transcriptExpanded && (
+                      <pre className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap bg-muted/40 rounded p-3 max-h-[300px] overflow-y-auto">
+                        {viewingCall.transcript}
+                      </pre>
+                    )}
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => openEdit(viewingCall)}>
+                  <Pencil className="h-4 w-4 mr-2" /> Edit
+                </Button>
+                <Button onClick={() => setViewingCall(null)}>Close</Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingCall ? "Edit Call Record" : "Log Call"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Date</Label>
+                <Input type="date" value={form.call_date} onChange={(e) => setForm({ ...form, call_date: e.target.value })} />
+              </div>
+              <div>
+                <Label>Call Type</Label>
+                <Select value={form.call_type} onValueChange={(v) => setForm({ ...form, call_type: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CALL_TYPES.map((t) => (<SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Client</Label>
+                <Select value={form.client_id || "none"} onValueChange={(v) => setForm({ ...form, client_id: v === "none" ? "" : v })}>
+                  <SelectTrigger><SelectValue placeholder="Select client" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {clients.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Project</Label>
+                <Select value={form.project_id || "none"} onValueChange={(v) => setForm({ ...form, project_id: v === "none" ? "" : v })}>
+                  <SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {projects.map((p) => (<SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Sentiment</Label>
+                <Select value={form.sentiment} onValueChange={(v) => setForm({ ...form, sentiment: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["positive", "neutral", "negative", "mixed"].map((s) => (<SelectItem key={s} value={s}>{s}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Fathom Meeting ID <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                <Input value={form.fathom_meeting_id} onChange={(e) => setForm({ ...form, fathom_meeting_id: e.target.value })} />
+              </div>
+            </div>
+            <div>
+              <Label>Summary</Label>
+              <Textarea rows={3} value={form.summary} onChange={(e) => setForm({ ...form, summary: e.target.value })} />
+            </div>
+            <div>
+              <Label>Key Decisions <span className="text-xs text-muted-foreground">(one per line)</span></Label>
+              <Textarea rows={3} placeholder={"Client approved Phase 2 scope\nNext meeting set for May 15"} value={form.key_decisions_text} onChange={(e) => setForm({ ...form, key_decisions_text: e.target.value })} />
+            </div>
+            <div>
+              <Label>Transcript <span className="text-xs text-muted-foreground">(optional — paste full transcript)</span></Label>
+              <Textarea rows={5} placeholder="Paste the full call transcript here…" value={form.transcript} onChange={(e) => setForm({ ...form, transcript: e.target.value })} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSubmit} disabled={addMutation.isPending || updateMutation.isPending}>
+              {editingCall ? "Update" : "Save Call"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
