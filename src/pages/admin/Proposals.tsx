@@ -11,7 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import {
   FileText, CheckCircle, CreditCard, ExternalLink, Eye, Plus, Mail,
   Send, Copy, Check, ArrowLeft, Sparkles, Loader2, Edit3,
-  Briefcase, Clock, Repeat, Download,
+  Briefcase, Clock, Repeat, Download, UserPlus,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
+import ConvertToClientDialog from "@/components/admin/ConvertToClientDialog";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   draft: { label: "Sent", color: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
@@ -611,6 +612,7 @@ export default function AdminProposals() {
   const [emailDialog, setEmailDialog] = useState<{ open: boolean; token: string; email?: string | null; name: string }>({
     open: false, token: "", name: "",
   });
+  const [convertDialog, setConvertDialog] = useState<{ open: boolean; proposal: any } | null>(null);
 
   const { data: proposals, isLoading, refetch } = useQuery({
     queryKey: ["proposals"],
@@ -757,6 +759,21 @@ export default function AdminProposals() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
+                            {(p.status === "signed" || p.status === "paid") && !(p as any).client_id && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                                    onClick={() => setConvertDialog({ open: true, proposal: { id: p.id, proposal_number: (p as any).proposal_number, client_name: p.client_name, client_email: p.client_email, status: p.status } })}
+                                  >
+                                    <UserPlus className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Convert to Client</TooltipContent>
+                              </Tooltip>
+                            )}
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button variant="ghost" size="icon" onClick={() => setEmailDialog({ open: true, token: p.token, email: p.client_email, name: clientName })}>
@@ -790,6 +807,14 @@ export default function AdminProposals() {
         clientEmail={emailDialog.email}
         clientName={emailDialog.name}
       />
+      {convertDialog && (
+        <ConvertToClientDialog
+          open={convertDialog.open}
+          onOpenChange={(o) => !o && setConvertDialog(null)}
+          proposal={convertDialog.proposal}
+          onConverted={() => refetch()}
+        />
+      )}
     </div>
   );
 }
