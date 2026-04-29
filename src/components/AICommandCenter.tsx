@@ -11,6 +11,7 @@ import {
   TrendingUp, MessageSquare, ClipboardList, GitCompare,
   Download,
 } from "lucide-react";
+import { FeedTheBrainButton } from "@/components/FeedTheBrainDialog";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { motion, AnimatePresence } from "framer-motion";
@@ -286,27 +287,32 @@ export default function AICommandCenter({
       className="border border-border/50 rounded-xl bg-card/80 backdrop-blur-sm overflow-hidden"
     >
       {/* Header */}
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors"
-      >
-        <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center ring-1 ring-primary/20">
-          <Zap className="h-4 w-4 text-primary" />
+      <div className="flex items-center w-full">
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex-1 flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors"
+        >
+          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center ring-1 ring-primary/20">
+            <Zap className="h-4 w-4 text-primary" />
+          </div>
+          <div className="flex-1 text-left min-w-0">
+            <h3 className="text-sm font-semibold text-foreground leading-tight">AI Command Center</h3>
+            <p className="text-[11px] text-muted-foreground truncate">
+              {pageContext.entityName
+                ? `Analyzing ${pageContext.entityName}`
+                : `${suggestions.length} smart actions available`}
+            </p>
+          </div>
+          {expanded ? (
+            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          )}
+        </button>
+        <div className="px-3" onClick={(e) => e.stopPropagation()}>
+          <FeedTheBrainButton />
         </div>
-        <div className="flex-1 text-left min-w-0">
-          <h3 className="text-sm font-semibold text-foreground leading-tight">AI Command Center</h3>
-          <p className="text-[11px] text-muted-foreground truncate">
-            {pageContext.entityName
-              ? `Analyzing ${pageContext.entityName}`
-              : `${suggestions.length} smart actions available`}
-          </p>
-        </div>
-        {expanded ? (
-          <ChevronUp className="h-4 w-4 text-muted-foreground" />
-        ) : (
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-        )}
-      </button>
+      </div>
 
       {/* Suggestion pills — always visible when not expanded */}
       {!expanded && suggestions.length > 0 && (
