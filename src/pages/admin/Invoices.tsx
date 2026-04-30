@@ -13,7 +13,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Receipt, Send, ExternalLink, Loader2, FileText, CheckCircle2, Clock, CalendarClock, Timer } from "lucide-react";
+import { Receipt, Send, ExternalLink, Loader2, FileText, CheckCircle2, Clock, CalendarClock, Timer, Eye, Download, Mail } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type Client = { id: string; name: string; client_number: string | null; email: string | null };
 
@@ -73,6 +80,7 @@ export default function Invoices() {
   const [notes, setNotes] = useState("");
   const [autoFinalize, setAutoFinalize] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [previewId, setPreviewId] = useState<string | null>(null);
 
   // composite key helpers: "timesheet:<id>" / "calendar:<id>"
   const key = (e: Pick<Entry, "source" | "id">) => `${e.source}:${e.id}`;
@@ -558,13 +566,23 @@ export default function Invoices() {
                           {format(new Date(inv.created_at), "MMM d, yyyy")}
                         </TableCell>
                         <TableCell>
-                          {inv.hosted_invoice_url && (
-                            <Button size="sm" variant="ghost" asChild>
-                              <a href={inv.hosted_invoice_url} target="_blank" rel="noreferrer">
-                                <ExternalLink className="h-3.5 w-3.5" />
-                              </a>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setPreviewId(inv.id)}
+                              title="Preview what the client receives"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
                             </Button>
-                          )}
+                            {inv.hosted_invoice_url && (
+                              <Button size="sm" variant="ghost" asChild title="Open Stripe-hosted invoice">
+                                <a href={inv.hosted_invoice_url} target="_blank" rel="noreferrer">
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                </a>
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -575,6 +593,208 @@ export default function Invoices() {
           </Card>
         </TabsContent>
       </Tabs>
+      <InvoicePreviewDialog
+        invoiceId={previewId}
+        onClose={() => setPreviewId(null)}
+        onChanged={() => qc.invalidateQueries({ queryKey: ["hourly-invoices"] })}
+      />
     </div>
+  );
+}
+
+function InvoicePreviewDialog({
+  invoiceId,
+  onClose,
+  onChanged,
+}: {
+  invoiceId: string | null;
+  onClose: () => void;
+  onChanged: () => void;
+}) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState<"finalize" | "send" | null>(null);
+
+  const load = async (id: string) => {
+    setLoading(true);
+    try {
+      const { data: res, error } = await supabase.functions.invoke("preview-hourly-invoice", {
+        body: { hourly_invoice_id: id },
+      });
+      if (error) throw error;
+      if (res?.error) throw new Error(res.error);
+      setData(res);
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to load preview");
+      onClose();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (invoiceId) {
+      setData(null);
+      void load(invoiceId);
+    }
+  }, [invoiceId]);
+
+  const finalize = async (send: boolean) => {
+    if (!invoiceId) return;
+    setBusy(send ? "send" : "finalize");
+    try {
+      const { data: res, error } = await supabase.functions.invoke("finalize-hourly-invoice", {
+        body: { hourly_invoice_id: invoiceId, send },
+      });
+      if (error) throw error;
+      if (res?.error) throw new Error(res.error);
+      toast.success(send ? "Invoice finalized & emailed to client" : "Invoice finalized");
+      onChanged();
+      await load(invoiceId);
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to finalize");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const inv = data?.invoice;
+  const stripe = data?.stripe;
+  const items: any[] = data?.line_items ?? [];
+  const isDraft = (stripe?.status ?? inv?.status) === "draft";
+
+  return (
+    <Dialog open={!!invoiceId} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Eye className="h-4 w-4" /> Client invoice preview
+          </DialogTitle>
+          <DialogDescription>
+            This is exactly what {inv?.clients?.name ?? "the client"} will see in their email and on the Stripe payment page.
+          </DialogDescription>
+        </DialogHeader>
+
+        {loading || !data ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <div className="flex-1 overflow-auto space-y-4 pr-1">
+            {/* Email-style preview card */}
+            <div className="rounded-lg border bg-card">
+              <div className="border-b px-5 py-3 text-xs text-muted-foreground space-y-0.5">
+                <p><span className="font-medium text-foreground">To:</span> {inv?.clients?.email ?? "—"}</p>
+                <p><span className="font-medium text-foreground">From:</span> Vektiss &lt;invoicing@stripe.com&gt;</p>
+                <p><span className="font-medium text-foreground">Subject:</span> Invoice {stripe?.number ?? inv?.invoice_number ?? "(draft)"} from Vektiss</p>
+              </div>
+              <div className="p-5 space-y-4">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Amount due</p>
+                  <p className="text-3xl font-bold text-foreground">
+                    ${Number(stripe?.amount_due ?? inv?.amount_due ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                    <span className="ml-2 text-sm font-normal uppercase text-muted-foreground">{stripe?.currency ?? "usd"}</span>
+                  </p>
+                  {stripe?.due_date && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Due {format(new Date(stripe.due_date * 1000), "MMM d, yyyy")}
+                    </p>
+                  )}
+                </div>
+
+                {(stripe?.description || inv?.notes) && (
+                  <p className="text-sm text-foreground whitespace-pre-wrap">
+                    {stripe?.description ?? inv?.notes}
+                  </p>
+                )}
+
+                <div className="rounded-md border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/40 text-xs text-muted-foreground">
+                      <tr>
+                        <th className="text-left px-3 py-2">Description</th>
+                        <th className="text-right px-3 py-2 w-24">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.length === 0 ? (
+                        <tr><td colSpan={2} className="px-3 py-4 text-center text-muted-foreground">No line items</td></tr>
+                      ) : items.map((li, idx) => (
+                        <tr key={idx} className="border-t">
+                          <td className="px-3 py-2 align-top">{li.description}</td>
+                          <td className="px-3 py-2 text-right font-mono">
+                            ${Number(li.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-muted/30 border-t">
+                      <tr>
+                        <td className="px-3 py-2 text-right font-medium">Total</td>
+                        <td className="px-3 py-2 text-right font-mono font-bold">
+                          ${Number(stripe?.total ?? inv?.amount_due ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {stripe?.hosted_invoice_url ? (
+                    <Button asChild size="sm">
+                      <a href={stripe.hosted_invoice_url} target="_blank" rel="noreferrer">
+                        <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Pay invoice (Stripe)
+                      </a>
+                    </Button>
+                  ) : (
+                    <Button size="sm" disabled title="Available after finalize">
+                      <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Pay invoice (Stripe)
+                    </Button>
+                  )}
+                  {stripe?.invoice_pdf ? (
+                    <Button asChild size="sm" variant="outline">
+                      <a href={stripe.invoice_pdf} target="_blank" rel="noreferrer">
+                        <Download className="h-3.5 w-3.5 mr-1.5" /> Download PDF
+                      </a>
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="outline" disabled title="PDF generated after finalize">
+                      <Download className="h-3.5 w-3.5 mr-1.5" /> PDF (after finalize)
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground px-1">
+              Status: <span className="font-medium text-foreground">{stripe?.status ?? inv?.status}</span>
+              {stripe?.id && <> · Stripe ID: <span className="font-mono">{stripe.id}</span></>}
+            </p>
+          </div>
+        )}
+
+        {!loading && data && (
+          <div className="border-t pt-3 flex flex-wrap justify-end gap-2">
+            {isDraft && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => finalize(false)}
+                  disabled={!!busy}
+                >
+                  {busy === "finalize" ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-1.5" />}
+                  Finalize only
+                </Button>
+                <Button onClick={() => finalize(true)} disabled={!!busy}>
+                  {busy === "send" ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Mail className="h-4 w-4 mr-1.5" />}
+                  Finalize & email client
+                </Button>
+              </>
+            )}
+            <Button variant="ghost" onClick={onClose}>Close</Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
