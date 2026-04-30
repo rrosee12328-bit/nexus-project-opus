@@ -420,7 +420,7 @@ export default function Invoices() {
                   </TableBody>
                   <tfoot className="bg-muted/30 border-t">
                     <tr className="text-sm">
-                      <td colSpan={5} className="px-4 py-3 text-right">
+                      <td colSpan={4} className="px-4 py-3 text-right align-middle">
                         <span className="text-muted-foreground">
                           {selected.size} of {entries.length} selected
                           {selectedEntries.length > 0 && (
@@ -431,8 +431,13 @@ export default function Invoices() {
                           )}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right font-mono font-bold text-foreground">
-                        {selectedHours.toFixed(2)} / {totalAvailableHours.toFixed(2)} h
+                      <td className="px-4 py-3 text-right align-middle">
+                        <p className="font-mono text-xs text-muted-foreground">
+                          {selectedHours.toFixed(2)} h × ${Number(rate || 0).toFixed(2)}/hr
+                        </p>
+                      </td>
+                      <td className="px-4 py-3 text-right align-middle font-mono font-bold text-foreground">
+                        ${selectedAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                       </td>
                     </tr>
                   </tfoot>
@@ -466,10 +471,19 @@ export default function Invoices() {
 
               <div className="flex items-center justify-between p-4 rounded-md bg-muted/40 border">
                 <div className="text-sm">
-                  <p className="text-muted-foreground">{selected.size} entries · {selectedHours.toFixed(2)} hrs @ ${rate}/hr</p>
+                  <p className="text-muted-foreground">
+                    {selected.size} entries · {selectedHours.toFixed(2)} hrs @ ${Number(rate || 0).toFixed(2)}/hr
+                  </p>
                   <p className="text-2xl font-bold text-foreground">
                     ${selectedAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                   </p>
+                  {(selected.size === 0 || !rate) && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                      {selected.size === 0
+                        ? "Tick at least one entry above to enable invoicing"
+                        : "Enter an hourly rate above"}
+                    </p>
+                  )}
                 </div>
                 <Button
                   size="lg"
