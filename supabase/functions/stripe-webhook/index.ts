@@ -296,6 +296,42 @@ async function handleInvoice(supabase: any, invoice: any) {
     throw error;
   }
 
+  // Sync hourly_invoices if this invoice was created from timesheet billing
+  const hourlyInvoiceId = invoice.metadata?.hourly_invoice_id;
+  if (hourlyInvoiceId) {
+    const paidAtIso =
+      invoice.status === "paid" && invoice.status_transitions?.paid_at
+        ? new Date(invoice.status_transitions.paid_at * 1000).toISOString()
+        : null;
+    const finalizedAtIso = invoice.status_transitions?.finalized_at
+      ? new Date(invoice.status_transitions.finalized_at * 1000).toISOString()
+      : null;
+
+    await supabase
+      .from("hourly_invoices")
+      .update({
+        stripe_invoice_id: invoice.id,
+        stripe_customer_id: invoice.customer,
+        invoice_number: invoice.number ?? null,
+        hosted_invoice_url: invoice.hosted_invoice_url ?? null,
+        invoice_pdf: invoice.invoice_pdf ?? null,
+        status: invoice.status ?? "draft",
+        amount_due: (invoice.amount_due ?? 0) / 100,
+        amount_paid: (invoice.amount_paid ?? 0) / 100,
+        finalized_at: finalizedAtIso,
+        paid_at: paidAtIso,
+      })
+      .eq("id", hourlyInvoiceId);
+
+    // Mark linked timesheet rows paid
+    if (invoice.status === "paid") {
+      await supabase
+        .from("timesheets")
+        .update({ paid_at: paidAtIso ?? new Date().toISOString() })
+        .eq("hourly_invoice_id", hourlyInvoiceId);
+    }
+  }
+
   if (invoice.status === "paid" && invoice.amount_paid > 0) {
     const paidDate = invoice.status_transitions?.paid_at
       ? new Date(invoice.status_transitions.paid_at * 1000)
