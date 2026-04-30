@@ -919,6 +919,86 @@ export type Database = {
         }
         Relationships: []
       }
+      hourly_invoices: {
+        Row: {
+          amount_due: number
+          amount_paid: number
+          client_id: string
+          created_at: string
+          created_by: string
+          currency: string
+          finalized_at: string | null
+          hosted_invoice_url: string | null
+          hourly_rate: number
+          id: string
+          invoice_number: string | null
+          invoice_pdf: string | null
+          notes: string | null
+          paid_at: string | null
+          period_end: string | null
+          period_start: string | null
+          status: string
+          stripe_customer_id: string | null
+          stripe_invoice_id: string | null
+          total_hours: number
+          updated_at: string
+        }
+        Insert: {
+          amount_due?: number
+          amount_paid?: number
+          client_id: string
+          created_at?: string
+          created_by: string
+          currency?: string
+          finalized_at?: string | null
+          hosted_invoice_url?: string | null
+          hourly_rate: number
+          id?: string
+          invoice_number?: string | null
+          invoice_pdf?: string | null
+          notes?: string | null
+          paid_at?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_invoice_id?: string | null
+          total_hours?: number
+          updated_at?: string
+        }
+        Update: {
+          amount_due?: number
+          amount_paid?: number
+          client_id?: string
+          created_at?: string
+          created_by?: string
+          currency?: string
+          finalized_at?: string | null
+          hosted_invoice_url?: string | null
+          hourly_rate?: number
+          id?: string
+          invoice_number?: string | null
+          invoice_pdf?: string | null
+          notes?: string | null
+          paid_at?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_invoice_id?: string | null
+          total_hours?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hourly_invoices_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       investments: {
         Row: {
           amount: number
@@ -1880,10 +1960,15 @@ export type Database = {
           created_at: string | null
           date: string
           description: string | null
+          hourly_invoice_id: string | null
+          hourly_rate: number | null
           hours: number
           id: string
+          invoiced_at: string | null
+          paid_at: string | null
           project_id: string | null
           proposal_id: string | null
+          stripe_invoice_id: string | null
           time_code_id: string | null
           updated_at: string | null
           user_id: string | null
@@ -1893,10 +1978,15 @@ export type Database = {
           created_at?: string | null
           date?: string
           description?: string | null
+          hourly_invoice_id?: string | null
+          hourly_rate?: number | null
           hours?: number
           id?: string
+          invoiced_at?: string | null
+          paid_at?: string | null
           project_id?: string | null
           proposal_id?: string | null
+          stripe_invoice_id?: string | null
           time_code_id?: string | null
           updated_at?: string | null
           user_id?: string | null
@@ -1906,15 +1996,27 @@ export type Database = {
           created_at?: string | null
           date?: string
           description?: string | null
+          hourly_invoice_id?: string | null
+          hourly_rate?: number | null
           hours?: number
           id?: string
+          invoiced_at?: string | null
+          paid_at?: string | null
           project_id?: string | null
           proposal_id?: string | null
+          stripe_invoice_id?: string | null
           time_code_id?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "timesheets_hourly_invoice_id_fkey"
+            columns: ["hourly_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "hourly_invoices"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "timesheets_project_id_fkey"
             columns: ["project_id"]
