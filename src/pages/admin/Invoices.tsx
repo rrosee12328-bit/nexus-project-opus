@@ -13,19 +13,18 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Receipt, Send, ExternalLink, Loader2, FileText, CheckCircle2, Clock } from "lucide-react";
+import { Receipt, Send, ExternalLink, Loader2, FileText, CheckCircle2, Clock, CalendarClock, Timer } from "lucide-react";
 
 type Client = { id: string; name: string; client_number: string | null; email: string | null };
 
 type Entry = {
   id: string;
+  source: "timesheet" | "calendar";
   hours: number;
   date: string;
   description: string | null;
-  billable: boolean;
-  invoiced_at: string | null;
-  projects: { name: string; project_number: string | null; client_id: string } | null;
-  time_tracking_codes: { code: string; label: string } | null;
+  projectName: string | null;
+  code: string | null;
 };
 
 type HourlyInvoice = {
@@ -69,6 +68,9 @@ export default function Invoices() {
   const [autoFinalize, setAutoFinalize] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
+  // composite key helpers: "timesheet:<id>" / "calendar:<id>"
+  const key = (e: Pick<Entry, "source" | "id">) => `${e.source}:${e.id}`;
+
   const { data: clients = [] } = useQuery({
     queryKey: ["invoices-clients"],
     queryFn: async () => {
@@ -85,10 +87,11 @@ export default function Invoices() {
     queryKey: ["invoice-entries", clientId, start, end],
     enabled: !!clientId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      // 1. Timesheet entries (existing source)
+      const tsPromise = supabase
         .from("timesheets")
         .select(`
-          id, hours, date, description, billable, invoiced_at,
+          id, hours, date, description,
           projects!inner ( name, project_number, client_id ),
           time_tracking_codes ( code, label )
         `)
@@ -98,8 +101,54 @@ export default function Invoices() {
         .lte("date", end)
         .eq("projects.client_id", clientId)
         .order("date", { ascending: true });
-      if (error) throw error;
-      return (data ?? []) as unknown as Entry[];
+
+      // 2. Calendar events for this client in range, billable + unbilled
+      const calPromise = supabase
+        .from("calendar_events" as any)
+        .select("id, title, description, event_date, start_time, end_time, billable, invoiced_at, client_id")
+        .eq("client_id", clientId)
+        .eq("billable", true)
+        .is("invoiced_at", null)
+        .gte("event_date", start)
+        .lte("event_date", end)
+        .order("event_date", { ascending: true });
+
+      const [{ data: ts, error: tsErr }, { data: cal, error: calErr }] = await Promise.all([tsPromise, calPromise]);
+      if (tsErr) throw tsErr;
+      if (calErr) throw calErr;
+
+      const tsEntries: Entry[] = (ts ?? []).map((e: any) => ({
+        id: e.id,
+        source: "timesheet",
+        hours: Number(e.hours ?? 0),
+        date: e.date,
+        description: e.description ?? null,
+        projectName: e.projects?.name ?? null,
+        code: e.time_tracking_codes?.code ?? null,
+      }));
+
+      const calEntries: Entry[] = (cal ?? [])
+        .map((e: any) => {
+          // hours = (end - start). If missing, default to 1h.
+          let hours = 1;
+          if (e.start_time && e.end_time) {
+            const [sh, sm] = String(e.start_time).split(":").map(Number);
+            const [eh, em] = String(e.end_time).split(":").map(Number);
+            const mins = (eh * 60 + em) - (sh * 60 + sm);
+            if (mins > 0) hours = Math.round((mins / 60) * 100) / 100;
+          }
+          return {
+            id: e.id,
+            source: "calendar" as const,
+            hours,
+            date: e.event_date,
+            description: e.title + (e.description ? ` — ${e.description}` : ""),
+            projectName: null,
+            code: "CAL",
+          };
+        });
+
+      return [...tsEntries, ...calEntries].sort((a, b) => a.date.localeCompare(b.date));
     },
   });
 
@@ -115,20 +164,20 @@ export default function Invoices() {
     },
   });
 
-  const selectedEntries = entries.filter((e) => selected.has(e.id));
+  const selectedEntries = entries.filter((e) => selected.has(key(e)));
   const selectedHours = selectedEntries.reduce((s, e) => s + Number(e.hours || 0), 0);
   const selectedAmount = selectedHours * rate;
 
-  const toggle = (id: string) => {
+  const toggle = (k: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      next.has(k) ? next.delete(k) : next.add(k);
       return next;
     });
   };
   const toggleAll = () => {
     if (selected.size === entries.length) setSelected(new Set());
-    else setSelected(new Set(entries.map((e) => e.id)));
+    else setSelected(new Set(entries.map((e) => key(e))));
   };
 
   const createInvoice = useMutation({
@@ -136,10 +185,18 @@ export default function Invoices() {
       if (!clientId) throw new Error("Pick a client");
       if (selected.size === 0) throw new Error("Select at least one entry");
       if (!rate || rate <= 0) throw new Error("Enter an hourly rate");
+      const timesheet_ids: string[] = [];
+      const calendar_event_ids: string[] = [];
+      for (const k of selected) {
+        const [src, id] = k.split(":");
+        if (src === "timesheet") timesheet_ids.push(id);
+        else if (src === "calendar") calendar_event_ids.push(id);
+      }
       const { data, error } = await supabase.functions.invoke("create-hourly-invoice", {
         body: {
           client_id: clientId,
-          timesheet_ids: Array.from(selected),
+          timesheet_ids,
+          calendar_event_ids,
           hourly_rate: rate,
           notes: notes || undefined,
           auto_finalize: autoFinalize,
@@ -278,15 +335,24 @@ export default function Invoices() {
                   </TableHeader>
                   <TableBody>
                     {entries.map((e) => (
-                      <TableRow key={e.id} className={selected.has(e.id) ? "bg-primary/5" : ""}>
+                      <TableRow key={key(e)} className={selected.has(key(e)) ? "bg-primary/5" : ""}>
                         <TableCell>
-                          <Checkbox checked={selected.has(e.id)} onCheckedChange={() => toggle(e.id)} />
+                          <Checkbox checked={selected.has(key(e))} onCheckedChange={() => toggle(key(e))} />
                         </TableCell>
                         <TableCell className="text-sm whitespace-nowrap">{format(new Date(e.date), "MMM d")}</TableCell>
-                        <TableCell className="text-sm">{e.projects?.name ?? "—"}</TableCell>
+                        <TableCell className="text-sm">
+                          <div className="flex items-center gap-1.5">
+                            {e.source === "calendar" ? (
+                              <CalendarClock className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                            ) : (
+                              <Timer className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            )}
+                            <span>{e.projectName ?? (e.source === "calendar" ? "Calendar event" : "—")}</span>
+                          </div>
+                        </TableCell>
                         <TableCell>
-                          {e.time_tracking_codes ? (
-                            <Badge variant="outline" className="font-mono text-xs">{e.time_tracking_codes.code}</Badge>
+                          {e.code ? (
+                            <Badge variant="outline" className="font-mono text-xs">{e.code}</Badge>
                           ) : <span className="text-xs text-muted-foreground">—</span>}
                         </TableCell>
                         <TableCell className="text-sm max-w-[300px] truncate">{e.description ?? "—"}</TableCell>
