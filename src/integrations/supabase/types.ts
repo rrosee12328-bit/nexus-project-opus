@@ -259,6 +259,7 @@ export type Database = {
           id: string
           invoiced_at: string | null
           outlook_event_id: string | null
+          project_id: string | null
           start_time: string | null
           stripe_invoice_id: string | null
           title: string
@@ -278,6 +279,7 @@ export type Database = {
           id?: string
           invoiced_at?: string | null
           outlook_event_id?: string | null
+          project_id?: string | null
           start_time?: string | null
           stripe_invoice_id?: string | null
           title: string
@@ -297,6 +299,7 @@ export type Database = {
           id?: string
           invoiced_at?: string | null
           outlook_event_id?: string | null
+          project_id?: string | null
           start_time?: string | null
           stripe_invoice_id?: string | null
           title?: string

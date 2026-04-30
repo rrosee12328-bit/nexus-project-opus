@@ -17,6 +17,8 @@ import { Receipt, Send, ExternalLink, Loader2, FileText, CheckCircle2, Clock, Ca
 
 type Client = { id: string; name: string; client_number: string | null; email: string | null };
 
+type Project = { id: string; name: string; project_number: string | null; client_id: string };
+
 type Entry = {
   id: string;
   source: "timesheet" | "calendar";
@@ -24,6 +26,7 @@ type Entry = {
   date: string;
   description: string | null;
   projectName: string | null;
+  projectId: string | null;
   code: string | null;
 };
 
@@ -61,6 +64,7 @@ export default function Invoices() {
   const qc = useQueryClient();
   const today = new Date();
   const [clientId, setClientId] = useState<string>("");
+  const [projectId, setProjectId] = useState<string>("all");
   const [start, setStart] = useState(format(startOfMonth(today), "yyyy-MM-dd"));
   const [end, setEnd] = useState(format(endOfMonth(today), "yyyy-MM-dd"));
   const [rate, setRate] = useState<number>(150);
@@ -83,15 +87,29 @@ export default function Invoices() {
     },
   });
 
+  const { data: projects = [] } = useQuery({
+    queryKey: ["invoices-projects", clientId],
+    enabled: !!clientId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("projects")
+        .select("id, name, project_number, client_id")
+        .eq("client_id", clientId)
+        .order("name");
+      if (error) throw error;
+      return (data ?? []) as Project[];
+    },
+  });
+
   const { data: entries = [], isLoading: loadingEntries } = useQuery({
-    queryKey: ["invoice-entries", clientId, start, end],
+    queryKey: ["invoice-entries", clientId, projectId, start, end],
     enabled: !!clientId,
     queryFn: async () => {
       // 1. Timesheet entries (existing source)
-      const tsPromise = supabase
+      let tsQuery = supabase
         .from("timesheets")
         .select(`
-          id, hours, date, description,
+          id, hours, date, description, project_id,
           projects!inner ( name, project_number, client_id ),
           time_tracking_codes ( code, label )
         `)
@@ -101,17 +119,25 @@ export default function Invoices() {
         .lte("date", end)
         .eq("projects.client_id", clientId)
         .order("date", { ascending: true });
+      if (projectId !== "all") {
+        tsQuery = tsQuery.eq("project_id", projectId);
+      }
+      const tsPromise = tsQuery;
 
       // 2. Calendar events for this client in range, billable + unbilled
-      const calPromise = supabase
+      let calQuery = supabase
         .from("calendar_events" as any)
-        .select("id, title, description, event_date, start_time, end_time, billable, invoiced_at, client_id")
+        .select("id, title, description, event_date, start_time, end_time, billable, invoiced_at, client_id, project_id")
         .eq("client_id", clientId)
         .eq("billable", true)
         .is("invoiced_at", null)
         .gte("event_date", start)
         .lte("event_date", end)
         .order("event_date", { ascending: true });
+      if (projectId !== "all") {
+        calQuery = calQuery.eq("project_id", projectId);
+      }
+      const calPromise = calQuery;
 
       const [{ data: ts, error: tsErr }, { data: cal, error: calErr }] = await Promise.all([tsPromise, calPromise]);
       if (tsErr) throw tsErr;
@@ -124,6 +150,7 @@ export default function Invoices() {
         date: e.date,
         description: e.description ?? null,
         projectName: e.projects?.name ?? null,
+        projectId: e.project_id ?? null,
         code: e.time_tracking_codes?.code ?? null,
       }));
 
@@ -144,6 +171,7 @@ export default function Invoices() {
             date: e.event_date,
             description: e.title + (e.description ? ` — ${e.description}` : ""),
             projectName: null,
+            projectId: e.project_id ?? null,
             code: "CAL",
           };
         });
@@ -281,12 +309,32 @@ export default function Invoices() {
             <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div className="md:col-span-2">
                 <Label>Client</Label>
-                <Select value={clientId} onValueChange={(v) => { setClientId(v); setSelected(new Set()); }}>
+                <Select value={clientId} onValueChange={(v) => { setClientId(v); setProjectId("all"); setSelected(new Set()); }}>
                   <SelectTrigger><SelectValue placeholder="Pick a client…" /></SelectTrigger>
                   <SelectContent>
                     {clients.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
                         {c.name} {c.email ? "" : "· no email"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="md:col-span-2">
+                <Label>Project</Label>
+                <Select
+                  value={projectId}
+                  onValueChange={(v) => { setProjectId(v); setSelected(new Set()); }}
+                  disabled={!clientId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={clientId ? "All projects" : "Pick a client first"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All projects (client-level)</SelectItem>
+                    {projects.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}{p.project_number ? ` · ${p.project_number}` : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
