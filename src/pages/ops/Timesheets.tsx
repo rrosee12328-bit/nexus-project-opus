@@ -477,6 +477,13 @@ export default function Timesheets() {
         </CardContent>
       </Card>
 
+        </TabsContent>
+
+        <TabsContent value="dashboard">
+          <TimesheetDashboard />
+        </TabsContent>
+      </Tabs>
+
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
