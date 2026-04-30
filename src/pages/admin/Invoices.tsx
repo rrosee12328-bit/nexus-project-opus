@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Receipt, Send, ExternalLink, Loader2, FileText, CheckCircle2, Clock, CalendarClock, Timer, Eye, Download, Mail } from "lucide-react";
+import { Receipt, Send, ExternalLink, Loader2, FileText, CheckCircle2, Clock, CalendarClock, Timer, Eye, Download, Mail, FlaskConical } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -613,7 +613,15 @@ function InvoicePreviewDialog({
 }) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [busy, setBusy] = useState<"finalize" | "send" | null>(null);
+  const [busy, setBusy] = useState<"finalize" | "send" | "test" | null>(null);
+  const [testEmail, setTestEmail] = useState("");
+  const [showTest, setShowTest] = useState(false);
+
+  useEffect(() => {
+    void supabase.auth.getUser().then(({ data }) => {
+      if (data.user?.email) setTestEmail(data.user.email);
+    });
+  }, []);
 
   const load = async (id: string) => {
     setLoading(true);
@@ -653,6 +661,30 @@ function InvoicePreviewDialog({
       await load(invoiceId);
     } catch (e: any) {
       toast.error(e.message ?? "Failed to finalize");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const sendTest = async () => {
+    if (!invoiceId) return;
+    if (!testEmail.trim()) {
+      toast.error("Enter an email to send the test to");
+      return;
+    }
+    setBusy("test");
+    try {
+      const { data: res, error } = await supabase.functions.invoke("send-test-hourly-invoice", {
+        body: { hourly_invoice_id: invoiceId, test_email: testEmail.trim() },
+      });
+      if (error) throw error;
+      if (res?.error) throw new Error(res.error);
+      toast.success(`Test invoice sent to ${res.sent_to}`, {
+        description: "The original draft is untouched.",
+      });
+      setShowTest(false);
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to send test");
     } finally {
       setBusy(null);
     }
@@ -775,6 +807,30 @@ function InvoicePreviewDialog({
 
         {!loading && data && (
           <div className="border-t pt-3 flex flex-wrap justify-end gap-2">
+            <div className="mr-auto flex items-center gap-2">
+              {showTest ? (
+                <>
+                  <Input
+                    type="email"
+                    value={testEmail}
+                    onChange={(e) => setTestEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="h-9 w-56"
+                  />
+                  <Button size="sm" variant="secondary" onClick={sendTest} disabled={!!busy}>
+                    {busy === "test" ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Mail className="h-4 w-4 mr-1.5" />}
+                    Send test
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setShowTest(false)} disabled={!!busy}>
+                    Cancel
+                  </Button>
+                </>
+              ) : (
+                <Button size="sm" variant="outline" onClick={() => setShowTest(true)} disabled={!!busy}>
+                  <FlaskConical className="h-4 w-4 mr-1.5" /> Send test to my email
+                </Button>
+              )}
+            </div>
             {isDraft && (
               <>
                 <Button
