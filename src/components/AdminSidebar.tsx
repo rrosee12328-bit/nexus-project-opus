@@ -18,6 +18,7 @@ import {
   Sheet,
   Phone,
   Brain,
+  Receipt,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -50,6 +51,7 @@ const navItems = [
   { title: "Messages", url: "/admin/messages", icon: MessageSquare },
   { title: "Client Tracker", url: "/admin/tracker", icon: Sheet },
   { title: "Financial Tracking", url: "/admin/financials", icon: DollarSign },
+  { title: "Hourly Invoices", url: "/admin/invoices", icon: Receipt },
   { title: "Reports", url: "/admin/reports", icon: BarChart3 },
   { title: "Ops Portal", url: "/ops", icon: ClipboardList },
   { title: "Email Dashboard", url: "/admin/emails", icon: Mail },
