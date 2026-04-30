@@ -376,7 +376,7 @@ export default function Invoices() {
                 <span>2. Pick billable entries</span>
                 {clientId && entries.length > 0 && (
                   <Button size="sm" variant="ghost" onClick={toggleAll}>
-                    {selected.size === entries.length ? "Clear" : "Select all"}
+                    {allEntriesSelected ? "Clear" : "Select all"}
                   </Button>
                 )}
               </CardTitle>
@@ -432,7 +432,7 @@ export default function Invoices() {
                     <tr className="text-sm">
                       <td colSpan={4} className="px-4 py-3 text-right align-middle">
                         <span className="text-muted-foreground">
-                          {selected.size} of {entries.length} selected
+                          {selectedEntries.length} of {entries.length} selected
                           {selectedEntries.length > 0 && (
                             <span className="ml-2">
                               · <Timer className="inline h-3 w-3 -mt-0.5" /> {selectedTimesheetHours.toFixed(2)}h timesheet
@@ -465,7 +465,7 @@ export default function Invoices() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
                   <Label>Hourly rate (USD)</Label>
-                  <Input type="number" min={1} step="0.01" value={rate} onChange={(e) => setRate(Number(e.target.value))} />
+                  <Input type="number" min={1} step="0.01" value={rate} onChange={(e) => setRate(e.target.value)} />
                 </div>
                 <div className="md:col-span-2">
                   <Label>Notes (appears on invoice)</Label>
@@ -482,14 +482,14 @@ export default function Invoices() {
               <div className="flex items-center justify-between p-4 rounded-md bg-muted/40 border">
                 <div className="text-sm">
                   <p className="text-muted-foreground">
-                    {selected.size} entries · {selectedHours.toFixed(2)} hrs @ ${Number(rate || 0).toFixed(2)}/hr
+                    {selectedEntries.length} entries · {selectedHours.toFixed(2)} hrs @ ${Number(rate || 0).toFixed(2)}/hr
                   </p>
                   <p className="text-2xl font-bold text-foreground">
                     ${selectedAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                   </p>
-                  {(selected.size === 0 || !rate) && (
+                  {(selectedEntries.length === 0 || !hasValidRate) && (
                     <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                      {selected.size === 0
+                      {selectedEntries.length === 0
                         ? "Tick at least one entry above to enable invoicing"
                         : "Enter an hourly rate above"}
                     </p>
@@ -498,7 +498,7 @@ export default function Invoices() {
                 <Button
                   size="lg"
                   onClick={() => createInvoice.mutate()}
-                  disabled={createInvoice.isPending || selected.size === 0 || !rate}
+                  disabled={createInvoice.isPending || selectedEntries.length === 0 || !hasValidRate}
                   className="gap-2"
                 >
                   {createInvoice.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
