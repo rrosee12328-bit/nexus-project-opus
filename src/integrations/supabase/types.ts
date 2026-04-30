@@ -246,6 +246,7 @@ export type Database = {
       }
       calendar_events: {
         Row: {
+          billable: boolean
           client_id: string | null
           created_at: string
           created_by: string
@@ -253,13 +254,18 @@ export type Database = {
           end_time: string | null
           event_date: string
           event_type: string
+          hourly_invoice_id: string | null
+          hourly_rate: number | null
           id: string
+          invoiced_at: string | null
           outlook_event_id: string | null
           start_time: string | null
+          stripe_invoice_id: string | null
           title: string
           updated_at: string
         }
         Insert: {
+          billable?: boolean
           client_id?: string | null
           created_at?: string
           created_by: string
@@ -267,13 +273,18 @@ export type Database = {
           end_time?: string | null
           event_date: string
           event_type?: string
+          hourly_invoice_id?: string | null
+          hourly_rate?: number | null
           id?: string
+          invoiced_at?: string | null
           outlook_event_id?: string | null
           start_time?: string | null
+          stripe_invoice_id?: string | null
           title: string
           updated_at?: string
         }
         Update: {
+          billable?: boolean
           client_id?: string | null
           created_at?: string
           created_by?: string
@@ -281,9 +292,13 @@ export type Database = {
           end_time?: string | null
           event_date?: string
           event_type?: string
+          hourly_invoice_id?: string | null
+          hourly_rate?: number | null
           id?: string
+          invoiced_at?: string | null
           outlook_event_id?: string | null
           start_time?: string | null
+          stripe_invoice_id?: string | null
           title?: string
           updated_at?: string
         }

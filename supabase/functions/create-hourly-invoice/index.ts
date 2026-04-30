@@ -11,7 +11,8 @@ const corsHeaders = {
 
 interface Body {
   client_id: string;
-  timesheet_ids: string[];
+  timesheet_ids?: string[];
+  calendar_event_ids?: string[];
   hourly_rate: number;
   notes?: string;
   days_until_due?: number;
@@ -48,10 +49,21 @@ serve(async (req) => {
     if (!roleRow) throw new Error("Admin role required");
 
     const body: Body = await req.json();
-    const { client_id, timesheet_ids, hourly_rate, notes, days_until_due, auto_finalize } = body;
+    const {
+      client_id,
+      timesheet_ids = [],
+      calendar_event_ids = [],
+      hourly_rate,
+      notes,
+      days_until_due,
+      auto_finalize,
+    } = body;
 
-    if (!client_id || !timesheet_ids?.length || !hourly_rate || hourly_rate <= 0) {
-      throw new Error("client_id, timesheet_ids and hourly_rate are required");
+    if (!client_id || !hourly_rate || hourly_rate <= 0) {
+      throw new Error("client_id and hourly_rate are required");
+    }
+    if (!timesheet_ids.length && !calendar_event_ids.length) {
+      throw new Error("Select at least one timesheet entry or calendar event");
     }
 
     // Service-role client for DB writes
@@ -69,24 +81,53 @@ serve(async (req) => {
     if (clientErr || !client) throw new Error("Client not found");
     if (!client.email) throw new Error("Client has no email — add one before invoicing");
 
-    // Load entries — must be unbilled and belong to this client (via project)
-    const { data: entries, error: entriesErr } = await admin
-      .from("timesheets")
-      .select(
-        `id, hours, date, description, billable, invoiced_at,
-         projects!inner ( client_id, name, project_number ),
-         time_tracking_codes ( code, label )`
-      )
-      .in("id", timesheet_ids);
-    if (entriesErr) throw entriesErr;
-    if (!entries?.length) throw new Error("No matching timesheet entries");
+    // Load timesheet entries — must be unbilled and belong to this client (via project)
+    let tsEntries: any[] = [];
+    if (timesheet_ids.length) {
+      const { data, error } = await admin
+        .from("timesheets")
+        .select(
+          `id, hours, date, description, billable, invoiced_at,
+           projects!inner ( client_id, name, project_number ),
+           time_tracking_codes ( code, label )`
+        )
+        .in("id", timesheet_ids);
+      if (error) throw error;
+      tsEntries = data ?? [];
+      const invalid = tsEntries.find((e: any) => e.projects?.client_id !== client_id);
+      if (invalid) throw new Error("All timesheet entries must belong to the selected client");
+      const alreadyBilled = tsEntries.find((e: any) => e.invoiced_at);
+      if (alreadyBilled) throw new Error("One or more timesheet entries are already invoiced");
+    }
 
-    const invalid = entries.find((e: any) => e.projects?.client_id !== client_id);
-    if (invalid) throw new Error("All entries must belong to the selected client");
-    const alreadyBilled = entries.find((e: any) => e.invoiced_at);
-    if (alreadyBilled) throw new Error("One or more entries are already invoiced");
+    // Load calendar events — must be unbilled and belong to this client
+    let calEntries: any[] = [];
+    if (calendar_event_ids.length) {
+      const { data, error } = await admin
+        .from("calendar_events")
+        .select("id, title, description, event_date, start_time, end_time, billable, invoiced_at, client_id")
+        .in("id", calendar_event_ids);
+      if (error) throw error;
+      calEntries = data ?? [];
+      const invalid = calEntries.find((e: any) => e.client_id !== client_id);
+      if (invalid) throw new Error("All calendar events must belong to the selected client");
+      const alreadyBilled = calEntries.find((e: any) => e.invoiced_at);
+      if (alreadyBilled) throw new Error("One or more calendar events are already invoiced");
+    }
 
-    const totalHours = entries.reduce((s: number, e: any) => s + Number(e.hours || 0), 0);
+    if (!tsEntries.length && !calEntries.length) throw new Error("No matching entries");
+
+    const calcCalHours = (e: any): number => {
+      if (!e.start_time || !e.end_time) return 1;
+      const [sh, sm] = String(e.start_time).split(":").map(Number);
+      const [eh, em] = String(e.end_time).split(":").map(Number);
+      const mins = (eh * 60 + em) - (sh * 60 + sm);
+      return mins > 0 ? Math.round((mins / 60) * 100) / 100 : 1;
+    };
+
+    const totalHours =
+      tsEntries.reduce((s: number, e: any) => s + Number(e.hours || 0), 0) +
+      calEntries.reduce((s: number, e: any) => s + calcCalHours(e), 0);
     const amountDue = Number((totalHours * hourly_rate).toFixed(2));
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" as any });
@@ -109,7 +150,10 @@ serve(async (req) => {
     }
 
     // Date range
-    const dates = entries.map((e: any) => e.date).sort();
+    const dates = [
+      ...tsEntries.map((e: any) => e.date),
+      ...calEntries.map((e: any) => e.event_date),
+    ].sort();
     const periodStart = dates[0];
     const periodEnd = dates[dates.length - 1];
 
@@ -147,7 +191,7 @@ serve(async (req) => {
     });
 
     // Add one line item per timesheet entry
-    for (const e of entries as any[]) {
+    for (const e of tsEntries) {
       const code = e.time_tracking_codes?.code ? `[${e.time_tracking_codes.code}] ` : "";
       const desc = `${e.date} · ${code}${(e.description ?? "Work").slice(0, 200)} (${Number(e.hours).toFixed(2)}h)`;
       await stripe.invoiceItems.create({
@@ -166,6 +210,19 @@ serve(async (req) => {
           amount: Math.round(Number(e.hours) * hourly_rate * 100),
           description: desc,
         });
+      });
+    }
+
+    // Add one line item per calendar event
+    for (const e of calEntries) {
+      const hrs = calcCalHours(e);
+      const desc = `${e.event_date} · [CAL] ${(e.title ?? "Meeting").slice(0, 200)} (${hrs.toFixed(2)}h)`;
+      await stripe.invoiceItems.create({
+        customer: customerId!,
+        invoice: invoice.id,
+        currency: "usd",
+        amount: Math.round(hrs * hourly_rate * 100),
+        description: desc,
       });
     }
 
@@ -196,16 +253,33 @@ serve(async (req) => {
       })
       .eq("id", header.id);
 
+    const invoicedAt = new Date().toISOString();
+
     // Mark timesheet rows as invoiced
-    await admin
-      .from("timesheets")
-      .update({
-        invoiced_at: new Date().toISOString(),
-        stripe_invoice_id: finalInvoice.id,
-        hourly_rate,
-        hourly_invoice_id: header.id,
-      })
-      .in("id", timesheet_ids);
+    if (timesheet_ids.length) {
+      await admin
+        .from("timesheets")
+        .update({
+          invoiced_at: invoicedAt,
+          stripe_invoice_id: finalInvoice.id,
+          hourly_rate,
+          hourly_invoice_id: header.id,
+        })
+        .in("id", timesheet_ids);
+    }
+
+    // Mark calendar events as invoiced
+    if (calendar_event_ids.length) {
+      await admin
+        .from("calendar_events")
+        .update({
+          invoiced_at: invoicedAt,
+          stripe_invoice_id: finalInvoice.id,
+          hourly_rate,
+          hourly_invoice_id: header.id,
+        })
+        .in("id", calendar_event_ids);
+    }
 
     return new Response(
       JSON.stringify({
