@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, startOfMonth, endOfMonth } from "date-fns";
@@ -29,6 +29,8 @@ type Entry = {
   projectId: string | null;
   code: string | null;
 };
+
+const EMPTY_ENTRIES: Entry[] = [];
 
 type HourlyInvoice = {
   id: string;
@@ -67,7 +69,7 @@ export default function Invoices() {
   const [projectId, setProjectId] = useState<string>("all");
   const [start, setStart] = useState(format(startOfMonth(today), "yyyy-MM-dd"));
   const [end, setEnd] = useState(format(endOfMonth(today), "yyyy-MM-dd"));
-  const [rate, setRate] = useState<number>(150);
+  const [rate, setRate] = useState("150");
   const [notes, setNotes] = useState("");
   const [autoFinalize, setAutoFinalize] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -101,7 +103,7 @@ export default function Invoices() {
     },
   });
 
-  const { data: entries = [], isLoading: loadingEntries } = useQuery({
+  const { data: invoiceEntries, isLoading: loadingEntries } = useQuery({
     queryKey: ["invoice-entries", clientId, projectId, start, end],
     enabled: !!clientId,
     queryFn: async () => {
@@ -192,9 +194,22 @@ export default function Invoices() {
     },
   });
 
+  const entries = invoiceEntries ?? EMPTY_ENTRIES;
+
+  useEffect(() => {
+    if (entries.length > 0) {
+      setSelected(new Set(entries.map((e) => key(e))));
+    } else {
+      setSelected(new Set());
+    }
+  }, [invoiceEntries]);
+
+  const hourlyRate = Number(rate);
+  const hasValidRate = Number.isFinite(hourlyRate) && hourlyRate > 0;
   const selectedEntries = entries.filter((e) => selected.has(key(e)));
+  const allEntriesSelected = entries.length > 0 && selectedEntries.length === entries.length;
   const selectedHours = selectedEntries.reduce((s, e) => s + Number(e.hours || 0), 0);
-  const selectedAmount = selectedHours * rate;
+  const selectedAmount = selectedHours * (hasValidRate ? hourlyRate : 0);
 
   // Per-source breakdown for the entries card
   const totalAvailableHours = entries.reduce((s, e) => s + Number(e.hours || 0), 0);
@@ -213,28 +228,27 @@ export default function Invoices() {
     });
   };
   const toggleAll = () => {
-    if (selected.size === entries.length) setSelected(new Set());
+    if (allEntriesSelected) setSelected(new Set());
     else setSelected(new Set(entries.map((e) => key(e))));
   };
 
   const createInvoice = useMutation({
     mutationFn: async () => {
       if (!clientId) throw new Error("Pick a client");
-      if (selected.size === 0) throw new Error("Select at least one entry");
-      if (!rate || rate <= 0) throw new Error("Enter an hourly rate");
+      if (selectedEntries.length === 0) throw new Error("Select at least one entry");
+      if (!hasValidRate) throw new Error("Enter an hourly rate");
       const timesheet_ids: string[] = [];
       const calendar_event_ids: string[] = [];
-      for (const k of selected) {
-        const [src, id] = k.split(":");
-        if (src === "timesheet") timesheet_ids.push(id);
-        else if (src === "calendar") calendar_event_ids.push(id);
+      for (const entry of selectedEntries) {
+        if (entry.source === "timesheet") timesheet_ids.push(entry.id);
+        else if (entry.source === "calendar") calendar_event_ids.push(entry.id);
       }
       const { data, error } = await supabase.functions.invoke("create-hourly-invoice", {
         body: {
           client_id: clientId,
           timesheet_ids,
           calendar_event_ids,
-          hourly_rate: rate,
+          hourly_rate: hourlyRate,
           notes: notes || undefined,
           auto_finalize: autoFinalize,
         },
@@ -366,7 +380,7 @@ export default function Invoices() {
                 <span>2. Pick billable entries</span>
                 {clientId && entries.length > 0 && (
                   <Button size="sm" variant="ghost" onClick={toggleAll}>
-                    {selected.size === entries.length ? "Clear" : "Select all"}
+                    {allEntriesSelected ? "Clear" : "Select all"}
                   </Button>
                 )}
               </CardTitle>
@@ -422,7 +436,7 @@ export default function Invoices() {
                     <tr className="text-sm">
                       <td colSpan={4} className="px-4 py-3 text-right align-middle">
                         <span className="text-muted-foreground">
-                          {selected.size} of {entries.length} selected
+                          {selectedEntries.length} of {entries.length} selected
                           {selectedEntries.length > 0 && (
                             <span className="ml-2">
                               · <Timer className="inline h-3 w-3 -mt-0.5" /> {selectedTimesheetHours.toFixed(2)}h timesheet
@@ -455,7 +469,7 @@ export default function Invoices() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
                   <Label>Hourly rate (USD)</Label>
-                  <Input type="number" min={1} step="0.01" value={rate} onChange={(e) => setRate(Number(e.target.value))} />
+                  <Input type="number" min={1} step="0.01" value={rate} onChange={(e) => setRate(e.target.value)} />
                 </div>
                 <div className="md:col-span-2">
                   <Label>Notes (appears on invoice)</Label>
@@ -472,14 +486,14 @@ export default function Invoices() {
               <div className="flex items-center justify-between p-4 rounded-md bg-muted/40 border">
                 <div className="text-sm">
                   <p className="text-muted-foreground">
-                    {selected.size} entries · {selectedHours.toFixed(2)} hrs @ ${Number(rate || 0).toFixed(2)}/hr
+                    {selectedEntries.length} entries · {selectedHours.toFixed(2)} hrs @ ${Number(rate || 0).toFixed(2)}/hr
                   </p>
                   <p className="text-2xl font-bold text-foreground">
                     ${selectedAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                   </p>
-                  {(selected.size === 0 || !rate) && (
+                  {(selectedEntries.length === 0 || !hasValidRate) && (
                     <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                      {selected.size === 0
+                      {selectedEntries.length === 0
                         ? "Tick at least one entry above to enable invoicing"
                         : "Enter an hourly rate above"}
                     </p>
@@ -488,7 +502,7 @@ export default function Invoices() {
                 <Button
                   size="lg"
                   onClick={() => createInvoice.mutate()}
-                  disabled={createInvoice.isPending || selected.size === 0 || !rate}
+                  disabled={createInvoice.isPending || selectedEntries.length === 0 || !hasValidRate}
                   className="gap-2"
                 >
                   {createInvoice.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
