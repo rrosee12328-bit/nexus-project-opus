@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, startOfMonth, endOfMonth } from "date-fns";
@@ -67,7 +67,7 @@ export default function Invoices() {
   const [projectId, setProjectId] = useState<string>("all");
   const [start, setStart] = useState(format(startOfMonth(today), "yyyy-MM-dd"));
   const [end, setEnd] = useState(format(endOfMonth(today), "yyyy-MM-dd"));
-  const [rate, setRate] = useState<number>(150);
+  const [rate, setRate] = useState("150");
   const [notes, setNotes] = useState("");
   const [autoFinalize, setAutoFinalize] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -192,9 +192,20 @@ export default function Invoices() {
     },
   });
 
+  useEffect(() => {
+    if (entries.length > 0) {
+      setSelected(new Set(entries.map((e) => key(e))));
+    } else {
+      setSelected(new Set());
+    }
+  }, [entries]);
+
+  const hourlyRate = Number(rate);
+  const hasValidRate = Number.isFinite(hourlyRate) && hourlyRate > 0;
   const selectedEntries = entries.filter((e) => selected.has(key(e)));
+  const allEntriesSelected = entries.length > 0 && selectedEntries.length === entries.length;
   const selectedHours = selectedEntries.reduce((s, e) => s + Number(e.hours || 0), 0);
-  const selectedAmount = selectedHours * rate;
+  const selectedAmount = selectedHours * (hasValidRate ? hourlyRate : 0);
 
   // Per-source breakdown for the entries card
   const totalAvailableHours = entries.reduce((s, e) => s + Number(e.hours || 0), 0);
@@ -213,28 +224,27 @@ export default function Invoices() {
     });
   };
   const toggleAll = () => {
-    if (selected.size === entries.length) setSelected(new Set());
+    if (allEntriesSelected) setSelected(new Set());
     else setSelected(new Set(entries.map((e) => key(e))));
   };
 
   const createInvoice = useMutation({
     mutationFn: async () => {
       if (!clientId) throw new Error("Pick a client");
-      if (selected.size === 0) throw new Error("Select at least one entry");
-      if (!rate || rate <= 0) throw new Error("Enter an hourly rate");
+      if (selectedEntries.length === 0) throw new Error("Select at least one entry");
+      if (!hasValidRate) throw new Error("Enter an hourly rate");
       const timesheet_ids: string[] = [];
       const calendar_event_ids: string[] = [];
-      for (const k of selected) {
-        const [src, id] = k.split(":");
-        if (src === "timesheet") timesheet_ids.push(id);
-        else if (src === "calendar") calendar_event_ids.push(id);
+      for (const entry of selectedEntries) {
+        if (entry.source === "timesheet") timesheet_ids.push(entry.id);
+        else if (entry.source === "calendar") calendar_event_ids.push(entry.id);
       }
       const { data, error } = await supabase.functions.invoke("create-hourly-invoice", {
         body: {
           client_id: clientId,
           timesheet_ids,
           calendar_event_ids,
-          hourly_rate: rate,
+          hourly_rate: hourlyRate,
           notes: notes || undefined,
           auto_finalize: autoFinalize,
         },
