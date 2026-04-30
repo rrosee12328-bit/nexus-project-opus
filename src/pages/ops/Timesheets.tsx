@@ -15,7 +15,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, ChevronLeft, ChevronRight, Pencil, Trash2, Clock } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Pencil, Trash2, Clock, BarChart3 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import TimesheetDashboard from "./TimesheetDashboard";
 
 const CATEGORIES = [
   { value: "client_work", label: "Client Work" },
@@ -331,6 +333,13 @@ export default function Timesheets() {
         </Button>
       </div>
 
+      <Tabs defaultValue="log" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="log" className="gap-1.5"><Clock className="h-3.5 w-3.5" /> Log Hours</TabsTrigger>
+          <TabsTrigger value="dashboard" className="gap-1.5"><BarChart3 className="h-3.5 w-3.5" /> Dashboard</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="log" className="space-y-6">
       {/* Controls */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-2">
