@@ -30,6 +30,8 @@ type Entry = {
   code: string | null;
 };
 
+const EMPTY_ENTRIES: Entry[] = [];
+
 type HourlyInvoice = {
   id: string;
   client_id: string;
@@ -101,7 +103,7 @@ export default function Invoices() {
     },
   });
 
-  const { data: entries = [], isLoading: loadingEntries } = useQuery({
+  const { data: invoiceEntries, isLoading: loadingEntries } = useQuery({
     queryKey: ["invoice-entries", clientId, projectId, start, end],
     enabled: !!clientId,
     queryFn: async () => {
@@ -192,13 +194,15 @@ export default function Invoices() {
     },
   });
 
+  const entries = invoiceEntries ?? EMPTY_ENTRIES;
+
   useEffect(() => {
     if (entries.length > 0) {
       setSelected(new Set(entries.map((e) => key(e))));
     } else {
       setSelected(new Set());
     }
-  }, [entries]);
+  }, [invoiceEntries]);
 
   const hourlyRate = Number(rate);
   const hasValidRate = Number.isFinite(hourlyRate) && hourlyRate > 0;
