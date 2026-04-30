@@ -196,6 +196,15 @@ export default function Invoices() {
   const selectedHours = selectedEntries.reduce((s, e) => s + Number(e.hours || 0), 0);
   const selectedAmount = selectedHours * rate;
 
+  // Per-source breakdown for the entries card
+  const totalAvailableHours = entries.reduce((s, e) => s + Number(e.hours || 0), 0);
+  const selectedTimesheetHours = selectedEntries
+    .filter((e) => e.source === "timesheet")
+    .reduce((s, e) => s + Number(e.hours || 0), 0);
+  const selectedCalendarHours = selectedEntries
+    .filter((e) => e.source === "calendar")
+    .reduce((s, e) => s + Number(e.hours || 0), 0);
+
   const toggle = (k: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -370,6 +379,7 @@ export default function Invoices() {
               ) : entries.length === 0 ? (
                 <p className="p-6 text-sm text-muted-foreground">No unbilled billable hours in this period.</p>
               ) : (
+                <>
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -408,7 +418,26 @@ export default function Invoices() {
                       </TableRow>
                     ))}
                   </TableBody>
+                  <tfoot className="bg-muted/30 border-t">
+                    <tr className="text-sm">
+                      <td colSpan={5} className="px-4 py-3 text-right">
+                        <span className="text-muted-foreground">
+                          {selected.size} of {entries.length} selected
+                          {selectedEntries.length > 0 && (
+                            <span className="ml-2">
+                              · <Timer className="inline h-3 w-3 -mt-0.5" /> {selectedTimesheetHours.toFixed(2)}h timesheet
+                              · <CalendarClock className="inline h-3 w-3 -mt-0.5 text-blue-500" /> {selectedCalendarHours.toFixed(2)}h calendar
+                            </span>
+                          )}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono font-bold text-foreground">
+                        {selectedHours.toFixed(2)} / {totalAvailableHours.toFixed(2)} h
+                      </td>
+                    </tr>
+                  </tfoot>
                 </Table>
+                </>
               )}
             </CardContent>
           </Card>
