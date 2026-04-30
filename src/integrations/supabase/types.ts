@@ -1876,6 +1876,7 @@ export type Database = {
       }
       timesheets: {
         Row: {
+          billable: boolean
           created_at: string | null
           date: string
           description: string | null
@@ -1888,6 +1889,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          billable?: boolean
           created_at?: string | null
           date?: string
           description?: string | null
@@ -1900,6 +1902,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          billable?: boolean
           created_at?: string | null
           date?: string
           description?: string | null
