@@ -12,9 +12,13 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Switch } from "@/components/ui/switch";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { Loader2, RefreshCw, Search, ChevronDown, ChevronRight, CalendarIcon, X } from "lucide-react";
+import {
+  Loader2, RefreshCw, Search, ChevronDown, ChevronRight, CalendarIcon, X, SlidersHorizontal, Check,
+} from "lucide-react";
 
 type LogRow = {
   id: string;
@@ -58,6 +62,24 @@ const parseDateParam = (v: string | null): Date | undefined => {
   return isNaN(d.getTime()) ? undefined : d;
 };
 const fmtDateParam = (d: Date) => format(d, "yyyy-MM-dd");
+
+// Canonical events emitted by generate-call-summary-pdf (kept in sync with the edge fn)
+const KNOWN_EVENTS = [
+  "request_received",
+  "validation_passed_request",
+  "validation_failed_request",
+  "auth_ok",
+  "auth_missing_bearer",
+  "auth_invalid_token",
+  "call_fetched",
+  "call_fetch_failed",
+  "sections_resolved",
+  "key_decisions_unparsable",
+  "transcript_invalid_type",
+  "transcript_truncated",
+  "pdf_generated",
+  "unhandled_exception",
+] as const;
 
 function ExampleChips({
   label,
