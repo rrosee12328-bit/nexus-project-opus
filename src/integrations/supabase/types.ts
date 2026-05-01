@@ -759,6 +759,7 @@ export type Database = {
           phone: string | null
           pipeline_stage: string | null
           profitability_sheet_url: string | null
+          proposal_id: string | null
           setup_fee: number | null
           setup_paid: number | null
           start_date: string | null
@@ -784,6 +785,7 @@ export type Database = {
           phone?: string | null
           pipeline_stage?: string | null
           profitability_sheet_url?: string | null
+          proposal_id?: string | null
           setup_fee?: number | null
           setup_paid?: number | null
           start_date?: string | null
@@ -809,6 +811,7 @@ export type Database = {
           phone?: string | null
           pipeline_stage?: string | null
           profitability_sheet_url?: string | null
+          proposal_id?: string | null
           setup_fee?: number | null
           setup_paid?: number | null
           start_date?: string | null
@@ -818,7 +821,15 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "clients_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       company_summaries: {
         Row: {
@@ -941,6 +952,68 @@ export type Database = {
             columns: ["source_call_id"]
             isOneToOne: false
             referencedRelation: "call_intelligence"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_intelligence: {
+        Row: {
+          action_required: boolean | null
+          client_id: string | null
+          created_at: string
+          email_type: string | null
+          from_email: string
+          from_name: string | null
+          id: string
+          outlook_message_id: string | null
+          processed_at: string
+          raw_body: string | null
+          received_at: string | null
+          sentiment: string | null
+          subject: string | null
+          suggested_action: string | null
+          summary: string | null
+        }
+        Insert: {
+          action_required?: boolean | null
+          client_id?: string | null
+          created_at?: string
+          email_type?: string | null
+          from_email: string
+          from_name?: string | null
+          id?: string
+          outlook_message_id?: string | null
+          processed_at?: string
+          raw_body?: string | null
+          received_at?: string | null
+          sentiment?: string | null
+          subject?: string | null
+          suggested_action?: string | null
+          summary?: string | null
+        }
+        Update: {
+          action_required?: boolean | null
+          client_id?: string | null
+          created_at?: string
+          email_type?: string | null
+          from_email?: string
+          from_name?: string | null
+          id?: string
+          outlook_message_id?: string | null
+          processed_at?: string
+          raw_body?: string | null
+          received_at?: string | null
+          sentiment?: string | null
+          subject?: string | null
+          suggested_action?: string | null
+          summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_intelligence_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
         ]
@@ -1168,6 +1241,59 @@ export type Database = {
           owner_name?: string
         }
         Relationships: []
+      }
+      leads: {
+        Row: {
+          company: string | null
+          converted_at: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          proposal_id: string | null
+          source: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          company?: string | null
+          converted_at?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          proposal_id?: string | null
+          source?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          company?: string | null
+          converted_at?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          proposal_id?: string | null
+          source?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       messages: {
         Row: {
@@ -1663,6 +1789,7 @@ export type Database = {
           client_name: string | null
           company_name: string | null
           contract_pdf_path: string | null
+          converted_to_client_id: string | null
           cost_analysis_url: string | null
           created_at: string
           created_by: string
@@ -1671,6 +1798,7 @@ export type Database = {
           hourly_rate: number | null
           id: string
           last_viewed_at: string | null
+          lead_id: string | null
           monthly_fee: number
           paid_at: string | null
           project_name: string | null
@@ -1698,6 +1826,7 @@ export type Database = {
           client_name?: string | null
           company_name?: string | null
           contract_pdf_path?: string | null
+          converted_to_client_id?: string | null
           cost_analysis_url?: string | null
           created_at?: string
           created_by: string
@@ -1706,6 +1835,7 @@ export type Database = {
           hourly_rate?: number | null
           id?: string
           last_viewed_at?: string | null
+          lead_id?: string | null
           monthly_fee?: number
           paid_at?: string | null
           project_name?: string | null
@@ -1733,6 +1863,7 @@ export type Database = {
           client_name?: string | null
           company_name?: string | null
           contract_pdf_path?: string | null
+          converted_to_client_id?: string | null
           cost_analysis_url?: string | null
           created_at?: string
           created_by?: string
@@ -1741,6 +1872,7 @@ export type Database = {
           hourly_rate?: number | null
           id?: string
           last_viewed_at?: string | null
+          lead_id?: string | null
           monthly_fee?: number
           paid_at?: string | null
           project_name?: string | null
@@ -1766,6 +1898,20 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_converted_to_client_id_fkey"
+            columns: ["converted_to_client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
         ]
@@ -2332,20 +2478,26 @@ export type Database = {
     }
     Functions: {
       archive_done_tasks: { Args: never; Returns: undefined }
-      convert_proposal_to_client: {
-        Args: {
-          p_client_email: string
-          p_client_name: string
-          p_client_phone?: string
-          p_proposal_id: string
-          p_service_type?: string
-        }
-        Returns: {
-          new_client_id: string
-          new_client_number: string
-          proposal_number: string
-        }[]
+      convert_lead_to_proposal: {
+        Args: { p_lead_id: string; p_proposal_id: string }
+        Returns: undefined
       }
+      convert_proposal_to_client:
+        | { Args: { p_proposal_id: string }; Returns: string }
+        | {
+            Args: {
+              p_client_email: string
+              p_client_name: string
+              p_client_phone?: string
+              p_proposal_id: string
+              p_service_type?: string
+            }
+            Returns: {
+              new_client_id: string
+              new_client_number: string
+              proposal_number: string
+            }[]
+          }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
