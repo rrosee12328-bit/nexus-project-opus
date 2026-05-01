@@ -153,7 +153,7 @@ Deno.serve(async (req: Request) => {
         .from("call_intelligence")
         .select("id, fathom_meeting_id, fathom_url, transcript, call_date")
         .not("fathom_meeting_id", "is", null)
-        .or("fathom_url.is.null,transcript.is.null")
+        .or("fathom_url.is.null,transcript.is.null,client_id.is.null")
         .order("call_date", { ascending: false, nullsFirst: false })
         .limit(25);
       if (error) throw error;
