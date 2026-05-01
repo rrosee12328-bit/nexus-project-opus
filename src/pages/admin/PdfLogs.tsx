@@ -84,6 +84,33 @@ export default function PdfLogs() {
   const requestIdError = useMemo(() => validateUuidField(requestId, "request_id"), [requestId]);
   const hasFieldErrors = !!(callIdError || requestIdError);
 
+  // Recent example IDs taken from loaded rows (most recent first, deduped)
+  const exampleCallIds = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const r of rows) {
+      if (r.call_id && !seen.has(r.call_id)) {
+        seen.add(r.call_id);
+        out.push(r.call_id);
+        if (out.length >= 3) break;
+      }
+    }
+    return out;
+  }, [rows]);
+
+  const exampleRequestIds = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const r of rows) {
+      if (r.request_id && !seen.has(r.request_id)) {
+        seen.add(r.request_id);
+        out.push(r.request_id);
+        if (out.length >= 3) break;
+      }
+    }
+    return out;
+  }, [rows]);
+
   // Keep URL in sync with current filter state (replace, no history entry per keystroke)
   useEffect(() => {
     const next = new URLSearchParams();
