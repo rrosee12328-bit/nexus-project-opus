@@ -39,6 +39,18 @@ const LEVEL_VARIANT: Record<LogRow["level"], string> = {
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+const REQUEST_ID_RE = UUID_RE; // request_id is also a UUID (x-request-id)
+const REQUEST_ID_MAX = 64;
+
+/** Returns null when valid (or empty), or a human-readable error string. */
+function validateUuidField(value: string, label: string): string | null {
+  const v = value.trim();
+  if (!v) return null;
+  if (v.length > REQUEST_ID_MAX) return `${label} is too long (max ${REQUEST_ID_MAX} chars)`;
+  if (!UUID_RE.test(v)) return `${label} must be a valid UUID (e.g. 019de182-9ee4-7cb1-a96c-6b48c25f4e6c)`;
+  return null;
+}
+
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const parseDateParam = (v: string | null): Date | undefined => {
   if (!v || !DATE_RE.test(v)) return undefined;
@@ -67,6 +79,11 @@ export default function PdfLogs() {
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
+  // Live validation errors (null when field is valid or empty)
+  const callIdError = useMemo(() => validateUuidField(callId, "call_id"), [callId]);
+  const requestIdError = useMemo(() => validateUuidField(requestId, "request_id"), [requestId]);
+  const hasFieldErrors = !!(callIdError || requestIdError);
+
   // Keep URL in sync with current filter state (replace, no history entry per keystroke)
   useEffect(() => {
     const next = new URLSearchParams();
@@ -84,6 +101,10 @@ export default function PdfLogs() {
   }, [callId, requestId, level, limit, fromDate, toDate, searchParams, setSearchParams]);
 
   const fetchLogs = async () => {
+    if (hasFieldErrors) {
+      toast.error("Fix the highlighted fields before searching");
+      return;
+    }
     setLoading(true);
     try {
       let q = supabase
@@ -94,14 +115,7 @@ export default function PdfLogs() {
 
       const cid = callId.trim();
       const rid = requestId.trim();
-      if (cid) {
-        if (!UUID_RE.test(cid)) {
-          toast.error("call_id must be a valid UUID");
-          setLoading(false);
-          return;
-        }
-        q = q.eq("call_id", cid);
-      }
+      if (cid) q = q.eq("call_id", cid);
       if (rid) q = q.eq("request_id", rid);
       if (level !== "all") q = q.eq("level", level);
       if (fromDate && toDate && fromDate > toDate) {
@@ -174,8 +188,21 @@ export default function PdfLogs() {
                 placeholder="e.g. 019de182-9ee4-7cb1-a96c-6b48c25f4e6c"
                 value={callId}
                 onChange={(e) => setCallId(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && fetchLogs()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !hasFieldErrors) fetchLogs();
+                }}
+                aria-invalid={!!callIdError}
+                aria-describedby={callIdError ? "call-id-error" : undefined}
+                className={cn(
+                  callIdError && "border-destructive focus-visible:ring-destructive",
+                )}
+                maxLength={REQUEST_ID_MAX}
               />
+              {callIdError && (
+                <p id="call-id-error" className="text-xs text-destructive">
+                  {callIdError}
+                </p>
+              )}
             </div>
             <div className="md:col-span-4 space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">request_id</label>
@@ -183,8 +210,21 @@ export default function PdfLogs() {
                 placeholder="x-request-id from response header"
                 value={requestId}
                 onChange={(e) => setRequestId(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && fetchLogs()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !hasFieldErrors) fetchLogs();
+                }}
+                aria-invalid={!!requestIdError}
+                aria-describedby={requestIdError ? "request-id-error" : undefined}
+                className={cn(
+                  requestIdError && "border-destructive focus-visible:ring-destructive",
+                )}
+                maxLength={REQUEST_ID_MAX}
               />
+              {requestIdError && (
+                <p id="request-id-error" className="text-xs text-destructive">
+                  {requestIdError}
+                </p>
+              )}
             </div>
             <div className="md:col-span-2 space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Level</label>
@@ -200,7 +240,7 @@ export default function PdfLogs() {
               </Select>
             </div>
             <div className="md:col-span-2 flex gap-2">
-              <Button onClick={fetchLogs} disabled={loading} className="flex-1">
+              <Button onClick={fetchLogs} disabled={loading || hasFieldErrors} className="flex-1">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                 <span className="ml-2">Search</span>
               </Button>
@@ -208,7 +248,7 @@ export default function PdfLogs() {
                 variant="outline"
                 size="icon"
                 onClick={fetchLogs}
-                disabled={loading}
+                disabled={loading || hasFieldErrors}
                 aria-label="Refresh"
               >
                 <RefreshCw className="h-4 w-4" />
