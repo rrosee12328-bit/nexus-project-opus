@@ -412,16 +412,23 @@ export default function AdminCalls() {
                     <TableCell className="text-sm max-w-[280px] truncate">
                       {call.summary ?? "—"}
                     </TableCell>
-                    <TableCell>
-                      {call.fathom_meeting_id && (
-                        <Badge variant="outline" className="text-xs">
-                          <ExternalLink className="h-3 w-3" />
-                        </Badge>
-                      )}
-                      {call.transcript && !call.fathom_meeting_id && (
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      {(call.fathom_url || call.fathom_meeting_id) ? (
+                        <a
+                          href={call.fathom_url || `https://fathom.video/calls/${call.fathom_meeting_id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                          title="Open in Fathom"
+                        >
+                          <ExternalLink className="h-3 w-3" /> Fathom
+                        </a>
+                      ) : call.transcript ? (
                         <Badge variant="outline" className="text-xs">
                           <FileText className="h-3 w-3" />
                         </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
                       )}
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
@@ -470,9 +477,9 @@ export default function AdminCalls() {
                   </Badge>
                   {viewingCall.client_id && <Badge variant="outline">{getClientName(viewingCall.client_id)}</Badge>}
                   {viewingCall.project_id && <Badge variant="outline">{getProjectName(viewingCall.project_id)}</Badge>}
-                  {viewingCall.fathom_meeting_id && (
+                  {(viewingCall.fathom_url || viewingCall.fathom_meeting_id) && (
                     <a
-                      href={`https://fathom.video/calls/${viewingCall.fathom_meeting_id}`}
+                      href={viewingCall.fathom_url || `https://fathom.video/calls/${viewingCall.fathom_meeting_id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
