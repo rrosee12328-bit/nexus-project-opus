@@ -10,12 +10,222 @@ import {
   PDFFont,
   PDFPage,
 } from "https://esm.sh/pdf-lib@1.17.1";
+import { z } from "https://esm.sh/zod@3.23.8";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Expose-Headers": "Content-Disposition",
 };
+
+// ───── Validation ─────
+
+// Strict input validation (rejects malformed requests early)
+const RequestSchema = z.object({
+  call_id: z.string().trim().uuid({ message: "call_id must be a UUID" }),
+});
+
+// Limits — protect server resources from pathological inputs
+const MAX_TEXT_LEN = 50_000;            // any single text field
+const MAX_TRANSCRIPT_LEN = 500_000;     // ~500KB transcript cap
+const MAX_BULLETS = 200;
+const MAX_TABLE_ROWS = 500;
+const MAX_TABLE_COLS = 12;
+const MAX_SECTIONS = 100;
+const MAX_BLOCKS_PER_SECTION = 200;
+
+// Coerce anything to a trimmed, length-capped string. Returns "" for null/undefined/objects.
+function toStr(v: unknown, max = MAX_TEXT_LEN): string {
+  if (v == null) return "";
+  if (typeof v === "string") return v.trim().slice(0, max);
+  if (typeof v === "number" || typeof v === "boolean") return String(v).slice(0, max);
+  // For arrays/objects we don't want raw "[object Object]" garbage in the PDF
+  return "";
+}
+
+// Coerce anything to a string array, dropping empties.
+function toStrArray(v: unknown, maxItems = MAX_BULLETS): string[] {
+  if (v == null) return [];
+  if (typeof v === "string") {
+    // Split newlines as a friendly fallback
+    return v.split(/\r?\n/).map((s) => s.trim()).filter(Boolean).slice(0, maxItems);
+  }
+  if (!Array.isArray(v)) return [];
+  return v.map((x) => toStr(x)).filter((s) => s.length > 0).slice(0, maxItems);
+}
+
+// Forgiving schema for ai_analysis blocks: unknown/invalid blocks are dropped, not rejected.
+const ParagraphBlockSchema = z.object({
+  type: z.literal("paragraph"),
+  text: z.preprocess((v) => toStr(v), z.string()),
+}).transform((b) => ({ type: "paragraph" as const, text: b.text }));
+
+const BulletItemSchema = z.preprocess(
+  (v) => {
+    if (typeof v === "string") return { text: toStr(v) };
+    if (v && typeof v === "object") {
+      const o = v as Record<string, unknown>;
+      return { label: toStr(o.label) || undefined, text: toStr(o.text) };
+    }
+    return { text: "" };
+  },
+  z.object({ label: z.string().optional(), text: z.string() }),
+);
+const BulletsBlockSchema = z.object({
+  type: z.literal("bullets"),
+  items: z.preprocess(
+    (v) => Array.isArray(v) ? v.slice(0, MAX_BULLETS) : [],
+    z.array(BulletItemSchema),
+  ),
+}).transform((b) => ({
+  type: "bullets" as const,
+  items: b.items.filter((i) => i.text && i.text.length > 0),
+}));
+
+const TableBlockSchema = z.object({
+  type: z.literal("table"),
+  columns: z.preprocess(
+    (v) => Array.isArray(v) ? v.slice(0, MAX_TABLE_COLS).map((c) => toStr(c, 200)) : [],
+    z.array(z.string()),
+  ),
+  rows: z.preprocess(
+    (v) => {
+      if (!Array.isArray(v)) return [];
+      return v.slice(0, MAX_TABLE_ROWS).map((row) =>
+        Array.isArray(row)
+          ? row.slice(0, MAX_TABLE_COLS).map((c) => toStr(c, 2_000))
+          : [],
+      );
+    },
+    z.array(z.array(z.string())),
+  ),
+}).transform((b) => {
+  // Normalize row width to match columns count
+  const colCount = b.columns.length || (b.rows[0]?.length ?? 0);
+  if (colCount === 0) return null;
+  const columns = b.columns.length ? b.columns : Array.from({ length: colCount }, (_, i) => `Col ${i + 1}`);
+  const rows = b.rows.map((r) => {
+    const padded = r.slice(0, colCount);
+    while (padded.length < colCount) padded.push("");
+    return padded;
+  });
+  return { type: "table" as const, columns, rows };
+});
+
+const CalloutBlockSchema = z.object({
+  type: z.literal("callout"),
+  label: z.preprocess((v) => toStr(v) || undefined, z.string().optional()),
+  text: z.preprocess((v) => toStr(v), z.string()),
+  tone: z.preprocess(
+    (v) => {
+      const s = typeof v === "string" ? v.toLowerCase() : "";
+      return ["info", "success", "warning", "danger"].includes(s) ? s : "info";
+    },
+    z.enum(["info", "success", "warning", "danger"]),
+  ),
+}).transform((b) => ({ type: "callout" as const, label: b.label, text: b.text, tone: b.tone }));
+
+const BlockSchema = z.union([
+  ParagraphBlockSchema,
+  BulletsBlockSchema,
+  TableBlockSchema,
+  CalloutBlockSchema,
+]);
+
+const SectionSchema = z.object({
+  number: z.preprocess(
+    (v) => (typeof v === "number" || typeof v === "string") ? v : undefined,
+    z.union([z.number(), z.string()]).optional(),
+  ),
+  title: z.preprocess((v) => toStr(v, 300), z.string()),
+  blocks: z.preprocess(
+    (v) => Array.isArray(v) ? v.slice(0, MAX_BLOCKS_PER_SECTION) : [],
+    z.array(z.unknown()),
+  ),
+});
+
+const AiAnalysisSchema = z.object({
+  executive_overview: z.preprocess((v) => toStr(v) || undefined, z.string().optional()),
+  executive_summary:  z.preprocess((v) => toStr(v) || undefined, z.string().optional()),
+  sentiment:          z.preprocess((v) => toStr(v, 50) || undefined, z.string().optional()),
+  next_steps:         z.preprocess((v) => toStr(v) || undefined, z.string().optional()),
+  key_takeaways:      z.preprocess((v) => toStrArray(v), z.array(z.string())).optional(),
+  key_decisions:      z.preprocess((v) => toStrArray(v), z.array(z.string())).optional(),
+  topics_discussed: z.preprocess(
+    (v) => Array.isArray(v) ? v.map((t) => {
+      if (typeof t === "string") return { topic: toStr(t) };
+      if (t && typeof t === "object") {
+        const o = t as Record<string, unknown>;
+        return { topic: toStr(o.topic), summary: toStr(o.summary) };
+      }
+      return { topic: "" };
+    }).filter((t) => t.topic || (t as any).summary) : [],
+    z.array(z.object({ topic: z.string(), summary: z.string().optional() })),
+  ).optional(),
+  client_commitments: z.preprocess(
+    (v) => Array.isArray(v) ? v.map((c) => {
+      if (!c || typeof c !== "object") return null;
+      const o = c as Record<string, unknown>;
+      return { action: toStr(o.action), deadline: toStr(o.deadline), notes: toStr(o.notes) };
+    }).filter(Boolean) : [],
+    z.array(z.object({ action: z.string(), deadline: z.string(), notes: z.string() })),
+  ).optional(),
+  vektiss_tasks: z.preprocess(
+    (v) => Array.isArray(v) ? v.map((t) => {
+      if (!t || typeof t !== "object") return null;
+      const o = t as Record<string, unknown>;
+      return {
+        title: toStr(o.title), assignee: toStr(o.assignee), priority: toStr(o.priority),
+        deadline: toStr(o.deadline), description: toStr(o.description),
+      };
+    }).filter(Boolean) : [],
+    z.array(z.object({
+      title: z.string(), assignee: z.string(), priority: z.string(),
+      deadline: z.string(), description: z.string(),
+    })),
+  ).optional(),
+  sections: z.preprocess(
+    (v) => Array.isArray(v) ? v.slice(0, MAX_SECTIONS) : undefined,
+    z.array(SectionSchema).optional(),
+  ),
+}).passthrough();
+
+/**
+ * Sanitize ai_analysis from the database. Always returns a valid object.
+ * Drops any block / section that fails its sub-schema instead of failing the whole PDF.
+ */
+function sanitizeAiAnalysis(raw: unknown): AiAnalysis {
+  // Accept JSON strings from the DB just in case
+  let parsed: unknown = raw;
+  if (typeof raw === "string") {
+    try { parsed = JSON.parse(raw); } catch { parsed = {}; }
+  }
+  if (!parsed || typeof parsed !== "object") return {};
+
+  const result = AiAnalysisSchema.safeParse(parsed);
+  if (!result.success) {
+    console.warn("ai_analysis failed top-level validation, ignoring", result.error.flatten());
+    return {};
+  }
+
+  const out: AiAnalysis = { ...result.data } as AiAnalysis;
+
+  // Validate blocks per section, dropping invalid ones
+  if (result.data.sections?.length) {
+    out.sections = result.data.sections
+      .map((s) => {
+        const blocks: Block[] = [];
+        for (const rawBlock of s.blocks) {
+          const r = BlockSchema.safeParse(rawBlock);
+          if (r.success && r.data) blocks.push(r.data as Block);
+        }
+        return { number: s.number, title: s.title, blocks };
+      })
+      .filter((s) => s.title && s.blocks.length > 0);
+  }
+
+  return out;
+}
 
 // ───── Theme ─────
 const PRIMARY = rgb(37 / 255, 99 / 255, 235 / 255);
@@ -498,20 +708,22 @@ Deno.serve(async (req) => {
 
   try {
     const url = new URL(req.url);
-    let callId = url.searchParams.get("call_id");
-
-    if (!callId && (req.method === "POST")) {
+    let rawCallId: unknown = url.searchParams.get("call_id");
+    if (!rawCallId && req.method === "POST") {
       try {
         const body = await req.json();
-        callId = body?.call_id ?? null;
+        rawCallId = body?.call_id ?? null;
       } catch { /* ignore */ }
     }
 
-    if (!callId) {
-      return new Response(JSON.stringify({ error: "Missing call_id" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    const parsed = RequestSchema.safeParse({ call_id: rawCallId });
+    if (!parsed.success) {
+      return new Response(
+        JSON.stringify({ error: "Invalid request", details: parsed.error.flatten().fieldErrors }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
+    const callId = parsed.data.call_id;
 
     // Auth check
     const authHeader = req.headers.get("Authorization");
@@ -578,19 +790,18 @@ Deno.serve(async (req) => {
     builder.y -= 4;
     builder.divider();
 
-    const ai: AiAnalysis = call.ai_analysis || {};
-    const execOverview = ai.executive_overview || ai.executive_summary || call.summary;
+    // Defensive sanitization — never trust DB JSON shape
+    const ai: AiAnalysis = sanitizeAiAnalysis(call.ai_analysis);
+    const execOverview = toStr(ai.executive_overview) || toStr(ai.executive_summary) || toStr(call.summary);
     if (execOverview) {
       builder.sectionHeading("Executive Overview");
       builder.paragraph(execOverview);
     }
 
-    const sentiment = ai.sentiment || call.sentiment;
+    const sentiment = toStr(ai.sentiment, 50) || toStr(call.sentiment, 50);
     if (sentiment) builder.sentimentBadge(sentiment);
 
-    const fallbackDecisions = Array.isArray(call.key_decisions)
-      ? call.key_decisions
-      : call.key_decisions ? [String(call.key_decisions)] : [];
+    const fallbackDecisions = toStrArray(call.key_decisions);
 
     const sections: Section[] = ai.sections?.length
       ? ai.sections.map((s, i) => ({ number: s.number ?? i + 1, title: s.title, blocks: s.blocks || [] }))
@@ -609,15 +820,20 @@ Deno.serve(async (req) => {
       builder.y -= 6;
     }
 
-    if (call.transcript) {
+    const transcriptStr = toStr(call.transcript, MAX_TRANSCRIPT_LEN);
+    if (transcriptStr) {
       builder.newPage();
       builder.drawText("Full Transcript", MARGIN, { font: builder.fontBold, size: 14, color: PRIMARY });
       builder.y -= 22;
-      const transcriptLines = wrapText(builder.font, call.transcript, 9, CONTENT_W);
+      const transcriptLines = wrapText(builder.font, transcriptStr, 9, CONTENT_W);
       for (const line of transcriptLines) {
         builder.ensure(12);
         builder.drawText(line, MARGIN, { font: builder.font, size: 9, color: TEXT });
         builder.y -= 12;
+      }
+      if ((call.transcript as string).length > MAX_TRANSCRIPT_LEN) {
+        builder.y -= 6;
+        builder.drawText("[Transcript truncated for length]", MARGIN, { font: builder.font, size: 9, color: MUTED });
       }
     }
 
