@@ -14,6 +14,7 @@ const TOOL_RISK: Record<string, RiskLevel> = {
   query_financials: 'low', query_project_attachments: 'low',
   query_time_entries: 'low', query_sops: 'low', query_company_summaries: 'low',
   query_recent_activity: 'low', query_client_notes: 'low',
+  query_calls: 'low',
   query_my_projects: 'low', query_my_payments: 'low', query_my_assets: 'low',
   query_approval_requests: 'low', query_project_phases: 'low',
   query_team_members: 'low', query_calendar_events: 'low',
