@@ -18,6 +18,62 @@ const corsHeaders = {
   "Access-Control-Expose-Headers": "Content-Disposition",
 };
 
+// ───── Structured Logger ─────
+// Emits single-line JSON per event so logs are queryable by call_id / request_id / event.
+// Levels: debug | info | warn | error
+
+type LogLevel = "debug" | "info" | "warn" | "error";
+
+type LogContext = {
+  request_id: string;
+  call_id?: string;
+  user_id?: string;
+  fn: "generate-call-summary-pdf";
+};
+
+class StructuredLogger {
+  private ctx: LogContext;
+  private startedAt: number;
+  private dropCounts: Record<string, number> = {};
+
+  constructor(ctx: LogContext) {
+    this.ctx = ctx;
+    this.startedAt = Date.now();
+  }
+
+  setContext(extra: Partial<LogContext>) {
+    this.ctx = { ...this.ctx, ...extra };
+  }
+
+  /** Increment a named counter (e.g. "blocks_dropped_invalid_type"). */
+  count(key: string, by = 1) {
+    this.dropCounts[key] = (this.dropCounts[key] ?? 0) + by;
+  }
+
+  counters(): Record<string, number> {
+    return { ...this.dropCounts };
+  }
+
+  log(level: LogLevel, event: string, data: Record<string, unknown> = {}) {
+    const payload = {
+      level,
+      event,
+      elapsed_ms: Date.now() - this.startedAt,
+      ...this.ctx,
+      ...data,
+    };
+    const line = JSON.stringify(payload);
+    // Use console.error for warn+ so they show up in error log views as well
+    if (level === "error" || level === "warn") console.error(line);
+    else console.log(line);
+  }
+
+  debug(event: string, data?: Record<string, unknown>) { this.log("debug", event, data); }
+  info(event: string, data?: Record<string, unknown>)  { this.log("info", event, data); }
+  warn(event: string, data?: Record<string, unknown>)  { this.log("warn", event, data); }
+  error(event: string, data?: Record<string, unknown>) { this.log("error", event, data); }
+}
+
 // ───── Validation ─────
 
 // Strict input validation (rejects malformed requests early)
