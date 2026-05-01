@@ -3,7 +3,6 @@
 // with legacy fallback. Returns a PDF binary stream.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
 import {
   PDFDocument,
   StandardFonts,
@@ -11,6 +10,12 @@ import {
   PDFFont,
   PDFPage,
 } from "https://esm.sh/pdf-lib@1.17.1";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Expose-Headers": "Content-Disposition",
+};
 
 // ───── Theme ─────
 const PRIMARY = rgb(37 / 255, 99 / 255, 235 / 255);
@@ -197,19 +202,25 @@ class PdfBuilder {
     this.drawText(sanitized, MARGIN, { font: this.fontBold, size, color: PRIMARY });
     const w = this.fontBold.widthOfTextAtSize(sanitized, size);
     // Annotate clickable area
-    const linkAnnotation = this.doc.context.register(
-      this.doc.context.obj({
-        Type: "Annot",
-        Subtype: "Link",
-        Rect: [MARGIN, this.y - 2, MARGIN + w, this.y + size + 2],
-        Border: [0, 0, 0],
-        A: { Type: "Action", S: "URI", URI: url },
-      }),
-    );
-    const annots = this.page.node.lookup(this.doc.context.obj("Annots") as any) as any;
-    const existing = (this.page.node.Annots() as any) ?? this.doc.context.obj([]);
-    existing.push(linkAnnotation);
-    this.page.node.set(this.doc.context.obj("Annots") as any, existing);
+    try {
+      const ctx = this.doc.context;
+      const linkAnnotRef = ctx.register(
+        ctx.obj({
+          Type: "Annot",
+          Subtype: "Link",
+          Rect: [MARGIN, this.y - 2, MARGIN + w, this.y + size + 2],
+          Border: [0, 0, 0],
+          A: { Type: "Action", S: "URI", URI: url },
+        }),
+      );
+      const AnnotsKey = ctx.obj("Annots") as any;
+      let annots: any = this.page.node.get(AnnotsKey);
+      if (!annots) {
+        annots = ctx.obj([]);
+        this.page.node.set(AnnotsKey, annots);
+      }
+      annots.push(linkAnnotRef);
+    } catch (_e) { /* link annotation optional */ }
     this.y -= 18;
   }
 
