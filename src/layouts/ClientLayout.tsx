@@ -20,6 +20,7 @@ import {
   FileCheck,
   FileSignature,
   MoreHorizontal,
+  Phone,
   X,
 } from "lucide-react";
 import { useState } from "react";
@@ -120,6 +121,7 @@ export default function ClientLayout() {
   const secondaryItems = [
     { title: "Assets", url: "/portal/assets", icon: Upload, badge: 0 },
     { title: "Contracts", url: "/portal/contracts", icon: FileSignature, badge: 0 },
+    { title: "Call History", url: "/portal/calls", icon: Phone, badge: 0 },
     { title: "Billing", url: "/portal/billing", icon: CreditCard, badge: 0 },
     { title: "AI Assistant", url: "/portal/agent", icon: Bot, badge: 0 },
     { title: "Settings", url: "/portal/settings", icon: Settings, badge: 0 },
@@ -133,6 +135,7 @@ export default function ClientLayout() {
     { title: "Assets", url: "/portal/assets", icon: Upload, badge: 0 },
     { title: "Contracts", url: "/portal/contracts", icon: FileSignature, badge: 0 },
     { title: "Messages", url: "/portal/messages", icon: MessageSquare, badge: unreadCount },
+    { title: "Call History", url: "/portal/calls", icon: Phone, badge: 0 },
     { title: "Billing", url: "/portal/billing", icon: CreditCard, badge: 0 },
     { title: "AI Assistant", url: "/portal/agent", icon: Bot, badge: 0 },
     { title: "Settings", url: "/portal/settings", icon: Settings, badge: 0 },
