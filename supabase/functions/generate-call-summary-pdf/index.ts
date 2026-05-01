@@ -2,7 +2,7 @@
 // Renders rich `ai_analysis.sections` (paragraph/bullets/table/callout)
 // with legacy fallback. Returns a PDF binary stream.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 import {
   PDFDocument,
   StandardFonts,
