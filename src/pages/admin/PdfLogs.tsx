@@ -204,7 +204,7 @@ export default function PdfLogs() {
     for (const r of rows) {
       if (r.call_id && !seen.has(r.call_id)) {
         seen.add(r.call_id);
-        out.push({ id: r.call_id, ts: r.timestamp });
+        out.push({ id: r.call_id, ts: r.created_at });
         if (out.length >= 3) break;
       }
     }
@@ -217,7 +217,7 @@ export default function PdfLogs() {
     for (const r of rows) {
       if (r.request_id && !seen.has(r.request_id)) {
         seen.add(r.request_id);
-        out.push({ id: r.request_id, ts: r.timestamp });
+        out.push({ id: r.request_id, ts: r.created_at });
         if (out.length >= 3) break;
       }
     }
