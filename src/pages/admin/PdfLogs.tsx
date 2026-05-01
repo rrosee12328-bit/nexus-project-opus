@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { format, startOfDay, endOfDay, subDays, subHours, formatDistanceToNowStrict } from "date-fns";
+import { format, startOfDay, endOfDay, subDays, subHours } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,9 +42,6 @@ const LEVEL_VARIANT: Record<LogRow["level"], string> = {
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-const REQUEST_ID_RE = UUID_RE; // request_id is also a UUID (x-request-id)
-const REQUEST_ID_MAX = 64;
 
 /** Returns null when valid (or empty), or a human-readable error string. */
 function validateUuidField(value: string, label: string): string | null {
