@@ -859,6 +859,7 @@ export type Database = {
           created_at: string
           hook: string | null
           id: string
+          is_vektiss_content: boolean | null
           notes: string | null
           offer_cta: string | null
           offer_id: string | null
@@ -879,6 +880,7 @@ export type Database = {
           created_at?: string
           hook?: string | null
           id?: string
+          is_vektiss_content?: boolean | null
           notes?: string | null
           offer_cta?: string | null
           offer_id?: string | null
@@ -899,6 +901,7 @@ export type Database = {
           created_at?: string
           hook?: string | null
           id?: string
+          is_vektiss_content?: boolean | null
           notes?: string | null
           offer_cta?: string | null
           offer_id?: string | null
