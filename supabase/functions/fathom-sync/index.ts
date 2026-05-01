@@ -121,17 +121,30 @@ Deno.serve(async (req: Request) => {
     // Build list of (callRowId, meetingId) tuples to process
     let targets: Array<{ id: string; meeting_id: string }> = [];
 
+    let earliestCallDate: string | null = null;
+
     if (sync_all_missing) {
       const { data: rows, error } = await admin
         .from("call_intelligence")
-        .select("id, fathom_meeting_id, fathom_url, transcript")
+        .select("id, fathom_meeting_id, fathom_url, transcript, call_date")
         .not("fathom_meeting_id", "is", null)
         .or("fathom_url.is.null,transcript.is.null")
-        .limit(50);
+        .order("call_date", { ascending: false, nullsFirst: false })
+        .limit(25);
       if (error) throw error;
       targets = (rows ?? [])
         .filter((r: any) => r.fathom_meeting_id)
         .map((r: any) => ({ id: r.id, meeting_id: String(r.fathom_meeting_id) }));
+      const dates = (rows ?? [])
+        .map((r: any) => r.call_date)
+        .filter((d: any) => !!d)
+        .sort();
+      if (dates.length > 0) {
+        // Subtract 1 day for safety
+        const d = new Date(dates[0]);
+        d.setUTCDate(d.getUTCDate() - 1);
+        earliestCallDate = d.toISOString();
+      }
     } else if (call_id) {
       const { data: row, error } = await admin
         .from("call_intelligence")
@@ -165,7 +178,12 @@ Deno.serve(async (req: Request) => {
     }
 
     // Fathom has no GET /meetings/{id}; we must list and match by recording_id.
-    const meetingsMap = await fetchAllMeetingsMap(FATHOM_API_KEY);
+    const targetIds = new Set(targets.map((t) => t.meeting_id));
+    const meetingsMap = await fetchMeetingsForTargets(
+      FATHOM_API_KEY,
+      targetIds,
+      earliestCallDate ?? undefined,
+    );
 
     const results: any[] = [];
     for (const t of targets) {
