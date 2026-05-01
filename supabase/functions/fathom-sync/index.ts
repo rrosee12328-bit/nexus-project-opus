@@ -1,3 +1,28 @@
+const VEKTISS_INTERNAL_CLIENT_ID = "7662c4e3-bf78-494e-b203-40a9ba06fb27";
+
+// Match a Fathom meeting to a client by external invitee email/domain.
+// Returns the client_id if matched, otherwise the internal Vektiss client id.
+function matchClientId(
+  meeting: any,
+  clientsByEmail: Map<string, string>,
+  clientsByDomain: Map<string, string>,
+): string {
+  const invitees: any[] = Array.isArray(meeting?.calendar_invitees) ? meeting.calendar_invitees : [];
+  const externals = invitees.filter((i) => i?.is_external);
+
+  // 1. Try exact email match on any external invitee
+  for (const inv of externals) {
+    const email = (inv?.email ?? "").toLowerCase().trim();
+    if (email && clientsByEmail.has(email)) return clientsByEmail.get(email)!;
+  }
+  // 2. Try domain match
+  for (const inv of externals) {
+    const domain = (inv?.email_domain ?? "").toLowerCase().trim();
+    if (domain && clientsByDomain.has(domain)) return clientsByDomain.get(domain)!;
+  }
+  // 3. Fallback: internal Vektiss client (covers internal-only meetings)
+  return VEKTISS_INTERNAL_CLIENT_ID;
+}
 // Fathom sync: pulls meeting share URL + transcript by fathom_meeting_id
 // and writes them to call_intelligence. Admin/Ops only.
 
@@ -128,7 +153,7 @@ Deno.serve(async (req: Request) => {
         .from("call_intelligence")
         .select("id, fathom_meeting_id, fathom_url, transcript, call_date")
         .not("fathom_meeting_id", "is", null)
-        .or("fathom_url.is.null,transcript.is.null")
+        .or("fathom_url.is.null,transcript.is.null,client_id.is.null")
         .order("call_date", { ascending: false, nullsFirst: false })
         .limit(25);
       if (error) throw error;
@@ -185,6 +210,26 @@ Deno.serve(async (req: Request) => {
       earliestCallDate ?? undefined,
     );
 
+    // Load all clients for invitee → client matching
+    const { data: allClients } = await admin
+      .from("clients")
+      .select("id, email");
+    const clientsByEmail = new Map<string, string>();
+    const clientsByDomain = new Map<string, string>();
+    const GENERIC_DOMAINS = new Set([
+      "gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "icloud.com",
+      "proton.me", "protonmail.com", "live.com", "aol.com", "msn.com",
+    ]);
+    for (const c of allClients ?? []) {
+      const email = (c.email ?? "").toLowerCase().trim();
+      if (!email) continue;
+      clientsByEmail.set(email, c.id);
+      const domain = email.split("@")[1];
+      if (domain && !GENERIC_DOMAINS.has(domain) && !clientsByDomain.has(domain)) {
+        clientsByDomain.set(domain, c.id);
+      }
+    }
+
     const results: any[] = [];
     for (const t of targets) {
       try {
@@ -211,6 +256,16 @@ Deno.serve(async (req: Request) => {
         if (share_url) update.fathom_url = share_url;
         if (transcript) update.transcript = transcript;
         if (summaryMd) update.summary = summaryMd;
+
+        // Auto-link to client if not already set on the row
+        const { data: existing } = await admin
+          .from("call_intelligence")
+          .select("client_id")
+          .eq("id", t.id)
+          .maybeSingle();
+        if (!existing?.client_id) {
+          update.client_id = matchClientId(meeting, clientsByEmail, clientsByDomain);
+        }
 
         if (Object.keys(update).length > 0) {
           const { error: updErr } = await admin
