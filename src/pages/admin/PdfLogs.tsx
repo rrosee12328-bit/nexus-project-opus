@@ -181,6 +181,92 @@ export default function PdfLogs() {
               </Button>
             </div>
           </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end mt-3">
+            <div className="md:col-span-3 space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">From</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !fromDate && "text-muted-foreground",
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {fromDate ? format(fromDate, "PPP") : <span>Pick a start date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={fromDate}
+                    onSelect={setFromDate}
+                    disabled={(d) => (toDate ? d > toDate : false) || d > new Date()}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="md:col-span-3 space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">To</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !toDate && "text-muted-foreground",
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {toDate ? format(toDate, "PPP") : <span>Pick an end date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={toDate}
+                    onSelect={setToDate}
+                    disabled={(d) => (fromDate ? d < fromDate : false) || d > new Date()}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="md:col-span-6 flex flex-wrap items-end gap-2">
+              <span className="text-xs text-muted-foreground mr-1">Quick:</span>
+              {([
+                ["1h", "Last hour"],
+                ["24h", "Last 24h"],
+                ["7d", "Last 7d"],
+                ["30d", "Last 30d"],
+              ] as const).map(([k, label]) => (
+                <Button
+                  key={k}
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => applyPreset(k)}
+                >
+                  {label}
+                </Button>
+              ))}
+              {(fromDate || toDate) && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => applyPreset("clear")}
+                >
+                  <X className="h-3.5 w-3.5 mr-1" /> Clear dates
+                </Button>
+              )}
+            </div>
+          </div>
         </CardContent>
       </Card>
 
