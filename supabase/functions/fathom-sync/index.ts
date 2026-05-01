@@ -36,22 +36,32 @@ function transcriptArrayToText(arr: any): string | null {
     .join("\n");
 }
 
-// Build a map of all meetings keyed by recording_id by paginating /meetings.
-async function fetchAllMeetingsMap(apiKey: string): Promise<Map<string, any>> {
+// Paginate /meetings until we've found all target ids (or hit a safety cap / cursor end).
+async function fetchMeetingsForTargets(
+  apiKey: string,
+  targetIds: Set<string>,
+  createdAfter?: string,
+): Promise<Map<string, any>> {
   const map = new Map<string, any>();
   let cursor: string | null = null;
   let pages = 0;
   do {
     const qs = new URLSearchParams({ include_summary: "true" });
+    if (createdAfter) qs.set("created_after", createdAfter);
     if (cursor) qs.set("cursor", cursor);
     const resp: any = await fathomGet(`/meetings?${qs.toString()}`, apiKey);
     const items = resp?.items ?? [];
     for (const m of items) {
-      if (m?.recording_id != null) map.set(String(m.recording_id), m);
+      if (m?.recording_id != null) {
+        const key = String(m.recording_id);
+        if (targetIds.has(key)) map.set(key, m);
+      }
     }
     cursor = resp?.next_cursor ?? null;
     pages++;
-    if (pages > 50) break; // safety cap (~50 pages)
+    // Stop early if we have everything we asked for, or hit safety cap.
+    if (map.size >= targetIds.size) break;
+    if (pages > 30) break;
   } while (cursor);
   return map;
 }
