@@ -19,31 +19,51 @@ async function fathomGet(path: string, apiKey: string) {
   let json: any = null;
   try { json = text ? JSON.parse(text) : null; } catch { /* keep text */ }
   if (!res.ok) {
-    throw new Error(`Fathom ${path} failed [${res.status}]: ${text.slice(0, 500)}`);
+    throw new Error(`Fathom ${path} failed [${res.status}]: ${text.slice(0, 300)}`);
   }
   return json;
 }
 
-function pickShareUrl(m: any): string | null {
-  return (
-    m?.share_url ??
-    m?.shareUrl ??
-    m?.recording_share_url ??
-    m?.url ??
-    null
-  );
+function transcriptArrayToText(arr: any): string | null {
+  if (!Array.isArray(arr)) return null;
+  return arr
+    .map((t: any) => {
+      const speaker = t?.speaker?.display_name ?? t?.speaker ?? "";
+      const text = t?.text ?? "";
+      const ts = t?.timestamp ? `[${t.timestamp}] ` : "";
+      return `${ts}${speaker}: ${text}`.trim();
+    })
+    .join("\n");
 }
 
-function pickTranscript(m: any, transcriptResp: any): string | null {
-  if (typeof transcriptResp === "string") return transcriptResp;
-  if (Array.isArray(transcriptResp?.transcript)) {
-    return transcriptResp.transcript
-      .map((t: any) => `${t.speaker ?? ""}: ${t.text ?? ""}`.trim())
-      .join("\n");
-  }
-  if (typeof transcriptResp?.text === "string") return transcriptResp.text;
-  if (typeof m?.transcript === "string") return m.transcript;
-  return null;
+// Paginate /meetings until we've found all target ids (or hit a safety cap / cursor end).
+async function fetchMeetingsForTargets(
+  apiKey: string,
+  targetIds: Set<string>,
+  createdAfter?: string,
+): Promise<Map<string, any>> {
+  const map = new Map<string, any>();
+  let cursor: string | null = null;
+  let pages = 0;
+  do {
+    const qs = new URLSearchParams({ include_summary: "true" });
+    if (createdAfter) qs.set("created_after", createdAfter);
+    if (cursor) qs.set("cursor", cursor);
+    const resp: any = await fathomGet(`/meetings?${qs.toString()}`, apiKey);
+    const items = resp?.items ?? [];
+    for (const m of items) {
+      if (m?.recording_id != null) {
+        const key = String(m.recording_id);
+        if (targetIds.has(key)) map.set(key, m);
+      }
+    }
+    cursor = resp?.next_cursor ?? null;
+    pages++;
+    // Stop early if we have everything we asked for, or hit safety cap.
+    if (map.size >= targetIds.size) break;
+    if (pages > 30) break;
+  } while (cursor);
+  return map;
 }
 
 Deno.serve(async (req: Request) => {
@@ -101,17 +121,30 @@ Deno.serve(async (req: Request) => {
     // Build list of (callRowId, meetingId) tuples to process
     let targets: Array<{ id: string; meeting_id: string }> = [];
 
+    let earliestCallDate: string | null = null;
+
     if (sync_all_missing) {
       const { data: rows, error } = await admin
         .from("call_intelligence")
-        .select("id, fathom_meeting_id, fathom_url, transcript")
+        .select("id, fathom_meeting_id, fathom_url, transcript, call_date")
         .not("fathom_meeting_id", "is", null)
         .or("fathom_url.is.null,transcript.is.null")
-        .limit(50);
+        .order("call_date", { ascending: false, nullsFirst: false })
+        .limit(25);
       if (error) throw error;
       targets = (rows ?? [])
         .filter((r: any) => r.fathom_meeting_id)
         .map((r: any) => ({ id: r.id, meeting_id: String(r.fathom_meeting_id) }));
+      const dates = (rows ?? [])
+        .map((r: any) => r.call_date)
+        .filter((d: any) => !!d)
+        .sort();
+      if (dates.length > 0) {
+        // Subtract 1 day for safety
+        const d = new Date(dates[0]);
+        d.setUTCDate(d.getUTCDate() - 1);
+        earliestCallDate = d.toISOString();
+      }
     } else if (call_id) {
       const { data: row, error } = await admin
         .from("call_intelligence")
@@ -144,23 +177,40 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Fathom has no GET /meetings/{id}; we must list and match by recording_id.
+    const targetIds = new Set(targets.map((t) => t.meeting_id));
+    const meetingsMap = await fetchMeetingsForTargets(
+      FATHOM_API_KEY,
+      targetIds,
+      earliestCallDate ?? undefined,
+    );
+
     const results: any[] = [];
     for (const t of targets) {
       try {
-        const meeting = await fathomGet(`/meetings/${encodeURIComponent(t.meeting_id)}`, FATHOM_API_KEY);
-        let transcriptResp: any = null;
-        try {
-          transcriptResp = await fathomGet(`/meetings/${encodeURIComponent(t.meeting_id)}/transcript`, FATHOM_API_KEY);
-        } catch (_) { /* transcript may not be available */ }
+        const meeting = meetingsMap.get(t.meeting_id);
+        if (!meeting) {
+          results.push({ call_id: t.id, meeting_id: t.meeting_id, error: "Meeting not found in Fathom workspace" });
+          continue;
+        }
 
-        const share_url = pickShareUrl(meeting);
-        const transcript = pickTranscript(meeting, transcriptResp);
-        const summary = meeting?.summary ?? meeting?.ai_summary ?? null;
+        const share_url: string | null = meeting?.share_url ?? meeting?.url ?? null;
+        const summaryMd: string | null = meeting?.default_summary?.markdown_formatted ?? null;
+
+        // Pull transcript on-demand (only if missing in DB it would be re-fetched; we fetch always to refresh)
+        let transcript: string | null = null;
+        try {
+          const tResp: any = await fathomGet(
+            `/recordings/${encodeURIComponent(t.meeting_id)}/transcript`,
+            FATHOM_API_KEY,
+          );
+          transcript = transcriptArrayToText(tResp?.transcript ?? tResp);
+        } catch (_) { /* transcript optional */ }
 
         const update: any = {};
         if (share_url) update.fathom_url = share_url;
         if (transcript) update.transcript = transcript;
-        if (summary && typeof summary === "string") update.summary = summary;
+        if (summaryMd) update.summary = summaryMd;
 
         if (Object.keys(update).length > 0) {
           const { error: updErr } = await admin
