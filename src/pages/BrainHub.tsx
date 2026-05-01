@@ -25,7 +25,14 @@ import {
   FolderKanban,
   Inbox,
   Briefcase,
+  Globe,
+  Play,
+  ExternalLink,
+  TrendingDown,
+  Lightbulb,
+  Target,
 } from "lucide-react";
+import { toast } from "sonner";
 
 type ClientLite = { id: string; name: string; client_number: string | null };
 
@@ -54,6 +61,21 @@ interface PipelineStatus {
   icon: typeof Mail;
   lastRan: string | null;
   ok: boolean;
+}
+
+interface MarketInsight {
+  title: string;
+  type: "opportunity" | "risk" | "trend" | "competitor" | string;
+  insight: string;
+  recommended_action?: string;
+  urgency: "high" | "medium" | "low" | string;
+  sources?: { title?: string; url: string }[] | string[];
+}
+
+interface MarketReport {
+  id: string;
+  generated_at: string;
+  insights: MarketInsight[];
 }
 
 function timeAgo(dateStr: string | null | undefined): string {
@@ -90,6 +112,8 @@ export default function BrainHub() {
     emailsAwaiting: 0,
   });
   const [pipelines, setPipelines] = useState<PipelineStatus[]>([]);
+  const [marketReport, setMarketReport] = useState<MarketReport | null>(null);
+  const [marketRunning, setMarketRunning] = useState(false);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -216,10 +240,57 @@ export default function BrainHub() {
       { name: "Business Media", icon: Video, lastRan: lastContentRes.data?.updated_at || null, ok: fresh(lastContentRes.data?.updated_at, 168) },
     ]);
 
+    // Market intelligence — table may not exist yet; fail silently
+    try {
+      const { data: marketData } = await (supabase as any)
+        .from("market_intelligence")
+        .select("id, generated_at, insights")
+        .order("generated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (marketData) {
+        const raw = marketData.insights;
+        const insights: MarketInsight[] = Array.isArray(raw)
+          ? raw
+          : typeof raw === "string"
+            ? (() => { try { return JSON.parse(raw); } catch { return []; } })()
+            : [];
+        setMarketReport({ id: marketData.id, generated_at: marketData.generated_at, insights });
+      } else {
+        setMarketReport(null);
+      }
+    } catch {
+      setMarketReport(null);
+    }
+
     setLoading(false);
   };
 
   useEffect(() => { fetchAll(); }, []);
+
+  const runMarketIntelligence = async () => {
+    setMarketRunning(true);
+    try {
+      // n8n webhook URL to be wired up later
+      toast.info("Market Intelligence run will be wired to the n8n webhook shortly.");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to trigger market intelligence");
+    } finally {
+      setMarketRunning(false);
+    }
+  };
+
+  const TYPE_META: Record<string, { tone: string; bg: string; icon: typeof Mail; label: string }> = {
+    opportunity: { tone: "text-green-600",  bg: "bg-green-500/10 border-green-500/30",   icon: Lightbulb,    label: "Opportunity" },
+    risk:        { tone: "text-destructive",bg: "bg-destructive/10 border-destructive/30",icon: AlertCircle, label: "Risk" },
+    trend:       { tone: "text-blue-500",   bg: "bg-blue-500/10 border-blue-500/30",     icon: TrendingUp,   label: "Trend" },
+    competitor:  { tone: "text-purple-500", bg: "bg-purple-500/10 border-purple-500/30", icon: Target,       label: "Competitor" },
+  };
+  const URGENCY_META: Record<string, string> = {
+    high:   "bg-destructive text-destructive-foreground",
+    medium: "bg-orange-500 text-white",
+    low:    "bg-green-500 text-white",
+  };
 
   const kpiTiles = [
     { label: "Active Clients",     value: kpis.activeClients,    icon: Users,        tone: "text-green-500",   link: "/admin/clients" },
@@ -285,6 +356,86 @@ export default function BrainHub() {
           </Link>
         ))}
       </div>
+
+      {/* Market Intelligence */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Globe className="h-4 w-4 text-primary" />
+              Market Intelligence
+              {marketReport && (
+                <Badge variant="outline" className="text-xs ml-1">
+                  Last updated {timeAgo(marketReport.generated_at)}
+                </Badge>
+              )}
+            </CardTitle>
+            <Button onClick={runMarketIntelligence} variant="outline" size="sm" disabled={marketRunning}>
+              <Play className={cn("h-4 w-4 mr-2", marketRunning && "animate-pulse")} />
+              Run Now
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {[...Array(2)].map((_, i) => <Skeleton key={i} className="h-40 w-full" />)}
+            </div>
+          ) : !marketReport || marketReport.insights.length === 0 ? (
+            <div className="text-center py-10 text-sm text-muted-foreground border border-dashed rounded-md">
+              <Globe className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              Market intelligence runs every morning at 6am — first report arrives tomorrow.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {marketReport.insights.map((ins, idx) => {
+                const meta = TYPE_META[ins.type] || { tone: "text-muted-foreground", bg: "bg-muted/40 border-border", icon: Lightbulb, label: ins.type };
+                const urgencyClass = URGENCY_META[ins.urgency] || "bg-muted text-foreground";
+                return (
+                  <div key={idx} className={cn("p-4 rounded-md border", meta.bg)}>
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <meta.icon className={cn("h-4 w-4 shrink-0", meta.tone)} />
+                        <h4 className="text-sm font-semibold truncate">{ins.title}</h4>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Badge variant="outline" className={cn("text-xs capitalize", meta.tone)}>{meta.label}</Badge>
+                        {ins.urgency && (
+                          <Badge className={cn("text-xs capitalize", urgencyClass)}>{ins.urgency}</Badge>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-sm text-foreground/80 mb-3">{ins.insight}</p>
+                    {ins.recommended_action && (
+                      <div className="text-xs bg-background/60 border rounded p-2 mb-3">
+                        <span className="font-semibold">Recommended action: </span>
+                        <span className="text-muted-foreground">{ins.recommended_action}</span>
+                      </div>
+                    )}
+                    {ins.sources && ins.sources.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {ins.sources.map((s, i) => {
+                          const url = typeof s === "string" ? s : s.url;
+                          const label = typeof s === "string"
+                            ? (() => { try { return new URL(s).hostname.replace("www.",""); } catch { return s; } })()
+                            : (s.title || (() => { try { return new URL(s.url).hostname.replace("www.",""); } catch { return s.url; } })());
+                          return (
+                            <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                              <ExternalLink className="h-3 w-3" />
+                              {label}
+                            </a>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Live pulse feed */}
