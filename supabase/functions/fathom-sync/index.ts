@@ -154,23 +154,35 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Fathom has no GET /meetings/{id}; we must list and match by recording_id.
+    const meetingsMap = await fetchAllMeetingsMap(FATHOM_API_KEY);
+
     const results: any[] = [];
     for (const t of targets) {
       try {
-        const meeting = await fathomGet(`/meetings/${encodeURIComponent(t.meeting_id)}`, FATHOM_API_KEY);
-        let transcriptResp: any = null;
-        try {
-          transcriptResp = await fathomGet(`/meetings/${encodeURIComponent(t.meeting_id)}/transcript`, FATHOM_API_KEY);
-        } catch (_) { /* transcript may not be available */ }
+        const meeting = meetingsMap.get(t.meeting_id);
+        if (!meeting) {
+          results.push({ call_id: t.id, meeting_id: t.meeting_id, error: "Meeting not found in Fathom workspace" });
+          continue;
+        }
 
-        const share_url = pickShareUrl(meeting);
-        const transcript = pickTranscript(meeting, transcriptResp);
-        const summary = meeting?.summary ?? meeting?.ai_summary ?? null;
+        const share_url: string | null = meeting?.share_url ?? meeting?.url ?? null;
+        const summaryMd: string | null = meeting?.default_summary?.markdown_formatted ?? null;
+
+        // Pull transcript on-demand (only if missing in DB it would be re-fetched; we fetch always to refresh)
+        let transcript: string | null = null;
+        try {
+          const tResp: any = await fathomGet(
+            `/recordings/${encodeURIComponent(t.meeting_id)}/transcript`,
+            FATHOM_API_KEY,
+          );
+          transcript = transcriptArrayToText(tResp?.transcript ?? tResp);
+        } catch (_) { /* transcript optional */ }
 
         const update: any = {};
         if (share_url) update.fathom_url = share_url;
         if (transcript) update.transcript = transcript;
-        if (summary && typeof summary === "string") update.summary = summary;
+        if (summaryMd) update.summary = summaryMd;
 
         if (Object.keys(update).length > 0) {
           const { error: updErr } = await admin
