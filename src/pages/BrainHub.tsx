@@ -407,9 +407,9 @@ export default function BrainHub() {
                     </div>
                     <p className="text-sm text-foreground/80 mb-3">{ins.insight}</p>
                     {ins.recommended_action && (
-                      <div className="text-xs bg-background/60 border rounded p-2 mb-3">
-                        <span className="font-semibold">Recommended action: </span>
-                        <span className="text-muted-foreground">{ins.recommended_action}</span>
+                      <div className="text-xs bg-orange-500/10 border border-orange-500/30 rounded p-2 mb-3">
+                        <span className="font-semibold text-orange-600 dark:text-orange-400">Recommended action: </span>
+                        <span className="text-foreground/80">{ins.recommended_action}</span>
                       </div>
                     )}
                     {ins.sources && ins.sources.length > 0 && (
