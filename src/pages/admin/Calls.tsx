@@ -400,6 +400,97 @@ export default function AdminCalls() {
         ))}
       </div>
 
+      {/* Brain Ingestion Dashboard */}
+      <Card className="border-primary/20">
+        <CardContent className="p-5">
+          <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-primary/10 p-2">
+                <Brain className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold">Brain Ingestion</h2>
+                <p className="text-xs text-muted-foreground">
+                  Calls the AI agent can read via <code className="text-[11px] px-1 py-0.5 rounded bg-muted">query_calls</code>.
+                  A call is fully ingested when it has both a summary and a linked client.
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-semibold tabular-nums">
+                {brainStats.ingested}<span className="text-muted-foreground text-base font-normal"> / {brainStats.total}</span>
+              </div>
+              <p className="text-xs text-muted-foreground">{brainStats.pct}% ingested</p>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div className="h-2 w-full rounded-full bg-muted overflow-hidden mb-4">
+            <div
+              className="h-full bg-primary transition-all"
+              style={{ width: `${brainStats.pct}%` }}
+            />
+          </div>
+
+          {/* Filter chips */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+            {[
+              { key: "ingested" as const, label: "Ingested", value: brainStats.ingested, icon: CheckCircle2, color: "text-emerald-500", border: "border-emerald-500/30 bg-emerald-500/5" },
+              { key: "missing_summary" as const, label: "Missing summary", value: brainStats.missingSummary, icon: XCircle, color: "text-red-500", border: "border-red-500/30 bg-red-500/5" },
+              { key: "missing_client" as const, label: "Unlinked client", value: brainStats.missingClient, icon: Link2Off, color: "text-amber-500", border: "border-amber-500/30 bg-amber-500/5" },
+              { key: "flagged" as const, label: "Flagged amounts", value: brainStats.flagged, icon: AlertTriangle, color: "text-amber-500", border: "border-amber-500/30 bg-amber-500/5" },
+              { key: "edited" as const, label: "Manually corrected", value: brainStats.edited, icon: Pencil, color: "text-blue-500", border: "border-blue-500/30 bg-blue-500/5" },
+            ].map((c) => {
+              const active = brainFilter === c.key;
+              return (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => setBrainFilter(active ? "all" : c.key)}
+                  className={`text-left rounded-lg border p-3 transition-all hover:scale-[1.02] ${
+                    active ? "border-primary bg-primary/10 ring-1 ring-primary" : c.border
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <c.icon className={`h-4 w-4 ${c.color}`} />
+                    <span className="text-lg font-semibold tabular-nums">{c.value}</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-tight">{c.label}</p>
+                </button>
+              );
+            })}
+          </div>
+
+          {brainFilter !== "all" && (
+            <div className="mt-3 flex items-center justify-between gap-2 text-xs">
+              <span className="text-muted-foreground">
+                Showing <span className="font-medium text-foreground">{filtered.length}</span> filtered call{filtered.length === 1 ? "" : "s"}.
+              </span>
+              <button
+                type="button"
+                onClick={() => setBrainFilter("all")}
+                className="text-primary hover:underline"
+              >
+                Clear filter
+              </button>
+            </div>
+          )}
+
+          {(brainStats.missingSummary > 0 || brainStats.missingClient > 0) && (
+            <div className="mt-3 flex items-center justify-between gap-2 text-xs rounded-md border border-dashed border-border p-2">
+              <span className="text-muted-foreground">
+                {brainStats.missingSummary > 0 && <>⚠ {brainStats.missingSummary} call{brainStats.missingSummary === 1 ? "" : "s"} missing summary. </>}
+                {brainStats.missingClient > 0 && <>⚠ {brainStats.missingClient} call{brainStats.missingClient === 1 ? "" : "s"} not linked to a client. </>}
+                Run a Fathom sync to backfill.
+              </span>
+              <Button size="sm" variant="outline" onClick={() => syncFathom({ sync_all_missing: true })}>
+                <RefreshCw className="h-3 w-3 mr-1" /> Sync missing
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="flex gap-2 flex-wrap">
         <div className="relative flex-1 min-w-[240px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
