@@ -114,6 +114,11 @@ export default function BrainHub() {
   const [pipelines, setPipelines] = useState<PipelineStatus[]>([]);
   const [marketReport, setMarketReport] = useState<MarketReport | null>(null);
   const [marketRunning, setMarketRunning] = useState(false);
+  const [marketRunStatus, setMarketRunStatus] = useState<{
+    type: "success" | "error";
+    message: string;
+    detail?: string;
+  } | null>(null);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -270,15 +275,27 @@ export default function BrainHub() {
 
   const runMarketIntelligence = async () => {
     setMarketRunning(true);
+    setMarketRunStatus(null);
     try {
       const { data, error } = await supabase.functions.invoke("trigger-market-intelligence", {
         body: {},
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
-      toast.success("Market Intelligence run triggered. New report will appear when n8n finishes.");
+      const responseText = typeof (data as any)?.response === "string" ? (data as any).response : "";
+      setMarketRunStatus({
+        type: "success",
+        message: "n8n accepted the Market Intelligence run.",
+        detail: responseText
+          ? `Workflow response: ${responseText}`
+          : "Waiting for n8n to save a new market intelligence report.",
+      });
+      toast.success("Market Intelligence run triggered.");
+      window.setTimeout(() => void fetchAll(), 2500);
     } catch (e: any) {
-      toast.error(e?.message || "Failed to trigger market intelligence");
+      const message = e?.message || "Failed to trigger market intelligence";
+      setMarketRunStatus({ type: "error", message });
+      toast.error(message);
     } finally {
       setMarketRunning(false);
     }
@@ -381,6 +398,28 @@ export default function BrainHub() {
           </div>
         </CardHeader>
         <CardContent>
+          {marketRunStatus && (
+            <div className={cn(
+              "mb-4 rounded-md border p-3 text-sm",
+              marketRunStatus.type === "success"
+                ? "border-primary/30 bg-primary/10 text-foreground"
+                : "border-destructive/30 bg-destructive/10 text-foreground"
+            )}>
+              <div className="flex items-start gap-2">
+                {marketRunStatus.type === "success" ? (
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                ) : (
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                )}
+                <div className="min-w-0">
+                  <p className="font-medium">{marketRunStatus.message}</p>
+                  {marketRunStatus.detail && (
+                    <p className="mt-1 break-words text-xs text-muted-foreground">{marketRunStatus.detail}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {[...Array(2)].map((_, i) => <Skeleton key={i} className="h-40 w-full" />)}
