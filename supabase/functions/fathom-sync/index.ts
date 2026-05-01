@@ -293,16 +293,23 @@ Deno.serve(async (req: Request) => {
         const update: any = {};
         if (share_url) update.fathom_url = share_url;
         if (transcript) update.transcript = transcript;
-        if (summaryMd) update.summary = summaryMd;
+        if (summaryMd) {
+          update.summary_original = summaryMd;
+          update.flagged_amounts = detectSuspiciousAmounts(summaryMd);
+        }
 
-        // Auto-link to client if not already set on the row
+        // Look up existing row to decide whether to overwrite the editable summary
         const { data: existing } = await admin
           .from("call_intelligence")
-          .select("client_id")
+          .select("client_id, summary_edited")
           .eq("id", t.id)
           .maybeSingle();
         if (!existing?.client_id) {
           update.client_id = matchClientId(meeting, clientsByEmail, clientsByDomain);
+        }
+        // Only overwrite the displayed summary if an admin hasn't manually edited it
+        if (summaryMd && !existing?.summary_edited) {
+          update.summary = summaryMd;
         }
 
         if (Object.keys(update).length > 0) {
