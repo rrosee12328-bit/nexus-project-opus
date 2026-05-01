@@ -1,3 +1,28 @@
+const VEKTISS_INTERNAL_CLIENT_ID = "7662c4e3-bf78-494e-b203-40a9ba06fb27";
+
+// Match a Fathom meeting to a client by external invitee email/domain.
+// Returns the client_id if matched, otherwise the internal Vektiss client id.
+function matchClientId(
+  meeting: any,
+  clientsByEmail: Map<string, string>,
+  clientsByDomain: Map<string, string>,
+): string {
+  const invitees: any[] = Array.isArray(meeting?.calendar_invitees) ? meeting.calendar_invitees : [];
+  const externals = invitees.filter((i) => i?.is_external);
+
+  // 1. Try exact email match on any external invitee
+  for (const inv of externals) {
+    const email = (inv?.email ?? "").toLowerCase().trim();
+    if (email && clientsByEmail.has(email)) return clientsByEmail.get(email)!;
+  }
+  // 2. Try domain match
+  for (const inv of externals) {
+    const domain = (inv?.email_domain ?? "").toLowerCase().trim();
+    if (domain && clientsByDomain.has(domain)) return clientsByDomain.get(domain)!;
+  }
+  // 3. Fallback: internal Vektiss client (covers internal-only meetings)
+  return VEKTISS_INTERNAL_CLIENT_ID;
+}
 // Fathom sync: pulls meeting share URL + transcript by fathom_meeting_id
 // and writes them to call_intelligence. Admin/Ops only.
 
