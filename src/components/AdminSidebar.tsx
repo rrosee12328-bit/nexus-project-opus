@@ -20,6 +20,7 @@ import {
   Brain,
   Receipt,
   ScrollText,
+  Video,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -57,6 +58,7 @@ const navItems = [
   { title: "Ops Portal", url: "/ops", icon: ClipboardList },
   { title: "Email Dashboard", url: "/admin/emails", icon: Mail },
   { title: "AI Agent", url: "/admin/agent", icon: Bot },
+  { title: "Business Media", url: "/admin/business-media", icon: Video },
   { title: "PDF Logs", url: "/admin/pdf-logs", icon: ScrollText },
   { title: "Settings", url: "/admin/settings", icon: Settings },
 ];
