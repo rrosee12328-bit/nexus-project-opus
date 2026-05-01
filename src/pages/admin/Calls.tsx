@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Phone, Plus, Search, FileText, Mic, TrendingUp, Users,
   ChevronDown, ChevronUp, Pencil, Trash2, ExternalLink, Download, RefreshCw,
+  Brain, AlertTriangle, CheckCircle2, XCircle, Link2Off,
 } from "lucide-react";
 import { CallSummaryMarkdown, getBriefSummary } from "@/components/admin/CallSummaryMarkdown";
 // PDF generation handled server-side via edge function `generate-call-summary-pdf`
@@ -39,6 +40,9 @@ type CallRecord = {
   duration_minutes?: number | null;
   fathom_url?: string | null;
   ai_analysis?: any;
+  summary_edited?: boolean;
+  summary_original?: string | null;
+  flagged_amounts?: Array<{ value: string; suggestion: string; context: string }> | null;
 };
 
 type Client = { id: string; name: string };
