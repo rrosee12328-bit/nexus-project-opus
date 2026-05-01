@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -205,9 +205,8 @@ export default function PdfLogs() {
                   const open = !!expanded[r.id];
                   const hasData = r.data && Object.keys(r.data).length > 0;
                   return (
-                    <>
+                    <Fragment key={r.id}>
                       <TableRow
-                        key={r.id}
                         className="cursor-pointer hover:bg-muted/40"
                         onClick={() => toggle(r.id)}
                       >
@@ -255,7 +254,7 @@ export default function PdfLogs() {
                         </TableCell>
                       </TableRow>
                       {open && hasData && (
-                        <TableRow key={r.id + "-d"} className="bg-muted/20 hover:bg-muted/20">
+                        <TableRow className="bg-muted/20 hover:bg-muted/20">
                           <TableCell />
                           <TableCell colSpan={6}>
                             <pre className="text-xs whitespace-pre-wrap break-all font-mono leading-relaxed text-muted-foreground">
@@ -264,7 +263,7 @@ export default function PdfLogs() {
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })}
               </TableBody>
