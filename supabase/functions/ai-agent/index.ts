@@ -16,6 +16,7 @@ const TOOL_RISK: Record<string, RiskLevel> = {
   query_recent_activity: 'low', query_client_notes: 'low',
   query_calls: 'low',
   query_my_projects: 'low', query_my_payments: 'low', query_my_assets: 'low',
+  query_my_calls: 'low',
   query_approval_requests: 'low', query_project_phases: 'low',
   query_team_members: 'low', query_calendar_events: 'low',
   query_messages: 'low', query_onboarding_steps: 'low',
@@ -764,6 +765,22 @@ const CLIENT_ONLY_TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'query_my_calls',
+      description: 'Get summaries and key decisions from your own calls/meetings with the Vektiss team. Use this when the client asks "what did we discuss?" or "what did you say about X?". Only returns calls where the client was present.',
+      parameters: {
+        type: 'object',
+        properties: {
+          search: { type: 'string', description: 'Free-text search across the meeting summary.' },
+          since_days: { type: 'number', description: 'Only return calls within the last N days.' },
+          limit: { type: 'number', description: 'Max calls to return (default 5, max 15).' },
+        },
+        required: [], additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'send_message_to_team',
       description: 'Send a message to your Vektiss team. Confirm before executing.',
       parameters: {
@@ -870,16 +887,29 @@ After every action, report what changed, what was skipped, and what failed.
   }
 
   // Client
-  return `You are an AI assistant for Vektiss, a digital agency. You help clients track projects, payments, and assets.
+  return `You are the Vektiss client assistant. You help THIS client — and only this client — track their project, payments, assets, approvals, and what was discussed on their calls with Vektiss.
 
-You can look up your project status, payment history, uploaded assets, pending approvals, and send messages.
+## What you can do
+- Look up their project status, phase, progress, payments, uploaded assets, and pending approvals.
+- Summarize what was discussed on their own meetings with Vektiss using query_my_calls.
+- Send messages to their Vektiss team (always confirm content first).
 
-Guidelines:
-- Be friendly, professional, and helpful. Use markdown.
-- For sending messages, ALWAYS confirm content before sending.
-- Today's date is ${today}.
+## STRICT BOUNDARIES — never violate these
+- NEVER reference, name, compare to, or discuss any other client, project, or company. If asked about other clients, politely decline and offer to help with their own work.
+- NEVER share Vektiss internal information: pricing strategy, profit margins, internal team chats, SOPs, business overhead, expenses, investments, hourly rates we charge, or operational notes.
+- NEVER share contents of internal Vektiss meetings (strategy/planning calls without the client present). query_my_calls only returns meetings the client was on — trust it.
+- NEVER speculate about what Vektiss might be doing behind the scenes. If you don't know, say "I'd need to check with the team" and offer to send a message.
+- NEVER reveal team member names, emails, internal task assignments, or staffing details beyond "your Vektiss team".
+- NEVER discuss other clients' work or examples even if asked for "a similar project we've done".
+- If the client asks about money beyond their own invoices and project total, redirect them to billing@vektiss.com.
+- Stay focused on THEIR project and what was discussed with THEM. If something is unclear, ask them or offer to message the team.
+
+## Style
+- Be warm, clear, and concise. Use markdown.
 - Format currency as USD.
-- If you can't help, suggest reaching out to the Vektiss team.${contextBlock}`
+- Today's date is ${today}.
+- For sending messages, ALWAYS confirm content before sending.
+- If a request falls outside the boundaries above, decline kindly and offer to send a message to their team.${contextBlock}`
 }
 
 // ─── Audit logging ───────────────────────────────────────────────────────────
@@ -1397,6 +1427,31 @@ async function executeTool(
         .eq('client_id', context.clientId).order('created_at', { ascending: false })
       if (error) return { error: error.message }
       return { assets: data ?? [], count: data?.length ?? 0 }
+    }
+    case 'query_my_calls': {
+      if (!context.clientId) return { error: 'No client profile found for your account.' }
+      const limit = Math.min(Number(args.limit) || 5, 15)
+      // Hard-pinned to the authenticated client's id. Transcripts are NEVER returned to clients.
+      let query = supabase.from('call_intelligence')
+        .select('id, call_date, call_type, summary, key_decisions, sentiment, duration_minutes, summary_edited')
+        .eq('client_id', context.clientId)
+        .order('call_date', { ascending: false })
+        .limit(limit)
+      if (args.since_days) {
+        const since = new Date(Date.now() - Number(args.since_days) * 86400000).toISOString()
+        query = query.gte('call_date', since)
+      }
+      if (args.search) {
+        const s = String(args.search).replace(/[%,]/g, ' ')
+        query = query.ilike('summary', `%${s}%`)
+      }
+      const { data, error } = await query
+      if (error) return { error: error.message }
+      return {
+        calls: data ?? [],
+        count: data?.length ?? 0,
+        note: 'Only meetings where the client was present. Internal Vektiss strategy calls are excluded.',
+      }
     }
     case 'send_message_to_team': {
       if (!context.clientId) return { error: 'No client profile found for your account.' }
