@@ -16,7 +16,7 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const openaiKey = Deno.env.get("OPENAI_API_KEY")!;
+    const lovableKey = Deno.env.get("LOVABLE_API_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     // Verify caller is admin
@@ -82,14 +82,14 @@ DATA SNAPSHOT (${now.toLocaleDateString()}):
 - Top overdue: ${overdueTasks.slice(0, 5).map(t => `"${t.title}" (${t.due_date})`).join(", ") || "none"}
 `;
 
-    const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${openaiKey}`,
+        Authorization: `Bearer ${lovableKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "google/gemini-3-flash-preview",
         messages: [
           {
             role: "system",
@@ -103,24 +103,45 @@ Be specific with real numbers. No generic advice. Focus on what's most important
           },
           { role: "user", content: contextForAI }
         ],
-        temperature: 0.2,
       }),
     });
 
-    if (!aiRes.ok) throw new Error(`OpenAI error: ${aiRes.status}`);
+    if (!aiRes.ok) {
+      if (aiRes.status === 429 || aiRes.status === 402) {
+        return new Response(
+          JSON.stringify({
+            insights: [],
+            fallback: true,
+            error: aiRes.status === 429 ? "Rate limited, please try again shortly." : "AI credits exhausted.",
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const errText = await aiRes.text().catch(() => "");
+      console.error("AI gateway error:", aiRes.status, errText);
+      return new Response(
+        JSON.stringify({ insights: [], fallback: true, error: `AI gateway error: ${aiRes.status}` }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     const aiData = await aiRes.json();
     let content = aiData.choices?.[0]?.message?.content ?? "[]";
     content = content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
-    const insights = JSON.parse(content);
+    let insights: unknown[] = [];
+    try {
+      insights = JSON.parse(content);
+    } catch {
+      insights = [];
+    }
 
     return new Response(JSON.stringify({ insights }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("AI Insights error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ insights: [], fallback: true, error: e instanceof Error ? e.message : "Unknown error" }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 });
