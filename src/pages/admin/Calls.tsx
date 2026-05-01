@@ -222,9 +222,19 @@ export default function AdminCalls() {
         c.summary?.toLowerCase().includes(search.toLowerCase()) ||
         c.call_type.toLowerCase().includes(search.toLowerCase());
       const matchesType = filterType === "all" || c.call_type === filterType;
-      return matchesSearch && matchesType;
+      const flaggedCount = Array.isArray(c.flagged_amounts) ? c.flagged_amounts.length : 0;
+      const isIngested = !!c.summary && !!c.client_id;
+      const matchesBrain =
+        brainFilter === "all" ? true :
+        brainFilter === "ingested" ? isIngested :
+        brainFilter === "missing_summary" ? !c.summary :
+        brainFilter === "missing_client" ? !c.client_id :
+        brainFilter === "flagged" ? flaggedCount > 0 :
+        brainFilter === "edited" ? !!c.summary_edited :
+        true;
+      return matchesSearch && matchesType && matchesBrain;
     });
-  }, [calls, clients, search, filterType]);
+  }, [calls, clients, search, filterType, brainFilter]);
 
   const stats = useMemo(() => ({
     total: calls.length,
@@ -232,6 +242,17 @@ export default function AdminCalls() {
     withTranscript: calls.filter((c) => c.transcript).length,
     clients: new Set(calls.map((c) => c.client_id).filter(Boolean)).size,
   }), [calls]);
+
+  const brainStats = useMemo(() => {
+    const total = calls.length;
+    const ingested = calls.filter((c) => !!c.summary && !!c.client_id).length;
+    const missingSummary = calls.filter((c) => !c.summary).length;
+    const missingClient = calls.filter((c) => !c.client_id).length;
+    const flagged = calls.filter((c) => Array.isArray(c.flagged_amounts) && c.flagged_amounts.length > 0).length;
+    const edited = calls.filter((c) => !!c.summary_edited).length;
+    const pct = total > 0 ? Math.round((ingested / total) * 100) : 0;
+    return { total, ingested, missingSummary, missingClient, flagged, edited, pct };
+  }, [calls]);
 
   const openAdd = () => {
     setEditingCall(null);
