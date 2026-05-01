@@ -317,11 +317,16 @@ export type Database = {
       }
       call_intelligence: {
         Row: {
+          ai_analysis: Json | null
           call_date: string
+          call_end_time: string | null
+          call_start_time: string | null
           call_type: string
           client_id: string | null
           created_at: string | null
+          duration_minutes: number | null
           fathom_meeting_id: string | null
+          fathom_url: string | null
           id: string
           key_decisions: Json | null
           project_id: string | null
@@ -330,11 +335,16 @@ export type Database = {
           transcript: string | null
         }
         Insert: {
+          ai_analysis?: Json | null
           call_date: string
+          call_end_time?: string | null
+          call_start_time?: string | null
           call_type: string
           client_id?: string | null
           created_at?: string | null
+          duration_minutes?: number | null
           fathom_meeting_id?: string | null
+          fathom_url?: string | null
           id?: string
           key_decisions?: Json | null
           project_id?: string | null
@@ -343,11 +353,16 @@ export type Database = {
           transcript?: string | null
         }
         Update: {
+          ai_analysis?: Json | null
           call_date?: string
+          call_end_time?: string | null
+          call_start_time?: string | null
           call_type?: string
           client_id?: string | null
           created_at?: string | null
+          duration_minutes?: number | null
           fathom_meeting_id?: string | null
+          fathom_url?: string | null
           id?: string
           key_decisions?: Json | null
           project_id?: string | null
