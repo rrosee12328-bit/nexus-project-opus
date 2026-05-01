@@ -91,21 +91,23 @@ function ExampleChips({
   onPick: (v: string) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-1.5 pt-1">
-      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+    <div className="rounded-md border border-border bg-muted/20 p-2">
+      <span className="block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
         {label}:
       </span>
-      {values.map((v) => (
-        <button
-          key={v}
-          type="button"
-          onClick={() => onPick(v)}
-          title={`Use ${v}`}
-          className="font-mono text-[10px] rounded-md border border-border bg-muted/40 hover:bg-muted px-1.5 py-0.5 transition-colors max-w-[160px] truncate"
-        >
-          {v.slice(0, 8)}…{v.slice(-4)}
-        </button>
-      ))}
+      <div className="mt-1.5 flex flex-wrap gap-1.5">
+        {values.map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => onPick(v)}
+            title={`Use ${v}`}
+            className="inline-flex max-w-full items-center rounded-md border border-border bg-background px-2 py-1 font-mono text-[10px] leading-none transition-colors hover:bg-muted hover:border-primary/40"
+          >
+            <span className="truncate">{v.slice(0, 8)}…{v.slice(-4)}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -150,8 +152,8 @@ export default function PdfLogs() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   // Live validation errors (null when field is valid or empty)
-  const callIdError = useMemo(() => validateUuidField(callId, "call_id"), [callId]);
-  const requestIdError = useMemo(() => validateUuidField(requestId, "request_id"), [requestId]);
+  const callIdError = useMemo(() => validateUuidField(callId, "Call ID"), [callId]);
+  const requestIdError = useMemo(() => validateUuidField(requestId, "Request ID"), [requestId]);
   const userIdError = useMemo(() => validateUuidField(userId, "user_id"), [userId]);
   const minMsError = useMemo<string | null>(() => {
     if (!minMs.trim()) return null;
@@ -309,9 +311,9 @@ export default function PdfLogs() {
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
             <div className="lg:col-span-4 space-y-1.5 sm:col-span-2">
-              <label className="text-xs font-medium text-muted-foreground">call_id (UUID)</label>
+              <label className="text-xs font-medium text-muted-foreground">Call ID</label>
               <Input
-                placeholder="e.g. 019de182-9ee4-7cb1-a96c-6b48c25f4e6c"
+                placeholder="Paste a call UUID"
                 value={callId}
                 onChange={(e) => setCallId(e.target.value)}
                 onKeyDown={(e) => {
@@ -331,16 +333,16 @@ export default function PdfLogs() {
               )}
               {!callIdError && exampleCallIds.length > 0 && (
                 <ExampleChips
-                  label="Recent"
+                  label="Recent calls"
                   values={exampleCallIds}
                   onPick={(v) => setCallId(v)}
                 />
               )}
             </div>
             <div className="lg:col-span-4 space-y-1.5 sm:col-span-2">
-              <label className="text-xs font-medium text-muted-foreground">request_id</label>
+              <label className="text-xs font-medium text-muted-foreground">Request ID</label>
               <Input
-                placeholder="x-request-id from response header"
+                placeholder="Paste a request UUID"
                 value={requestId}
                 onChange={(e) => setRequestId(e.target.value)}
                 onKeyDown={(e) => {
@@ -360,7 +362,7 @@ export default function PdfLogs() {
               )}
               {!requestIdError && exampleRequestIds.length > 0 && (
                 <ExampleChips
-                  label="Recent"
+                  label="Recent requests"
                   values={exampleRequestIds}
                   onPick={(v) => setRequestId(v)}
                 />
