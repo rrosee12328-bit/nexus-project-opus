@@ -21,7 +21,7 @@ import {
   Phone, Plus, Search, FileText, Mic, TrendingUp, Users,
   ChevronDown, ChevronUp, Pencil, Trash2, ExternalLink, Download, RefreshCw,
 } from "lucide-react";
-import { CallSummaryMarkdown } from "@/components/admin/CallSummaryMarkdown";
+import { CallSummaryMarkdown, getBriefSummary } from "@/components/admin/CallSummaryMarkdown";
 // PDF generation handled server-side via edge function `generate-call-summary-pdf`
 
 type CallRecord = {
