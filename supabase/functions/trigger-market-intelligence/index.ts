@@ -81,9 +81,9 @@ Deno.serve(async (req) => {
     }
 
     // --- Call Perplexity ---
-    const systemPrompt = `You are a market intelligence analyst for Vektiss, a digital agency offering short-form content systems, custom apps, portals, and websites. Generate 3-5 concrete, actionable insights based on current web information. Each insight must be one of: opportunity, risk, trend, or competitor_move. Use the live web search to ground every insight.`;
+    const systemPrompt = `You are a market intelligence analyst for Vektiss, a US-based digital agency headquartered in Houston, TX. Vektiss specializes in: business media production, short-form content (Instagram Reels, TikTok, YouTube Shorts), web development, and AI phone/email assistants for SMEs and entrepreneurs.\n\nYour job: surface 4-5 CURRENT, actionable market insights from the past 7 days. Use live web search to ground every single insight in a specific recent event, announcement, news article, or data point. No generic advice. No evergreen tips. Every insight must be tied to something that happened or was published this week.\n\nSearch coverage areas:\n1. Instagram, TikTok, and YouTube Shorts algorithm changes or policy updates\n2. Emerging short-form content formats and creator economy trends gaining traction\n3. US SME and entrepreneur content marketing trends\n4. Competitor digital agency moves, acquisitions, or new service launches (US market focus)\n5. AI tools disrupting short-form video production or web development`;
 
-    const userPrompt = `Vektiss business snapshot:\n${JSON.stringify(context, null, 2)}\n\nReturn STRICT JSON only with this exact shape (no prose, no markdown fences):\n{\n  "insights": [\n    {\n      "type": "opportunity|risk|trend|competitor_move",\n      "title": "short headline",\n      "summary": "2-3 sentence explanation tying to Vektiss specifically",\n      "recommended_action": "1 concrete next step",\n      "sources": ["url1","url2"]\n    }\n  ]\n}`;
+    const userPrompt = `Vektiss current business snapshot (use this to tailor every insight):\n${JSON.stringify(context, null, 2)}\n\nReturn STRICT JSON only — no prose, no markdown fences. Exact shape:\n{\n  "insights": [\n    {\n      "title": "short, specific headline referencing the actual event",\n      "type": "opportunity|risk|trend|competitor",\n      "summary": "2-3 sentences grounded in a specific current event from the past 7 days. Cite what happened, when, and why it matters to Vektiss specifically given the book of business above.",\n      "recommended_action": "one concrete action Vektiss should take THIS WEEK (specific, not generic)",\n      "urgency": "high|medium|low",\n      "relevant_to": "business_media|web_dev|phone_assistant|all",\n      "sources": ["https://...","https://..."]\n    }\n  ]\n}\n\nReturn 4-5 insights. Every insight MUST cite at least one source URL from the past 7 days.`;
 
     let pplxData: any;
     let rawResponse = '';
@@ -101,6 +101,7 @@ Deno.serve(async (req) => {
             { role: 'user', content: userPrompt },
           ],
           temperature: 0.3,
+          search_recency_filter: 'week',
         }),
       });
       const text = await pplxRes.text();
