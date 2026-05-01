@@ -62,7 +62,7 @@ const navItems = [
 ];
 
 export function AdminSidebar() {
-  const { state } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
   const { signOut } = useAuth();
@@ -71,6 +71,10 @@ export function AdminSidebar() {
     url === "/admin"
       ? location.pathname === "/admin"
       : location.pathname.startsWith(url);
+
+  const handleNavClick = () => {
+    if (isMobile) setOpenMobile(false);
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -95,6 +99,7 @@ export function AdminSidebar() {
                       end={item.url === "/admin"}
                       className="hover:bg-sidebar-accent"
                       activeClassName="bg-sidebar-accent text-sidebar-primary"
+                      onClick={handleNavClick}
                     >
                       <item.icon className="h-4 w-4" />
                       {!collapsed && <span>{item.title}</span>}
