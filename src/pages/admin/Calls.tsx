@@ -536,7 +536,52 @@ export default function AdminCalls() {
                 </div>
                 {viewingCall.summary && (
                   <div>
-                    <h3 className="text-sm font-semibold mb-2">Summary</h3>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-semibold">Summary</h3>
+                      <div className="flex items-center gap-2">
+                        {(viewingCall as any).summary_edited && (
+                          <Badge variant="outline" className="text-[10px]">Edited</Badge>
+                        )}
+                        {(viewingCall as any).summary_edited &&
+                          (viewingCall as any).summary_original &&
+                          (viewingCall as any).summary_original !== viewingCall.summary && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const orig = (viewingCall as any).summary_original as string;
+                              const { error } = await (supabase as any)
+                                .from("call_intelligence")
+                                .update({ summary: orig, summary_edited: false, summary_edited_at: null })
+                                .eq("id", viewingCall.id);
+                              if (error) { toast.error(error.message); return; }
+                              toast.success("Reverted to Fathom's original summary");
+                              queryClient.invalidateQueries({ queryKey: ["call-intelligence"] });
+                              setViewingCall({ ...viewingCall, summary: orig, summary_edited: false } as any);
+                            }}
+                            className="text-xs text-primary hover:underline"
+                          >
+                            Revert to Fathom original
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {Array.isArray((viewingCall as any).flagged_amounts) && (viewingCall as any).flagged_amounts.length > 0 && (
+                      <div className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
+                        <div className="font-semibold text-amber-700 dark:text-amber-400 mb-1">
+                          ⚠ Possible transcription errors detected
+                        </div>
+                        <ul className="space-y-1 text-foreground/80">
+                          {((viewingCall as any).flagged_amounts as Array<{ value: string; suggestion: string; context: string }>).map((f, i) => (
+                            <li key={i}>
+                              <span className="font-mono font-semibold">{f.value}</span> — {f.suggestion}
+                            </li>
+                          ))}
+                        </ul>
+                        <div className="mt-2 text-foreground/60">
+                          Click <span className="font-semibold">Edit</span> below to correct the summary. Future Fathom syncs won't overwrite your edits.
+                        </div>
+                      </div>
+                    )}
                     <p className="text-sm text-foreground/90 leading-relaxed mb-3">
                       {getBriefSummary(viewingCall.summary) || "—"}
                     </p>
