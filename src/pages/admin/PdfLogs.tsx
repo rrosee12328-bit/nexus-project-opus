@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { format, startOfDay, endOfDay, subDays, subHours } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,8 +9,11 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { Loader2, RefreshCw, Search, ChevronDown, ChevronRight } from "lucide-react";
+import { Loader2, RefreshCw, Search, ChevronDown, ChevronRight, CalendarIcon, X } from "lucide-react";
 
 type LogRow = {
   id: string;
@@ -39,6 +43,8 @@ export default function PdfLogs() {
   const [requestId, setRequestId] = useState("");
   const [level, setLevel] = useState<string>("all");
   const [limit, setLimit] = useState<number>(200);
+  const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
+  const [toDate, setToDate] = useState<Date | undefined>(undefined);
   const [rows, setRows] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -64,6 +70,13 @@ export default function PdfLogs() {
       }
       if (rid) q = q.eq("request_id", rid);
       if (level !== "all") q = q.eq("level", level);
+      if (fromDate && toDate && fromDate > toDate) {
+        toast.error("'From' date must be before 'To' date");
+        setLoading(false);
+        return;
+      }
+      if (fromDate) q = q.gte("created_at", startOfDay(fromDate).toISOString());
+      if (toDate) q = q.lte("created_at", endOfDay(toDate).toISOString());
 
       const { data, error } = await q;
       if (error) throw error;
@@ -79,6 +92,18 @@ export default function PdfLogs() {
     fetchLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const applyPreset = (preset: "1h" | "24h" | "7d" | "30d" | "clear") => {
+    const now = new Date();
+    if (preset === "clear") {
+      setFromDate(undefined);
+      setToDate(undefined);
+      return;
+    }
+    const map = { "1h": subHours(now, 1), "24h": subHours(now, 24), "7d": subDays(now, 7), "30d": subDays(now, 30) };
+    setFromDate(map[preset]);
+    setToDate(now);
+  };
 
   const grouped = useMemo(() => {
     const m = new Map<string, LogRow[]>();
