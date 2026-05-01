@@ -21,7 +21,7 @@ import {
   Phone, Plus, Search, FileText, Mic, TrendingUp, Users,
   ChevronDown, ChevronUp, Pencil, Trash2, ExternalLink, Download,
 } from "lucide-react";
-import { generateCallSummaryPdf } from "@/lib/callSummaryPdf";
+// PDF generation handled server-side via edge function `generate-call-summary-pdf`
 
 type CallRecord = {
   id: string;
@@ -261,25 +261,43 @@ export default function AdminCalls() {
   const getProjectName = (id: string | null) =>
     id ? (projects.find((p) => p.id === id)?.name ?? "—") : "—";
 
-  const handleDownloadPdf = (call: CallRecord) => {
+  const handleDownloadPdf = async (call: CallRecord) => {
+    const toastId = toast.loading("Generating PDF…");
     try {
-      generateCallSummaryPdf({
-        call_date: call.call_date,
-        duration_minutes: call.duration_minutes,
-        call_type: call.call_type,
-        fathom_url: call.fathom_url,
-        fathom_meeting_id: call.fathom_meeting_id,
-        transcript: call.transcript,
-        summary: call.summary,
-        sentiment: call.sentiment,
-        key_decisions: call.key_decisions,
-        ai_analysis: call.ai_analysis,
-        client_name: getClientName(call.client_id),
-        project_name: getProjectName(call.project_id),
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error("Not authenticated");
+
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const url = `https://${projectId}.supabase.co/functions/v1/generate-call-summary-pdf?call_id=${encodeURIComponent(call.id)}`;
+
+      const res = await fetch(url, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
       });
-      toast.success("PDF downloaded");
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `Request failed (${res.status})`);
+      }
+
+      const blob = await res.blob();
+      // Filename from header if present
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const match = disposition.match(/filename="?([^"]+)"?/i);
+      const filename = match?.[1] ?? `call-summary-${call.call_date.slice(0, 10)}.pdf`;
+
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objectUrl);
+
+      toast.success("PDF downloaded", { id: toastId });
     } catch (e: any) {
-      toast.error(e.message || "Failed to generate PDF");
+      toast.error(e.message || "Failed to generate PDF", { id: toastId });
     }
   };
 
