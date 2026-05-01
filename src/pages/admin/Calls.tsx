@@ -510,6 +510,16 @@ export default function AdminCalls() {
                       <ExternalLink className="h-3 w-3" /> View in Fathom
                     </a>
                   )}
+                  {viewingCall.fathom_meeting_id && (
+                    <button
+                      type="button"
+                      onClick={() => syncFathom({ call_id: viewingCall.id })}
+                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                      title="Pull share URL & transcript from Fathom"
+                    >
+                      <RefreshCw className="h-3 w-3" /> Sync from Fathom
+                    </button>
+                  )}
                 </div>
                 {viewingCall.summary && (
                   <div>
