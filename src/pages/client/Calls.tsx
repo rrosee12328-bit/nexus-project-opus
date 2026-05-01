@@ -175,7 +175,9 @@ export default function ClientCalls() {
                               <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
                                 Key decisions
                               </h4>
-                              <ul className="space-y-1 ml-4 list-disc max-h-56 sm:max-h-none overflow-y-auto pr-2 rounded-md">
+                              <ul
+                                className="space-y-1 ml-4 list-disc max-h-56 sm:max-h-none overflow-y-auto pr-2 rounded-md [mask-image:linear-gradient(to_bottom,transparent_0,black_16px,black_calc(100%-16px),transparent_100%)] sm:[mask-image:none]"
+                              >
                                 {decisions.map((d: any, idx: number) => (
                                   <li key={idx} className="text-[13px] sm:text-sm text-foreground/80 break-words">
                                     {typeof d === "string" ? d : JSON.stringify(d)}
