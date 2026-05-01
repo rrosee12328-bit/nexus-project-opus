@@ -19,31 +19,41 @@ async function fathomGet(path: string, apiKey: string) {
   let json: any = null;
   try { json = text ? JSON.parse(text) : null; } catch { /* keep text */ }
   if (!res.ok) {
-    throw new Error(`Fathom ${path} failed [${res.status}]: ${text.slice(0, 500)}`);
+    throw new Error(`Fathom ${path} failed [${res.status}]: ${text.slice(0, 300)}`);
   }
   return json;
 }
 
-function pickShareUrl(m: any): string | null {
-  return (
-    m?.share_url ??
-    m?.shareUrl ??
-    m?.recording_share_url ??
-    m?.url ??
-    null
-  );
+function transcriptArrayToText(arr: any): string | null {
+  if (!Array.isArray(arr)) return null;
+  return arr
+    .map((t: any) => {
+      const speaker = t?.speaker?.display_name ?? t?.speaker ?? "";
+      const text = t?.text ?? "";
+      const ts = t?.timestamp ? `[${t.timestamp}] ` : "";
+      return `${ts}${speaker}: ${text}`.trim();
+    })
+    .join("\n");
 }
 
-function pickTranscript(m: any, transcriptResp: any): string | null {
-  if (typeof transcriptResp === "string") return transcriptResp;
-  if (Array.isArray(transcriptResp?.transcript)) {
-    return transcriptResp.transcript
-      .map((t: any) => `${t.speaker ?? ""}: ${t.text ?? ""}`.trim())
-      .join("\n");
-  }
-  if (typeof transcriptResp?.text === "string") return transcriptResp.text;
-  if (typeof m?.transcript === "string") return m.transcript;
-  return null;
+// Build a map of all meetings keyed by recording_id by paginating /meetings.
+async function fetchAllMeetingsMap(apiKey: string): Promise<Map<string, any>> {
+  const map = new Map<string, any>();
+  let cursor: string | null = null;
+  let pages = 0;
+  do {
+    const qs = new URLSearchParams({ include_summary: "true" });
+    if (cursor) qs.set("cursor", cursor);
+    const resp: any = await fathomGet(`/meetings?${qs.toString()}`, apiKey);
+    const items = resp?.items ?? [];
+    for (const m of items) {
+      if (m?.recording_id != null) map.set(String(m.recording_id), m);
+    }
+    cursor = resp?.next_cursor ?? null;
+    pages++;
+    if (pages > 50) break; // safety cap (~50 pages)
+  } while (cursor);
+  return map;
 }
 
 Deno.serve(async (req: Request) => {
