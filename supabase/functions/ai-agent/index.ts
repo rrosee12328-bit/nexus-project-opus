@@ -711,6 +711,25 @@ const OPS_ONLY_TOOLS = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'query_calls',
+      description: 'Search recorded calls (Fathom call intelligence) for summaries, key decisions, sentiment, and transcripts. Use this whenever the user asks about a meeting, call, what was said, or what was decided.',
+      parameters: {
+        type: 'object',
+        properties: {
+          client_id: { type: 'string' },
+          call_type: { type: 'string', enum: ['discovery', 'check_in', 'kickoff', 'review', 'planning', 'sales', 'support', 'other'] },
+          search: { type: 'string' },
+          since_days: { type: 'number' },
+          limit: { type: 'number' },
+          include_transcript: { type: 'boolean' },
+        },
+        required: [], additionalProperties: false,
+      },
+    },
+  },
 ]
 
 const CLIENT_ONLY_TOOLS = [
