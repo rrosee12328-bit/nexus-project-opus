@@ -120,11 +120,14 @@ Deno.serve(async (req) => {
     // --- Parse insights JSON (tolerate code fences) ---
     let insights: any = null;
     try {
-      const cleaned = rawResponse.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
+      // Strip code fences anywhere in the response
+      let cleaned = rawResponse.trim();
+      const fenceMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/i);
+      if (fenceMatch) cleaned = fenceMatch[1].trim();
       const parsed = JSON.parse(cleaned);
       insights = parsed.insights ?? parsed;
     } catch (e) {
-      // Try to extract first { ... } block
+      // Greedy match the largest { ... } block
       const match = rawResponse.match(/\{[\s\S]*\}/);
       if (match) {
         try {
