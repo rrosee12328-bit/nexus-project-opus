@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { format, startOfDay, endOfDay, subDays, subHours } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -38,16 +39,49 @@ const LEVEL_VARIANT: Record<LogRow["level"], string> = {
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const parseDateParam = (v: string | null): Date | undefined => {
+  if (!v || !DATE_RE.test(v)) return undefined;
+  const d = new Date(`${v}T00:00:00`);
+  return isNaN(d.getTime()) ? undefined : d;
+};
+const fmtDateParam = (d: Date) => format(d, "yyyy-MM-dd");
+
 export default function PdfLogs() {
-  const [callId, setCallId] = useState("");
-  const [requestId, setRequestId] = useState("");
-  const [level, setLevel] = useState<string>("all");
-  const [limit, setLimit] = useState<number>(200);
-  const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
-  const [toDate, setToDate] = useState<Date | undefined>(undefined);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Initialize state from URL (run once via lazy initializers)
+  const [callId, setCallId] = useState(() => searchParams.get("call_id") ?? "");
+  const [requestId, setRequestId] = useState(() => searchParams.get("request_id") ?? "");
+  const [level, setLevel] = useState<string>(() => {
+    const l = searchParams.get("level");
+    return l && ["all", "debug", "info", "warn", "error"].includes(l) ? l : "all";
+  });
+  const [limit, setLimit] = useState<number>(() => {
+    const n = Number(searchParams.get("limit"));
+    return [100, 200, 500, 1000].includes(n) ? n : 200;
+  });
+  const [fromDate, setFromDate] = useState<Date | undefined>(() => parseDateParam(searchParams.get("from")));
+  const [toDate, setToDate] = useState<Date | undefined>(() => parseDateParam(searchParams.get("to")));
   const [rows, setRows] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  // Keep URL in sync with current filter state (replace, no history entry per keystroke)
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (callId.trim()) next.set("call_id", callId.trim());
+    if (requestId.trim()) next.set("request_id", requestId.trim());
+    if (level !== "all") next.set("level", level);
+    if (limit !== 200) next.set("limit", String(limit));
+    if (fromDate) next.set("from", fmtDateParam(fromDate));
+    if (toDate) next.set("to", fmtDateParam(toDate));
+
+    // Avoid no-op writes that cause extra renders
+    if (next.toString() !== searchParams.toString()) {
+      setSearchParams(next, { replace: true });
+    }
+  }, [callId, requestId, level, limit, fromDate, toDate, searchParams, setSearchParams]);
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -91,7 +125,7 @@ export default function PdfLogs() {
   useEffect(() => {
     fetchLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [level, limit, fromDate, toDate]);
 
   const applyPreset = (preset: "1h" | "24h" | "7d" | "30d" | "clear") => {
     const now = new Date();
