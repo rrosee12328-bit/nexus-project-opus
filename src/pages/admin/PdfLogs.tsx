@@ -39,6 +39,18 @@ const LEVEL_VARIANT: Record<LogRow["level"], string> = {
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+const REQUEST_ID_RE = UUID_RE; // request_id is also a UUID (x-request-id)
+const REQUEST_ID_MAX = 64;
+
+/** Returns null when valid (or empty), or a human-readable error string. */
+function validateUuidField(value: string, label: string): string | null {
+  const v = value.trim();
+  if (!v) return null;
+  if (v.length > REQUEST_ID_MAX) return `${label} is too long (max ${REQUEST_ID_MAX} chars)`;
+  if (!UUID_RE.test(v)) return `${label} must be a valid UUID (e.g. 019de182-9ee4-7cb1-a96c-6b48c25f4e6c)`;
+  return null;
+}
+
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const parseDateParam = (v: string | null): Date | undefined => {
   if (!v || !DATE_RE.test(v)) return undefined;
