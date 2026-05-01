@@ -12,9 +12,13 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Switch } from "@/components/ui/switch";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { Loader2, RefreshCw, Search, ChevronDown, ChevronRight, CalendarIcon, X } from "lucide-react";
+import {
+  Loader2, RefreshCw, Search, ChevronDown, ChevronRight, CalendarIcon, X, SlidersHorizontal, Check,
+} from "lucide-react";
 
 type LogRow = {
   id: string;
@@ -58,6 +62,24 @@ const parseDateParam = (v: string | null): Date | undefined => {
   return isNaN(d.getTime()) ? undefined : d;
 };
 const fmtDateParam = (d: Date) => format(d, "yyyy-MM-dd");
+
+// Canonical events emitted by generate-call-summary-pdf (kept in sync with the edge fn)
+const KNOWN_EVENTS = [
+  "request_received",
+  "validation_passed_request",
+  "validation_failed_request",
+  "auth_ok",
+  "auth_missing_bearer",
+  "auth_invalid_token",
+  "call_fetched",
+  "call_fetch_failed",
+  "sections_resolved",
+  "key_decisions_unparsable",
+  "transcript_invalid_type",
+  "transcript_truncated",
+  "pdf_generated",
+  "unhandled_exception",
+] as const;
 
 function ExampleChips({
   label,
@@ -104,6 +126,25 @@ export default function PdfLogs() {
   });
   const [fromDate, setFromDate] = useState<Date | undefined>(() => parseDateParam(searchParams.get("from")));
   const [toDate, setToDate] = useState<Date | undefined>(() => parseDateParam(searchParams.get("to")));
+
+  // Advanced filters
+  const [advancedOpen, setAdvancedOpen] = useState<boolean>(() => {
+    return !!(
+      searchParams.get("user_id") ||
+      searchParams.get("min_ms") ||
+      searchParams.get("errors_only") ||
+      searchParams.get("events")
+    );
+  });
+  const [userId, setUserId] = useState(() => searchParams.get("user_id") ?? "");
+  const [minMs, setMinMs] = useState<string>(() => searchParams.get("min_ms") ?? "");
+  const [errorsOnly, setErrorsOnly] = useState<boolean>(() => searchParams.get("errors_only") === "1");
+  const [selectedEvents, setSelectedEvents] = useState<string[]>(() => {
+    const raw = searchParams.get("events");
+    if (!raw) return [];
+    return raw.split(",").map((s) => s.trim()).filter(Boolean);
+  });
+
   const [rows, setRows] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -111,7 +152,28 @@ export default function PdfLogs() {
   // Live validation errors (null when field is valid or empty)
   const callIdError = useMemo(() => validateUuidField(callId, "call_id"), [callId]);
   const requestIdError = useMemo(() => validateUuidField(requestId, "request_id"), [requestId]);
-  const hasFieldErrors = !!(callIdError || requestIdError);
+  const userIdError = useMemo(() => validateUuidField(userId, "user_id"), [userId]);
+  const minMsError = useMemo<string | null>(() => {
+    if (!minMs.trim()) return null;
+    const n = Number(minMs);
+    if (!Number.isFinite(n) || n < 0 || !Number.isInteger(n)) return "Must be a non-negative integer";
+    if (n > 600_000) return "Must be ≤ 600000ms";
+    return null;
+  }, [minMs]);
+  const hasFieldErrors = !!(callIdError || requestIdError || userIdError || minMsError);
+
+  // Union of canonical events + any seen in current rows (in case of new events)
+  const eventOptions = useMemo(() => {
+    const set = new Set<string>(KNOWN_EVENTS);
+    for (const r of rows) if (r.event) set.add(r.event);
+    return Array.from(set).sort();
+  }, [rows]);
+
+  const advancedActiveCount =
+    (userId.trim() ? 1 : 0) +
+    (minMs.trim() ? 1 : 0) +
+    (errorsOnly ? 1 : 0) +
+    (selectedEvents.length > 0 ? 1 : 0);
 
   // Recent example IDs taken from loaded rows (most recent first, deduped)
   const exampleCallIds = useMemo(() => {
@@ -149,12 +211,16 @@ export default function PdfLogs() {
     if (limit !== 200) next.set("limit", String(limit));
     if (fromDate) next.set("from", fmtDateParam(fromDate));
     if (toDate) next.set("to", fmtDateParam(toDate));
+    if (userId.trim()) next.set("user_id", userId.trim());
+    if (minMs.trim()) next.set("min_ms", minMs.trim());
+    if (errorsOnly) next.set("errors_only", "1");
+    if (selectedEvents.length > 0) next.set("events", selectedEvents.join(","));
 
     // Avoid no-op writes that cause extra renders
     if (next.toString() !== searchParams.toString()) {
       setSearchParams(next, { replace: true });
     }
-  }, [callId, requestId, level, limit, fromDate, toDate, searchParams, setSearchParams]);
+  }, [callId, requestId, level, limit, fromDate, toDate, userId, minMs, errorsOnly, selectedEvents, searchParams, setSearchParams]);
 
   const fetchLogs = async () => {
     if (hasFieldErrors) {
@@ -181,6 +247,10 @@ export default function PdfLogs() {
       }
       if (fromDate) q = q.gte("created_at", startOfDay(fromDate).toISOString());
       if (toDate) q = q.lte("created_at", endOfDay(toDate).toISOString());
+      if (userId.trim()) q = q.eq("user_id", userId.trim());
+      if (minMs.trim()) q = q.gte("elapsed_ms", Number(minMs));
+      if (errorsOnly) q = q.in("level", ["warn", "error"]);
+      if (selectedEvents.length > 0) q = q.in("event", selectedEvents);
 
       const { data, error } = await q;
       if (error) throw error;
@@ -195,7 +265,7 @@ export default function PdfLogs() {
   useEffect(() => {
     fetchLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [level, limit, fromDate, toDate]);
+  }, [level, limit, fromDate, toDate, errorsOnly, selectedEvents]);
 
   const applyPreset = (preset: "1h" | "24h" | "7d" | "30d" | "clear") => {
     const now = new Date();
@@ -411,6 +481,189 @@ export default function PdfLogs() {
               )}
             </div>
           </div>
+
+          <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen} className="mt-4">
+            <div className="flex items-center justify-between border-t border-border pt-3">
+              <CollapsibleTrigger asChild>
+                <Button type="button" variant="ghost" size="sm" className="gap-2 -ml-2">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Advanced
+                  {advancedActiveCount > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">
+                      {advancedActiveCount}
+                    </Badge>
+                  )}
+                  {advancedOpen ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                </Button>
+              </CollapsibleTrigger>
+              {advancedActiveCount > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setUserId("");
+                    setMinMs("");
+                    setErrorsOnly(false);
+                    setSelectedEvents([]);
+                  }}
+                >
+                  <X className="h-3.5 w-3.5 mr-1" /> Reset advanced
+                </Button>
+              )}
+            </div>
+
+            <CollapsibleContent className="mt-3">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
+                {/* user_id */}
+                <div className="md:col-span-4 space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">user_id (UUID)</label>
+                  <Input
+                    placeholder="Filter by the user who triggered the request"
+                    value={userId}
+                    onChange={(e) => setUserId(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !hasFieldErrors) fetchLogs();
+                    }}
+                    aria-invalid={!!userIdError}
+                    className={cn(userIdError && "border-destructive focus-visible:ring-destructive")}
+                    maxLength={REQUEST_ID_MAX}
+                  />
+                  {userIdError && (
+                    <p className="text-xs text-destructive">{userIdError}</p>
+                  )}
+                </div>
+
+                {/* min elapsed_ms */}
+                <div className="md:col-span-3 space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Min elapsed (ms)
+                  </label>
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    step={50}
+                    placeholder="e.g. 1000"
+                    value={minMs}
+                    onChange={(e) => setMinMs(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !hasFieldErrors) fetchLogs();
+                    }}
+                    aria-invalid={!!minMsError}
+                    className={cn(minMsError && "border-destructive focus-visible:ring-destructive")}
+                  />
+                  {minMsError && (
+                    <p className="text-xs text-destructive">{minMsError}</p>
+                  )}
+                </div>
+
+                {/* errors only */}
+                <div className="md:col-span-2 space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Errors only</label>
+                  <div className="h-10 flex items-center gap-2 rounded-md border border-input px-3">
+                    <Switch
+                      id="errors-only"
+                      checked={errorsOnly}
+                      onCheckedChange={setErrorsOnly}
+                    />
+                    <label htmlFor="errors-only" className="text-xs text-muted-foreground cursor-pointer">
+                      warn + error
+                    </label>
+                  </div>
+                </div>
+
+                {/* events multi-select */}
+                <div className="md:col-span-3 space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Events {selectedEvents.length > 0 && `(${selectedEvents.length})`}
+                  </label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-between font-normal"
+                      >
+                        <span className="truncate">
+                          {selectedEvents.length === 0
+                            ? "All events"
+                            : selectedEvents.length === 1
+                              ? selectedEvents[0]
+                              : `${selectedEvents.length} selected`}
+                        </span>
+                        <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[280px] p-0" align="start">
+                      <div className="max-h-72 overflow-auto py-1">
+                        {eventOptions.map((ev) => {
+                          const checked = selectedEvents.includes(ev);
+                          return (
+                            <button
+                              key={ev}
+                              type="button"
+                              onClick={() =>
+                                setSelectedEvents((curr) =>
+                                  curr.includes(ev)
+                                    ? curr.filter((x) => x !== ev)
+                                    : [...curr, ev],
+                                )
+                              }
+                              className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs font-mono hover:bg-muted"
+                            >
+                              <span
+                                className={cn(
+                                  "h-4 w-4 shrink-0 rounded-sm border border-input flex items-center justify-center",
+                                  checked && "bg-primary border-primary text-primary-foreground",
+                                )}
+                              >
+                                {checked && <Check className="h-3 w-3" />}
+                              </span>
+                              <span className="truncate">{ev}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {selectedEvents.length > 0 && (
+                        <div className="border-t border-border p-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => setSelectedEvents([])}
+                          >
+                            Clear selection
+                          </Button>
+                        </div>
+                      )}
+                    </PopoverContent>
+                  </Popover>
+                  {selectedEvents.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {selectedEvents.map((ev) => (
+                        <Badge
+                          key={ev}
+                          variant="secondary"
+                          className="font-mono text-[10px] gap-1 cursor-pointer"
+                          onClick={() =>
+                            setSelectedEvents((curr) => curr.filter((x) => x !== ev))
+                          }
+                        >
+                          {ev}
+                          <X className="h-3 w-3" />
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         </CardContent>
       </Card>
 
