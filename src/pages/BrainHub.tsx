@@ -271,8 +271,12 @@ export default function BrainHub() {
   const runMarketIntelligence = async () => {
     setMarketRunning(true);
     try {
-      // n8n webhook URL to be wired up later
-      toast.info("Market Intelligence run will be wired to the n8n webhook shortly.");
+      const { data, error } = await supabase.functions.invoke("trigger-market-intelligence", {
+        body: {},
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success("Market Intelligence run triggered. New report will appear when n8n finishes.");
     } catch (e: any) {
       toast.error(e?.message || "Failed to trigger market intelligence");
     } finally {
