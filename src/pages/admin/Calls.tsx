@@ -434,7 +434,7 @@ export default function AdminCalls() {
                       )}
                     </TableCell>
                     <TableCell className="text-sm max-w-[280px] truncate">
-                      {call.summary ?? "—"}
+                      {getBriefSummary(call.summary, 120) || "—"}
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       {(call.fathom_url || call.fathom_meeting_id) ? (
