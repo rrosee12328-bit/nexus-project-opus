@@ -153,7 +153,7 @@ export default function ClientCalls() {
                                 </Badge>
                               ) : null}
                             </div>
-                            <p className="text-[13px] sm:text-sm font-medium text-foreground leading-snug">
+                            <p className="text-[13px] sm:text-sm font-medium text-foreground leading-snug line-clamp-2 sm:line-clamp-3 break-words">
                               {brief}
                             </p>
                             {!isOpen && decisions.length > 0 && (
@@ -179,7 +179,7 @@ export default function ClientCalls() {
                               </h4>
                               <ul className="space-y-1 ml-4 list-disc">
                                 {decisions.map((d: any, idx: number) => (
-                                  <li key={idx} className="text-[13px] sm:text-sm text-foreground/80">
+                                  <li key={idx} className="text-[13px] sm:text-sm text-foreground/80 break-words">
                                     {typeof d === "string" ? d : JSON.stringify(d)}
                                   </li>
                                 ))}
