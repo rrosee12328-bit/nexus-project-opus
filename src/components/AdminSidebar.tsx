@@ -57,6 +57,7 @@ const navItems = [
   { title: "Ops Portal", url: "/ops", icon: ClipboardList },
   { title: "Email Dashboard", url: "/admin/emails", icon: Mail },
   { title: "AI Agent", url: "/admin/agent", icon: Bot },
+  { title: "PDF Logs", url: "/admin/pdf-logs", icon: ScrollText },
   { title: "Settings", url: "/admin/settings", icon: Settings },
 ];
 
