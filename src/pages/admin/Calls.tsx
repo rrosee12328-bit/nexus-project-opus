@@ -313,7 +313,7 @@ export default function AdminCalls() {
         `Synced ${updated} call${updated === 1 ? "" : "s"}${errored ? ` (${errored} failed)` : ""}`,
         { id: toastId },
       );
-      qc.invalidateQueries({ queryKey: ["calls"] });
+      queryClient.invalidateQueries({ queryKey: ["call-intelligence"] });
     } catch (e: any) {
       toast.error(e.message || "Fathom sync failed", { id: toastId });
     }
