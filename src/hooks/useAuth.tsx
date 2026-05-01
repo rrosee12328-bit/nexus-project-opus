@@ -22,6 +22,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const fetchRoleWithRetry = useCallback(async (userId: string, attempt = 0): Promise<AppRole | null> => {
+    try {
+      // Safari sometimes throws "Load failed" spuriously on the first fetch after
+      // page restore. Retry with backoff before giving up.
+      const { data, error } = await supabase.rpc("get_user_role", { _user_id: userId });
+      if (error) throw error;
+      return (data as AppRole) ?? null;
+    } catch (err) {
+      if (attempt < 3) {
+        await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+        return fetchRoleWithRetry(userId, attempt + 1);
+      }
+      console.error("Role fetch error after retries:", err);
+      return null;
+    }
+  }, []);
+
   const applySession = useCallback(async (nextSession: Session | null) => {
     setSession(nextSession);
     setUser(nextSession?.user ?? null);
@@ -31,22 +48,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    try {
-      const { data, error } = await supabase.rpc("get_user_role", { _user_id: nextSession.user.id });
-      if (error) {
-        console.error("Failed to fetch role:", error.message);
-        setRole(null);
-      } else {
-        setRole((data as AppRole) ?? null);
-      }
-    } catch (err) {
-      console.error("Role fetch error:", err);
-      setRole(null);
-    }
-  }, []);
+    const nextRole = await fetchRoleWithRetry(nextSession.user.id);
+    setRole(nextRole);
+  }, [fetchRoleWithRetry]);
 
   useEffect(() => {
     let mounted = true;
+
+    // Safety net: never let the spinner hang forever on Safari if a fetch
+    // silently stalls. Force loading=false after 8s no matter what.
+    const safetyTimer = setTimeout(() => {
+      if (mounted) setLoading(false);
+    }, 8000);
 
     const bootstrapAuth = async () => {
       try {
@@ -91,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       mounted = false;
+      clearTimeout(safetyTimer);
       subscription.unsubscribe();
     };
   }, [applySession]);
