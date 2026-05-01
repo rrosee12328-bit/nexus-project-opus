@@ -1,0 +1,1 @@
+ALTER TABLE public.call_intelligence DISABLE ROW LEVEL SECURITY;
