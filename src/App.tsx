@@ -35,6 +35,7 @@ import AdminClientTracker from "./pages/admin/ClientTracker";
 import AdminCalls from "./pages/admin/Calls";
 import AdminKnowledgeBase from "./pages/admin/KnowledgeBase";
 import AdminInvoices from "./pages/admin/Invoices";
+import AdminPdfLogs from "./pages/admin/PdfLogs";
 
 import OpsLayout from "./layouts/OpsLayout";
 import OpsDashboard from "./pages/ops/Dashboard";
@@ -108,6 +109,7 @@ const App = () => (
               <Route path="calls" element={<AdminCalls />} />
               <Route path="knowledge-base" element={<AdminKnowledgeBase />} />
               <Route path="invoices" element={<AdminInvoices />} />
+              <Route path="pdf-logs" element={<AdminPdfLogs />} />
             </Route>
 
             {/* Ops Portal */}

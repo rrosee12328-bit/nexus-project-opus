@@ -35,6 +35,17 @@ class StructuredLogger {
   private ctx: LogContext;
   private startedAt: number;
   private dropCounts: Record<string, number> = {};
+  private buffer: Array<{
+    created_at: string;
+    request_id: string;
+    call_id: string | null;
+    user_id: string | null;
+    fn: string;
+    level: LogLevel;
+    event: string;
+    elapsed_ms: number;
+    data: Record<string, unknown>;
+  }> = [];
 
   constructor(ctx: LogContext) {
     this.ctx = ctx;
@@ -55,10 +66,11 @@ class StructuredLogger {
   }
 
   log(level: LogLevel, event: string, data: Record<string, unknown> = {}) {
+    const elapsed_ms = Date.now() - this.startedAt;
     const payload = {
       level,
       event,
-      elapsed_ms: Date.now() - this.startedAt,
+      elapsed_ms,
       ...this.ctx,
       ...data,
     };
@@ -66,12 +78,39 @@ class StructuredLogger {
     // Use console.error for warn+ so they show up in error log views as well
     if (level === "error" || level === "warn") console.error(line);
     else console.log(line);
+    this.buffer.push({
+      created_at: new Date().toISOString(),
+      request_id: this.ctx.request_id,
+      call_id: (this.ctx.call_id as string | undefined) ?? null,
+      user_id: (this.ctx.user_id as string | undefined) ?? null,
+      fn: this.ctx.fn,
+      level,
+      event,
+      elapsed_ms,
+      data,
+    });
   }
 
   debug(event: string, data?: Record<string, unknown>) { this.log("debug", event, data); }
   info(event: string, data?: Record<string, unknown>)  { this.log("info", event, data); }
   warn(event: string, data?: Record<string, unknown>)  { this.log("warn", event, data); }
   error(event: string, data?: Record<string, unknown>) { this.log("error", event, data); }
+
+  /** Flush buffered events to the pdf_endpoint_logs table using a service-role client. */
+  async flush() {
+    if (this.buffer.length === 0) return;
+    const url = Deno.env.get("SUPABASE_URL");
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!url || !key) return;
+    const rows = this.buffer.splice(0, this.buffer.length);
+    try {
+      const admin = createClient(url, key, { auth: { persistSession: false } });
+      const { error } = await admin.from("pdf_endpoint_logs").insert(rows);
+      if (error) console.error(JSON.stringify({ level: "error", event: "log_flush_failed", error: error.message }));
+    } catch (e) {
+      console.error(JSON.stringify({ level: "error", event: "log_flush_exception", error: (e as Error).message }));
+    }
+  }
 }
 
 // ───── Validation ─────
@@ -1040,5 +1079,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json", "x-request-id": requestId },
     });
+  } finally {
+    await logger.flush();
   }
 });
