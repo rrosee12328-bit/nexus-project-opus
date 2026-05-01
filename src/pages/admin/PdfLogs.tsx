@@ -188,8 +188,21 @@ export default function PdfLogs() {
                 placeholder="e.g. 019de182-9ee4-7cb1-a96c-6b48c25f4e6c"
                 value={callId}
                 onChange={(e) => setCallId(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && fetchLogs()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !hasFieldErrors) fetchLogs();
+                }}
+                aria-invalid={!!callIdError}
+                aria-describedby={callIdError ? "call-id-error" : undefined}
+                className={cn(
+                  callIdError && "border-destructive focus-visible:ring-destructive",
+                )}
+                maxLength={REQUEST_ID_MAX}
               />
+              {callIdError && (
+                <p id="call-id-error" className="text-xs text-destructive">
+                  {callIdError}
+                </p>
+              )}
             </div>
             <div className="md:col-span-4 space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">request_id</label>
@@ -197,8 +210,21 @@ export default function PdfLogs() {
                 placeholder="x-request-id from response header"
                 value={requestId}
                 onChange={(e) => setRequestId(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && fetchLogs()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !hasFieldErrors) fetchLogs();
+                }}
+                aria-invalid={!!requestIdError}
+                aria-describedby={requestIdError ? "request-id-error" : undefined}
+                className={cn(
+                  requestIdError && "border-destructive focus-visible:ring-destructive",
+                )}
+                maxLength={REQUEST_ID_MAX}
               />
+              {requestIdError && (
+                <p id="request-id-error" className="text-xs text-destructive">
+                  {requestIdError}
+                </p>
+              )}
             </div>
             <div className="md:col-span-2 space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Level</label>
@@ -214,7 +240,7 @@ export default function PdfLogs() {
               </Select>
             </div>
             <div className="md:col-span-2 flex gap-2">
-              <Button onClick={fetchLogs} disabled={loading} className="flex-1">
+              <Button onClick={fetchLogs} disabled={loading || hasFieldErrors} className="flex-1">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                 <span className="ml-2">Search</span>
               </Button>
@@ -222,7 +248,7 @@ export default function PdfLogs() {
                 variant="outline"
                 size="icon"
                 onClick={fetchLogs}
-                disabled={loading}
+                disabled={loading || hasFieldErrors}
                 aria-label="Refresh"
               >
                 <RefreshCw className="h-4 w-4" />
