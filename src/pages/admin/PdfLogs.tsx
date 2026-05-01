@@ -197,10 +197,16 @@ export default function PdfLogs() {
         .order("created_at", { ascending: false })
         .limit(limit);
 
-      const cid = callId.trim();
-      const rid = requestId.trim();
-      if (cid) q = q.eq("call_id", cid);
-      if (rid) q = q.eq("request_id", rid);
+      const kw = keyword.trim();
+      if (kw) {
+        // Match against event name or stringified data (Postgres jsonb cast)
+        const safe = kw.replace(/[%_,()]/g, " ").trim();
+        if (safe) {
+          q = q.or(
+            `event.ilike.%${safe}%,data.cs.{"q":"${safe}"},data::text.ilike.%${safe}%`,
+          );
+        }
+      }
       if (level !== "all") q = q.eq("level", level);
       if (fromDate && toDate && fromDate > toDate) {
         toast.error("'From' date must be before 'To' date");
@@ -216,7 +222,22 @@ export default function PdfLogs() {
 
       const { data, error } = await q;
       if (error) throw error;
-      setRows((data ?? []) as LogRow[]);
+      let result = (data ?? []) as LogRow[];
+
+      // Filter by client: match rows whose data.client_id equals the picker
+      // value, then expand to include sibling rows of the same request_id.
+      if (clientId && clientId !== "all") {
+        const matchingRequestIds = new Set<string>();
+        for (const r of result) {
+          const cidInData = (r.data as Record<string, unknown> | null)?.client_id;
+          if (typeof cidInData === "string" && cidInData === clientId) {
+            matchingRequestIds.add(r.request_id);
+          }
+        }
+        result = result.filter((r) => matchingRequestIds.has(r.request_id));
+      }
+
+      setRows(result);
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -227,7 +248,7 @@ export default function PdfLogs() {
   useEffect(() => {
     fetchLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [level, limit, fromDate, toDate, errorsOnly, selectedEvents]);
+  }, [level, limit, fromDate, toDate, errorsOnly, selectedEvents, clientId]);
 
   const applyPreset = (preset: "1h" | "24h" | "7d" | "30d" | "clear") => {
     const now = new Date();
