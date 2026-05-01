@@ -1,0 +1,187 @@
+// Fathom sync: pulls meeting share URL + transcript by fathom_meeting_id
+// and writes them to call_intelligence. Admin/Ops only.
+
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
+
+const FATHOM_BASE = "https://api.fathom.ai/external/v1";
+
+async function fathomGet(path: string, apiKey: string) {
+  const res = await fetch(`${FATHOM_BASE}${path}`, {
+    headers: { "X-Api-Key": apiKey, Accept: "application/json" },
+  });
+  const text = await res.text();
+  let json: any = null;
+  try { json = text ? JSON.parse(text) : null; } catch { /* keep text */ }
+  if (!res.ok) {
+    throw new Error(`Fathom ${path} failed [${res.status}]: ${text.slice(0, 500)}`);
+  }
+  return json;
+}
+
+function pickShareUrl(m: any): string | null {
+  return (
+    m?.share_url ??
+    m?.shareUrl ??
+    m?.recording_share_url ??
+    m?.url ??
+    null
+  );
+}
+
+function pickTranscript(m: any, transcriptResp: any): string | null {
+  if (typeof transcriptResp === "string") return transcriptResp;
+  if (Array.isArray(transcriptResp?.transcript)) {
+    return transcriptResp.transcript
+      .map((t: any) => `${t.speaker ?? ""}: ${t.text ?? ""}`.trim())
+      .join("\n");
+  }
+  if (typeof transcriptResp?.text === "string") return transcriptResp.text;
+  if (typeof m?.transcript === "string") return m.transcript;
+  return null;
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const FATHOM_API_KEY = Deno.env.get("FATHOM_API_KEY");
+    if (!FATHOM_API_KEY) {
+      return new Response(JSON.stringify({ error: "FATHOM_API_KEY not configured" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claims, error: authErr } = await userClient.auth.getClaims(token);
+    if (authErr || !claims?.claims?.sub) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const userId = claims.claims.sub;
+
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
+    // Authorize: admin or ops
+    const { data: roles } = await admin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+    const isPrivileged = (roles ?? []).some((r: any) => r.role === "admin" || r.role === "ops");
+    if (!isPrivileged) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const { call_id, fathom_meeting_id, sync_all_missing } = body ?? {};
+
+    // Build list of (callRowId, meetingId) tuples to process
+    let targets: Array<{ id: string; meeting_id: string }> = [];
+
+    if (sync_all_missing) {
+      const { data: rows, error } = await admin
+        .from("call_intelligence")
+        .select("id, fathom_meeting_id, fathom_url, transcript")
+        .not("fathom_meeting_id", "is", null)
+        .or("fathom_url.is.null,transcript.is.null")
+        .limit(50);
+      if (error) throw error;
+      targets = (rows ?? [])
+        .filter((r: any) => r.fathom_meeting_id)
+        .map((r: any) => ({ id: r.id, meeting_id: String(r.fathom_meeting_id) }));
+    } else if (call_id) {
+      const { data: row, error } = await admin
+        .from("call_intelligence")
+        .select("id, fathom_meeting_id")
+        .eq("id", call_id)
+        .maybeSingle();
+      if (error) throw error;
+      if (!row?.fathom_meeting_id) {
+        return new Response(JSON.stringify({ error: "Call has no fathom_meeting_id" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      targets = [{ id: row.id, meeting_id: String(row.fathom_meeting_id) }];
+    } else if (fathom_meeting_id) {
+      // Find call row by meeting id (must already exist)
+      const { data: row } = await admin
+        .from("call_intelligence")
+        .select("id")
+        .eq("fathom_meeting_id", String(fathom_meeting_id))
+        .maybeSingle();
+      if (!row) {
+        return new Response(JSON.stringify({ error: "No call row found for that meeting id" }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      targets = [{ id: row.id, meeting_id: String(fathom_meeting_id) }];
+    } else {
+      return new Response(JSON.stringify({ error: "Provide call_id, fathom_meeting_id, or sync_all_missing" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const results: any[] = [];
+    for (const t of targets) {
+      try {
+        const meeting = await fathomGet(`/meetings/${encodeURIComponent(t.meeting_id)}`, FATHOM_API_KEY);
+        let transcriptResp: any = null;
+        try {
+          transcriptResp = await fathomGet(`/meetings/${encodeURIComponent(t.meeting_id)}/transcript`, FATHOM_API_KEY);
+        } catch (_) { /* transcript may not be available */ }
+
+        const share_url = pickShareUrl(meeting);
+        const transcript = pickTranscript(meeting, transcriptResp);
+        const summary = meeting?.summary ?? meeting?.ai_summary ?? null;
+
+        const update: any = {};
+        if (share_url) update.fathom_url = share_url;
+        if (transcript) update.transcript = transcript;
+        if (summary && typeof summary === "string") update.summary = summary;
+
+        if (Object.keys(update).length > 0) {
+          const { error: updErr } = await admin
+            .from("call_intelligence")
+            .update(update)
+            .eq("id", t.id);
+          if (updErr) throw updErr;
+        }
+
+        results.push({ call_id: t.id, meeting_id: t.meeting_id, updated: Object.keys(update), share_url });
+      } catch (e: any) {
+        results.push({ call_id: t.id, meeting_id: t.meeting_id, error: e?.message ?? String(e) });
+      }
+    }
+
+    return new Response(JSON.stringify({ ok: true, count: results.length, results }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (e: any) {
+    return new Response(JSON.stringify({ error: e?.message ?? String(e) }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
