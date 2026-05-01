@@ -79,6 +79,11 @@ export default function PdfLogs() {
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
+  // Live validation errors (null when field is valid or empty)
+  const callIdError = useMemo(() => validateUuidField(callId, "call_id"), [callId]);
+  const requestIdError = useMemo(() => validateUuidField(requestId, "request_id"), [requestId]);
+  const hasFieldErrors = !!(callIdError || requestIdError);
+
   // Keep URL in sync with current filter state (replace, no history entry per keystroke)
   useEffect(() => {
     const next = new URLSearchParams();
@@ -96,6 +101,10 @@ export default function PdfLogs() {
   }, [callId, requestId, level, limit, fromDate, toDate, searchParams, setSearchParams]);
 
   const fetchLogs = async () => {
+    if (hasFieldErrors) {
+      toast.error("Fix the highlighted fields before searching");
+      return;
+    }
     setLoading(true);
     try {
       let q = supabase
@@ -106,14 +115,7 @@ export default function PdfLogs() {
 
       const cid = callId.trim();
       const rid = requestId.trim();
-      if (cid) {
-        if (!UUID_RE.test(cid)) {
-          toast.error("call_id must be a valid UUID");
-          setLoading(false);
-          return;
-        }
-        q = q.eq("call_id", cid);
-      }
+      if (cid) q = q.eq("call_id", cid);
       if (rid) q = q.eq("request_id", rid);
       if (level !== "all") q = q.eq("level", level);
       if (fromDate && toDate && fromDate > toDate) {
