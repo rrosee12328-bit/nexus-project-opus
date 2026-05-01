@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { format, startOfDay, endOfDay, subDays, subHours, formatDistanceToNowStrict } from "date-fns";
+import { format, startOfDay, endOfDay, subDays, subHours } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,7 +43,6 @@ const LEVEL_VARIANT: Record<LogRow["level"], string> = {
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const REQUEST_ID_RE = UUID_RE; // request_id is also a UUID (x-request-id)
 const REQUEST_ID_MAX = 64;
 
 /** Returns null when valid (or empty), or a human-readable error string. */
@@ -81,58 +80,14 @@ const KNOWN_EVENTS = [
   "unhandled_exception",
 ] as const;
 
-function ExampleChips({
-  label,
-  values,
-  onPick,
-}: {
-  label: string;
-  values: { id: string; ts?: string | null }[];
-  onPick: (v: string) => void;
-}) {
-  return (
-    <div className="rounded-md border border-border bg-muted/20 p-2">
-      <span className="block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-        {label} — click to filter
-      </span>
-      <div className="mt-1.5 flex flex-col gap-1">
-        {values.map((v) => {
-          let rel = "";
-          if (v.ts) {
-            try {
-              rel = formatDistanceToNowStrict(new Date(v.ts), { addSuffix: true });
-            } catch {
-              rel = "";
-            }
-          }
-          return (
-            <button
-              key={v.id}
-              type="button"
-              onClick={() => onPick(v.id)}
-              title={`Filter by ${v.id}`}
-              className="group flex w-full items-center justify-between gap-2 rounded-md border border-border bg-background px-2 py-1 text-left transition-colors hover:bg-muted hover:border-primary/40"
-            >
-              <span className="truncate font-mono text-[10px] text-foreground">
-                {v.id.slice(0, 8)}…{v.id.slice(-4)}
-              </span>
-              {rel && (
-                <span className="shrink-0 text-[10px] text-muted-foreground">{rel}</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+type ClientOption = { id: string; name: string };
 
 export default function PdfLogs() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Initialize state from URL (run once via lazy initializers)
-  const [callId, setCallId] = useState(() => searchParams.get("call_id") ?? "");
-  const [requestId, setRequestId] = useState(() => searchParams.get("request_id") ?? "");
+  const [clientId, setClientId] = useState<string>(() => searchParams.get("client_id") ?? "all");
+  const [keyword, setKeyword] = useState(() => searchParams.get("q") ?? "");
   const [level, setLevel] = useState<string>(() => {
     const l = searchParams.get("level");
     return l && ["all", "debug", "info", "warn", "error"].includes(l) ? l : "all";
@@ -165,10 +120,9 @@ export default function PdfLogs() {
   const [rows, setRows] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [clients, setClients] = useState<ClientOption[]>([]);
 
   // Live validation errors (null when field is valid or empty)
-  const callIdError = useMemo(() => validateUuidField(callId, "Call ID"), [callId]);
-  const requestIdError = useMemo(() => validateUuidField(requestId, "Request ID"), [requestId]);
   const userIdError = useMemo(() => validateUuidField(userId, "user_id"), [userId]);
   const minMsError = useMemo<string | null>(() => {
     if (!minMs.trim()) return null;
@@ -177,7 +131,25 @@ export default function PdfLogs() {
     if (n > 600_000) return "Must be ≤ 600000ms";
     return null;
   }, [minMs]);
-  const hasFieldErrors = !!(callIdError || requestIdError || userIdError || minMsError);
+  const hasFieldErrors = !!(userIdError || minMsError);
+
+  // Quick lookup id -> name
+  const clientNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of clients) m.set(c.id, c.name);
+    return m;
+  }, [clients]);
+
+  // Load clients list once for the picker
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase
+        .from("clients")
+        .select("id, name")
+        .order("name", { ascending: true });
+      if (!error && data) setClients(data as ClientOption[]);
+    })();
+  }, []);
 
   // Union of canonical events + any seen in current rows (in case of new events)
   const eventOptions = useMemo(() => {
@@ -192,38 +164,11 @@ export default function PdfLogs() {
     (errorsOnly ? 1 : 0) +
     (selectedEvents.length > 0 ? 1 : 0);
 
-  // Recent example IDs taken from loaded rows (most recent first, deduped)
-  const exampleCallIds = useMemo(() => {
-    const seen = new Set<string>();
-    const out: { id: string; ts?: string | null }[] = [];
-    for (const r of rows) {
-      if (r.call_id && !seen.has(r.call_id)) {
-        seen.add(r.call_id);
-        out.push({ id: r.call_id, ts: r.created_at });
-        if (out.length >= 3) break;
-      }
-    }
-    return out;
-  }, [rows]);
-
-  const exampleRequestIds = useMemo(() => {
-    const seen = new Set<string>();
-    const out: { id: string; ts?: string | null }[] = [];
-    for (const r of rows) {
-      if (r.request_id && !seen.has(r.request_id)) {
-        seen.add(r.request_id);
-        out.push({ id: r.request_id, ts: r.created_at });
-        if (out.length >= 3) break;
-      }
-    }
-    return out;
-  }, [rows]);
-
   // Keep URL in sync with current filter state (replace, no history entry per keystroke)
   useEffect(() => {
     const next = new URLSearchParams();
-    if (callId.trim()) next.set("call_id", callId.trim());
-    if (requestId.trim()) next.set("request_id", requestId.trim());
+    if (clientId && clientId !== "all") next.set("client_id", clientId);
+    if (keyword.trim()) next.set("q", keyword.trim());
     if (level !== "all") next.set("level", level);
     if (limit !== 200) next.set("limit", String(limit));
     if (fromDate) next.set("from", fmtDateParam(fromDate));
@@ -237,7 +182,7 @@ export default function PdfLogs() {
     if (next.toString() !== searchParams.toString()) {
       setSearchParams(next, { replace: true });
     }
-  }, [callId, requestId, level, limit, fromDate, toDate, userId, minMs, errorsOnly, selectedEvents, searchParams, setSearchParams]);
+  }, [clientId, keyword, level, limit, fromDate, toDate, userId, minMs, errorsOnly, selectedEvents, searchParams, setSearchParams]);
 
   const fetchLogs = async () => {
     if (hasFieldErrors) {
@@ -252,10 +197,16 @@ export default function PdfLogs() {
         .order("created_at", { ascending: false })
         .limit(limit);
 
-      const cid = callId.trim();
-      const rid = requestId.trim();
-      if (cid) q = q.eq("call_id", cid);
-      if (rid) q = q.eq("request_id", rid);
+      const kw = keyword.trim();
+      if (kw) {
+        // Match against event name or stringified data (Postgres jsonb cast)
+        const safe = kw.replace(/[%_,()]/g, " ").trim();
+        if (safe) {
+          q = q.or(
+            `event.ilike.%${safe}%,data.cs.{"q":"${safe}"},data::text.ilike.%${safe}%`,
+          );
+        }
+      }
       if (level !== "all") q = q.eq("level", level);
       if (fromDate && toDate && fromDate > toDate) {
         toast.error("'From' date must be before 'To' date");
@@ -271,7 +222,22 @@ export default function PdfLogs() {
 
       const { data, error } = await q;
       if (error) throw error;
-      setRows((data ?? []) as LogRow[]);
+      let result = (data ?? []) as LogRow[];
+
+      // Filter by client: match rows whose data.client_id equals the picker
+      // value, then expand to include sibling rows of the same request_id.
+      if (clientId && clientId !== "all") {
+        const matchingRequestIds = new Set<string>();
+        for (const r of result) {
+          const cidInData = (r.data as Record<string, unknown> | null)?.client_id;
+          if (typeof cidInData === "string" && cidInData === clientId) {
+            matchingRequestIds.add(r.request_id);
+          }
+        }
+        result = result.filter((r) => matchingRequestIds.has(r.request_id));
+      }
+
+      setRows(result);
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -282,7 +248,7 @@ export default function PdfLogs() {
   useEffect(() => {
     fetchLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [level, limit, fromDate, toDate, errorsOnly, selectedEvents]);
+  }, [level, limit, fromDate, toDate, errorsOnly, selectedEvents, clientId]);
 
   const applyPreset = (preset: "1h" | "24h" | "7d" | "30d" | "clear") => {
     const now = new Date();
@@ -315,7 +281,7 @@ export default function PdfLogs() {
         <h1 className="text-2xl font-semibold tracking-tight">PDF Endpoint Logs</h1>
         <p className="text-sm text-muted-foreground">
           Structured events from <code className="text-xs">generate-call-summary-pdf</code>.
-          Filter by call ID or request ID to investigate a specific download.
+          Filter by client or search a keyword to investigate a download.
         </p>
       </div>
 
@@ -326,48 +292,32 @@ export default function PdfLogs() {
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
             <div className="lg:col-span-4 space-y-1.5 sm:col-span-2">
-              <label className="text-xs font-medium text-muted-foreground">Call ID</label>
-              <Input
-                placeholder="Paste a call UUID"
-                value={callId}
-                onChange={(e) => setCallId(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !hasFieldErrors) fetchLogs();
-                }}
-                aria-invalid={!!callIdError}
-                aria-describedby={callIdError ? "call-id-error" : undefined}
-                className={cn(
-                  callIdError && "border-destructive focus-visible:ring-destructive",
-                )}
-                maxLength={REQUEST_ID_MAX}
-              />
-              {callIdError && (
-                <p id="call-id-error" className="text-xs text-destructive">
-                  {callIdError}
-                </p>
-              )}
+              <label className="text-xs font-medium text-muted-foreground">Client</label>
+              <Select value={clientId} onValueChange={setClientId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All clients" />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  <SelectItem value="all">All clients</SelectItem>
+                  {clients.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="lg:col-span-4 space-y-1.5 sm:col-span-2">
-              <label className="text-xs font-medium text-muted-foreground">Request ID</label>
+              <label className="text-xs font-medium text-muted-foreground">Keyword</label>
               <Input
-                placeholder="Paste a request UUID"
-                value={requestId}
-                onChange={(e) => setRequestId(e.target.value)}
+                placeholder="Search event name or anything said in the log"
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !hasFieldErrors) fetchLogs();
                 }}
-                aria-invalid={!!requestIdError}
-                aria-describedby={requestIdError ? "request-id-error" : undefined}
-                className={cn(
-                  requestIdError && "border-destructive focus-visible:ring-destructive",
-                )}
                 maxLength={REQUEST_ID_MAX}
               />
-              {requestIdError && (
-                <p id="request-id-error" className="text-xs text-destructive">
-                  {requestIdError}
-                </p>
-              )}
             </div>
             <div className="lg:col-span-2 space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Level</label>
@@ -700,14 +650,13 @@ export default function PdfLogs() {
                   <TableHead>Level</TableHead>
                   <TableHead>Event</TableHead>
                   <TableHead className="whitespace-nowrap">Elapsed</TableHead>
-                  <TableHead className="whitespace-nowrap">Request</TableHead>
-                  <TableHead className="whitespace-nowrap">Call</TableHead>
+                  <TableHead className="whitespace-nowrap">Client</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.length === 0 && !loading && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
                       No events found.
                     </TableCell>
                   </TableRow>
@@ -715,6 +664,11 @@ export default function PdfLogs() {
                 {rows.map((r) => {
                   const open = !!expanded[r.id];
                   const hasData = r.data && Object.keys(r.data).length > 0;
+                  const dataClientId =
+                    typeof (r.data as Record<string, unknown> | null)?.client_id === "string"
+                      ? ((r.data as Record<string, unknown>).client_id as string)
+                      : null;
+                  const resolvedClientName = dataClientId ? clientNameById.get(dataClientId) ?? null : null;
                   return (
                     <Fragment key={r.id}>
                       <TableRow
@@ -739,38 +693,17 @@ export default function PdfLogs() {
                           {r.elapsed_ms ?? 0}ms
                         </TableCell>
                         <TableCell className="align-top">
-                          <button
-                            type="button"
-                            title={`${r.request_id} — click to filter & copy`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigator.clipboard.writeText(r.request_id);
-                              toast.success("Request ID copied");
-                              setRequestId(r.request_id);
-                            }}
-                            className="inline-flex items-center font-mono text-[11px] rounded-md border border-border bg-muted/40 hover:bg-muted hover:border-primary/40 px-2 py-0.5 transition-colors max-w-full"
-                          >
-                            <span className="truncate">
-                              {r.request_id.slice(0, 8)}…{r.request_id.slice(-4)}
-                            </span>
-                          </button>
-                        </TableCell>
-                        <TableCell className="align-top">
-                          {r.call_id ? (
+                          {resolvedClientName ? (
                             <button
                               type="button"
-                              title={`${r.call_id} — click to filter & copy`}
+                              title="Filter by this client"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                navigator.clipboard.writeText(r.call_id!);
-                                toast.success("Call ID copied");
-                                setCallId(r.call_id!);
+                                if (dataClientId) setClientId(dataClientId);
                               }}
-                              className="inline-flex items-center font-mono text-[11px] rounded-md border border-border bg-muted/40 hover:bg-muted hover:border-primary/40 px-2 py-0.5 transition-colors max-w-full"
+                              className="inline-flex items-center text-xs rounded-md border border-border bg-muted/40 hover:bg-muted hover:border-primary/40 px-2 py-0.5 transition-colors max-w-full"
                             >
-                              <span className="truncate">
-                                {r.call_id.slice(0, 8)}…{r.call_id.slice(-4)}
-                              </span>
+                              <span className="truncate">{resolvedClientName}</span>
                             </button>
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>
@@ -780,7 +713,7 @@ export default function PdfLogs() {
                       {open && hasData && (
                         <TableRow className="bg-muted/20 hover:bg-muted/20">
                           <TableCell />
-                          <TableCell colSpan={6}>
+                          <TableCell colSpan={5}>
                             <pre className="text-xs whitespace-pre-wrap break-all font-mono leading-relaxed text-muted-foreground">
 {JSON.stringify(r.data, null, 2)}
                             </pre>
