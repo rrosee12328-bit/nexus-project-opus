@@ -10,6 +10,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Phone, Mic, FileText, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
+import { CallSummaryMarkdown } from "@/components/admin/CallSummaryMarkdown";
 
 type CallRecord = {
   id: string;
@@ -172,8 +173,10 @@ export default function ClientCallsTab({ clientId }: { clientId: string }) {
                 </div>
                 {viewingCall.summary && (
                   <div>
-                    <h3 className="text-sm font-semibold mb-1">Summary</h3>
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{viewingCall.summary}</p>
+                    <h3 className="text-sm font-semibold mb-2">Summary</h3>
+                    <div className="rounded-lg border border-border bg-card p-4">
+                      <CallSummaryMarkdown content={viewingCall.summary} />
+                    </div>
                   </div>
                 )}
                 {viewingCall.key_decisions && (
