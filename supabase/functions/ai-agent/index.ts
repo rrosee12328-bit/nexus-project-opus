@@ -1313,6 +1313,32 @@ async function executeTool(
       if (error) return { error: error.message }
       return { sops: data ?? [], count: data?.length ?? 0 }
     }
+    case 'query_calls': {
+      const limit = Math.min(Number(args.limit) || 10, 25)
+      const includeTranscript = args.include_transcript === true
+      const cols = includeTranscript
+        ? 'id, call_date, call_type, client_id, project_id, summary, key_decisions, sentiment, duration_minutes, fathom_url, transcript, summary_edited, flagged_amounts'
+        : 'id, call_date, call_type, client_id, project_id, summary, key_decisions, sentiment, duration_minutes, fathom_url, summary_edited, flagged_amounts'
+      let query = supabase.from('call_intelligence').select(cols)
+        .order('call_date', { ascending: false }).limit(limit)
+      if (args.client_id) query = query.eq('client_id', args.client_id as string)
+      if (args.call_type) query = query.eq('call_type', args.call_type as string)
+      if (args.since_days) {
+        const since = new Date(Date.now() - Number(args.since_days) * 86400000).toISOString()
+        query = query.gte('call_date', since)
+      }
+      if (args.search) {
+        const s = String(args.search).replace(/[%,]/g, ' ')
+        query = query.or(`summary.ilike.%${s}%,transcript.ilike.%${s}%`)
+      }
+      const { data, error } = await query
+      if (error) return { error: error.message }
+      return {
+        calls: data ?? [],
+        count: data?.length ?? 0,
+        note: 'Summaries come from Fathom\'s AI. If `flagged_amounts` is non-empty, those dollar values may have been misheard during transcription — prefer `summary_edited=true` rows as authoritative.',
+      }
+    }
 
     // ─── Ops ────────────────────────────────────────────────────────────
     case 'query_time_entries': {
