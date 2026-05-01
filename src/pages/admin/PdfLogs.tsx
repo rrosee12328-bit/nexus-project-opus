@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { format, startOfDay, endOfDay, subDays, subHours } from "date-fns";
+import { format, startOfDay, endOfDay, subDays, subHours, formatDistanceToNowStrict } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -87,26 +87,46 @@ function ExampleChips({
   onPick,
 }: {
   label: string;
-  values: string[];
+  values: { id: string; ts?: string | null }[];
   onPick: (v: string) => void;
 }) {
   return (
     <div className="rounded-md border border-border bg-muted/20 p-2">
       <span className="block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-        {label}:
+        {label} — click to filter
       </span>
-      <div className="mt-1.5 flex flex-wrap gap-1.5">
-        {values.map((v) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => onPick(v)}
-            title={`Use ${v}`}
-            className="inline-flex max-w-full items-center rounded-md border border-border bg-background px-2 py-1 font-mono text-[10px] leading-none transition-colors hover:bg-muted hover:border-primary/40"
-          >
-            <span className="truncate">{v.slice(0, 8)}…{v.slice(-4)}</span>
-          </button>
-        ))}
+      <div className="mt-1.5 flex flex-col gap-1">
+        {values.map((v, idx) => {
+          let rel = "";
+          if (v.ts) {
+            try {
+              rel = formatDistanceToNowStrict(new Date(v.ts), { addSuffix: true });
+            } catch {
+              rel = "";
+            }
+          }
+          return (
+            <button
+              key={v.id}
+              type="button"
+              onClick={() => onPick(v.id)}
+              title={`Filter by ${v.id}`}
+              className="group flex w-full items-center justify-between gap-2 rounded-md border border-border bg-background px-2 py-1 text-left transition-colors hover:bg-muted hover:border-primary/40"
+            >
+              <span className="flex items-center gap-2 min-w-0">
+                <span className="text-[10px] font-semibold text-muted-foreground tabular-nums">
+                  #{idx + 1}
+                </span>
+                <span className="truncate font-mono text-[10px] text-foreground">
+                  {v.id.slice(0, 8)}…{v.id.slice(-4)}
+                </span>
+              </span>
+              {rel && (
+                <span className="shrink-0 text-[10px] text-muted-foreground">{rel}</span>
+              )}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -180,11 +200,11 @@ export default function PdfLogs() {
   // Recent example IDs taken from loaded rows (most recent first, deduped)
   const exampleCallIds = useMemo(() => {
     const seen = new Set<string>();
-    const out: string[] = [];
+    const out: { id: string; ts?: string | null }[] = [];
     for (const r of rows) {
       if (r.call_id && !seen.has(r.call_id)) {
         seen.add(r.call_id);
-        out.push(r.call_id);
+        out.push({ id: r.call_id, ts: r.timestamp });
         if (out.length >= 3) break;
       }
     }
@@ -193,11 +213,11 @@ export default function PdfLogs() {
 
   const exampleRequestIds = useMemo(() => {
     const seen = new Set<string>();
-    const out: string[] = [];
+    const out: { id: string; ts?: string | null }[] = [];
     for (const r of rows) {
       if (r.request_id && !seen.has(r.request_id)) {
         seen.add(r.request_id);
-        out.push(r.request_id);
+        out.push({ id: r.request_id, ts: r.timestamp });
         if (out.length >= 3) break;
       }
     }
