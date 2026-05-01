@@ -281,7 +281,7 @@ export default function PdfLogs() {
         <h1 className="text-2xl font-semibold tracking-tight">PDF Endpoint Logs</h1>
         <p className="text-sm text-muted-foreground">
           Structured events from <code className="text-xs">generate-call-summary-pdf</code>.
-          Filter by call ID or request ID to investigate a specific download.
+          Filter by client or search a keyword to investigate a download.
         </p>
       </div>
 
