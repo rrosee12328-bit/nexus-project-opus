@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { format, startOfDay, endOfDay, subDays, subHours } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,8 +9,11 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { Loader2, RefreshCw, Search, ChevronDown, ChevronRight } from "lucide-react";
+import { Loader2, RefreshCw, Search, ChevronDown, ChevronRight, CalendarIcon, X } from "lucide-react";
 
 type LogRow = {
   id: string;
@@ -39,6 +43,8 @@ export default function PdfLogs() {
   const [requestId, setRequestId] = useState("");
   const [level, setLevel] = useState<string>("all");
   const [limit, setLimit] = useState<number>(200);
+  const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
+  const [toDate, setToDate] = useState<Date | undefined>(undefined);
   const [rows, setRows] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -64,6 +70,13 @@ export default function PdfLogs() {
       }
       if (rid) q = q.eq("request_id", rid);
       if (level !== "all") q = q.eq("level", level);
+      if (fromDate && toDate && fromDate > toDate) {
+        toast.error("'From' date must be before 'To' date");
+        setLoading(false);
+        return;
+      }
+      if (fromDate) q = q.gte("created_at", startOfDay(fromDate).toISOString());
+      if (toDate) q = q.lte("created_at", endOfDay(toDate).toISOString());
 
       const { data, error } = await q;
       if (error) throw error;
@@ -79,6 +92,18 @@ export default function PdfLogs() {
     fetchLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const applyPreset = (preset: "1h" | "24h" | "7d" | "30d" | "clear") => {
+    const now = new Date();
+    if (preset === "clear") {
+      setFromDate(undefined);
+      setToDate(undefined);
+      return;
+    }
+    const map = { "1h": subHours(now, 1), "24h": subHours(now, 24), "7d": subDays(now, 7), "30d": subDays(now, 30) };
+    setFromDate(map[preset]);
+    setToDate(now);
+  };
 
   const grouped = useMemo(() => {
     const m = new Map<string, LogRow[]>();
@@ -154,6 +179,92 @@ export default function PdfLogs() {
               >
                 <RefreshCw className="h-4 w-4" />
               </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end mt-3">
+            <div className="md:col-span-3 space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">From</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !fromDate && "text-muted-foreground",
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {fromDate ? format(fromDate, "PPP") : <span>Pick a start date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={fromDate}
+                    onSelect={setFromDate}
+                    disabled={(d) => (toDate ? d > toDate : false) || d > new Date()}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="md:col-span-3 space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">To</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !toDate && "text-muted-foreground",
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {toDate ? format(toDate, "PPP") : <span>Pick an end date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={toDate}
+                    onSelect={setToDate}
+                    disabled={(d) => (fromDate ? d < fromDate : false) || d > new Date()}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="md:col-span-6 flex flex-wrap items-end gap-2">
+              <span className="text-xs text-muted-foreground mr-1">Quick:</span>
+              {([
+                ["1h", "Last hour"],
+                ["24h", "Last 24h"],
+                ["7d", "Last 7d"],
+                ["30d", "Last 30d"],
+              ] as const).map(([k, label]) => (
+                <Button
+                  key={k}
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => applyPreset(k)}
+                >
+                  {label}
+                </Button>
+              ))}
+              {(fromDate || toDate) && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => applyPreset("clear")}
+                >
+                  <X className="h-3.5 w-3.5 mr-1" /> Clear dates
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>
