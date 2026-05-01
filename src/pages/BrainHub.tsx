@@ -273,6 +273,35 @@ export default function BrainHub() {
 
   useEffect(() => { fetchAll(); }, []);
 
+  // Realtime: instantly refresh when n8n inserts a new market intelligence report
+  useEffect(() => {
+    const channel = supabase
+      .channel("market-intel-realtime")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "market_intelligence" },
+        (payload) => {
+          const row: any = payload.new;
+          const raw = row?.insights;
+          const insights: MarketInsight[] = Array.isArray(raw)
+            ? raw
+            : typeof raw === "string"
+              ? (() => { try { return JSON.parse(raw); } catch { return []; } })()
+              : [];
+          setMarketReport({ id: row.id, generated_at: row.generated_at, insights });
+          setMarketRunning(false);
+          setMarketRunStatus({
+            type: "success",
+            message: "New Market Intelligence report received.",
+            detail: `Generated ${new Date(row.generated_at).toLocaleString()}`,
+          });
+          toast.success("New Market Intelligence report ready");
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   const runMarketIntelligence = async () => {
     setMarketRunning(true);
     setMarketRunStatus(null);
