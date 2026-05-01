@@ -2,6 +2,39 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 /**
+ * Extracts a brief, plain-text statement describing the meeting's point.
+ * Strips markdown formatting (headings, links, bold, etc.) and returns
+ * the first meaningful sentence (or a short truncation).
+ */
+export function getBriefSummary(raw: string | null | undefined, maxLen = 140): string {
+  if (!raw) return "";
+  let text = raw;
+  // Drop fenced code blocks
+  text = text.replace(/```[\s\S]*?```/g, " ");
+  // Convert markdown links [label](url) -> label
+  text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+  // Remove timestamps like "@ 0:13"
+  text = text.replace(/@\s*\d{1,2}:\d{2}(?::\d{2})?/g, "");
+  // Strip heading markers, list bullets, blockquote markers at line starts
+  text = text.replace(/^[\s>]*#{1,6}\s+/gm, "");
+  text = text.replace(/^[\s]*[-*+]\s+/gm, "");
+  // Strip bold/italic/code markers
+  text = text.replace(/\*\*([^*]+)\*\*/g, "$1");
+  text = text.replace(/[*_`]+/g, "");
+  // Collapse whitespace
+  text = text.replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  // Prefer the first paragraph that looks like a real sentence (skip section headings)
+  const sentenceMatch = text.match(/[^.!?]{10,}[.!?]/);
+  let brief = sentenceMatch ? sentenceMatch[0] : text;
+  brief = brief.trim();
+  if (brief.length > maxLen) {
+    brief = brief.slice(0, maxLen).replace(/\s+\S*$/, "") + "…";
+  }
+  return brief;
+}
+
+/**
  * Renders a Fathom-style markdown call summary (### headings, paragraphs, links,
  * lists, tables) with the same typography we use in the Summaries reader.
  */
