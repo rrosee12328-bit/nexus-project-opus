@@ -210,6 +210,26 @@ Deno.serve(async (req: Request) => {
       earliestCallDate ?? undefined,
     );
 
+    // Load all clients for invitee → client matching
+    const { data: allClients } = await admin
+      .from("clients")
+      .select("id, email");
+    const clientsByEmail = new Map<string, string>();
+    const clientsByDomain = new Map<string, string>();
+    const GENERIC_DOMAINS = new Set([
+      "gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "icloud.com",
+      "proton.me", "protonmail.com", "live.com", "aol.com", "msn.com",
+    ]);
+    for (const c of allClients ?? []) {
+      const email = (c.email ?? "").toLowerCase().trim();
+      if (!email) continue;
+      clientsByEmail.set(email, c.id);
+      const domain = email.split("@")[1];
+      if (domain && !GENERIC_DOMAINS.has(domain) && !clientsByDomain.has(domain)) {
+        clientsByDomain.set(domain, c.id);
+      }
+    }
+
     const results: any[] = [];
     for (const t of targets) {
       try {
@@ -236,6 +256,16 @@ Deno.serve(async (req: Request) => {
         if (share_url) update.fathom_url = share_url;
         if (transcript) update.transcript = transcript;
         if (summaryMd) update.summary = summaryMd;
+
+        // Auto-link to client if not already set on the row
+        const { data: existing } = await admin
+          .from("call_intelligence")
+          .select("client_id")
+          .eq("id", t.id)
+          .maybeSingle();
+        if (!existing?.client_id) {
+          update.client_id = matchClientId(meeting, clientsByEmail, clientsByDomain);
+        }
 
         if (Object.keys(update).length > 0) {
           const { error: updErr } = await admin
