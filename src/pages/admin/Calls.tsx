@@ -21,6 +21,7 @@ import {
   Phone, Plus, Search, FileText, Mic, TrendingUp, Users,
   ChevronDown, ChevronUp, Pencil, Trash2, ExternalLink, Download, RefreshCw,
 } from "lucide-react";
+import { CallSummaryMarkdown } from "@/components/admin/CallSummaryMarkdown";
 // PDF generation handled server-side via edge function `generate-call-summary-pdf`
 
 type CallRecord = {
@@ -523,8 +524,10 @@ export default function AdminCalls() {
                 </div>
                 {viewingCall.summary && (
                   <div>
-                    <h3 className="text-sm font-semibold mb-1">Summary</h3>
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{viewingCall.summary}</p>
+                    <h3 className="text-sm font-semibold mb-2">Summary</h3>
+                    <div className="rounded-lg border border-border bg-card p-4">
+                      <CallSummaryMarkdown content={viewingCall.summary} />
+                    </div>
                   </div>
                 )}
                 {viewingCall.key_decisions && (
