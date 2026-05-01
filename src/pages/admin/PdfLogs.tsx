@@ -59,6 +59,35 @@ const parseDateParam = (v: string | null): Date | undefined => {
 };
 const fmtDateParam = (d: Date) => format(d, "yyyy-MM-dd");
 
+function ExampleChips({
+  label,
+  values,
+  onPick,
+}: {
+  label: string;
+  values: string[];
+  onPick: (v: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        {label}:
+      </span>
+      {values.map((v) => (
+        <button
+          key={v}
+          type="button"
+          onClick={() => onPick(v)}
+          title={`Use ${v}`}
+          className="font-mono text-[10px] rounded-md border border-border bg-muted/40 hover:bg-muted px-1.5 py-0.5 transition-colors max-w-[160px] truncate"
+        >
+          {v.slice(0, 8)}…{v.slice(-4)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function PdfLogs() {
   const [searchParams, setSearchParams] = useSearchParams();
 
