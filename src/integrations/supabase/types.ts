@@ -1295,6 +1295,36 @@ export type Database = {
           },
         ]
       }
+      market_intelligence: {
+        Row: {
+          context_snapshot: Json | null
+          created_at: string
+          generated_at: string
+          id: string
+          insights: Json | null
+          model_used: string | null
+          raw_response: string | null
+        }
+        Insert: {
+          context_snapshot?: Json | null
+          created_at?: string
+          generated_at?: string
+          id?: string
+          insights?: Json | null
+          model_used?: string | null
+          raw_response?: string | null
+        }
+        Update: {
+          context_snapshot?: Json | null
+          created_at?: string
+          generated_at?: string
+          id?: string
+          insights?: Json | null
+          model_used?: string | null
+          raw_response?: string | null
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           attachment_name: string | null
