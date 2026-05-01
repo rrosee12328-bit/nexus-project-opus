@@ -764,6 +764,22 @@ const CLIENT_ONLY_TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'query_my_calls',
+      description: 'Get summaries and key decisions from your own calls/meetings with the Vektiss team. Use this when the client asks "what did we discuss?" or "what did you say about X?". Only returns calls where the client was present.',
+      parameters: {
+        type: 'object',
+        properties: {
+          search: { type: 'string', description: 'Free-text search across the meeting summary.' },
+          since_days: { type: 'number', description: 'Only return calls within the last N days.' },
+          limit: { type: 'number', description: 'Max calls to return (default 5, max 15).' },
+        },
+        required: [], additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'send_message_to_team',
       description: 'Send a message to your Vektiss team. Confirm before executing.',
       parameters: {
