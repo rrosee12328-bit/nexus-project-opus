@@ -61,6 +61,44 @@ function transcriptArrayToText(arr: any): string | null {
     .join("\n");
 }
 
+// Detect suspicious money amounts in the Fathom summary that are very likely
+// transcription errors (e.g. "$6.76" when the speaker said "six seventy-six" → $676,
+// or "$12.50" when they said "twelve fifty" → $1,250).
+// Heuristic: a $X.XX amount under $50 that appears within 60 chars of money/deal context words.
+function detectSuspiciousAmounts(summary: string | null): Array<{ value: string; context: string; suggestion: string }> {
+  if (!summary) return [];
+  const flagged: Array<{ value: string; context: string; suggestion: string }> = [];
+  const ctxRegex = /(agreed|proposal|month|monthly|quote|quoted|charge|charged|budget|fee|price|priced|paid|pays|pay|retainer|setup|deal|signed|sold|cost|costs|invoice|rate|amount|down\s*payment)/i;
+  const moneyRegex = /\$(\d{1,3}(?:,\d{3})*|\d+)\.(\d{2})\b/g;
+  let m: RegExpExecArray | null;
+  while ((m = moneyRegex.exec(summary)) !== null) {
+    const intPart = parseInt(m[1].replace(/,/g, ""), 10);
+    const decPart = m[2];
+    if (intPart >= 50) continue; // only flag tiny amounts
+    const start = Math.max(0, m.index - 60);
+    const end = Math.min(summary.length, m.index + m[0].length + 60);
+    const context = summary.slice(start, end);
+    if (!ctxRegex.test(context)) continue;
+    // Suggest interpretations:
+    //  - "$X.YZ" → $XYZ  (e.g. $6.76 → $676)
+    //  - "$X.50" / "$X.00" → $X,Y50 / $X,Y00  (e.g. $12.50 → $1,250)
+    const concatenated = `$${intPart}${decPart}`; // $676
+    let alt = "";
+    if (decPart === "50" || decPart === "00") {
+      alt = ` or $${intPart.toLocaleString()},${decPart === "50" ? "250" : "000"}`.replace("$", "$");
+      // simpler form: $12.50 → $1,250
+      const asThousands = intPart * 100 + parseInt(decPart, 10);
+      alt = ` or $${asThousands.toLocaleString()}`;
+    }
+    flagged.push({
+      value: m[0],
+      context: context.trim(),
+      suggestion: `Likely meant ${concatenated}${alt}`,
+    });
+  }
+  return flagged;
+}
+
 // Paginate /meetings until we've found all target ids (or hit a safety cap / cursor end).
 async function fetchMeetingsForTargets(
   apiKey: string,
@@ -255,16 +293,23 @@ Deno.serve(async (req: Request) => {
         const update: any = {};
         if (share_url) update.fathom_url = share_url;
         if (transcript) update.transcript = transcript;
-        if (summaryMd) update.summary = summaryMd;
+        if (summaryMd) {
+          update.summary_original = summaryMd;
+          update.flagged_amounts = detectSuspiciousAmounts(summaryMd);
+        }
 
-        // Auto-link to client if not already set on the row
+        // Look up existing row to decide whether to overwrite the editable summary
         const { data: existing } = await admin
           .from("call_intelligence")
-          .select("client_id")
+          .select("client_id, summary_edited")
           .eq("id", t.id)
           .maybeSingle();
         if (!existing?.client_id) {
           update.client_id = matchClientId(meeting, clientsByEmail, clientsByDomain);
+        }
+        // Only overwrite the displayed summary if an admin hasn't manually edited it
+        if (summaryMd && !existing?.summary_edited) {
+          update.summary = summaryMd;
         }
 
         if (Object.keys(update).length > 0) {

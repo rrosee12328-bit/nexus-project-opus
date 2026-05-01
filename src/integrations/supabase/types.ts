@@ -327,11 +327,16 @@ export type Database = {
           duration_minutes: number | null
           fathom_meeting_id: string | null
           fathom_url: string | null
+          flagged_amounts: Json
           id: string
           key_decisions: Json | null
           project_id: string | null
           sentiment: string | null
           summary: string | null
+          summary_edited: boolean
+          summary_edited_at: string | null
+          summary_edited_by: string | null
+          summary_original: string | null
           transcript: string | null
         }
         Insert: {
@@ -345,11 +350,16 @@ export type Database = {
           duration_minutes?: number | null
           fathom_meeting_id?: string | null
           fathom_url?: string | null
+          flagged_amounts?: Json
           id?: string
           key_decisions?: Json | null
           project_id?: string | null
           sentiment?: string | null
           summary?: string | null
+          summary_edited?: boolean
+          summary_edited_at?: string | null
+          summary_edited_by?: string | null
+          summary_original?: string | null
           transcript?: string | null
         }
         Update: {
@@ -363,11 +373,16 @@ export type Database = {
           duration_minutes?: number | null
           fathom_meeting_id?: string | null
           fathom_url?: string | null
+          flagged_amounts?: Json
           id?: string
           key_decisions?: Json | null
           project_id?: string | null
           sentiment?: string | null
           summary?: string | null
+          summary_edited?: boolean
+          summary_edited_at?: string | null
+          summary_edited_by?: string | null
+          summary_original?: string | null
           transcript?: string | null
         }
         Relationships: [
