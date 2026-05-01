@@ -159,6 +159,14 @@ export default function AdminCalls() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, f }: { id: string; f: FormData }) => {
+      // If the summary changed from what Fathom (or a previous edit) had stored,
+      // mark the row as edited so future Fathom syncs don't overwrite the correction.
+      const { data: existing } = await (supabase as any)
+        .from("call_intelligence")
+        .select("summary")
+        .eq("id", id)
+        .maybeSingle();
+      const summaryChanged = (existing?.summary ?? "") !== (f.summary ?? "");
       const payload: any = {
         call_date: f.call_date,
         call_type: f.call_type,
@@ -172,6 +180,10 @@ export default function AdminCalls() {
           ? f.key_decisions_text.split("\n").filter(Boolean).map((d) => d.trim())
           : null,
       };
+      if (summaryChanged) {
+        payload.summary_edited = true;
+        payload.summary_edited_at = new Date().toISOString();
+      }
       const { error } = await (supabase as any).from("call_intelligence").update(payload).eq("id", id);
       if (error) throw error;
     },
