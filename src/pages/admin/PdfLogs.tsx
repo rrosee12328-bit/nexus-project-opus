@@ -307,8 +307,8 @@ export default function PdfLogs() {
           <CardTitle className="text-base">Filters</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-            <div className="md:col-span-4 space-y-1.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
+            <div className="lg:col-span-4 space-y-1.5 sm:col-span-2">
               <label className="text-xs font-medium text-muted-foreground">call_id (UUID)</label>
               <Input
                 placeholder="e.g. 019de182-9ee4-7cb1-a96c-6b48c25f4e6c"
@@ -337,7 +337,7 @@ export default function PdfLogs() {
                 />
               )}
             </div>
-            <div className="md:col-span-4 space-y-1.5">
+            <div className="lg:col-span-4 space-y-1.5 sm:col-span-2">
               <label className="text-xs font-medium text-muted-foreground">request_id</label>
               <Input
                 placeholder="x-request-id from response header"
@@ -366,7 +366,7 @@ export default function PdfLogs() {
                 />
               )}
             </div>
-            <div className="md:col-span-2 space-y-1.5">
+            <div className="lg:col-span-2 space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Level</label>
               <Select value={level} onValueChange={setLevel}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -379,7 +379,7 @@ export default function PdfLogs() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="md:col-span-2 flex gap-2">
+            <div className="lg:col-span-2 flex gap-2">
               <Button onClick={fetchLogs} disabled={loading || hasFieldErrors} className="flex-1">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                 <span className="ml-2">Search</span>
@@ -396,8 +396,8 @@ export default function PdfLogs() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end mt-3">
-            <div className="md:col-span-3 space-y-1.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end mt-3">
+            <div className="lg:col-span-3 space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">From</label>
               <Popover>
                 <PopoverTrigger asChild>
@@ -424,7 +424,7 @@ export default function PdfLogs() {
                 </PopoverContent>
               </Popover>
             </div>
-            <div className="md:col-span-3 space-y-1.5">
+            <div className="lg:col-span-3 space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">To</label>
               <Popover>
                 <PopoverTrigger asChild>
@@ -451,7 +451,7 @@ export default function PdfLogs() {
                 </PopoverContent>
               </Popover>
             </div>
-            <div className="md:col-span-6 flex flex-wrap items-end gap-2">
+            <div className="lg:col-span-6 sm:col-span-2 flex flex-wrap items-end gap-2">
               <span className="text-xs text-muted-foreground mr-1">Quick:</span>
               {([
                 ["1h", "Last hour"],
@@ -518,9 +518,9 @@ export default function PdfLogs() {
             </div>
 
             <CollapsibleContent className="mt-3">
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-start">
                 {/* user_id */}
-                <div className="md:col-span-4 space-y-1.5">
+                <div className="lg:col-span-4 sm:col-span-2 space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">user_id (UUID)</label>
                   <Input
                     placeholder="Filter by the user who triggered the request"
@@ -539,7 +539,7 @@ export default function PdfLogs() {
                 </div>
 
                 {/* min elapsed_ms */}
-                <div className="md:col-span-3 space-y-1.5">
+                <div className="lg:col-span-3 space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">
                     Min elapsed (ms)
                   </label>
@@ -563,7 +563,7 @@ export default function PdfLogs() {
                 </div>
 
                 {/* errors only */}
-                <div className="md:col-span-2 space-y-1.5">
+                <div className="lg:col-span-2 space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Errors only</label>
                   <div className="h-10 flex items-center gap-2 rounded-md border border-input px-3">
                     <Switch
@@ -578,7 +578,7 @@ export default function PdfLogs() {
                 </div>
 
                 {/* events multi-select */}
-                <div className="md:col-span-3 space-y-1.5">
+                <div className="lg:col-span-3 space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">
                     Events {selectedEvents.length > 0 && `(${selectedEvents.length})`}
                   </label>
