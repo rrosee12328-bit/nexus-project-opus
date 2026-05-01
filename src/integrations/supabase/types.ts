@@ -1220,6 +1220,45 @@ export type Database = {
         }
         Relationships: []
       }
+      pdf_endpoint_logs: {
+        Row: {
+          call_id: string | null
+          created_at: string
+          data: Json
+          elapsed_ms: number | null
+          event: string
+          fn: string
+          id: string
+          level: string
+          request_id: string
+          user_id: string | null
+        }
+        Insert: {
+          call_id?: string | null
+          created_at?: string
+          data?: Json
+          elapsed_ms?: number | null
+          event: string
+          fn: string
+          id?: string
+          level: string
+          request_id: string
+          user_id?: string | null
+        }
+        Update: {
+          call_id?: string | null
+          created_at?: string
+          data?: Json
+          elapsed_ms?: number | null
+          event?: string
+          fn?: string
+          id?: string
+          level?: string
+          request_id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
