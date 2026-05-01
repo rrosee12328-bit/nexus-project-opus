@@ -35,7 +35,7 @@ const navItems = [
 ];
 
 export function OpsSidebar() {
-  const { state } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
   const { signOut, role } = useAuth();
@@ -44,6 +44,10 @@ export function OpsSidebar() {
     url === "/ops"
       ? location.pathname === "/ops"
       : location.pathname.startsWith(url);
+
+  const handleNavClick = () => {
+    if (isMobile) setOpenMobile(false);
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -68,6 +72,7 @@ export function OpsSidebar() {
                       end={item.url === "/ops"}
                       className="hover:bg-sidebar-accent"
                       activeClassName="bg-sidebar-accent text-sidebar-primary"
+                      onClick={handleNavClick}
                     >
                       <item.icon className="h-4 w-4" />
                       {!collapsed && <span>{item.title}</span>}
@@ -84,7 +89,7 @@ export function OpsSidebar() {
           {role === "admin" && (
             <SidebarMenuItem>
               <SidebarMenuButton asChild className="hover:bg-sidebar-accent">
-                <NavLink to="/admin" className="hover:bg-sidebar-accent" activeClassName="">
+                <NavLink to="/admin" className="hover:bg-sidebar-accent" activeClassName="" onClick={handleNavClick}>
                   <ArrowLeft className="h-4 w-4" />
                   {!collapsed && <span>Back to Admin</span>}
                 </NavLink>
