@@ -21,7 +21,7 @@ import {
   Phone, Plus, Search, FileText, Mic, TrendingUp, Users,
   ChevronDown, ChevronUp, Pencil, Trash2, ExternalLink, Download, RefreshCw,
 } from "lucide-react";
-import { CallSummaryMarkdown } from "@/components/admin/CallSummaryMarkdown";
+import { CallSummaryMarkdown, getBriefSummary } from "@/components/admin/CallSummaryMarkdown";
 // PDF generation handled server-side via edge function `generate-call-summary-pdf`
 
 type CallRecord = {
@@ -434,7 +434,7 @@ export default function AdminCalls() {
                       )}
                     </TableCell>
                     <TableCell className="text-sm max-w-[280px] truncate">
-                      {call.summary ?? "—"}
+                      {getBriefSummary(call.summary, 120) || "—"}
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       {(call.fathom_url || call.fathom_meeting_id) ? (
@@ -525,9 +525,17 @@ export default function AdminCalls() {
                 {viewingCall.summary && (
                   <div>
                     <h3 className="text-sm font-semibold mb-2">Summary</h3>
-                    <div className="rounded-lg border border-border bg-card p-4">
-                      <CallSummaryMarkdown content={viewingCall.summary} />
-                    </div>
+                    <p className="text-sm text-foreground/90 leading-relaxed mb-3">
+                      {getBriefSummary(viewingCall.summary) || "—"}
+                    </p>
+                    <details className="rounded-lg border border-border bg-card">
+                      <summary className="cursor-pointer text-xs font-medium text-muted-foreground px-4 py-2 hover:text-foreground">
+                        Show full breakdown
+                      </summary>
+                      <div className="px-4 pb-4 pt-1">
+                        <CallSummaryMarkdown content={viewingCall.summary} />
+                      </div>
+                    </details>
                   </div>
                 )}
                 {viewingCall.key_decisions && (
