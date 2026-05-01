@@ -650,14 +650,13 @@ export default function PdfLogs() {
                   <TableHead>Level</TableHead>
                   <TableHead>Event</TableHead>
                   <TableHead className="whitespace-nowrap">Elapsed</TableHead>
-                  <TableHead className="whitespace-nowrap">Request</TableHead>
-                  <TableHead className="whitespace-nowrap">Call</TableHead>
+                  <TableHead className="whitespace-nowrap">Client</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.length === 0 && !loading && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
                       No events found.
                     </TableCell>
                   </TableRow>
@@ -665,6 +664,11 @@ export default function PdfLogs() {
                 {rows.map((r) => {
                   const open = !!expanded[r.id];
                   const hasData = r.data && Object.keys(r.data).length > 0;
+                  const dataClientId =
+                    typeof (r.data as Record<string, unknown> | null)?.client_id === "string"
+                      ? ((r.data as Record<string, unknown>).client_id as string)
+                      : null;
+                  const resolvedClientName = dataClientId ? clientNameById.get(dataClientId) ?? null : null;
                   return (
                     <Fragment key={r.id}>
                       <TableRow
@@ -689,38 +693,17 @@ export default function PdfLogs() {
                           {r.elapsed_ms ?? 0}ms
                         </TableCell>
                         <TableCell className="align-top">
-                          <button
-                            type="button"
-                            title={`${r.request_id} — click to filter & copy`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigator.clipboard.writeText(r.request_id);
-                              toast.success("Request ID copied");
-                              setRequestId(r.request_id);
-                            }}
-                            className="inline-flex items-center font-mono text-[11px] rounded-md border border-border bg-muted/40 hover:bg-muted hover:border-primary/40 px-2 py-0.5 transition-colors max-w-full"
-                          >
-                            <span className="truncate">
-                              {r.request_id.slice(0, 8)}…{r.request_id.slice(-4)}
-                            </span>
-                          </button>
-                        </TableCell>
-                        <TableCell className="align-top">
-                          {r.call_id ? (
+                          {resolvedClientName ? (
                             <button
                               type="button"
-                              title={`${r.call_id} — click to filter & copy`}
+                              title="Filter by this client"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                navigator.clipboard.writeText(r.call_id!);
-                                toast.success("Call ID copied");
-                                setCallId(r.call_id!);
+                                if (dataClientId) setClientId(dataClientId);
                               }}
-                              className="inline-flex items-center font-mono text-[11px] rounded-md border border-border bg-muted/40 hover:bg-muted hover:border-primary/40 px-2 py-0.5 transition-colors max-w-full"
+                              className="inline-flex items-center text-xs rounded-md border border-border bg-muted/40 hover:bg-muted hover:border-primary/40 px-2 py-0.5 transition-colors max-w-full"
                             >
-                              <span className="truncate">
-                                {r.call_id.slice(0, 8)}…{r.call_id.slice(-4)}
-                              </span>
+                              <span className="truncate">{resolvedClientName}</span>
                             </button>
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>
@@ -730,7 +713,7 @@ export default function PdfLogs() {
                       {open && hasData && (
                         <TableRow className="bg-muted/20 hover:bg-muted/20">
                           <TableCell />
-                          <TableCell colSpan={6}>
+                          <TableCell colSpan={5}>
                             <pre className="text-xs whitespace-pre-wrap break-all font-mono leading-relaxed text-muted-foreground">
 {JSON.stringify(r.data, null, 2)}
                             </pre>
