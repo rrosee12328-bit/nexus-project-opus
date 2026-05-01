@@ -14,6 +14,7 @@ const TOOL_RISK: Record<string, RiskLevel> = {
   query_financials: 'low', query_project_attachments: 'low',
   query_time_entries: 'low', query_sops: 'low', query_company_summaries: 'low',
   query_recent_activity: 'low', query_client_notes: 'low',
+  query_calls: 'low',
   query_my_projects: 'low', query_my_payments: 'low', query_my_assets: 'low',
   query_approval_requests: 'low', query_project_phases: 'low',
   query_team_members: 'low', query_calendar_events: 'low',
@@ -581,6 +582,25 @@ const ADMIN_ONLY_TOOLS = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'query_calls',
+      description: 'Search recorded calls (Fathom call intelligence) for summaries, key decisions, sentiment, and transcripts. Use this whenever the user asks about a meeting, call, what was said, what was agreed/decided, sentiment, or anything discussed verbally. Internal team meetings are linked to the Vektiss internal client.',
+      parameters: {
+        type: 'object',
+        properties: {
+          client_id: { type: 'string', description: 'Filter to calls for a specific client (use Vektiss internal client id for internal meetings).' },
+          call_type: { type: 'string', enum: ['discovery', 'check_in', 'kickoff', 'review', 'planning', 'sales', 'support', 'other'] },
+          search: { type: 'string', description: 'Free-text search across summary, transcript, and key decisions.' },
+          since_days: { type: 'number', description: 'Only return calls within the last N days.' },
+          limit: { type: 'number', description: 'Max calls to return (default 10, max 25).' },
+          include_transcript: { type: 'boolean', description: 'If true, include the full transcript (large). Defaults to false — summary + key decisions only.' },
+        },
+        required: [], additionalProperties: false,
+      },
+    },
+  },
 ]
 
 const OPS_ONLY_TOOLS = [
@@ -686,6 +706,25 @@ const OPS_ONLY_TOOLS = [
         properties: {
           category: { type: 'string', enum: ['onboarding', 'operations', 'development', 'design', 'communication', 'finance', 'general'] },
           search: { type: 'string' },
+        },
+        required: [], additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'query_calls',
+      description: 'Search recorded calls (Fathom call intelligence) for summaries, key decisions, sentiment, and transcripts. Use this whenever the user asks about a meeting, call, what was said, or what was decided.',
+      parameters: {
+        type: 'object',
+        properties: {
+          client_id: { type: 'string' },
+          call_type: { type: 'string', enum: ['discovery', 'check_in', 'kickoff', 'review', 'planning', 'sales', 'support', 'other'] },
+          search: { type: 'string' },
+          since_days: { type: 'number' },
+          limit: { type: 'number' },
+          include_transcript: { type: 'boolean' },
         },
         required: [], additionalProperties: false,
       },
@@ -804,7 +843,8 @@ After every action, report:
 - Be concise. Use markdown formatting, tables, and bullet points.
 - Format currency as USD (e.g., $1,500).
 - Today's date is ${today}.
-- Reference SOPs and company summaries for institutional knowledge.
+- Reference SOPs, company summaries, and call recordings for institutional knowledge. When the user mentions a meeting, call, what was said/agreed/decided, or sentiment about a client — ALWAYS call query_calls first.
+- Fathom call summaries occasionally mishear dollar amounts (e.g. "twelve fifty" → "$12.50" when it should be "$1,250"). If query_calls returns a row with summary_edited=true, trust that summary. If flagged_amounts is non-empty, warn the user that the original Fathom value was likely wrong and prefer the corrected one.
 - If you need more context to complete an action, ask — but NEVER refuse to act when you have the tools.${contextBlock}`
   }
 
@@ -825,6 +865,7 @@ You operate in 3 modes:
 After every action, report what changed, what was skipped, and what failed.
 - Be concise and action-oriented. Use markdown.
 - Today's date is ${today}.
+- When the user asks about a meeting, call, what was said or decided, use query_calls.
 - You cannot modify financials or client records.${contextBlock}`
   }
 
@@ -1292,6 +1333,32 @@ async function executeTool(
       const { data, error } = await query.order('updated_at', { ascending: false })
       if (error) return { error: error.message }
       return { sops: data ?? [], count: data?.length ?? 0 }
+    }
+    case 'query_calls': {
+      const limit = Math.min(Number(args.limit) || 10, 25)
+      const includeTranscript = args.include_transcript === true
+      const cols = includeTranscript
+        ? 'id, call_date, call_type, client_id, project_id, summary, key_decisions, sentiment, duration_minutes, fathom_url, transcript, summary_edited, flagged_amounts'
+        : 'id, call_date, call_type, client_id, project_id, summary, key_decisions, sentiment, duration_minutes, fathom_url, summary_edited, flagged_amounts'
+      let query = supabase.from('call_intelligence').select(cols)
+        .order('call_date', { ascending: false }).limit(limit)
+      if (args.client_id) query = query.eq('client_id', args.client_id as string)
+      if (args.call_type) query = query.eq('call_type', args.call_type as string)
+      if (args.since_days) {
+        const since = new Date(Date.now() - Number(args.since_days) * 86400000).toISOString()
+        query = query.gte('call_date', since)
+      }
+      if (args.search) {
+        const s = String(args.search).replace(/[%,]/g, ' ')
+        query = query.or(`summary.ilike.%${s}%,transcript.ilike.%${s}%`)
+      }
+      const { data, error } = await query
+      if (error) return { error: error.message }
+      return {
+        calls: data ?? [],
+        count: data?.length ?? 0,
+        note: 'Summaries come from Fathom\'s AI. If `flagged_amounts` is non-empty, those dollar values may have been misheard during transcription — prefer `summary_edited=true` rows as authoritative.',
+      }
     }
 
     // ─── Ops ────────────────────────────────────────────────────────────
