@@ -86,8 +86,8 @@ export default function PdfLogs() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Initialize state from URL (run once via lazy initializers)
-  const [callId, setCallId] = useState(() => searchParams.get("call_id") ?? "");
-  const [requestId, setRequestId] = useState(() => searchParams.get("request_id") ?? "");
+  const [clientId, setClientId] = useState<string>(() => searchParams.get("client_id") ?? "all");
+  const [keyword, setKeyword] = useState(() => searchParams.get("q") ?? "");
   const [level, setLevel] = useState<string>(() => {
     const l = searchParams.get("level");
     return l && ["all", "debug", "info", "warn", "error"].includes(l) ? l : "all";
@@ -120,10 +120,9 @@ export default function PdfLogs() {
   const [rows, setRows] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [clients, setClients] = useState<ClientOption[]>([]);
 
   // Live validation errors (null when field is valid or empty)
-  const callIdError = useMemo(() => validateUuidField(callId, "Call ID"), [callId]);
-  const requestIdError = useMemo(() => validateUuidField(requestId, "Request ID"), [requestId]);
   const userIdError = useMemo(() => validateUuidField(userId, "user_id"), [userId]);
   const minMsError = useMemo<string | null>(() => {
     if (!minMs.trim()) return null;
@@ -132,7 +131,25 @@ export default function PdfLogs() {
     if (n > 600_000) return "Must be ≤ 600000ms";
     return null;
   }, [minMs]);
-  const hasFieldErrors = !!(callIdError || requestIdError || userIdError || minMsError);
+  const hasFieldErrors = !!(userIdError || minMsError);
+
+  // Quick lookup id -> name
+  const clientNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of clients) m.set(c.id, c.name);
+    return m;
+  }, [clients]);
+
+  // Load clients list once for the picker
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase
+        .from("clients")
+        .select("id, name")
+        .order("name", { ascending: true });
+      if (!error && data) setClients(data as ClientOption[]);
+    })();
+  }, []);
 
   // Union of canonical events + any seen in current rows (in case of new events)
   const eventOptions = useMemo(() => {
@@ -147,38 +164,11 @@ export default function PdfLogs() {
     (errorsOnly ? 1 : 0) +
     (selectedEvents.length > 0 ? 1 : 0);
 
-  // Recent example IDs taken from loaded rows (most recent first, deduped)
-  const exampleCallIds = useMemo(() => {
-    const seen = new Set<string>();
-    const out: { id: string; ts?: string | null }[] = [];
-    for (const r of rows) {
-      if (r.call_id && !seen.has(r.call_id)) {
-        seen.add(r.call_id);
-        out.push({ id: r.call_id, ts: r.created_at });
-        if (out.length >= 3) break;
-      }
-    }
-    return out;
-  }, [rows]);
-
-  const exampleRequestIds = useMemo(() => {
-    const seen = new Set<string>();
-    const out: { id: string; ts?: string | null }[] = [];
-    for (const r of rows) {
-      if (r.request_id && !seen.has(r.request_id)) {
-        seen.add(r.request_id);
-        out.push({ id: r.request_id, ts: r.created_at });
-        if (out.length >= 3) break;
-      }
-    }
-    return out;
-  }, [rows]);
-
   // Keep URL in sync with current filter state (replace, no history entry per keystroke)
   useEffect(() => {
     const next = new URLSearchParams();
-    if (callId.trim()) next.set("call_id", callId.trim());
-    if (requestId.trim()) next.set("request_id", requestId.trim());
+    if (clientId && clientId !== "all") next.set("client_id", clientId);
+    if (keyword.trim()) next.set("q", keyword.trim());
     if (level !== "all") next.set("level", level);
     if (limit !== 200) next.set("limit", String(limit));
     if (fromDate) next.set("from", fmtDateParam(fromDate));
@@ -192,7 +182,7 @@ export default function PdfLogs() {
     if (next.toString() !== searchParams.toString()) {
       setSearchParams(next, { replace: true });
     }
-  }, [callId, requestId, level, limit, fromDate, toDate, userId, minMs, errorsOnly, selectedEvents, searchParams, setSearchParams]);
+  }, [clientId, keyword, level, limit, fromDate, toDate, userId, minMs, errorsOnly, selectedEvents, searchParams, setSearchParams]);
 
   const fetchLogs = async () => {
     if (hasFieldErrors) {
