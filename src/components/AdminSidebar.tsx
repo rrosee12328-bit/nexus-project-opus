@@ -21,6 +21,7 @@ import {
   Receipt,
   ScrollText,
   Video,
+  Cpu,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -40,7 +41,8 @@ import {
 } from "@/components/ui/sidebar";
 
 const navItems = [
-  { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
+  { title: "The Brain", url: "/admin", icon: Cpu },
+  { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
   { title: "Calendar", url: "/admin/calendar", icon: Calendar },
   { title: "Client Management", url: "/admin/clients", icon: Users },
   { title: "Client Summaries", url: "/admin/summaries", icon: BookOpen },

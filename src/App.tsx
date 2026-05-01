@@ -37,6 +37,7 @@ import AdminKnowledgeBase from "./pages/admin/KnowledgeBase";
 import AdminInvoices from "./pages/admin/Invoices";
 import AdminPdfLogs from "./pages/admin/PdfLogs";
 import AdminBusinessMedia from "./pages/admin/BusinessMedia";
+import BrainHub from "./pages/BrainHub";
 
 import OpsLayout from "./layouts/OpsLayout";
 import OpsDashboard from "./pages/ops/Dashboard";
@@ -93,7 +94,8 @@ const App = () => (
                 </ProtectedRoute>
               }
             >
-              <Route index element={<AdminDashboard />} />
+              <Route index element={<BrainHub />} />
+              <Route path="dashboard" element={<AdminDashboard />} />
               <Route path="clients" element={<AdminClients />} />
               <Route path="clients/:clientId" element={<AdminClientDetail />} />
               <Route path="projects" element={<AdminProjects />} />
@@ -114,6 +116,18 @@ const App = () => (
               <Route path="invoices" element={<AdminInvoices />} />
               <Route path="pdf-logs" element={<AdminPdfLogs />} />
               <Route path="business-media" element={<AdminBusinessMedia />} />
+            </Route>
+
+            {/* Brain Hub — admin-only, also accessible via /brain */}
+            <Route
+              path="/brain"
+              element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <AdminLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<BrainHub />} />
             </Route>
 
             {/* Ops Portal */}
