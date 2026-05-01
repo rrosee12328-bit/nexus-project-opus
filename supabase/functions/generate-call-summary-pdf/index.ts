@@ -830,6 +830,11 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Use the platform request id if available, else generate one
+  const requestId = req.headers.get("x-request-id") ?? crypto.randomUUID();
+  const logger = new StructuredLogger({ request_id: requestId, fn: "generate-call-summary-pdf" });
+  logger.info("request_received", { method: req.method, url: req.url });
+
   try {
     const url = new URL(req.url);
     let rawCallId: unknown = url.searchParams.get("call_id");
@@ -842,18 +847,25 @@ Deno.serve(async (req) => {
 
     const parsed = RequestSchema.safeParse({ call_id: rawCallId });
     if (!parsed.success) {
+      logger.warn("validation_failed_request", {
+        field_errors: parsed.error.flatten().fieldErrors,
+        raw_call_id_type: typeof rawCallId,
+      });
       return new Response(
         JSON.stringify({ error: "Invalid request", details: parsed.error.flatten().fieldErrors }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json", "x-request-id": requestId } },
       );
     }
     const callId = parsed.data.call_id;
+    logger.setContext({ call_id: callId });
+    logger.info("validation_passed_request");
 
     // Auth check
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
+      logger.warn("auth_missing_bearer");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json", "x-request-id": requestId },
       });
     }
     const supabase = createClient(
@@ -864,10 +876,13 @@ Deno.serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const { data: claims, error: authErr } = await supabase.auth.getClaims(token);
     if (authErr || !claims?.claims) {
+      logger.warn("auth_invalid_token", { error: authErr?.message });
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json", "x-request-id": requestId },
       });
     }
+    logger.setContext({ user_id: claims.claims.sub });
+    logger.info("auth_ok");
 
     // Fetch call (RLS-scoped via user JWT)
     const { data: call, error: callErr } = await supabase
@@ -877,10 +892,25 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (callErr || !call) {
+      logger.warn("call_fetch_failed", {
+        error: callErr?.message,
+        not_found: !call && !callErr,
+      });
       return new Response(JSON.stringify({ error: callErr?.message || "Call not found" }), {
-        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json", "x-request-id": requestId },
       });
     }
+    logger.info("call_fetched", {
+      call_type: call.call_type,
+      has_transcript: !!call.transcript,
+      transcript_length: typeof call.transcript === "string" ? call.transcript.length : 0,
+      has_ai_analysis: !!call.ai_analysis,
+      ai_analysis_type: typeof call.ai_analysis,
+      has_summary: !!call.summary,
+      key_decisions_type: Array.isArray(call.key_decisions) ? "array" : typeof call.key_decisions,
+      client_id: call.client_id,
+      project_id: call.project_id,
+    });
 
     // Fetch related client/project names
     let clientName: string | null = null;
@@ -915,7 +945,7 @@ Deno.serve(async (req) => {
     builder.divider();
 
     // Defensive sanitization — never trust DB JSON shape
-    const ai: AiAnalysis = sanitizeAiAnalysis(call.ai_analysis);
+    const ai: AiAnalysis = sanitizeAiAnalysis(call.ai_analysis, logger);
     const execOverview = toStr(ai.executive_overview) || toStr(ai.executive_summary) || toStr(call.summary);
     if (execOverview) {
       builder.sectionHeading("Executive Overview");
@@ -926,10 +956,20 @@ Deno.serve(async (req) => {
     if (sentiment) builder.sentimentBadge(sentiment);
 
     const fallbackDecisions = toStrArray(call.key_decisions);
+    if (call.key_decisions != null && fallbackDecisions.length === 0) {
+      logger.warn("key_decisions_unparsable", {
+        actual_type: Array.isArray(call.key_decisions) ? "array" : typeof call.key_decisions,
+      });
+    }
 
     const sections: Section[] = ai.sections?.length
       ? ai.sections.map((s, i) => ({ number: s.number ?? i + 1, title: s.title, blocks: s.blocks || [] }))
       : legacyToSections(ai, call.call_type, fallbackDecisions);
+    logger.info("sections_resolved", {
+      source: ai.sections?.length ? "rich_format" : "legacy_fallback",
+      section_count: sections.length,
+      total_blocks: sections.reduce((n, s) => n + s.blocks.length, 0),
+    });
 
     for (const section of sections) {
       builder.sectionHeading(section.title, section.number);
@@ -955,16 +995,30 @@ Deno.serve(async (req) => {
         builder.drawText(line, MARGIN, { font: builder.font, size: 9, color: TEXT });
         builder.y -= 12;
       }
-      if ((call.transcript as string).length > MAX_TRANSCRIPT_LEN) {
+      const originalTranscriptLength = typeof call.transcript === "string" ? call.transcript.length : 0;
+      if (originalTranscriptLength > MAX_TRANSCRIPT_LEN) {
         builder.y -= 6;
         builder.drawText("[Transcript truncated for length]", MARGIN, { font: builder.font, size: 9, color: MUTED });
+        logger.warn("transcript_truncated", {
+          original_length: originalTranscriptLength,
+          max_length: MAX_TRANSCRIPT_LEN,
+          dropped_chars: originalTranscriptLength - MAX_TRANSCRIPT_LEN,
+        });
       }
+    } else if (call.transcript != null && typeof call.transcript !== "string") {
+      logger.warn("transcript_invalid_type", { actual_type: typeof call.transcript });
     }
 
     builder.footers();
 
     const bytes = await builder.doc.save();
     const filename = `call-summary-${safeDateShort(call.call_date)}.pdf`;
+    logger.info("pdf_generated", {
+      page_count: builder.doc.getPageCount(),
+      byte_length: bytes.byteLength,
+      filename,
+      drop_counters: logger.counters(),
+    });
 
     return new Response(bytes, {
       status: 200,
@@ -973,12 +1027,18 @@ Deno.serve(async (req) => {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="${filename}"`,
         "Cache-Control": "no-store",
+        "x-request-id": requestId,
       },
     });
   } catch (e) {
-    console.error("generate-call-summary-pdf error", e);
+    const err = e as Error;
+    logger.error("unhandled_exception", {
+      error_message: err.message,
+      error_name: err.name,
+      stack: err.stack,
+    });
     return new Response(JSON.stringify({ error: (e as Error).message }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json", "x-request-id": requestId },
     });
   }
 });
