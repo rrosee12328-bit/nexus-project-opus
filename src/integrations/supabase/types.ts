@@ -1325,6 +1325,33 @@ export type Database = {
         }
         Relationships: []
       }
+      market_intelligence_errors: {
+        Row: {
+          created_at: string
+          error_message: string
+          id: string
+          raw_payload: Json | null
+          stage: string | null
+          trigger_source: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_message: string
+          id?: string
+          raw_payload?: Json | null
+          stage?: string | null
+          trigger_source?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string
+          id?: string
+          raw_payload?: Json | null
+          stage?: string | null
+          trigger_source?: string | null
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           attachment_name: string | null
