@@ -18,6 +18,62 @@ const corsHeaders = {
   "Access-Control-Expose-Headers": "Content-Disposition",
 };
 
+// ───── Structured Logger ─────
+// Emits single-line JSON per event so logs are queryable by call_id / request_id / event.
+// Levels: debug | info | warn | error
+
+type LogLevel = "debug" | "info" | "warn" | "error";
+
+type LogContext = {
+  request_id: string;
+  call_id?: string;
+  user_id?: string;
+  fn: "generate-call-summary-pdf";
+};
+
+class StructuredLogger {
+  private ctx: LogContext;
+  private startedAt: number;
+  private dropCounts: Record<string, number> = {};
+
+  constructor(ctx: LogContext) {
+    this.ctx = ctx;
+    this.startedAt = Date.now();
+  }
+
+  setContext(extra: Partial<LogContext>) {
+    this.ctx = { ...this.ctx, ...extra };
+  }
+
+  /** Increment a named counter (e.g. "blocks_dropped_invalid_type"). */
+  count(key: string, by = 1) {
+    this.dropCounts[key] = (this.dropCounts[key] ?? 0) + by;
+  }
+
+  counters(): Record<string, number> {
+    return { ...this.dropCounts };
+  }
+
+  log(level: LogLevel, event: string, data: Record<string, unknown> = {}) {
+    const payload = {
+      level,
+      event,
+      elapsed_ms: Date.now() - this.startedAt,
+      ...this.ctx,
+      ...data,
+    };
+    const line = JSON.stringify(payload);
+    // Use console.error for warn+ so they show up in error log views as well
+    if (level === "error" || level === "warn") console.error(line);
+    else console.log(line);
+  }
+
+  debug(event: string, data?: Record<string, unknown>) { this.log("debug", event, data); }
+  info(event: string, data?: Record<string, unknown>)  { this.log("info", event, data); }
+  warn(event: string, data?: Record<string, unknown>)  { this.log("warn", event, data); }
+  error(event: string, data?: Record<string, unknown>) { this.log("error", event, data); }
+}
+
 // ───── Validation ─────
 
 // Strict input validation (rejects malformed requests early)
@@ -194,34 +250,102 @@ const AiAnalysisSchema = z.object({
  * Sanitize ai_analysis from the database. Always returns a valid object.
  * Drops any block / section that fails its sub-schema instead of failing the whole PDF.
  */
-function sanitizeAiAnalysis(raw: unknown): AiAnalysis {
+function sanitizeAiAnalysis(raw: unknown, logger?: StructuredLogger): AiAnalysis {
   // Accept JSON strings from the DB just in case
   let parsed: unknown = raw;
   if (typeof raw === "string") {
-    try { parsed = JSON.parse(raw); } catch { parsed = {}; }
+    try {
+      parsed = JSON.parse(raw);
+      logger?.debug("ai_analysis_parsed_from_string", { byte_length: raw.length });
+    } catch (e) {
+      logger?.warn("ai_analysis_invalid_json_string", { error: (e as Error).message });
+      parsed = {};
+    }
   }
-  if (!parsed || typeof parsed !== "object") return {};
+  if (!parsed || typeof parsed !== "object") {
+    logger?.warn("ai_analysis_not_object", { actual_type: parsed === null ? "null" : typeof parsed });
+    return {};
+  }
 
   const result = AiAnalysisSchema.safeParse(parsed);
   if (!result.success) {
-    console.warn("ai_analysis failed top-level validation, ignoring", result.error.flatten());
+    logger?.warn("ai_analysis_top_level_validation_failed", {
+      field_errors: result.error.flatten().fieldErrors,
+    });
     return {};
   }
 
   const out: AiAnalysis = { ...result.data } as AiAnalysis;
 
-  // Validate blocks per section, dropping invalid ones
+  // Validate blocks per section, logging which ones get dropped
   if (result.data.sections?.length) {
+    let totalRawBlocks = 0;
+    let totalKeptBlocks = 0;
+    let droppedSections = 0;
+
     out.sections = result.data.sections
-      .map((s) => {
+      .map((s, sectionIdx) => {
         const blocks: Block[] = [];
-        for (const rawBlock of s.blocks) {
+        s.blocks.forEach((rawBlock, blockIdx) => {
+          totalRawBlocks++;
+          const blockType = (rawBlock as { type?: unknown })?.type;
           const r = BlockSchema.safeParse(rawBlock);
-          if (r.success && r.data) blocks.push(r.data as Block);
-        }
+          if (r.success && r.data) {
+            blocks.push(r.data as Block);
+            totalKeptBlocks++;
+          } else {
+            const reason = !rawBlock || typeof rawBlock !== "object"
+              ? "not_an_object"
+              : typeof blockType !== "string"
+                ? "missing_type"
+                : !["paragraph", "bullets", "table", "callout"].includes(String(blockType))
+                  ? "unknown_type"
+                  : "schema_mismatch";
+            logger?.count(`block_dropped_${reason}`);
+            logger?.warn("block_dropped", {
+              section_index: sectionIdx,
+              section_title: s.title,
+              block_index: blockIdx,
+              raw_type: typeof blockType === "string" ? blockType : null,
+              reason,
+              zod_errors: r.success ? null : r.error.flatten().formErrors,
+            });
+          }
+        });
         return { number: s.number, title: s.title, blocks };
       })
-      .filter((s) => s.title && s.blocks.length > 0);
+      .filter((s) => {
+        const ok = !!s.title && s.blocks.length > 0;
+        if (!ok) {
+          droppedSections++;
+          logger?.count("section_dropped");
+          logger?.warn("section_dropped", {
+            section_title: s.title,
+            reason: !s.title ? "missing_title" : "no_valid_blocks",
+            block_count: s.blocks.length,
+          });
+        }
+        return ok;
+      });
+
+    logger?.info("ai_analysis_sections_summary", {
+      raw_section_count: result.data.sections.length,
+      kept_section_count: out.sections.length,
+      dropped_section_count: droppedSections,
+      raw_block_count: totalRawBlocks,
+      kept_block_count: totalKeptBlocks,
+      dropped_block_count: totalRawBlocks - totalKeptBlocks,
+    });
+  } else {
+    logger?.debug("ai_analysis_no_sections", {
+      has_legacy_keys: !!(
+        result.data.key_takeaways?.length ||
+        result.data.topics_discussed?.length ||
+        result.data.client_commitments?.length ||
+        result.data.vektiss_tasks?.length ||
+        result.data.next_steps
+      ),
+    });
   }
 
   return out;
@@ -706,6 +830,11 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Use the platform request id if available, else generate one
+  const requestId = req.headers.get("x-request-id") ?? crypto.randomUUID();
+  const logger = new StructuredLogger({ request_id: requestId, fn: "generate-call-summary-pdf" });
+  logger.info("request_received", { method: req.method, url: req.url });
+
   try {
     const url = new URL(req.url);
     let rawCallId: unknown = url.searchParams.get("call_id");
@@ -718,18 +847,25 @@ Deno.serve(async (req) => {
 
     const parsed = RequestSchema.safeParse({ call_id: rawCallId });
     if (!parsed.success) {
+      logger.warn("validation_failed_request", {
+        field_errors: parsed.error.flatten().fieldErrors,
+        raw_call_id_type: typeof rawCallId,
+      });
       return new Response(
         JSON.stringify({ error: "Invalid request", details: parsed.error.flatten().fieldErrors }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json", "x-request-id": requestId } },
       );
     }
     const callId = parsed.data.call_id;
+    logger.setContext({ call_id: callId });
+    logger.info("validation_passed_request");
 
     // Auth check
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
+      logger.warn("auth_missing_bearer");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json", "x-request-id": requestId },
       });
     }
     const supabase = createClient(
@@ -740,10 +876,13 @@ Deno.serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const { data: claims, error: authErr } = await supabase.auth.getClaims(token);
     if (authErr || !claims?.claims) {
+      logger.warn("auth_invalid_token", { error: authErr?.message });
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json", "x-request-id": requestId },
       });
     }
+    logger.setContext({ user_id: claims.claims.sub });
+    logger.info("auth_ok");
 
     // Fetch call (RLS-scoped via user JWT)
     const { data: call, error: callErr } = await supabase
@@ -753,10 +892,25 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (callErr || !call) {
+      logger.warn("call_fetch_failed", {
+        error: callErr?.message,
+        not_found: !call && !callErr,
+      });
       return new Response(JSON.stringify({ error: callErr?.message || "Call not found" }), {
-        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json", "x-request-id": requestId },
       });
     }
+    logger.info("call_fetched", {
+      call_type: call.call_type,
+      has_transcript: !!call.transcript,
+      transcript_length: typeof call.transcript === "string" ? call.transcript.length : 0,
+      has_ai_analysis: !!call.ai_analysis,
+      ai_analysis_type: typeof call.ai_analysis,
+      has_summary: !!call.summary,
+      key_decisions_type: Array.isArray(call.key_decisions) ? "array" : typeof call.key_decisions,
+      client_id: call.client_id,
+      project_id: call.project_id,
+    });
 
     // Fetch related client/project names
     let clientName: string | null = null;
@@ -791,7 +945,7 @@ Deno.serve(async (req) => {
     builder.divider();
 
     // Defensive sanitization — never trust DB JSON shape
-    const ai: AiAnalysis = sanitizeAiAnalysis(call.ai_analysis);
+    const ai: AiAnalysis = sanitizeAiAnalysis(call.ai_analysis, logger);
     const execOverview = toStr(ai.executive_overview) || toStr(ai.executive_summary) || toStr(call.summary);
     if (execOverview) {
       builder.sectionHeading("Executive Overview");
@@ -802,10 +956,20 @@ Deno.serve(async (req) => {
     if (sentiment) builder.sentimentBadge(sentiment);
 
     const fallbackDecisions = toStrArray(call.key_decisions);
+    if (call.key_decisions != null && fallbackDecisions.length === 0) {
+      logger.warn("key_decisions_unparsable", {
+        actual_type: Array.isArray(call.key_decisions) ? "array" : typeof call.key_decisions,
+      });
+    }
 
     const sections: Section[] = ai.sections?.length
       ? ai.sections.map((s, i) => ({ number: s.number ?? i + 1, title: s.title, blocks: s.blocks || [] }))
       : legacyToSections(ai, call.call_type, fallbackDecisions);
+    logger.info("sections_resolved", {
+      source: ai.sections?.length ? "rich_format" : "legacy_fallback",
+      section_count: sections.length,
+      total_blocks: sections.reduce((n, s) => n + s.blocks.length, 0),
+    });
 
     for (const section of sections) {
       builder.sectionHeading(section.title, section.number);
@@ -831,16 +995,30 @@ Deno.serve(async (req) => {
         builder.drawText(line, MARGIN, { font: builder.font, size: 9, color: TEXT });
         builder.y -= 12;
       }
-      if ((call.transcript as string).length > MAX_TRANSCRIPT_LEN) {
+      const originalTranscriptLength = typeof call.transcript === "string" ? call.transcript.length : 0;
+      if (originalTranscriptLength > MAX_TRANSCRIPT_LEN) {
         builder.y -= 6;
         builder.drawText("[Transcript truncated for length]", MARGIN, { font: builder.font, size: 9, color: MUTED });
+        logger.warn("transcript_truncated", {
+          original_length: originalTranscriptLength,
+          max_length: MAX_TRANSCRIPT_LEN,
+          dropped_chars: originalTranscriptLength - MAX_TRANSCRIPT_LEN,
+        });
       }
+    } else if (call.transcript != null && typeof call.transcript !== "string") {
+      logger.warn("transcript_invalid_type", { actual_type: typeof call.transcript });
     }
 
     builder.footers();
 
     const bytes = await builder.doc.save();
     const filename = `call-summary-${safeDateShort(call.call_date)}.pdf`;
+    logger.info("pdf_generated", {
+      page_count: builder.doc.getPageCount(),
+      byte_length: bytes.byteLength,
+      filename,
+      drop_counters: logger.counters(),
+    });
 
     return new Response(bytes, {
       status: 200,
@@ -849,12 +1027,18 @@ Deno.serve(async (req) => {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="${filename}"`,
         "Cache-Control": "no-store",
+        "x-request-id": requestId,
       },
     });
   } catch (e) {
-    console.error("generate-call-summary-pdf error", e);
+    const err = e as Error;
+    logger.error("unhandled_exception", {
+      error_message: err.message,
+      error_name: err.name,
+      stack: err.stack,
+    });
     return new Response(JSON.stringify({ error: (e as Error).message }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json", "x-request-id": requestId },
     });
   }
 });
