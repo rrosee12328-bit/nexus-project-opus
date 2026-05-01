@@ -126,6 +126,25 @@ export default function PdfLogs() {
   });
   const [fromDate, setFromDate] = useState<Date | undefined>(() => parseDateParam(searchParams.get("from")));
   const [toDate, setToDate] = useState<Date | undefined>(() => parseDateParam(searchParams.get("to")));
+
+  // Advanced filters
+  const [advancedOpen, setAdvancedOpen] = useState<boolean>(() => {
+    return !!(
+      searchParams.get("user_id") ||
+      searchParams.get("min_ms") ||
+      searchParams.get("errors_only") ||
+      searchParams.get("events")
+    );
+  });
+  const [userId, setUserId] = useState(() => searchParams.get("user_id") ?? "");
+  const [minMs, setMinMs] = useState<string>(() => searchParams.get("min_ms") ?? "");
+  const [errorsOnly, setErrorsOnly] = useState<boolean>(() => searchParams.get("errors_only") === "1");
+  const [selectedEvents, setSelectedEvents] = useState<string[]>(() => {
+    const raw = searchParams.get("events");
+    if (!raw) return [];
+    return raw.split(",").map((s) => s.trim()).filter(Boolean);
+  });
+
   const [rows, setRows] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -133,7 +152,28 @@ export default function PdfLogs() {
   // Live validation errors (null when field is valid or empty)
   const callIdError = useMemo(() => validateUuidField(callId, "call_id"), [callId]);
   const requestIdError = useMemo(() => validateUuidField(requestId, "request_id"), [requestId]);
-  const hasFieldErrors = !!(callIdError || requestIdError);
+  const userIdError = useMemo(() => validateUuidField(userId, "user_id"), [userId]);
+  const minMsError = useMemo<string | null>(() => {
+    if (!minMs.trim()) return null;
+    const n = Number(minMs);
+    if (!Number.isFinite(n) || n < 0 || !Number.isInteger(n)) return "Must be a non-negative integer";
+    if (n > 600_000) return "Must be ≤ 600000ms";
+    return null;
+  }, [minMs]);
+  const hasFieldErrors = !!(callIdError || requestIdError || userIdError || minMsError);
+
+  // Union of canonical events + any seen in current rows (in case of new events)
+  const eventOptions = useMemo(() => {
+    const set = new Set<string>(KNOWN_EVENTS);
+    for (const r of rows) if (r.event) set.add(r.event);
+    return Array.from(set).sort();
+  }, [rows]);
+
+  const advancedActiveCount =
+    (userId.trim() ? 1 : 0) +
+    (minMs.trim() ? 1 : 0) +
+    (errorsOnly ? 1 : 0) +
+    (selectedEvents.length > 0 ? 1 : 0);
 
   // Recent example IDs taken from loaded rows (most recent first, deduped)
   const exampleCallIds = useMemo(() => {
@@ -171,12 +211,16 @@ export default function PdfLogs() {
     if (limit !== 200) next.set("limit", String(limit));
     if (fromDate) next.set("from", fmtDateParam(fromDate));
     if (toDate) next.set("to", fmtDateParam(toDate));
+    if (userId.trim()) next.set("user_id", userId.trim());
+    if (minMs.trim()) next.set("min_ms", minMs.trim());
+    if (errorsOnly) next.set("errors_only", "1");
+    if (selectedEvents.length > 0) next.set("events", selectedEvents.join(","));
 
     // Avoid no-op writes that cause extra renders
     if (next.toString() !== searchParams.toString()) {
       setSearchParams(next, { replace: true });
     }
-  }, [callId, requestId, level, limit, fromDate, toDate, searchParams, setSearchParams]);
+  }, [callId, requestId, level, limit, fromDate, toDate, userId, minMs, errorsOnly, selectedEvents, searchParams, setSearchParams]);
 
   const fetchLogs = async () => {
     if (hasFieldErrors) {
@@ -203,6 +247,10 @@ export default function PdfLogs() {
       }
       if (fromDate) q = q.gte("created_at", startOfDay(fromDate).toISOString());
       if (toDate) q = q.lte("created_at", endOfDay(toDate).toISOString());
+      if (userId.trim()) q = q.eq("user_id", userId.trim());
+      if (minMs.trim()) q = q.gte("elapsed_ms", Number(minMs));
+      if (errorsOnly) q = q.in("level", ["warn", "error"]);
+      if (selectedEvents.length > 0) q = q.in("event", selectedEvents);
 
       const { data, error } = await q;
       if (error) throw error;
@@ -217,7 +265,7 @@ export default function PdfLogs() {
   useEffect(() => {
     fetchLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [level, limit, fromDate, toDate]);
+  }, [level, limit, fromDate, toDate, errorsOnly, selectedEvents]);
 
   const applyPreset = (preset: "1h" | "24h" | "7d" | "30d" | "clear") => {
     const now = new Date();
