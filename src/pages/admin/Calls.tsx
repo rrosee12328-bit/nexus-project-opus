@@ -19,8 +19,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Phone, Plus, Search, FileText, Mic, TrendingUp, Users,
-  ChevronDown, ChevronUp, Pencil, Trash2, ExternalLink,
+  ChevronDown, ChevronUp, Pencil, Trash2, ExternalLink, Download,
 } from "lucide-react";
+import { generateCallSummaryPdf } from "@/lib/callSummaryPdf";
 
 type CallRecord = {
   id: string;
@@ -34,6 +35,9 @@ type CallRecord = {
   sentiment: string | null;
   key_decisions: any;
   created_at: string | null;
+  duration_minutes?: number | null;
+  fathom_url?: string | null;
+  ai_analysis?: any;
 };
 
 type Client = { id: string; name: string };
@@ -257,6 +261,28 @@ export default function AdminCalls() {
   const getProjectName = (id: string | null) =>
     id ? (projects.find((p) => p.id === id)?.name ?? "—") : "—";
 
+  const handleDownloadPdf = (call: CallRecord) => {
+    try {
+      generateCallSummaryPdf({
+        call_date: call.call_date,
+        duration_minutes: call.duration_minutes,
+        call_type: call.call_type,
+        fathom_url: call.fathom_url,
+        fathom_meeting_id: call.fathom_meeting_id,
+        transcript: call.transcript,
+        summary: call.summary,
+        sentiment: call.sentiment,
+        key_decisions: call.key_decisions,
+        ai_analysis: call.ai_analysis,
+        client_name: getClientName(call.client_id),
+        project_name: getProjectName(call.project_id),
+      });
+      toast.success("PDF downloaded");
+    } catch (e: any) {
+      toast.error(e.message || "Failed to generate PDF");
+    }
+  };
+
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -382,6 +408,9 @@ export default function AdminCalls() {
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-1">
+                        <Button size="icon" variant="ghost" className="h-7 w-7" title="Download PDF" onClick={() => handleDownloadPdf(call)}>
+                          <Download className="h-3.5 w-3.5" />
+                        </Button>
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(call)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
@@ -472,6 +501,9 @@ export default function AdminCalls() {
                 )}
               </div>
               <DialogFooter>
+                <Button variant="outline" onClick={() => handleDownloadPdf(viewingCall)}>
+                  <Download className="h-4 w-4 mr-2" /> Download PDF
+                </Button>
                 <Button variant="outline" onClick={() => openEdit(viewingCall)}>
                   <Pencil className="h-4 w-4 mr-2" /> Edit
                 </Button>
