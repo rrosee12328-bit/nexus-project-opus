@@ -77,10 +77,10 @@ export default function ClientCalls() {
   }, [filtered]);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-12">
+    <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6 px-3 sm:px-0 pb-8 sm:pb-12">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Call History</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Call History</h1>
+        <p className="text-xs sm:text-sm text-muted-foreground">
           A timeline of every call we've had together — what was discussed, decided, and where we go next.
         </p>
       </header>
@@ -111,20 +111,20 @@ export default function ClientCalls() {
           </p>
         </Card>
       ) : (
-        <div className="relative pl-6">
+        <div className="relative pl-5 sm:pl-6">
           {/* Vertical timeline line */}
-          <div className="absolute left-2 top-2 bottom-2 w-px bg-border" aria-hidden />
+          <div className="absolute left-1.5 sm:left-2 top-2 bottom-2 w-px bg-border" aria-hidden />
 
           {grouped.map(([month, items]) => (
-            <section key={month} className="mb-8">
-              <div className="flex items-center gap-2 mb-3 -ml-6">
-                <div className="h-4 w-4 rounded-full bg-primary/20 border-2 border-primary flex-shrink-0" />
+            <section key={month} className="mb-6 sm:mb-8">
+              <div className="flex items-center gap-2 mb-3 -ml-5 sm:-ml-6">
+                <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full bg-primary/20 border-2 border-primary flex-shrink-0" />
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {month}
                 </h2>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2.5 sm:space-y-3">
                 {items.map((call) => {
                   const isOpen = openId === call.id;
                   const brief = getBriefSummary(call.summary, 160) || "Summary not available yet.";
@@ -134,13 +134,16 @@ export default function ClientCalls() {
                       <button
                         type="button"
                         onClick={() => setOpenId(isOpen ? null : call.id)}
-                        className="w-full text-left p-4 hover:bg-muted/40 transition-colors"
+                        className="w-full text-left p-3 sm:p-4 hover:bg-muted/40 transition-colors"
                       >
-                        <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start justify-between gap-2 sm:gap-3">
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5">
-                              <Calendar className="h-3.5 w-3.5" />
-                              <span>{format(new Date(call.call_date), "EEE, MMM d • h:mm a")}</span>
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] sm:text-xs text-muted-foreground mb-1.5">
+                              <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                              <span className="truncate">
+                                <span className="sm:hidden">{format(new Date(call.call_date), "MMM d • h:mm a")}</span>
+                                <span className="hidden sm:inline">{format(new Date(call.call_date), "EEE, MMM d • h:mm a")}</span>
+                              </span>
                               {call.duration_minutes ? (
                                 <span>· {call.duration_minutes} min</span>
                               ) : null}
@@ -150,11 +153,11 @@ export default function ClientCalls() {
                                 </Badge>
                               ) : null}
                             </div>
-                            <p className="text-sm font-medium text-foreground leading-snug">
+                            <p className="text-[13px] sm:text-sm font-medium text-foreground leading-snug">
                               {brief}
                             </p>
                             {!isOpen && decisions.length > 0 && (
-                              <p className="text-xs text-muted-foreground mt-1.5">
+                              <p className="text-[11px] sm:text-xs text-muted-foreground mt-1.5">
                                 {decisions.length} key decision{decisions.length === 1 ? "" : "s"}
                               </p>
                             )}
@@ -168,7 +171,7 @@ export default function ClientCalls() {
                       </button>
 
                       {isOpen && (
-                        <div className="px-4 pb-4 pt-0 border-t border-border/60 bg-muted/20">
+                        <div className="px-3 sm:px-4 pb-3 sm:pb-4 pt-0 border-t border-border/60 bg-muted/20">
                           {decisions.length > 0 && (
                             <div className="mt-4">
                               <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
@@ -176,7 +179,7 @@ export default function ClientCalls() {
                               </h4>
                               <ul className="space-y-1 ml-4 list-disc">
                                 {decisions.map((d: any, idx: number) => (
-                                  <li key={idx} className="text-sm text-foreground/80">
+                                  <li key={idx} className="text-[13px] sm:text-sm text-foreground/80">
                                     {typeof d === "string" ? d : JSON.stringify(d)}
                                   </li>
                                 ))}
