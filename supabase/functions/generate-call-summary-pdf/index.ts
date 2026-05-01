@@ -250,34 +250,102 @@ const AiAnalysisSchema = z.object({
  * Sanitize ai_analysis from the database. Always returns a valid object.
  * Drops any block / section that fails its sub-schema instead of failing the whole PDF.
  */
-function sanitizeAiAnalysis(raw: unknown): AiAnalysis {
+function sanitizeAiAnalysis(raw: unknown, logger?: StructuredLogger): AiAnalysis {
   // Accept JSON strings from the DB just in case
   let parsed: unknown = raw;
   if (typeof raw === "string") {
-    try { parsed = JSON.parse(raw); } catch { parsed = {}; }
+    try {
+      parsed = JSON.parse(raw);
+      logger?.debug("ai_analysis_parsed_from_string", { byte_length: raw.length });
+    } catch (e) {
+      logger?.warn("ai_analysis_invalid_json_string", { error: (e as Error).message });
+      parsed = {};
+    }
   }
-  if (!parsed || typeof parsed !== "object") return {};
+  if (!parsed || typeof parsed !== "object") {
+    logger?.warn("ai_analysis_not_object", { actual_type: parsed === null ? "null" : typeof parsed });
+    return {};
+  }
 
   const result = AiAnalysisSchema.safeParse(parsed);
   if (!result.success) {
-    console.warn("ai_analysis failed top-level validation, ignoring", result.error.flatten());
+    logger?.warn("ai_analysis_top_level_validation_failed", {
+      field_errors: result.error.flatten().fieldErrors,
+    });
     return {};
   }
 
   const out: AiAnalysis = { ...result.data } as AiAnalysis;
 
-  // Validate blocks per section, dropping invalid ones
+  // Validate blocks per section, logging which ones get dropped
   if (result.data.sections?.length) {
+    let totalRawBlocks = 0;
+    let totalKeptBlocks = 0;
+    let droppedSections = 0;
+
     out.sections = result.data.sections
-      .map((s) => {
+      .map((s, sectionIdx) => {
         const blocks: Block[] = [];
-        for (const rawBlock of s.blocks) {
+        s.blocks.forEach((rawBlock, blockIdx) => {
+          totalRawBlocks++;
+          const blockType = (rawBlock as { type?: unknown })?.type;
           const r = BlockSchema.safeParse(rawBlock);
-          if (r.success && r.data) blocks.push(r.data as Block);
-        }
+          if (r.success && r.data) {
+            blocks.push(r.data as Block);
+            totalKeptBlocks++;
+          } else {
+            const reason = !rawBlock || typeof rawBlock !== "object"
+              ? "not_an_object"
+              : typeof blockType !== "string"
+                ? "missing_type"
+                : !["paragraph", "bullets", "table", "callout"].includes(String(blockType))
+                  ? "unknown_type"
+                  : "schema_mismatch";
+            logger?.count(`block_dropped_${reason}`);
+            logger?.warn("block_dropped", {
+              section_index: sectionIdx,
+              section_title: s.title,
+              block_index: blockIdx,
+              raw_type: typeof blockType === "string" ? blockType : null,
+              reason,
+              zod_errors: r.success ? null : r.error.flatten().formErrors,
+            });
+          }
+        });
         return { number: s.number, title: s.title, blocks };
       })
-      .filter((s) => s.title && s.blocks.length > 0);
+      .filter((s) => {
+        const ok = !!s.title && s.blocks.length > 0;
+        if (!ok) {
+          droppedSections++;
+          logger?.count("section_dropped");
+          logger?.warn("section_dropped", {
+            section_title: s.title,
+            reason: !s.title ? "missing_title" : "no_valid_blocks",
+            block_count: s.blocks.length,
+          });
+        }
+        return ok;
+      });
+
+    logger?.info("ai_analysis_sections_summary", {
+      raw_section_count: result.data.sections.length,
+      kept_section_count: out.sections.length,
+      dropped_section_count: droppedSections,
+      raw_block_count: totalRawBlocks,
+      kept_block_count: totalKeptBlocks,
+      dropped_block_count: totalRawBlocks - totalKeptBlocks,
+    });
+  } else {
+    logger?.debug("ai_analysis_no_sections", {
+      has_legacy_keys: !!(
+        result.data.key_takeaways?.length ||
+        result.data.topics_discussed?.length ||
+        result.data.client_commitments?.length ||
+        result.data.vektiss_tasks?.length ||
+        result.data.next_steps
+      ),
+    });
   }
 
   return out;
