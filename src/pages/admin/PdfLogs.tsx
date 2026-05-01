@@ -697,8 +697,8 @@ export default function PdfLogs() {
                   <TableHead>Level</TableHead>
                   <TableHead>Event</TableHead>
                   <TableHead className="whitespace-nowrap">Elapsed</TableHead>
-                  <TableHead>request_id</TableHead>
-                  <TableHead>call_id</TableHead>
+                  <TableHead className="whitespace-nowrap">Request</TableHead>
+                  <TableHead className="whitespace-nowrap">Call</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -735,30 +735,43 @@ export default function PdfLogs() {
                         <TableCell className="font-mono text-xs whitespace-nowrap align-top">
                           {r.elapsed_ms ?? 0}ms
                         </TableCell>
-                        <TableCell
-                          className="font-mono text-[11px] max-w-[200px] truncate align-top"
-                          title={r.request_id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigator.clipboard.writeText(r.request_id);
-                            toast.success("request_id copied");
-                            setRequestId(r.request_id);
-                          }}
-                        >
-                          {r.request_id}
+                        <TableCell className="align-top">
+                          <button
+                            type="button"
+                            title={`${r.request_id} — click to filter & copy`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigator.clipboard.writeText(r.request_id);
+                              toast.success("Request ID copied");
+                              setRequestId(r.request_id);
+                            }}
+                            className="inline-flex items-center font-mono text-[11px] rounded-md border border-border bg-muted/40 hover:bg-muted hover:border-primary/40 px-2 py-0.5 transition-colors max-w-full"
+                          >
+                            <span className="truncate">
+                              {r.request_id.slice(0, 8)}…{r.request_id.slice(-4)}
+                            </span>
+                          </button>
                         </TableCell>
-                        <TableCell
-                          className="font-mono text-[11px] max-w-[200px] truncate align-top"
-                          title={r.call_id ?? ""}
-                          onClick={(e) => {
-                            if (!r.call_id) return;
-                            e.stopPropagation();
-                            navigator.clipboard.writeText(r.call_id);
-                            toast.success("call_id copied");
-                            setCallId(r.call_id);
-                          }}
-                        >
-                          {r.call_id ?? "—"}
+                        <TableCell className="align-top">
+                          {r.call_id ? (
+                            <button
+                              type="button"
+                              title={`${r.call_id} — click to filter & copy`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigator.clipboard.writeText(r.call_id!);
+                                toast.success("Call ID copied");
+                                setCallId(r.call_id!);
+                              }}
+                              className="inline-flex items-center font-mono text-[11px] rounded-md border border-border bg-muted/40 hover:bg-muted hover:border-primary/40 px-2 py-0.5 transition-colors max-w-full"
+                            >
+                              <span className="truncate">
+                                {r.call_id.slice(0, 8)}…{r.call_id.slice(-4)}
+                              </span>
+                            </button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
                         </TableCell>
                       </TableRow>
                       {open && hasData && (
