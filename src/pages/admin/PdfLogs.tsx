@@ -43,6 +43,8 @@ const LEVEL_VARIANT: Record<LogRow["level"], string> = {
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+const REQUEST_ID_MAX = 64;
+
 /** Returns null when valid (or empty), or a human-readable error string. */
 function validateUuidField(value: string, label: string): string | null {
   const v = value.trim();
@@ -78,51 +80,7 @@ const KNOWN_EVENTS = [
   "unhandled_exception",
 ] as const;
 
-function ExampleChips({
-  label,
-  values,
-  onPick,
-}: {
-  label: string;
-  values: { id: string; ts?: string | null }[];
-  onPick: (v: string) => void;
-}) {
-  return (
-    <div className="rounded-md border border-border bg-muted/20 p-2">
-      <span className="block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-        {label} — click to filter
-      </span>
-      <div className="mt-1.5 flex flex-col gap-1">
-        {values.map((v) => {
-          let rel = "";
-          if (v.ts) {
-            try {
-              rel = formatDistanceToNowStrict(new Date(v.ts), { addSuffix: true });
-            } catch {
-              rel = "";
-            }
-          }
-          return (
-            <button
-              key={v.id}
-              type="button"
-              onClick={() => onPick(v.id)}
-              title={`Filter by ${v.id}`}
-              className="group flex w-full items-center justify-between gap-2 rounded-md border border-border bg-background px-2 py-1 text-left transition-colors hover:bg-muted hover:border-primary/40"
-            >
-              <span className="truncate font-mono text-[10px] text-foreground">
-                {v.id.slice(0, 8)}…{v.id.slice(-4)}
-              </span>
-              {rel && (
-                <span className="shrink-0 text-[10px] text-muted-foreground">{rel}</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+type ClientOption = { id: string; name: string };
 
 export default function PdfLogs() {
   const [searchParams, setSearchParams] = useSearchParams();
