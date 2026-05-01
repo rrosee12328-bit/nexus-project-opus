@@ -1415,6 +1415,31 @@ async function executeTool(
       if (error) return { error: error.message }
       return { assets: data ?? [], count: data?.length ?? 0 }
     }
+    case 'query_my_calls': {
+      if (!context.clientId) return { error: 'No client profile found for your account.' }
+      const limit = Math.min(Number(args.limit) || 5, 15)
+      // Hard-pinned to the authenticated client's id. Transcripts are NEVER returned to clients.
+      let query = supabase.from('call_intelligence')
+        .select('id, call_date, call_type, summary, key_decisions, sentiment, duration_minutes, summary_edited')
+        .eq('client_id', context.clientId)
+        .order('call_date', { ascending: false })
+        .limit(limit)
+      if (args.since_days) {
+        const since = new Date(Date.now() - Number(args.since_days) * 86400000).toISOString()
+        query = query.gte('call_date', since)
+      }
+      if (args.search) {
+        const s = String(args.search).replace(/[%,]/g, ' ')
+        query = query.ilike('summary', `%${s}%`)
+      }
+      const { data, error } = await query
+      if (error) return { error: error.message }
+      return {
+        calls: data ?? [],
+        count: data?.length ?? 0,
+        note: 'Only meetings where the client was present. Internal Vektiss strategy calls are excluded.',
+      }
+    }
     case 'send_message_to_team': {
       if (!context.clientId) return { error: 'No client profile found for your account.' }
       const { data, error } = await supabase.from('messages').insert({
