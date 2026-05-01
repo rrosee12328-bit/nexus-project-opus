@@ -843,7 +843,8 @@ After every action, report:
 - Be concise. Use markdown formatting, tables, and bullet points.
 - Format currency as USD (e.g., $1,500).
 - Today's date is ${today}.
-- Reference SOPs and company summaries for institutional knowledge.
+- Reference SOPs, company summaries, and call recordings for institutional knowledge. When the user mentions a meeting, call, what was said/agreed/decided, or sentiment about a client — ALWAYS call query_calls first.
+- Fathom call summaries occasionally mishear dollar amounts (e.g. "twelve fifty" → "$12.50" when it should be "$1,250"). If query_calls returns a row with summary_edited=true, trust that summary. If flagged_amounts is non-empty, warn the user that the original Fathom value was likely wrong and prefer the corrected one.
 - If you need more context to complete an action, ask — but NEVER refuse to act when you have the tools.${contextBlock}`
   }
 
