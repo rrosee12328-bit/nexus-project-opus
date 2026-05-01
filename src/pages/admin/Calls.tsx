@@ -101,6 +101,7 @@ export default function AdminCalls() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
+  const [brainFilter, setBrainFilter] = useState<"all" | "ingested" | "missing_summary" | "missing_client" | "flagged" | "edited">("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCall, setEditingCall] = useState<CallRecord | null>(null);
   const [viewingCall, setViewingCall] = useState<CallRecord | null>(null);
