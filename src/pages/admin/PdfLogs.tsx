@@ -59,6 +59,35 @@ const parseDateParam = (v: string | null): Date | undefined => {
 };
 const fmtDateParam = (d: Date) => format(d, "yyyy-MM-dd");
 
+function ExampleChips({
+  label,
+  values,
+  onPick,
+}: {
+  label: string;
+  values: string[];
+  onPick: (v: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        {label}:
+      </span>
+      {values.map((v) => (
+        <button
+          key={v}
+          type="button"
+          onClick={() => onPick(v)}
+          title={`Use ${v}`}
+          className="font-mono text-[10px] rounded-md border border-border bg-muted/40 hover:bg-muted px-1.5 py-0.5 transition-colors max-w-[160px] truncate"
+        >
+          {v.slice(0, 8)}…{v.slice(-4)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function PdfLogs() {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -83,6 +112,33 @@ export default function PdfLogs() {
   const callIdError = useMemo(() => validateUuidField(callId, "call_id"), [callId]);
   const requestIdError = useMemo(() => validateUuidField(requestId, "request_id"), [requestId]);
   const hasFieldErrors = !!(callIdError || requestIdError);
+
+  // Recent example IDs taken from loaded rows (most recent first, deduped)
+  const exampleCallIds = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const r of rows) {
+      if (r.call_id && !seen.has(r.call_id)) {
+        seen.add(r.call_id);
+        out.push(r.call_id);
+        if (out.length >= 3) break;
+      }
+    }
+    return out;
+  }, [rows]);
+
+  const exampleRequestIds = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const r of rows) {
+      if (r.request_id && !seen.has(r.request_id)) {
+        seen.add(r.request_id);
+        out.push(r.request_id);
+        if (out.length >= 3) break;
+      }
+    }
+    return out;
+  }, [rows]);
 
   // Keep URL in sync with current filter state (replace, no history entry per keystroke)
   useEffect(() => {
@@ -203,6 +259,13 @@ export default function PdfLogs() {
                   {callIdError}
                 </p>
               )}
+              {!callIdError && exampleCallIds.length > 0 && (
+                <ExampleChips
+                  label="Recent"
+                  values={exampleCallIds}
+                  onPick={(v) => setCallId(v)}
+                />
+              )}
             </div>
             <div className="md:col-span-4 space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">request_id</label>
@@ -224,6 +287,13 @@ export default function PdfLogs() {
                 <p id="request-id-error" className="text-xs text-destructive">
                   {requestIdError}
                 </p>
+              )}
+              {!requestIdError && exampleRequestIds.length > 0 && (
+                <ExampleChips
+                  label="Recent"
+                  values={exampleRequestIds}
+                  onPick={(v) => setRequestId(v)}
+                />
               )}
             </div>
             <div className="md:col-span-2 space-y-1.5">
