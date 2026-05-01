@@ -138,22 +138,20 @@ export default function ClientCalls() {
                       >
                         <div className="flex items-start justify-between gap-2 sm:gap-3">
                           <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] sm:text-xs text-muted-foreground mb-1.5">
+                            <div className="flex items-center gap-x-2 text-[11px] sm:text-xs text-muted-foreground mb-1.5 min-w-0">
                               <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
-                              <span className="truncate">
+                              <span className="truncate min-w-0">
                                 <span className="sm:hidden">{format(new Date(call.call_date), "MMM d • h:mm a")}</span>
                                 <span className="hidden sm:inline">{format(new Date(call.call_date), "EEE, MMM d • h:mm a")}</span>
+                                {call.duration_minutes ? ` · ${call.duration_minutes} min` : ""}
                               </span>
-                              {call.duration_minutes ? (
-                                <span>· {call.duration_minutes} min</span>
-                              ) : null}
                               {call.call_type ? (
-                                <Badge variant="secondary" className="text-[10px] py-0 px-1.5 h-4">
+                                <Badge variant="secondary" className="text-[10px] py-0 px-1.5 h-4 flex-shrink-0 max-w-[40%] truncate">
                                   {call.call_type}
                                 </Badge>
                               ) : null}
                             </div>
-                            <p className="text-[13px] sm:text-sm font-medium text-foreground leading-snug">
+                            <p className="text-[13px] sm:text-sm font-medium text-foreground leading-snug line-clamp-2 sm:line-clamp-3 break-words">
                               {brief}
                             </p>
                             {!isOpen && decisions.length > 0 && (
@@ -179,7 +177,7 @@ export default function ClientCalls() {
                               </h4>
                               <ul className="space-y-1 ml-4 list-disc">
                                 {decisions.map((d: any, idx: number) => (
-                                  <li key={idx} className="text-[13px] sm:text-sm text-foreground/80">
+                                  <li key={idx} className="text-[13px] sm:text-sm text-foreground/80 break-words">
                                     {typeof d === "string" ? d : JSON.stringify(d)}
                                   </li>
                                 ))}
