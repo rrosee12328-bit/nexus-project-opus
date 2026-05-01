@@ -481,6 +481,189 @@ export default function PdfLogs() {
               )}
             </div>
           </div>
+
+          <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen} className="mt-4">
+            <div className="flex items-center justify-between border-t border-border pt-3">
+              <CollapsibleTrigger asChild>
+                <Button type="button" variant="ghost" size="sm" className="gap-2 -ml-2">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Advanced
+                  {advancedActiveCount > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">
+                      {advancedActiveCount}
+                    </Badge>
+                  )}
+                  {advancedOpen ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                </Button>
+              </CollapsibleTrigger>
+              {advancedActiveCount > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setUserId("");
+                    setMinMs("");
+                    setErrorsOnly(false);
+                    setSelectedEvents([]);
+                  }}
+                >
+                  <X className="h-3.5 w-3.5 mr-1" /> Reset advanced
+                </Button>
+              )}
+            </div>
+
+            <CollapsibleContent className="mt-3">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
+                {/* user_id */}
+                <div className="md:col-span-4 space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">user_id (UUID)</label>
+                  <Input
+                    placeholder="Filter by the user who triggered the request"
+                    value={userId}
+                    onChange={(e) => setUserId(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !hasFieldErrors) fetchLogs();
+                    }}
+                    aria-invalid={!!userIdError}
+                    className={cn(userIdError && "border-destructive focus-visible:ring-destructive")}
+                    maxLength={REQUEST_ID_MAX}
+                  />
+                  {userIdError && (
+                    <p className="text-xs text-destructive">{userIdError}</p>
+                  )}
+                </div>
+
+                {/* min elapsed_ms */}
+                <div className="md:col-span-3 space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Min elapsed (ms)
+                  </label>
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    step={50}
+                    placeholder="e.g. 1000"
+                    value={minMs}
+                    onChange={(e) => setMinMs(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !hasFieldErrors) fetchLogs();
+                    }}
+                    aria-invalid={!!minMsError}
+                    className={cn(minMsError && "border-destructive focus-visible:ring-destructive")}
+                  />
+                  {minMsError && (
+                    <p className="text-xs text-destructive">{minMsError}</p>
+                  )}
+                </div>
+
+                {/* errors only */}
+                <div className="md:col-span-2 space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Errors only</label>
+                  <div className="h-10 flex items-center gap-2 rounded-md border border-input px-3">
+                    <Switch
+                      id="errors-only"
+                      checked={errorsOnly}
+                      onCheckedChange={setErrorsOnly}
+                    />
+                    <label htmlFor="errors-only" className="text-xs text-muted-foreground cursor-pointer">
+                      warn + error
+                    </label>
+                  </div>
+                </div>
+
+                {/* events multi-select */}
+                <div className="md:col-span-3 space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Events {selectedEvents.length > 0 && `(${selectedEvents.length})`}
+                  </label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-between font-normal"
+                      >
+                        <span className="truncate">
+                          {selectedEvents.length === 0
+                            ? "All events"
+                            : selectedEvents.length === 1
+                              ? selectedEvents[0]
+                              : `${selectedEvents.length} selected`}
+                        </span>
+                        <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[280px] p-0" align="start">
+                      <div className="max-h-72 overflow-auto py-1">
+                        {eventOptions.map((ev) => {
+                          const checked = selectedEvents.includes(ev);
+                          return (
+                            <button
+                              key={ev}
+                              type="button"
+                              onClick={() =>
+                                setSelectedEvents((curr) =>
+                                  curr.includes(ev)
+                                    ? curr.filter((x) => x !== ev)
+                                    : [...curr, ev],
+                                )
+                              }
+                              className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs font-mono hover:bg-muted"
+                            >
+                              <span
+                                className={cn(
+                                  "h-4 w-4 shrink-0 rounded-sm border border-input flex items-center justify-center",
+                                  checked && "bg-primary border-primary text-primary-foreground",
+                                )}
+                              >
+                                {checked && <Check className="h-3 w-3" />}
+                              </span>
+                              <span className="truncate">{ev}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {selectedEvents.length > 0 && (
+                        <div className="border-t border-border p-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => setSelectedEvents([])}
+                          >
+                            Clear selection
+                          </Button>
+                        </div>
+                      )}
+                    </PopoverContent>
+                  </Popover>
+                  {selectedEvents.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {selectedEvents.map((ev) => (
+                        <Badge
+                          key={ev}
+                          variant="secondary"
+                          className="font-mono text-[10px] gap-1 cursor-pointer"
+                          onClick={() =>
+                            setSelectedEvents((curr) => curr.filter((x) => x !== ev))
+                          }
+                        >
+                          {ev}
+                          <X className="h-3 w-3" />
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         </CardContent>
       </Card>
 
