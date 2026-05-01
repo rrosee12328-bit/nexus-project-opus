@@ -10,7 +10,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Phone, Mic, FileText, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
-import { CallSummaryMarkdown } from "@/components/admin/CallSummaryMarkdown";
+import { CallSummaryMarkdown, getBriefSummary } from "@/components/admin/CallSummaryMarkdown";
 
 type CallRecord = {
   id: string;
@@ -127,7 +127,9 @@ export default function ClientCallsTab({ clientId }: { clientId: string }) {
                       </span>
                     </div>
                     {call.summary && (
-                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{call.summary}</p>
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                        {getBriefSummary(call.summary, 180)}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -174,9 +176,17 @@ export default function ClientCallsTab({ clientId }: { clientId: string }) {
                 {viewingCall.summary && (
                   <div>
                     <h3 className="text-sm font-semibold mb-2">Summary</h3>
-                    <div className="rounded-lg border border-border bg-card p-4">
-                      <CallSummaryMarkdown content={viewingCall.summary} />
-                    </div>
+                    <p className="text-sm text-foreground/90 leading-relaxed mb-3">
+                      {getBriefSummary(viewingCall.summary) || "—"}
+                    </p>
+                    <details className="rounded-lg border border-border bg-card">
+                      <summary className="cursor-pointer text-xs font-medium text-muted-foreground px-4 py-2 hover:text-foreground">
+                        Show full breakdown
+                      </summary>
+                      <div className="px-4 pb-4 pt-1">
+                        <CallSummaryMarkdown content={viewingCall.summary} />
+                      </div>
+                    </details>
                   </div>
                 )}
                 {viewingCall.key_decisions && (
