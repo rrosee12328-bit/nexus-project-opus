@@ -54,15 +54,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    const n8nResp = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        triggered_by: userId,
-        triggered_at: new Date().toISOString(),
-        source: 'brain_hub_run_now',
-      }),
-    });
+    const url = new URL(webhookUrl);
+    url.searchParams.set('triggered_by', userId);
+    url.searchParams.set('triggered_at', new Date().toISOString());
+    url.searchParams.set('source', 'brain_hub_run_now');
+
+    const n8nResp = await fetch(url.toString(), { method: 'GET' });
 
     const text = await n8nResp.text();
     if (!n8nResp.ok) {
