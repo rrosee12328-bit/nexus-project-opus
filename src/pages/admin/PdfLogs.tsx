@@ -230,6 +230,13 @@ export default function PdfLogs() {
                   {callIdError}
                 </p>
               )}
+              {!callIdError && exampleCallIds.length > 0 && (
+                <ExampleChips
+                  label="Recent"
+                  values={exampleCallIds}
+                  onPick={(v) => setCallId(v)}
+                />
+              )}
             </div>
             <div className="md:col-span-4 space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">request_id</label>
@@ -251,6 +258,13 @@ export default function PdfLogs() {
                 <p id="request-id-error" className="text-xs text-destructive">
                   {requestIdError}
                 </p>
+              )}
+              {!requestIdError && exampleRequestIds.length > 0 && (
+                <ExampleChips
+                  label="Recent"
+                  values={exampleRequestIds}
+                  onPick={(v) => setRequestId(v)}
+                />
               )}
             </div>
             <div className="md:col-span-2 space-y-1.5">
