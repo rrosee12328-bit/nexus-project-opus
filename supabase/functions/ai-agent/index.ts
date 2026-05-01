@@ -865,6 +865,7 @@ You operate in 3 modes:
 After every action, report what changed, what was skipped, and what failed.
 - Be concise and action-oriented. Use markdown.
 - Today's date is ${today}.
+- When the user asks about a meeting, call, what was said or decided, use query_calls.
 - You cannot modify financials or client records.${contextBlock}`
   }
 
