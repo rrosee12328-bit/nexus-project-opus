@@ -850,6 +850,98 @@ export type Database = {
         }
         Relationships: []
       }
+      content_assets: {
+        Row: {
+          ai_generated: boolean
+          call_id: string | null
+          client_id: string | null
+          content_type: string
+          created_at: string
+          hook: string | null
+          id: string
+          notes: string | null
+          offer_cta: string | null
+          offer_id: string | null
+          platform: string[] | null
+          publish_date: string | null
+          publish_url: string | null
+          script: string | null
+          source_call_id: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          ai_generated?: boolean
+          call_id?: string | null
+          client_id?: string | null
+          content_type?: string
+          created_at?: string
+          hook?: string | null
+          id?: string
+          notes?: string | null
+          offer_cta?: string | null
+          offer_id?: string | null
+          platform?: string[] | null
+          publish_date?: string | null
+          publish_url?: string | null
+          script?: string | null
+          source_call_id?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          ai_generated?: boolean
+          call_id?: string | null
+          client_id?: string | null
+          content_type?: string
+          created_at?: string
+          hook?: string | null
+          id?: string
+          notes?: string | null
+          offer_cta?: string | null
+          offer_id?: string | null
+          platform?: string[] | null
+          publish_date?: string | null
+          publish_url?: string | null
+          script?: string | null
+          source_call_id?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_assets_call_id_fkey"
+            columns: ["call_id"]
+            isOneToOne: false
+            referencedRelation: "call_intelligence"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_assets_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_assets_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_assets_source_call_id_fkey"
+            columns: ["source_call_id"]
+            isOneToOne: false
+            referencedRelation: "call_intelligence"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_send_log: {
         Row: {
           created_at: string
@@ -1198,6 +1290,53 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      offers: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          offer_type: string
+          price_point: string | null
+          status: string
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          offer_type?: string
+          price_point?: string | null
+          status?: string
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          offer_type?: string
+          price_point?: string | null
+          status?: string
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offers_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       onboarding_templates: {
         Row: {
