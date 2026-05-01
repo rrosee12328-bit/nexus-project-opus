@@ -55,6 +55,7 @@ import ClientSettings from "./pages/client/Settings";
 import ClientAgent from "./pages/client/Agent";
 import ClientApprovals from "./pages/client/Approvals";
 import ClientContracts from "./pages/client/Contracts";
+import ClientCalls from "./pages/client/Calls";
 
 const queryClient = new QueryClient();
 
@@ -144,6 +145,7 @@ const App = () => (
               <Route path="approvals" element={<ClientApprovals />} />
               <Route path="contracts" element={<ClientContracts />} />
               <Route path="agent" element={<ClientAgent />} />
+              <Route path="calls" element={<ClientCalls />} />
               <Route path="settings" element={<ClientSettings />} />
             </Route>
 
