@@ -19,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Phone, Plus, Search, FileText, Mic, TrendingUp, Users,
-  ChevronDown, ChevronUp, Pencil, Trash2, ExternalLink, Download,
+  ChevronDown, ChevronUp, Pencil, Trash2, ExternalLink, Download, RefreshCw,
 } from "lucide-react";
 // PDF generation handled server-side via edge function `generate-call-summary-pdf`
 
@@ -301,6 +301,24 @@ export default function AdminCalls() {
     }
   };
 
+  const syncFathom = async (opts: { call_id?: string; sync_all_missing?: boolean }) => {
+    const toastId = toast.loading(opts.sync_all_missing ? "Syncing missing calls from Fathom…" : "Syncing from Fathom…");
+    try {
+      const { data, error } = await supabase.functions.invoke("fathom-sync", { body: opts });
+      if (error) throw error;
+      const results = (data as any)?.results ?? [];
+      const updated = results.filter((r: any) => !r.error && (r.updated?.length ?? 0) > 0).length;
+      const errored = results.filter((r: any) => r.error).length;
+      toast.success(
+        `Synced ${updated} call${updated === 1 ? "" : "s"}${errored ? ` (${errored} failed)` : ""}`,
+        { id: toastId },
+      );
+      qc.invalidateQueries({ queryKey: ["calls"] });
+    } catch (e: any) {
+      toast.error(e.message || "Fathom sync failed", { id: toastId });
+    }
+  };
+
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -310,9 +328,14 @@ export default function AdminCalls() {
             All Fathom, Retell, and manual call records linked to clients and projects.
           </p>
         </div>
-        <Button onClick={openAdd}>
-          <Plus className="h-4 w-4 mr-2" /> Log Call
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => syncFathom({ sync_all_missing: true })} title="Pull share URLs & transcripts from Fathom for calls missing them">
+            <RefreshCw className="h-4 w-4 mr-2" /> Sync from Fathom
+          </Button>
+          <Button onClick={openAdd}>
+            <Plus className="h-4 w-4 mr-2" /> Log Call
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
