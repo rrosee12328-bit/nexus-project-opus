@@ -292,48 +292,32 @@ export default function PdfLogs() {
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
             <div className="lg:col-span-4 space-y-1.5 sm:col-span-2">
-              <label className="text-xs font-medium text-muted-foreground">Call ID</label>
-              <Input
-                placeholder="Paste a call UUID"
-                value={callId}
-                onChange={(e) => setCallId(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !hasFieldErrors) fetchLogs();
-                }}
-                aria-invalid={!!callIdError}
-                aria-describedby={callIdError ? "call-id-error" : undefined}
-                className={cn(
-                  callIdError && "border-destructive focus-visible:ring-destructive",
-                )}
-                maxLength={REQUEST_ID_MAX}
-              />
-              {callIdError && (
-                <p id="call-id-error" className="text-xs text-destructive">
-                  {callIdError}
-                </p>
-              )}
+              <label className="text-xs font-medium text-muted-foreground">Client</label>
+              <Select value={clientId} onValueChange={setClientId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All clients" />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  <SelectItem value="all">All clients</SelectItem>
+                  {clients.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="lg:col-span-4 space-y-1.5 sm:col-span-2">
-              <label className="text-xs font-medium text-muted-foreground">Request ID</label>
+              <label className="text-xs font-medium text-muted-foreground">Keyword</label>
               <Input
-                placeholder="Paste a request UUID"
-                value={requestId}
-                onChange={(e) => setRequestId(e.target.value)}
+                placeholder="Search event name or anything said in the log"
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !hasFieldErrors) fetchLogs();
                 }}
-                aria-invalid={!!requestIdError}
-                aria-describedby={requestIdError ? "request-id-error" : undefined}
-                className={cn(
-                  requestIdError && "border-destructive focus-visible:ring-destructive",
-                )}
                 maxLength={REQUEST_ID_MAX}
               />
-              {requestIdError && (
-                <p id="request-id-error" className="text-xs text-destructive">
-                  {requestIdError}
-                </p>
-              )}
             </div>
             <div className="lg:col-span-2 space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Level</label>
