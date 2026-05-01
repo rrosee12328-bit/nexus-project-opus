@@ -96,7 +96,7 @@ function ExampleChips({
         {label} — click to filter
       </span>
       <div className="mt-1.5 flex flex-col gap-1">
-        {values.map((v, idx) => {
+        {values.map((v) => {
           let rel = "";
           if (v.ts) {
             try {
@@ -113,13 +113,8 @@ function ExampleChips({
               title={`Filter by ${v.id}`}
               className="group flex w-full items-center justify-between gap-2 rounded-md border border-border bg-background px-2 py-1 text-left transition-colors hover:bg-muted hover:border-primary/40"
             >
-              <span className="flex items-center gap-2 min-w-0">
-                <span className="text-[10px] font-semibold text-muted-foreground tabular-nums">
-                  #{idx + 1}
-                </span>
-                <span className="truncate font-mono text-[10px] text-foreground">
-                  {v.id.slice(0, 8)}…{v.id.slice(-4)}
-                </span>
+              <span className="truncate font-mono text-[10px] text-foreground">
+                {v.id.slice(0, 8)}…{v.id.slice(-4)}
               </span>
               {rel && (
                 <span className="shrink-0 text-[10px] text-muted-foreground">{rel}</span>
