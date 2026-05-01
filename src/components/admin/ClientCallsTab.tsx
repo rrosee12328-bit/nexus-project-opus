@@ -18,6 +18,7 @@ type CallRecord = {
   client_id: string | null;
   project_id: string | null;
   fathom_meeting_id: string | null;
+  fathom_url?: string | null;
   summary: string | null;
   transcript: string | null;
   sentiment: string | null;
@@ -158,9 +159,9 @@ export default function ClientCallsTab({ clientId }: { clientId: string }) {
                   <Badge variant="outline" className={TYPE_COLORS[viewingCall.call_type] ?? TYPE_COLORS.other}>
                     {CALL_TYPES[viewingCall.call_type]}
                   </Badge>
-                  {viewingCall.fathom_meeting_id && (
+                  {(viewingCall.fathom_url || viewingCall.fathom_meeting_id) && (
                     <a
-                      href={`https://fathom.video/calls/${viewingCall.fathom_meeting_id}`}
+                      href={viewingCall.fathom_url || `https://fathom.video/calls/${viewingCall.fathom_meeting_id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
