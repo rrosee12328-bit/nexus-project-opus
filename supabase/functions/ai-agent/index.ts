@@ -582,6 +582,25 @@ const ADMIN_ONLY_TOOLS = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'query_calls',
+      description: 'Search recorded calls (Fathom call intelligence) for summaries, key decisions, sentiment, and transcripts. Use this whenever the user asks about a meeting, call, what was said, what was agreed/decided, sentiment, or anything discussed verbally. Internal team meetings are linked to the Vektiss internal client.',
+      parameters: {
+        type: 'object',
+        properties: {
+          client_id: { type: 'string', description: 'Filter to calls for a specific client (use Vektiss internal client id for internal meetings).' },
+          call_type: { type: 'string', enum: ['discovery', 'check_in', 'kickoff', 'review', 'planning', 'sales', 'support', 'other'] },
+          search: { type: 'string', description: 'Free-text search across summary, transcript, and key decisions.' },
+          since_days: { type: 'number', description: 'Only return calls within the last N days.' },
+          limit: { type: 'number', description: 'Max calls to return (default 10, max 25).' },
+          include_transcript: { type: 'boolean', description: 'If true, include the full transcript (large). Defaults to false — summary + key decisions only.' },
+        },
+        required: [], additionalProperties: false,
+      },
+    },
+  },
 ]
 
 const OPS_ONLY_TOOLS = [
