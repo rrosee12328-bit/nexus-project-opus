@@ -302,6 +302,30 @@ export default function BrainHub() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  // Realtime: surface n8n workflow failures instantly
+  useEffect(() => {
+    const channel = supabase
+      .channel("market-intel-errors-realtime")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "market_intelligence_errors" },
+        (payload) => {
+          const row: any = payload.new;
+          const stage = row?.stage || "unknown stage";
+          const msg = row?.error_message || "Unknown error";
+          setMarketRunning(false);
+          setMarketRunStatus({
+            type: "error",
+            message: `Market Intelligence run failed at ${stage}`,
+            detail: msg,
+          });
+          toast.error(`Market Intelligence failed: ${stage}`, { description: msg });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   const runMarketIntelligence = async () => {
     setMarketRunning(true);
     setMarketRunStatus(null);
