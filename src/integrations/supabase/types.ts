@@ -153,6 +153,62 @@ export type Database = {
           },
         ]
       }
+      ai_preferences: {
+        Row: {
+          active: boolean
+          category: string | null
+          created_at: string
+          created_by: string | null
+          hit_count: number
+          id: string
+          last_applied_at: string | null
+          reason: string | null
+          rule: string
+          scope: string
+          scope_id: string | null
+          source_decision_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          hit_count?: number
+          id?: string
+          last_applied_at?: string | null
+          reason?: string | null
+          rule: string
+          scope?: string
+          scope_id?: string | null
+          source_decision_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          hit_count?: number
+          id?: string
+          last_applied_at?: string | null
+          reason?: string | null
+          rule?: string
+          scope?: string
+          scope_id?: string | null
+          source_decision_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_preferences_source_decision_id_fkey"
+            columns: ["source_decision_id"]
+            isOneToOne: false
+            referencedRelation: "ai_decision_queue"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approval_requests: {
         Row: {
           client_id: string
