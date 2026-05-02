@@ -20,6 +20,9 @@ import {
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
 type Decision = {
   id: string;
@@ -129,6 +132,42 @@ export function DecisionsPanel() {
       setDecisions((prev) => prev.filter((d) => d.id !== id));
     }
     setResolving(null);
+  };
+
+  // Rejection learning dialog
+  const [rejectTarget, setRejectTarget] = useState<Decision | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [savingReject, setSavingReject] = useState(false);
+
+  const submitRejection = async () => {
+    if (!rejectTarget) return;
+    setSavingReject(true);
+    try {
+      // Save preference so the AI learns
+      const reason = rejectReason.trim();
+      const rule = reason
+        ? reason
+        : `Don't flag "${rejectTarget.title}" again — admin rejected this signal.`;
+
+      await supabase.from("ai_preferences").insert({
+        scope: rejectTarget.client_id ? "client" : "category",
+        scope_id: rejectTarget.client_id ?? null,
+        category: rejectTarget.type,
+        rule,
+        reason: reason || null,
+        source_decision_id: rejectTarget.id,
+        created_by: user?.id ?? null,
+      });
+
+      await resolve(rejectTarget.id, "rejected");
+      setRejectTarget(null);
+      setRejectReason("");
+      toast.success("Got it — the AI will remember this");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to save");
+    } finally {
+      setSavingReject(false);
+    }
   };
 
   const counts = {
@@ -249,7 +288,7 @@ export function DecisionsPanel() {
                           size="sm"
                           className="h-7 px-2 text-xs text-destructive hover:text-destructive"
                           disabled={isResolving}
-                          onClick={() => resolve(d.id, "rejected")}
+                          onClick={() => setRejectTarget(d)}
                         >
                           <X className="h-3.5 w-3.5 mr-1" /> Wrong call
                         </Button>
