@@ -888,59 +888,172 @@ function InsightGrid({
   TYPE_META: Record<string, { tone: string; bg: string; icon: typeof Mail; label: string }>;
   URGENCY_META: Record<string, string>;
 }) {
+  // Sort: high → medium → low for instant glanceability
+  const urgencyRank: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  const sorted = [...insights].sort(
+    (a, b) => (urgencyRank[a.urgency] ?? 3) - (urgencyRank[b.urgency] ?? 3),
+  );
+
+  // Headline counters
+  const counts = sorted.reduce(
+    (acc, i) => {
+      acc[i.urgency] = (acc[i.urgency] ?? 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-      {insights.map((ins, idx) => {
-        const meta = TYPE_META[ins.type] || { tone: "text-muted-foreground", bg: "bg-muted/40 border-border", icon: Lightbulb, label: ins.type };
-        const urgencyClass = URGENCY_META[ins.urgency] || "bg-muted text-foreground";
-        const body = ins.summary || ins.insight || "";
-        return (
-          <div key={idx} className={cn("p-4 rounded-md border", meta.bg)}>
-            <div className="flex items-start justify-between gap-2 mb-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <meta.icon className={cn("h-4 w-4 shrink-0", meta.tone)} />
-                <h4 className="text-sm font-semibold truncate">{ins.title}</h4>
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <Badge variant="outline" className={cn("text-xs capitalize", meta.tone)}>{meta.label}</Badge>
-                {ins.urgency && (
-                  <Badge className={cn("text-xs capitalize", urgencyClass)}>{ins.urgency}</Badge>
-                )}
-              </div>
-            </div>
-            <p className="text-sm text-foreground/80 mb-3">{body}</p>
-            {ins.recommended_action && (
-              <div className="text-xs bg-orange-500/10 border border-orange-500/30 rounded p-2 mb-3">
-                <span className="font-semibold text-orange-600 dark:text-orange-400">Recommended action: </span>
-                <span className="text-foreground/80">{ins.recommended_action}</span>
-              </div>
-            )}
-            {ins.urgency === "high" && (
-              <div className="text-xs flex items-center gap-1 text-orange-600 dark:text-orange-400 mb-2">
-                <Zap className="h-3 w-3" />
-                Auto-created Ops task (due in 2 days)
-              </div>
-            )}
-            {ins.sources && ins.sources.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {ins.sources.map((s, i) => {
-                  const url = typeof s === "string" ? s : s.url;
-                  const label = typeof s === "string"
-                    ? (() => { try { return new URL(s).hostname.replace("www.",""); } catch { return s; } })()
-                    : (s.title || (() => { try { return new URL(s.url).hostname.replace("www.",""); } catch { return s.url; } })());
-                  return (
-                    <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
-                      <ExternalLink className="h-3 w-3" />
-                      {label}
-                    </a>
-                  );
-                })}
-              </div>
-            )}
+    <div className="space-y-3">
+      {/* Glance bar */}
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        {(["high", "medium", "low"] as const).map((u) =>
+          counts[u] ? (
+            <span
+              key={u}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-medium",
+                u === "high" && "bg-destructive/15 text-destructive",
+                u === "medium" && "bg-orange-500/15 text-orange-600 dark:text-orange-400",
+                u === "low" && "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+              )}
+            >
+              <span className={cn(
+                "h-1.5 w-1.5 rounded-full",
+                u === "high" && "bg-destructive animate-pulse",
+                u === "medium" && "bg-orange-500",
+                u === "low" && "bg-emerald-500",
+              )} />
+              {counts[u]} {u}
+            </span>
+          ) : null,
+        )}
+        <span className="ml-auto text-muted-foreground">{sorted.length} insights · click to expand</span>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+        {sorted.map((ins, idx) => (
+          <InsightCard key={idx} ins={ins} TYPE_META={TYPE_META} URGENCY_META={URGENCY_META} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function InsightCard({
+  ins,
+  TYPE_META,
+  URGENCY_META,
+}: {
+  ins: MarketInsight;
+  TYPE_META: Record<string, { tone: string; bg: string; icon: typeof Mail; label: string }>;
+  URGENCY_META: Record<string, string>;
+}) {
+  const [open, setOpen] = useState(false);
+  const meta = TYPE_META[ins.type] || {
+    tone: "text-muted-foreground",
+    bg: "bg-muted/40 border-border",
+    icon: Lightbulb,
+    label: ins.type,
+  };
+  const body = ins.summary || ins.insight || "";
+  const stripeColor =
+    ins.urgency === "high" ? "bg-destructive"
+      : ins.urgency === "medium" ? "bg-orange-500"
+      : ins.urgency === "low" ? "bg-emerald-500"
+      : "bg-muted-foreground/30";
+  const sourceCount = ins.sources?.length ?? 0;
+
+  return (
+    <div className={cn(
+      "group relative overflow-hidden rounded-lg border bg-card transition-all hover:shadow-md",
+      open && "shadow-md ring-1 ring-border",
+    )}>
+      {/* Urgency stripe */}
+      <div className={cn("absolute left-0 top-0 bottom-0 w-1", stripeColor)} />
+
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full text-left pl-4 pr-3 py-2.5 flex items-center gap-2.5"
+      >
+        <div className={cn("h-7 w-7 shrink-0 rounded-md flex items-center justify-center", meta.bg.split(" ")[0])}>
+          <meta.icon className={cn("h-3.5 w-3.5", meta.tone)} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <h4 className="text-sm font-semibold truncate">{ins.title}</h4>
           </div>
-        );
-      })}
+          {!open && ins.recommended_action && (
+            <p className="text-xs text-muted-foreground truncate mt-0.5">
+              <span className={cn("font-medium", meta.tone)}>→</span> {ins.recommended_action}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0 text-muted-foreground">
+          {sourceCount > 0 && (
+            <span className="inline-flex items-center gap-0.5 text-[10px] font-mono tabular-nums">
+              <ExternalLink className="h-3 w-3" />
+              {sourceCount}
+            </span>
+          )}
+          {ins.urgency === "high" && (
+            <Zap className="h-3.5 w-3.5 text-orange-500" />
+          )}
+          <span className={cn(
+            "text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded",
+            ins.urgency === "high" && "bg-destructive text-destructive-foreground",
+            ins.urgency === "medium" && "bg-orange-500 text-white",
+            ins.urgency === "low" && "bg-emerald-500 text-white",
+          )}>
+            {ins.urgency?.[0] ?? "·"}
+          </span>
+        </div>
+      </button>
+
+      {open && (
+        <div className="pl-4 pr-3 pb-3 -mt-1 space-y-2 animate-fade-in">
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider">
+            <Badge variant="outline" className={cn("text-[10px] capitalize", meta.tone)}>{meta.label}</Badge>
+          </div>
+          <p className="text-sm text-foreground/80 leading-relaxed">{body}</p>
+          {ins.recommended_action && (
+            <div className="text-xs bg-orange-500/10 border border-orange-500/30 rounded p-2">
+              <span className="font-semibold text-orange-600 dark:text-orange-400">Action: </span>
+              <span className="text-foreground/80">{ins.recommended_action}</span>
+            </div>
+          )}
+          {ins.urgency === "high" && (
+            <div className="text-xs flex items-center gap-1 text-orange-600 dark:text-orange-400">
+              <Zap className="h-3 w-3" />
+              Auto-created Ops task (due in 2 days)
+            </div>
+          )}
+          {ins.sources && ins.sources.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pt-0.5">
+              {ins.sources.map((s, i) => {
+                const url = typeof s === "string" ? s : s.url;
+                const label = typeof s === "string"
+                  ? (() => { try { return new URL(s).hostname.replace("www.", ""); } catch { return s; } })()
+                  : (s.title || (() => { try { return new URL(s.url).hostname.replace("www.", ""); } catch { return s.url; } })());
+                return (
+                  <a
+                    key={i}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
+                  >
+                    <ExternalLink className="h-2.5 w-2.5" />
+                    {label}
+                  </a>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
