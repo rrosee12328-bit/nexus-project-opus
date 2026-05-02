@@ -620,6 +620,7 @@ export default function BrainHub() {
             ["pipelines", "Pipelines"],
             ["pulse", "Pulse"],
             ["money", "Money"],
+            ["operations", "Operations"],
             ["decisions", "Decisions"],
             ["brain-state", "Brain State"],
             ["preferences", "Preferences"],
