@@ -50,6 +50,15 @@ const TYPE_META: Record<string, { icon: typeof Brain; label: string }> = {
   overdue_critical_task: { icon: Clock, label: "Overdue" },
 };
 
+/** Per-type "act now" action: button label + optional deep-link to perform it. */
+const ACT_META: Record<string, { label: string }> = {
+  margin_breach:        { label: "Review pricing" },
+  low_margin:           { label: "Review pricing" },
+  communication_gap:    { label: "Send check-in" },
+  proposal_warm_lead:   { label: "Follow up" },
+  overdue_critical_task:{ label: "Reschedule" },
+};
+
 const RISK_STYLE: Record<string, string> = {
   high: "bg-destructive/10 text-destructive border-destructive/30",
   medium: "bg-warning/10 text-warning border-warning/30",
@@ -324,9 +333,13 @@ export function DecisionsPanel() {
                           size="sm"
                           className="h-7 px-2 text-xs text-emerald-600 hover:text-emerald-700"
                           disabled={isResolving}
-                          onClick={() => resolve(d.id, "approved")}
+                          onClick={async () => {
+                            // Resolve first, then jump into the target page so admin can execute the action.
+                            await resolve(d.id, "approved");
+                            if (d.link) navigate(d.link);
+                          }}
                         >
-                          <Check className="h-3.5 w-3.5 mr-1" /> Acted on it
+                          <Check className="h-3.5 w-3.5 mr-1" /> {ACT_META[d.type]?.label ?? "Acted on it"}
                         </Button>
                         <Button
                           variant="ghost"

@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Brain, RefreshCw, History } from "lucide-react";
+import { Brain, RefreshCw, History, Columns2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -60,6 +60,8 @@ function renderMarkdown(md: string) {
 
 export function BrainStatePanel() {
   const [snap, setSnap] = useState<Snapshot | null>(null);
+  const [prevSnap, setPrevSnap] = useState<Snapshot | null>(null);
+  const [compare, setCompare] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -71,9 +73,10 @@ export function BrainStatePanel() {
       .from("brain_state_snapshots")
       .select("*")
       .order("snapshot_date", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    setSnap(data as Snapshot | null);
+      .limit(2);
+    const list = (data ?? []) as Snapshot[];
+    setSnap(list[0] ?? null);
+    setPrevSnap(list[1] ?? null);
     setLoading(false);
   };
 
@@ -123,6 +126,12 @@ export function BrainStatePanel() {
             )}
           </CardTitle>
           <div className="flex items-center gap-2">
+            {prevSnap && (
+              <Button size="sm" variant={compare ? "default" : "ghost"} onClick={() => setCompare((v) => !v)}>
+                <Columns2 className="h-3.5 w-3.5 mr-1.5" />
+                {compare ? "Hide diff" : "Compare yesterday"}
+              </Button>
+            )}
             <Button size="sm" variant="ghost" onClick={openHistory}>
               <History className="h-3.5 w-3.5 mr-1.5" />
               History
@@ -142,6 +151,25 @@ export function BrainStatePanel() {
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : !snap ? (
           <p className="text-sm text-muted-foreground">No snapshot yet. Click Refresh to generate one.</p>
+        ) : compare && prevSnap ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="rounded-md border bg-muted/20 p-3">
+              <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Previous · {prevSnap.snapshot_date}
+              </div>
+              <div className="prose prose-sm max-w-none dark:prose-invert opacity-80">
+                {renderMarkdown(prevSnap.summary_md)}
+              </div>
+            </div>
+            <div className="rounded-md border border-primary/30 bg-primary/5 p-3">
+              <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
+                Today · {snap.snapshot_date}
+              </div>
+              <div className="prose prose-sm max-w-none dark:prose-invert">
+                {renderMarkdown(snap.summary_md)}
+              </div>
+            </div>
+          </div>
         ) : (
           <div className="prose prose-sm max-w-none dark:prose-invert">
             {renderMarkdown(snap.summary_md)}
