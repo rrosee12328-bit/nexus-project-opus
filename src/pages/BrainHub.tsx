@@ -38,6 +38,8 @@ import { KpiPulseCard, type KpiPulse } from "@/components/brain/KpiPulseCard";
 import { DecisionsPanel } from "@/components/brain/DecisionsPanel";
 import { BrainStatePanel } from "@/components/brain/BrainStatePanel";
 import { PreferencesPanel } from "@/components/brain/PreferencesPanel";
+import { ProfitabilityStrip } from "@/components/brain/ProfitabilityStrip";
+import { DailyPulseStrip } from "@/components/brain/DailyPulseStrip";
 import { CheckSquare, Send, Eye, Percent, AlertTriangle, MailWarning, ListTodo } from "lucide-react";
 
 type ClientLite = { id: string; name: string; client_number: string | null };
@@ -618,6 +620,12 @@ export default function BrainHub() {
           ))}
         </CardContent>
       </Card>
+
+      {/* What changed today — single-line state-of-business strip */}
+      <DailyPulseStrip />
+
+      {/* Per-client profitability — top winners + biggest bleeders */}
+      <ProfitabilityStrip />
 
       {/* Mission Control: Velocity / Risk / Growth */}
       <div className="space-y-4">

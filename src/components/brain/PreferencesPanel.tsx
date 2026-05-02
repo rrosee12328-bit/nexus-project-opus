@@ -172,6 +172,11 @@ export function PreferencesPanel() {
                       <Badge variant="secondary" className="text-[10px]">global</Badge>
                     )}
                     {!p.active && <Badge variant="outline" className="text-[10px] text-muted-foreground">inactive</Badge>}
+                    {(p.hit_count ?? 0) > 0 && (
+                      <Badge variant="outline" className="text-[10px] font-mono text-emerald-600 border-emerald-500/40">
+                        ×{p.hit_count} blocked
+                      </Badge>
+                    )}
                     <span className="text-[10px] text-muted-foreground">
                       {formatDistanceToNow(new Date(p.created_at), { addSuffix: true })}
                     </span>

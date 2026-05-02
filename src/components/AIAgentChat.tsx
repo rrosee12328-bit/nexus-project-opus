@@ -63,6 +63,8 @@ interface AIAgentChatProps {
     entityId?: string;
     entityName?: string;
   };
+  /** When provided, the prompt is prefilled into the input on mount and auto-sent once. */
+  initialPrompt?: string;
 }
 
 /* ── Copyable code block ── */
@@ -95,6 +97,7 @@ export default function AIAgentChat({
   subtitle = "Ask questions, take actions, get insights",
   suggestions = [],
   sessionContext,
+  initialPrompt,
 }: AIAgentChatProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -119,6 +122,8 @@ export default function AIAgentChat({
   const animFrameRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialPromptFiredRef = useRef(false);
+  const handleSendRef = useRef<() => void>(() => {});
 
   /* ── Conversation CRUD ── */
   useEffect(() => {
@@ -432,6 +437,18 @@ export default function AIAgentChat({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
+
+  // Keep ref pointing at the latest handleSend
+  useEffect(() => { handleSendRef.current = handleSend; });
+
+  // Auto-prefill + send when launched with an initialPrompt (e.g. "Ask AI" from Decisions queue)
+  useEffect(() => {
+    if (!initialPrompt || initialPromptFiredRef.current || !user) return;
+    initialPromptFiredRef.current = true;
+    setInput(initialPrompt);
+    const t = window.setTimeout(() => handleSendRef.current?.(), 80);
+    return () => window.clearTimeout(t);
+  }, [initialPrompt, user]);
 
   /* ── Voice ── */
   const startAudioVisualizer = useCallback(async () => {

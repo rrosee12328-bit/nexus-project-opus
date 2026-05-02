@@ -16,13 +16,16 @@ import {
   RefreshCw,
   ChevronRight,
   CircleSlash,
+  Sparkles,
+  History,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { DecisionsHistoryDialog } from "./DecisionsHistoryDialog";
 
 type Decision = {
   id: string;
@@ -63,10 +66,12 @@ function timeAgo(iso: string) {
 
 export function DecisionsPanel() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [resolving, setResolving] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -176,6 +181,23 @@ export function DecisionsPanel() {
     low: decisions.filter((d) => d.risk_tier === "low").length,
   };
 
+  const askAI = (d: Decision) => {
+    const meta = TYPE_META[d.type];
+    const prompt = `The watcher flagged this decision: "${d.title}".\n\n` +
+      (d.body ? `Context: ${d.body}\n\n` : "") +
+      (d.recommendation ? `Suggested action: ${d.recommendation}\n\n` : "") +
+      `Help me decide what to actually do here. Pull the latest data, weigh the trade-offs, and propose a concrete next step. If you're confident, draft it.`;
+    navigate("/admin/agent", {
+      state: {
+        initialPrompt: prompt,
+        entityType: d.client_id ? "client" : "decision",
+        entityId: d.client_id ?? d.id,
+        entityName: d.title,
+        page: "Brain Hub · Decisions",
+      },
+    });
+  };
+
   return (
     <>
     <Card>
@@ -203,6 +225,10 @@ export function DecisionsPanel() {
             {counts.low > 0 && (
               <Badge className={`${RISK_STYLE.low} font-mono text-xs`}>{counts.low} low</Badge>
             )}
+            <Button onClick={() => setHistoryOpen(true)} variant="ghost" size="sm">
+              <History className="h-3.5 w-3.5" />
+              <span className="ml-1.5 hidden sm:inline">History</span>
+            </Button>
             <Button onClick={runWatcher} variant="outline" size="sm" disabled={running}>
               <RefreshCw className={`h-3.5 w-3.5 ${running ? "animate-spin" : ""}`} />
               <span className="ml-1.5 hidden sm:inline">Scan now</span>
@@ -269,6 +295,15 @@ export function DecisionsPanel() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          className="h-7 px-2 text-xs text-primary hover:text-primary"
+                          onClick={() => askAI(d)}
+                          disabled={isResolving}
+                        >
+                          <Sparkles className="h-3.5 w-3.5 mr-1" /> Ask AI
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="h-7 px-2 text-xs text-emerald-600 hover:text-emerald-700"
                           disabled={isResolving}
                           onClick={() => resolve(d.id, "approved")}
@@ -303,6 +338,8 @@ export function DecisionsPanel() {
         )}
       </CardContent>
     </Card>
+
+    <DecisionsHistoryDialog open={historyOpen} onOpenChange={setHistoryOpen} />
 
     <Dialog open={!!rejectTarget} onOpenChange={(o) => { if (!o) { setRejectTarget(null); setRejectReason(""); } }}>
       <DialogContent>
