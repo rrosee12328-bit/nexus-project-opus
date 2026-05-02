@@ -164,6 +164,7 @@ export default function BrainHub() {
   const [clientRunning, setClientRunning] = useState(false);
   const [marketTab, setMarketTab] = useState<"agency" | "client">("agency");
   const [inboxTab, setInboxTab] = useState<"feed" | "actions">("feed");
+  const [pulseTab, setPulseTab] = useState<"today" | "velocity" | "risk" | "growth">("today");
   const [marketRunStatus, setMarketRunStatus] = useState<{
     type: "success" | "error";
     message: string;
