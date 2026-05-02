@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import {
   Brain,
@@ -76,6 +77,10 @@ interface MarketReport {
   id: string;
   generated_at: string;
   insights: MarketInsight[];
+  client_id?: string | null;
+  client_name?: string | null;
+  client_number?: string | null;
+  report_type?: "agency" | "client" | string;
 }
 
 function timeAgo(dateStr: string | null | undefined): string {
@@ -113,7 +118,10 @@ export default function BrainHub() {
   });
   const [pipelines, setPipelines] = useState<PipelineStatus[]>([]);
   const [marketReport, setMarketReport] = useState<MarketReport | null>(null);
+  const [clientReports, setClientReports] = useState<MarketReport[]>([]);
   const [marketRunning, setMarketRunning] = useState(false);
+  const [clientRunning, setClientRunning] = useState(false);
+  const [marketTab, setMarketTab] = useState<"agency" | "client">("agency");
   const [marketRunStatus, setMarketRunStatus] = useState<{
     type: "success" | "error";
     message: string;
@@ -247,25 +255,63 @@ export default function BrainHub() {
 
     // Market intelligence — table may not exist yet; fail silently
     try {
-      const { data: marketData } = await (supabase as any)
+      const parseInsights = (raw: any): MarketInsight[] =>
+        Array.isArray(raw) ? raw
+          : typeof raw === "string"
+            ? (() => { try { const j = JSON.parse(raw); return Array.isArray(j) ? j : []; } catch { return []; } })()
+            : [];
+
+      // Latest agency report
+      const { data: agencyRow } = await (supabase as any)
         .from("market_intelligence")
-        .select("id, generated_at, insights")
+        .select("id, generated_at, insights, report_type, client_id")
+        .eq("report_type", "agency")
         .order("generated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (marketData) {
-        const raw = marketData.insights;
-        const insights: MarketInsight[] = Array.isArray(raw)
-          ? raw
-          : typeof raw === "string"
-            ? (() => { try { return JSON.parse(raw); } catch { return []; } })()
-            : [];
-        setMarketReport({ id: marketData.id, generated_at: marketData.generated_at, insights });
+
+      if (agencyRow) {
+        setMarketReport({
+          id: agencyRow.id,
+          generated_at: agencyRow.generated_at,
+          insights: parseInsights(agencyRow.insights),
+          report_type: "agency",
+        });
       } else {
         setMarketReport(null);
       }
+
+      // Latest per-client reports (one per client, most recent each)
+      const { data: clientRows } = await (supabase as any)
+        .from("market_intelligence")
+        .select("id, generated_at, insights, report_type, client_id, clients(name, client_number)")
+        .eq("report_type", "client")
+        .order("generated_at", { ascending: false })
+        .limit(50);
+
+      if (clientRows && clientRows.length) {
+        const seen = new Set<string>();
+        const latest: MarketReport[] = [];
+        for (const row of clientRows as any[]) {
+          if (!row.client_id || seen.has(row.client_id)) continue;
+          seen.add(row.client_id);
+          latest.push({
+            id: row.id,
+            generated_at: row.generated_at,
+            insights: parseInsights(row.insights),
+            client_id: row.client_id,
+            client_name: row.clients?.name ?? "Client",
+            client_number: row.clients?.client_number ?? null,
+            report_type: "client",
+          });
+        }
+        setClientReports(latest);
+      } else {
+        setClientReports([]);
+      }
     } catch {
       setMarketReport(null);
+      setClientReports([]);
     }
 
     setLoading(false);
@@ -331,17 +377,18 @@ export default function BrainHub() {
     setMarketRunStatus(null);
     try {
       const { data, error } = await supabase.functions.invoke("trigger-market-intelligence", {
-        body: {},
+        body: { report_type: "agency" },
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
-      const responseText = typeof (data as any)?.response === "string" ? (data as any).response : "";
+      const tasksCreated = (data as any)?.tasks_created ?? 0;
+      const insightCount = (data as any)?.insight_count ?? 0;
       setMarketRunStatus({
         type: "success",
-        message: "n8n accepted the Market Intelligence run.",
-        detail: responseText
-          ? `Workflow response: ${responseText}`
-          : "Waiting for n8n to save a new market intelligence report.",
+        message: `Agency report generated: ${insightCount} insights.`,
+        detail: tasksCreated
+          ? `${tasksCreated} high-urgency task${tasksCreated === 1 ? "" : "s"} auto-created in Ops.`
+          : "No high-urgency items this run.",
       });
       toast.success("Market Intelligence run triggered.");
       window.setTimeout(() => void fetchAll(), 2500);
@@ -351,6 +398,37 @@ export default function BrainHub() {
       toast.error(message);
     } finally {
       setMarketRunning(false);
+    }
+  };
+
+  const runClientIntelligence = async () => {
+    setClientRunning(true);
+    setMarketRunStatus(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("trigger-market-intelligence", {
+        body: { report_type: "client" },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const results = ((data as any)?.results ?? []) as any[];
+      const totalTasks = results.reduce((s, r) => s + (r.tasks_created ?? 0), 0);
+      const totalInsights = results.reduce((s, r) => s + (r.insight_count ?? 0), 0);
+      setMarketRunStatus({
+        type: "success",
+        message: `Per-client scan: ${results.length} clients, ${totalInsights} insights.`,
+        detail: totalTasks
+          ? `${totalTasks} high-urgency task${totalTasks === 1 ? "" : "s"} auto-created in Ops.`
+          : "No high-urgency items this run.",
+      });
+      toast.success(`Per-client scan complete: ${results.length} clients`);
+      setMarketTab("client");
+      window.setTimeout(() => void fetchAll(), 1500);
+    } catch (e: any) {
+      const message = e?.message || "Failed to run per-client intelligence";
+      setMarketRunStatus({ type: "error", message });
+      toast.error(message);
+    } finally {
+      setClientRunning(false);
     }
   };
 
