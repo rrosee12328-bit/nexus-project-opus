@@ -302,5 +302,38 @@ export function DecisionsPanel() {
         )}
       </CardContent>
     </Card>
+
+    <Dialog open={!!rejectTarget} onOpenChange={(o) => { if (!o) { setRejectTarget(null); setRejectReason(""); } }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Teach the AI</DialogTitle>
+          <DialogDescription>
+            Why was this the wrong call? Your reason becomes a rule the AI follows next time.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <Label htmlFor="reject-reason" className="text-xs">Reason (optional)</Label>
+          <Textarea
+            id="reject-reason"
+            placeholder={rejectTarget?.client_id
+              ? `e.g. This client is a strategic loss leader — don't flag low margin.`
+              : `e.g. We don't care about this signal type.`}
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            rows={3}
+          />
+          <p className="text-xs text-muted-foreground">
+            Leave blank to just dismiss without explanation.
+          </p>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setRejectTarget(null)} disabled={savingReject}>Cancel</Button>
+          <Button onClick={submitRejection} disabled={savingReject}>
+            {savingReject ? "Saving…" : "Save & reject"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
