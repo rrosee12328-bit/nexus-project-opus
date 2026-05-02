@@ -162,6 +162,99 @@ export default function BrainHub() {
     detail?: string;
   } | null>(null);
 
+  /** Build the 7-day pulse metric deck (Velocity / Risk / Growth) with sparklines + deltas. */
+  const loadPulseMetrics = async (totalHoursMonth: number) => {
+    const now = new Date();
+    const todayStr = now.toISOString().split("T")[0];
+    const startOf = (offsetDays: number) => {
+      const d = new Date(now); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - offsetDays);
+      return d;
+    };
+    const day0 = startOf(0);            // start of today
+    const day7 = startOf(7);             // 7 days ago
+    const day14 = startOf(14);           // 14 days ago
+    const iso7 = day7.toISOString();
+    const iso14 = day14.toISOString();
+
+    // Bucket helper: takes timestamps -> array of 7 daily counts (oldest -> newest, ending today)
+    const bucket = (timestamps: (string | null | undefined)[]): number[] => {
+      const buckets = new Array(7).fill(0);
+      for (const ts of timestamps) {
+        if (!ts) continue;
+        const d = new Date(ts);
+        const diffDays = Math.floor((day0.getTime() - new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()) / 86400000);
+        if (diffDays >= 0 && diffDays < 7) buckets[6 - diffDays]++;
+      }
+      return buckets;
+    };
+
+    const [
+      tasksDoneToday, tasksDone7d, tasksDonePrev7d,
+      callsRow7d, callsRowPrev7d,
+      overdueRow, atRiskCallsRow, emailsActionRow,
+      newLeads7d, newLeadsPrev7d,
+      proposalsSent7d, proposalsSentPrev7d, proposalsViewed7d,
+    ] = await Promise.all([
+      supabase.from("tasks").select("id", { count: "exact", head: true }).eq("status", "done").gte("updated_at", day0.toISOString()),
+      supabase.from("tasks").select("updated_at").eq("status", "done").gte("updated_at", iso7).is("archived_at", null),
+      supabase.from("tasks").select("id", { count: "exact", head: true }).eq("status", "done").gte("updated_at", iso14).lt("updated_at", iso7).is("archived_at", null),
+      supabase.from("call_intelligence").select("created_at").gte("created_at", iso7),
+      supabase.from("call_intelligence").select("id", { count: "exact", head: true }).gte("created_at", iso14).lt("created_at", iso7),
+      supabase.from("tasks").select("id", { count: "exact", head: true }).neq("status", "done").lt("due_date", todayStr).is("archived_at", null),
+      supabase.from("call_intelligence").select("id", { count: "exact", head: true }).eq("sentiment", "At-Risk").gte("created_at", iso7),
+      supabase.from("email_intelligence").select("id", { count: "exact", head: true }).eq("action_required", true),
+      supabase.from("leads").select("created_at").gte("created_at", iso7),
+      supabase.from("leads").select("id", { count: "exact", head: true }).gte("created_at", iso14).lt("created_at", iso7),
+      supabase.from("proposals").select("id, created_at, last_viewed_at").gte("created_at", iso7),
+      supabase.from("proposals").select("id", { count: "exact", head: true }).gte("created_at", iso14).lt("created_at", iso7),
+      supabase.from("proposals").select("id", { count: "exact", head: true }).gte("last_viewed_at", iso7),
+    ]);
+
+    // Velocity
+    const tasksDone7dList = (tasksDone7d.data || []) as { updated_at: string }[];
+    const tasksDone7dCount = tasksDone7dList.length;
+    const tasksDonePrev = tasksDonePrev7d.count || 0;
+    const tasksSpark = bucket(tasksDone7dList.map(t => t.updated_at));
+
+    const callsList = (callsRow7d.data || []) as { created_at: string }[];
+    const callsCount = callsList.length;
+    const callsSpark = bucket(callsList.map(c => c.created_at));
+    const callsPrev = callsRowPrev7d.count || 0;
+
+    // Growth
+    const leadsList = (newLeads7d.data || []) as { created_at: string }[];
+    const leadsCount = leadsList.length;
+    const leadsSpark = bucket(leadsList.map(l => l.created_at));
+    const leadsPrev = newLeadsPrev7d.count || 0;
+
+    const propList = (proposalsSent7d.data || []) as { created_at: string }[];
+    const propSent = propList.length;
+    const propSpark = bucket(propList.map(p => p.created_at));
+    const propPrev = proposalsSentPrev7d.count || 0;
+    const propViewed = proposalsViewed7d.count || 0;
+    const conversionRate = propSent > 0 ? Math.round((propViewed / propSent) * 100) : 0;
+
+    setPulse({
+      velocity: [
+        { label: "Tasks done today",      value: tasksDoneToday.count || 0, icon: CheckSquare, tone: "success", live: true,  link: "/ops/tasks" },
+        { label: "Tasks done · 7d",       value: tasksDone7dCount,          icon: ListTodo,    tone: "success", spark: tasksSpark, delta: tasksDone7dCount - tasksDonePrev, link: "/ops/tasks" },
+        { label: "Hours logged · MTD",    value: Math.round(totalHoursMonth * 10) / 10, suffix: "h", icon: Clock, tone: "info", link: "/ops/timesheets" },
+        { label: "Calls processed · 7d",  value: callsCount,                icon: Phone,       tone: "violet",  spark: callsSpark, delta: callsCount - callsPrev, link: "/admin/calls" },
+      ],
+      risk: [
+        { label: "Overdue tasks",         value: overdueRow.count || 0,     icon: AlertTriangle, tone: "danger",  invertTrend: true, link: "/ops/tasks" },
+        { label: "Emails awaiting action",value: emailsActionRow.count || 0,icon: MailWarning,   tone: "warn",    live: true, invertTrend: true, link: "/ops/email-intelligence" },
+        { label: "At-risk calls · 7d",    value: atRiskCallsRow.count || 0, icon: AlertCircle,   tone: "danger",  invertTrend: true, link: "/admin/calls" },
+      ],
+      growth: [
+        { label: "New leads · 7d",        value: leadsCount,  icon: TrendingUp,  tone: "primary", spark: leadsSpark, delta: leadsCount - leadsPrev, link: "/admin/leads" },
+        { label: "Proposals sent · 7d",   value: propSent,    icon: Send,        tone: "info",    spark: propSpark, delta: propSent - propPrev, link: "/admin/proposals" },
+        { label: "Proposals viewed · 7d", value: propViewed,  icon: Eye,         tone: "violet",  link: "/admin/proposals" },
+        { label: "View rate",             value: conversionRate, suffix: "%", icon: Percent, tone: "pink", link: "/admin/proposals" },
+      ],
+    });
+  };
+
   const fetchAll = async () => {
     setLoading(true);
 
