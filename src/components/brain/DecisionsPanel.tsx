@@ -340,6 +340,26 @@ export function DecisionsPanel() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          className="h-7 px-2 text-xs"
+                          disabled={isResolving}
+                          onClick={() => snooze(d.id, 1)}
+                          title="Snooze 1 day"
+                        >
+                          <AlarmClock className="h-3.5 w-3.5 mr-1" /> 1d
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          disabled={isResolving}
+                          onClick={() => snooze(d.id, 7)}
+                          title="Snooze 7 days"
+                        >
+                          <AlarmClock className="h-3.5 w-3.5 mr-1" /> 7d
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="h-7 px-2 text-xs text-destructive hover:text-destructive"
                           disabled={isResolving}
                           onClick={() => setRejectTarget(d)}
