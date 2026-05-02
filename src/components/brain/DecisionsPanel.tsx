@@ -279,7 +279,7 @@ export function DecisionsPanel() {
           </div>
         ) : (
           <div className="space-y-2">
-            {decisions.map((d) => {
+            {(showAll ? decisions : decisions.slice(0, 3)).map((d) => {
               const meta = TYPE_META[d.type] ?? { icon: Brain, label: d.type };
               const Icon = meta.icon;
               const isResolving = resolving === d.id;
@@ -387,10 +387,17 @@ export function DecisionsPanel() {
                 </div>
               );
             })}
+            {decisions.length > 3 && (
+              <button
+                onClick={() => setShowAll((v) => !v)}
+                className="w-full rounded-md border border-dashed border-border py-2 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+              >
+                {showAll ? "Show less" : `View all ${decisions.length} decisions →`}
+              </button>
+            )}
           </div>
         )}
       </CardContent>
-      )}
     </Card>
 
     <DecisionsHistoryDialog open={historyOpen} onOpenChange={setHistoryOpen} />
