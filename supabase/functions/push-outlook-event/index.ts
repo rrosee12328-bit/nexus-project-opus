@@ -88,14 +88,26 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Normalize a time value to strict HH:MM:SS (DB may return "HH:MM" or "HH:MM:SS")
+    const toHMS = (t: string | null | undefined): string | null => {
+      if (!t) return null;
+      const parts = t.split(":");
+      const hh = (parts[0] ?? "00").padStart(2, "0");
+      const mm = (parts[1] ?? "00").padStart(2, "0");
+      const ss = (parts[2] ?? "00").padStart(2, "0");
+      return `${hh}:${mm}:${ss}`;
+    };
+
     // Build Outlook event payload (times are in CT)
-    const startDateTime = calEvent.start_time
-      ? `${calEvent.event_date}T${calEvent.start_time}:00`
+    const startHMS = toHMS(calEvent.start_time);
+    const endHMS = toHMS(calEvent.end_time);
+    const startDateTime = startHMS
+      ? `${calEvent.event_date}T${startHMS}`
       : `${calEvent.event_date}T00:00:00`;
-    const endDateTime = calEvent.end_time
-      ? `${calEvent.event_date}T${calEvent.end_time}:00`
-      : calEvent.start_time
-        ? `${calEvent.event_date}T${calEvent.start_time.split(":").map((v: string, i: number) => i === 0 ? String(Number(v) + 1).padStart(2, "0") : v).join(":")}:00`
+    const endDateTime = endHMS
+      ? `${calEvent.event_date}T${endHMS}`
+      : startHMS
+        ? `${calEvent.event_date}T${String(Number(startHMS.slice(0, 2)) + 1).padStart(2, "0")}${startHMS.slice(2)}`
         : `${calEvent.event_date}T23:59:59`;
 
     const isAllDay = !calEvent.start_time;
