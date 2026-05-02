@@ -687,6 +687,13 @@ export default function AdminSettings() {
             </Card>
           </motion.div>
         </TabsContent>
+
+        {/* ── Business Rules Tab ── */}
+        <TabsContent value="business-rules">
+          <motion.div {...anim(0.15)}>
+            <BusinessRulesPanel />
+          </motion.div>
+        </TabsContent>
       </Tabs>
     </div>
   );
