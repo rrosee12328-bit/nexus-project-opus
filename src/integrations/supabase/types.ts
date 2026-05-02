@@ -310,6 +310,30 @@ export type Database = {
         }
         Relationships: []
       }
+      brain_state_snapshots: {
+        Row: {
+          created_at: string
+          id: string
+          metrics: Json
+          snapshot_date: string
+          summary_md: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metrics?: Json
+          snapshot_date?: string
+          summary_md: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metrics?: Json
+          snapshot_date?: string
+          summary_md?: string
+        }
+        Relationships: []
+      }
       business_overhead: {
         Row: {
           amount: number

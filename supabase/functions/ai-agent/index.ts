@@ -1619,8 +1619,22 @@ Deno.serve(async (req) => {
     const systemPrompt = getSystemPrompt(userRole, sessionContext)
     const context = { role: userRole, userId, clientId }
 
+    // Inject latest Brain State snapshot for admin/ops so the AI always has fresh business context
+    let brainStateBlock = ''
+    if (userRole === 'admin' || userRole === 'ops') {
+      const { data: snap } = await adminClient
+        .from('brain_state_snapshots')
+        .select('summary_md, snapshot_date')
+        .order('snapshot_date', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (snap?.summary_md) {
+        brainStateBlock = `\n\n=== CURRENT BRAIN STATE (snapshot ${snap.snapshot_date}) ===\nThis is your live business context. Refer to it before answering strategic questions. Do not re-query data already shown here unless the user asks for fresh numbers.\n\n${snap.summary_md}\n=== END BRAIN STATE ===`
+      }
+    }
+
     const aiMessages: any[] = [
-      { role: 'system', content: systemPrompt },
+      { role: 'system', content: systemPrompt + brainStateBlock },
       ...messages,
     ]
 
