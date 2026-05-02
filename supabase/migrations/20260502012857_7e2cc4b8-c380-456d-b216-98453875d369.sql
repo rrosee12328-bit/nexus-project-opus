@@ -1,0 +1,1 @@
+ALTER VIEW public.v_client_profitability SET (security_invoker = true);

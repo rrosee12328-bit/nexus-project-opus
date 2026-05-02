@@ -74,6 +74,85 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_decision_queue: {
+        Row: {
+          body: string | null
+          client_id: string | null
+          context: Json
+          created_at: string
+          id: string
+          link: string | null
+          project_id: string | null
+          recommendation: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          risk_tier: string
+          status: string
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string | null
+          client_id?: string | null
+          context?: Json
+          created_at?: string
+          id?: string
+          link?: string | null
+          project_id?: string | null
+          recommendation?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          risk_tier?: string
+          status?: string
+          title: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string | null
+          client_id?: string | null
+          context?: Json
+          created_at?: string
+          id?: string
+          link?: string | null
+          project_id?: string | null
+          recommendation?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          risk_tier?: string
+          status?: string
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_decision_queue_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_decision_queue_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_profitability"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "ai_decision_queue_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approval_requests: {
         Row: {
           client_id: string
@@ -126,6 +205,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "approval_requests_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_profitability"
+            referencedColumns: ["client_id"]
+          },
+          {
             foreignKeyName: "approval_requests_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
@@ -175,6 +261,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_profitability"
+            referencedColumns: ["client_id"]
           },
         ]
       }
@@ -241,6 +334,36 @@ export type Database = {
           details?: string | null
           id?: string
           name?: string
+        }
+        Relationships: []
+      }
+      business_settings: {
+        Row: {
+          id: string
+          internal_hourly_cost: number
+          low_margin_threshold_pct: number
+          singleton: boolean
+          target_margin_pct: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          internal_hourly_cost?: number
+          low_margin_threshold_pct?: number
+          singleton?: boolean
+          target_margin_pct?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          internal_hourly_cost?: number
+          low_margin_threshold_pct?: number
+          singleton?: boolean
+          target_margin_pct?: number
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }
@@ -312,6 +435,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_profitability"
+            referencedColumns: ["client_id"]
           },
         ]
       }
@@ -392,6 +522,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_intelligence_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_profitability"
+            referencedColumns: ["client_id"]
           },
           {
             foreignKeyName: "call_intelligence_project_id_fkey"
@@ -546,6 +683,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "client_contracts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_profitability"
+            referencedColumns: ["client_id"]
+          },
+          {
             foreignKeyName: "client_contracts_proposal_id_fkey"
             columns: ["proposal_id"]
             isOneToOne: false
@@ -592,6 +736,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_costs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_profitability"
+            referencedColumns: ["client_id"]
           },
         ]
       }
@@ -652,6 +803,13 @@ export type Database = {
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "client_notes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_profitability"
+            referencedColumns: ["client_id"]
+          },
         ]
       }
       client_onboarding_steps: {
@@ -696,6 +854,13 @@ export type Database = {
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "client_onboarding_steps_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_profitability"
+            referencedColumns: ["client_id"]
+          },
         ]
       }
       client_payments: {
@@ -739,6 +904,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_payments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_profitability"
+            referencedColumns: ["client_id"]
           },
         ]
       }
@@ -941,6 +1113,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "content_assets_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_profitability"
+            referencedColumns: ["client_id"]
+          },
+          {
             foreignKeyName: "content_assets_offer_id_fkey"
             columns: ["offer_id"]
             isOneToOne: false
@@ -1015,6 +1194,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_intelligence_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_profitability"
+            referencedColumns: ["client_id"]
           },
         ]
       }
@@ -1213,6 +1399,13 @@ export type Database = {
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "hourly_invoices_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_profitability"
+            referencedColumns: ["client_id"]
+          },
         ]
       }
       investments: {
@@ -1337,6 +1530,13 @@ export type Database = {
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "market_intelligence_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_profitability"
+            referencedColumns: ["client_id"]
+          },
         ]
       }
       market_intelligence_errors: {
@@ -1407,6 +1607,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_profitability"
+            referencedColumns: ["client_id"]
           },
         ]
       }
@@ -1535,6 +1742,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offers_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_profitability"
+            referencedColumns: ["client_id"]
           },
         ]
       }
@@ -1820,6 +2034,13 @@ export type Database = {
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "projects_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_profitability"
+            referencedColumns: ["client_id"]
+          },
         ]
       }
       proposal_views: {
@@ -1972,11 +2193,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "proposals_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_profitability"
+            referencedColumns: ["client_id"]
+          },
+          {
             foreignKeyName: "proposals_converted_to_client_id_fkey"
             columns: ["converted_to_client_id"]
             isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_converted_to_client_id_fkey"
+            columns: ["converted_to_client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_profitability"
+            referencedColumns: ["client_id"]
           },
           {
             foreignKeyName: "proposals_lead_id_fkey"
@@ -2143,6 +2378,13 @@ export type Database = {
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "stripe_invoices_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_profitability"
+            referencedColumns: ["client_id"]
+          },
         ]
       }
       stripe_subscriptions: {
@@ -2189,6 +2431,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_subscriptions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_profitability"
+            referencedColumns: ["client_id"]
           },
         ]
       }
@@ -2323,11 +2572,19 @@ export type Database = {
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "tasks_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_profitability"
+            referencedColumns: ["client_id"]
+          },
         ]
       }
       time_entries: {
         Row: {
           category: Database["public"]["Enums"]["time_entry_category"]
+          client_id: string | null
           created_at: string
           day_of_week: string
           description: string
@@ -2335,12 +2592,14 @@ export type Database = {
           entry_date: string
           hours: number
           id: string
+          project_id: string | null
           start_time: string
           updated_at: string
           user_id: string
         }
         Insert: {
           category?: Database["public"]["Enums"]["time_entry_category"]
+          client_id?: string | null
           created_at?: string
           day_of_week?: string
           description?: string
@@ -2348,12 +2607,14 @@ export type Database = {
           entry_date?: string
           hours?: number
           id?: string
+          project_id?: string | null
           start_time: string
           updated_at?: string
           user_id: string
         }
         Update: {
           category?: Database["public"]["Enums"]["time_entry_category"]
+          client_id?: string | null
           created_at?: string
           day_of_week?: string
           description?: string
@@ -2361,11 +2622,34 @@ export type Database = {
           entry_date?: string
           hours?: number
           id?: string
+          project_id?: string | null
           start_time?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "time_entries_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_profitability"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "time_entries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       time_tracking_codes: {
         Row: {
@@ -2548,7 +2832,20 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_client_profitability: {
+        Row: {
+          client_id: string | null
+          client_name: string | null
+          external_cost: number | null
+          hours: number | null
+          labor_cost: number | null
+          margin_pct: number | null
+          month_start: string | null
+          profit: number | null
+          revenue: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       archive_done_tasks: { Args: never; Returns: undefined }
