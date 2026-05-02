@@ -625,18 +625,35 @@ export default function BrainHub() {
         </CardContent>
       </Card>
 
-      {/* KPI tiles */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        {kpiTiles.map((k) => (
-          <Link key={k.label} to={k.link}>
-            <Card className="hover:bg-muted/30 transition-colors h-full">
-              <CardContent className="p-4">
-                <k.icon className={cn("h-5 w-5 mb-2", k.tone)} />
-                <p className="text-2xl font-bold leading-none">{loading ? "—" : k.value}</p>
-                <p className="text-xs text-muted-foreground mt-1">{k.label}</p>
-              </CardContent>
-            </Card>
-          </Link>
+      {/* Mission Control: Velocity / Risk / Growth */}
+      <div className="space-y-4">
+        {([
+          { key: "velocity", title: "Velocity",  hint: "Throughput in the last 7 days",       items: pulse.velocity, accent: "text-emerald-500" },
+          { key: "risk",     title: "Risk",      hint: "What needs attention right now",      items: pulse.risk,     accent: "text-rose-500" },
+          { key: "growth",   title: "Growth",    hint: "Top of funnel · 7-day trend",          items: pulse.growth,   accent: "text-primary" },
+        ] as const).map((section) => (
+          <section key={section.key}>
+            <div className="flex items-baseline justify-between mb-2 px-0.5">
+              <div className="flex items-center gap-2">
+                <span className={cn("h-1.5 w-1.5 rounded-full bg-current", section.accent)} />
+                <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground/80">{section.title}</h2>
+                <span className="text-[11px] text-muted-foreground hidden sm:inline">· {section.hint}</span>
+              </div>
+            </div>
+            {/* Mobile: horizontal snap scroller. Desktop: grid. */}
+            <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
+              <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 sm:grid sm:overflow-visible sm:pb-0 sm:grid-cols-2 lg:grid-cols-4">
+                {(loading && section.items.length === 0
+                  ? Array.from({ length: 4 }).map((_, i) => ({ label: "", value: 0, icon: Activity, loading: true } as KpiPulse & { loading: boolean }))
+                  : section.items
+                ).map((item, idx) => (
+                  <div key={item.label || idx} className="snap-start shrink-0 w-[78%] xs:w-[60%] sm:w-auto">
+                    <KpiPulseCard {...item} loading={loading && !item.value} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
         ))}
       </div>
 
