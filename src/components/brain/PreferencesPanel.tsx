@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { GraduationCap, Trash2, Search, RotateCcw } from "lucide-react";
+import { GraduationCap, Trash2, Search, RotateCcw, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,7 @@ export function PreferencesPanel() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string>("all");
   const [clientNames, setClientNames] = useState<Record<string, string>>({});
+  const [expanded, setExpanded] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -94,21 +95,33 @@ export function PreferencesPanel() {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader
+        className="pb-3 cursor-pointer select-none"
+        role="button"
+        aria-expanded={expanded}
+        onClick={() => setExpanded((v) => !v)}
+      >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="text-base flex items-center gap-2">
+            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${expanded ? "" : "-rotate-90"}`} />
             <GraduationCap className="h-4 w-4 text-primary" />
             Learned preferences
             {counts.active > 0 && (
               <Badge variant="outline" className="ml-1 font-mono text-xs">{counts.active} active</Badge>
             )}
+            {!expanded && (
+              <span className="text-xs text-muted-foreground hidden sm:inline">
+                · rules the AI follows
+              </span>
+            )}
           </CardTitle>
         </div>
+        {expanded && (
+        <>
         <p className="text-xs text-muted-foreground">
           Rules the AI follows because you clicked "Wrong call" on past suggestions. Deactivate a rule to let the AI flag it again.
         </p>
-
-        <div className="flex flex-wrap items-center gap-2 pt-2">
+        <div className="flex flex-wrap items-center gap-2 pt-2" onClick={(e) => e.stopPropagation()}>
           <Tabs value={filter} onValueChange={(v) => setFilter(v as any)}>
             <TabsList className="h-8">
               <TabsTrigger value="active" className="text-xs h-6">Active ({counts.active})</TabsTrigger>
@@ -141,7 +154,10 @@ export function PreferencesPanel() {
             />
           </div>
         </div>
+        </>
+        )}
       </CardHeader>
+      {expanded && (
       <CardContent>
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
