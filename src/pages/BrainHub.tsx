@@ -740,3 +740,69 @@ export default function BrainHub() {
     </div>
   );
 }
+
+function InsightGrid({
+  insights,
+  TYPE_META,
+  URGENCY_META,
+}: {
+  insights: MarketInsight[];
+  TYPE_META: Record<string, { tone: string; bg: string; icon: typeof Mail; label: string }>;
+  URGENCY_META: Record<string, string>;
+}) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {insights.map((ins, idx) => {
+        const meta = TYPE_META[ins.type] || { tone: "text-muted-foreground", bg: "bg-muted/40 border-border", icon: Lightbulb, label: ins.type };
+        const urgencyClass = URGENCY_META[ins.urgency] || "bg-muted text-foreground";
+        const body = ins.summary || ins.insight || "";
+        return (
+          <div key={idx} className={cn("p-4 rounded-md border", meta.bg)}>
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <meta.icon className={cn("h-4 w-4 shrink-0", meta.tone)} />
+                <h4 className="text-sm font-semibold truncate">{ins.title}</h4>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <Badge variant="outline" className={cn("text-xs capitalize", meta.tone)}>{meta.label}</Badge>
+                {ins.urgency && (
+                  <Badge className={cn("text-xs capitalize", urgencyClass)}>{ins.urgency}</Badge>
+                )}
+              </div>
+            </div>
+            <p className="text-sm text-foreground/80 mb-3">{body}</p>
+            {ins.recommended_action && (
+              <div className="text-xs bg-orange-500/10 border border-orange-500/30 rounded p-2 mb-3">
+                <span className="font-semibold text-orange-600 dark:text-orange-400">Recommended action: </span>
+                <span className="text-foreground/80">{ins.recommended_action}</span>
+              </div>
+            )}
+            {ins.urgency === "high" && (
+              <div className="text-xs flex items-center gap-1 text-orange-600 dark:text-orange-400 mb-2">
+                <Zap className="h-3 w-3" />
+                Auto-created Ops task (due in 2 days)
+              </div>
+            )}
+            {ins.sources && ins.sources.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {ins.sources.map((s, i) => {
+                  const url = typeof s === "string" ? s : s.url;
+                  const label = typeof s === "string"
+                    ? (() => { try { return new URL(s).hostname.replace("www.",""); } catch { return s; } })()
+                    : (s.title || (() => { try { return new URL(s.url).hostname.replace("www.",""); } catch { return s.url; } })());
+                  return (
+                    <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                      <ExternalLink className="h-3 w-3" />
+                      {label}
+                    </a>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
