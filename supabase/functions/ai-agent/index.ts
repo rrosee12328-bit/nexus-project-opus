@@ -1494,6 +1494,66 @@ async function executeTool(
       return { success: true, message: data?.[0], action_summary: 'Message sent to your team' }
     }
 
+    case 'query_client_profitability': {
+      const monthsBack = Math.min(Math.max(Number(args.months_back ?? 3), 1), 12)
+      const cutoff = new Date()
+      cutoff.setMonth(cutoff.getMonth() - (monthsBack - 1))
+      cutoff.setDate(1)
+      const cutoffStr = cutoff.toISOString().split('T')[0]
+
+      let query = supabase.from('v_client_profitability').select('*').gte('month_start', cutoffStr)
+      if (args.client_id) query = query.eq('client_id', args.client_id)
+      const { data, error } = await query.order('month_start', { ascending: false }).limit(500)
+      if (error) return { error: error.message }
+
+      let rows = data ?? []
+      if (args.unprofitable_only) {
+        const { data: settings } = await supabase.from('business_settings').select('low_margin_threshold_pct').limit(1).maybeSingle()
+        const threshold = Number(settings?.low_margin_threshold_pct ?? 20)
+        rows = rows.filter((r: any) => r.revenue > 0 && (r.profit < 0 || (r.margin_pct !== null && Number(r.margin_pct) < threshold)))
+      }
+      return { rows, count: rows.length, months_back: monthsBack }
+    }
+
+    case 'query_time_vs_revenue': {
+      const sinceDays = Math.max(Number(args.since_days ?? 30), 1)
+      const sinceDate = new Date(Date.now() - sinceDays * 86400000).toISOString().split('T')[0]
+
+      const { data: settings } = await supabase.from('business_settings').select('internal_hourly_cost').limit(1).maybeSingle()
+      const rate = Number(settings?.internal_hourly_cost ?? 125)
+
+      let teQ = supabase.from('time_entries').select('client_id, hours').gte('entry_date', sinceDate)
+      if (args.client_id) teQ = teQ.eq('client_id', args.client_id)
+      const { data: te } = await teQ
+
+      const sinceIso = new Date(Date.now() - sinceDays * 86400000).toISOString()
+      let payQ = supabase.from('client_payments').select('client_id, amount, created_at').gte('created_at', sinceIso).neq('notes', 'Projected')
+      if (args.client_id) payQ = payQ.eq('client_id', args.client_id)
+      const { data: pay } = await payQ
+
+      const { data: clients } = await supabase.from('clients').select('id, name, status').neq('status', 'closed')
+
+      const map = new Map<string, { client_id: string; name: string; hours: number; labor_cost: number; revenue: number }>()
+      for (const c of (clients ?? [])) {
+        if (args.client_id && c.id !== args.client_id) continue
+        map.set(c.id, { client_id: c.id, name: c.name, hours: 0, labor_cost: 0, revenue: 0 })
+      }
+      for (const t of (te ?? [])) {
+        if (!t.client_id) continue
+        const row = map.get(t.client_id)
+        if (row) { row.hours += Number(t.hours); row.labor_cost = row.hours * rate }
+      }
+      for (const p of (pay ?? [])) {
+        const row = map.get(p.client_id)
+        if (row) row.revenue += Number(p.amount)
+      }
+      const rows = Array.from(map.values())
+        .map(r => ({ ...r, net: r.revenue - r.labor_cost, ratio: r.revenue > 0 ? +(r.labor_cost / r.revenue).toFixed(2) : null }))
+        .filter(r => r.hours > 0 || r.revenue > 0)
+        .sort((a, b) => a.net - b.net)
+      return { rows, since_days: sinceDays, internal_hourly_cost: rate, note: 'ratio > 1 means we are spending more in labor than the client paid in this window.' }
+    }
+
     default:
       return { error: `Unknown tool: ${name}` }
   }
