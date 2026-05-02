@@ -83,8 +83,7 @@ export function DecisionsPanel() {
   const [running, setRunning] = useState(false);
   const [resolving, setResolving] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const [autoExpanded, setAutoExpanded] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -211,14 +210,6 @@ export function DecisionsPanel() {
     low: decisions.filter((d) => d.risk_tier === "low").length,
   };
 
-  // Auto-expand when high-risk items appear (executive should see them by default).
-  useEffect(() => {
-    if (counts.high > 0 && !autoExpanded) {
-      setExpanded(true);
-      setAutoExpanded(true);
-    }
-  }, [counts.high, autoExpanded]);
-
   const askAI = (d: Decision) => {
     const meta = TYPE_META[d.type];
     const prompt = `The watcher flagged this decision: "${d.title}".\n\n` +
@@ -239,17 +230,9 @@ export function DecisionsPanel() {
   return (
     <>
     <Card>
-      <CardHeader
-        className="pb-3 cursor-pointer select-none"
-        onClick={() => setExpanded((v) => !v)}
-        role="button"
-        aria-expanded={expanded}
-      >
+      <CardHeader className="pb-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <ChevronDown
-              className={`h-4 w-4 text-muted-foreground transition-transform ${expanded ? "" : "-rotate-90"}`}
-            />
             <Brain className="h-4 w-4 text-primary" />
             Decisions queue
             {decisions.length > 0 && (
@@ -257,13 +240,8 @@ export function DecisionsPanel() {
                 {decisions.length}
               </Badge>
             )}
-            {!expanded && decisions.length > 0 && (
-              <span className="ml-1 text-xs text-muted-foreground hidden sm:inline">
-                · click to review
-              </span>
-            )}
           </CardTitle>
-          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-2">
             {counts.high > 0 && (
               <Badge className={`${RISK_STYLE.high} font-mono text-xs`}>
                 <span className="mr-1 inline-block h-2 w-2 animate-pulse rounded-full bg-destructive" />
@@ -287,7 +265,6 @@ export function DecisionsPanel() {
           </div>
         </div>
       </CardHeader>
-      {expanded && (
       <CardContent>
         {loading ? (
           <div className="space-y-2">
