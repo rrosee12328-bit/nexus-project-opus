@@ -63,6 +63,8 @@ interface AIAgentChatProps {
     entityId?: string;
     entityName?: string;
   };
+  /** When provided, the prompt is prefilled into the input on mount and auto-sent once. */
+  initialPrompt?: string;
 }
 
 /* ── Copyable code block ── */
@@ -95,6 +97,7 @@ export default function AIAgentChat({
   subtitle = "Ask questions, take actions, get insights",
   suggestions = [],
   sessionContext,
+  initialPrompt,
 }: AIAgentChatProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Msg[]>([]);
