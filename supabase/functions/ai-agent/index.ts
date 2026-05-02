@@ -21,6 +21,7 @@ const TOOL_RISK: Record<string, RiskLevel> = {
   query_team_members: 'low', query_calendar_events: 'low',
   query_messages: 'low', query_onboarding_steps: 'low',
   get_overdue_summary: 'low',
+  query_client_profitability: 'low', query_time_vs_revenue: 'low',
   create_reminder: 'low',
   create_client_note: 'low',
   generate_project_summary: 'low',
