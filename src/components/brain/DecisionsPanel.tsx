@@ -19,6 +19,7 @@ import {
   Sparkles,
   History,
   AlarmClock,
+  ChevronDown,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -82,6 +83,7 @@ export function DecisionsPanel() {
   const [running, setRunning] = useState(false);
   const [resolving, setResolving] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -228,9 +230,17 @@ export function DecisionsPanel() {
   return (
     <>
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader
+        className="pb-3 cursor-pointer select-none"
+        onClick={() => setExpanded((v) => !v)}
+        role="button"
+        aria-expanded={expanded}
+      >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="text-base flex items-center gap-2">
+            <ChevronDown
+              className={`h-4 w-4 text-muted-foreground transition-transform ${expanded ? "" : "-rotate-90"}`}
+            />
             <Brain className="h-4 w-4 text-primary" />
             Decisions queue
             {decisions.length > 0 && (
@@ -238,8 +248,13 @@ export function DecisionsPanel() {
                 {decisions.length}
               </Badge>
             )}
+            {!expanded && decisions.length > 0 && (
+              <span className="ml-1 text-xs text-muted-foreground hidden sm:inline">
+                · click to review
+              </span>
+            )}
           </CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
             {counts.high > 0 && (
               <Badge className={`${RISK_STYLE.high} font-mono text-xs`}>
                 <span className="mr-1 inline-block h-2 w-2 animate-pulse rounded-full bg-destructive" />
@@ -263,6 +278,7 @@ export function DecisionsPanel() {
           </div>
         </div>
       </CardHeader>
+      {expanded && (
       <CardContent>
         {loading ? (
           <div className="space-y-2">
@@ -388,6 +404,7 @@ export function DecisionsPanel() {
           </div>
         )}
       </CardContent>
+      )}
     </Card>
 
     <DecisionsHistoryDialog open={historyOpen} onOpenChange={setHistoryOpen} />
