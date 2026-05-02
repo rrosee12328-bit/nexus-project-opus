@@ -84,6 +84,7 @@ export function DecisionsPanel() {
   const [resolving, setResolving] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [autoExpanded, setAutoExpanded] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -209,6 +210,14 @@ export function DecisionsPanel() {
     medium: decisions.filter((d) => d.risk_tier === "medium").length,
     low: decisions.filter((d) => d.risk_tier === "low").length,
   };
+
+  // Auto-expand when high-risk items appear (executive should see them by default).
+  useEffect(() => {
+    if (counts.high > 0 && !autoExpanded) {
+      setExpanded(true);
+      setAutoExpanded(true);
+    }
+  }, [counts.high, autoExpanded]);
 
   const askAI = (d: Decision) => {
     const meta = TYPE_META[d.type];
