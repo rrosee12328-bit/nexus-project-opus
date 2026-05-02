@@ -642,9 +642,9 @@ export default function BrainHub() {
                 <span className="text-[11px] text-muted-foreground hidden sm:inline">· {section.hint}</span>
               </div>
             </div>
-            {/* Mobile: horizontal snap scroller. Desktop: grid. */}
+            {/* Mobile: horizontal snap scroller. Desktop: fixed 4-col grid so card widths stay consistent across sections. */}
             <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
-              <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 sm:grid sm:overflow-visible sm:pb-0 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 sm:grid sm:overflow-visible sm:pb-0 sm:grid-cols-2 lg:[grid-template-columns:repeat(4,minmax(0,1fr))]">
                 {(loading && section.items.length === 0
                   ? Array.from({ length: 4 }).map((_, i) => ({ label: "", value: 0, icon: Activity, loading: true } as KpiPulse & { loading: boolean }))
                   : section.items
