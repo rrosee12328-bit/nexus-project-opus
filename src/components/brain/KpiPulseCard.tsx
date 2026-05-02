@@ -84,6 +84,20 @@ function formatNum(n: number, prefix?: string, suffix?: string) {
   return `${prefix ?? ""}${body}${suffix ?? ""}`;
 }
 
+/** Shimmer-styled placeholder block — consistent base for all skeleton elements. */
+function SkeletonBlock({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        "relative overflow-hidden rounded bg-muted/40",
+        "before:absolute before:inset-0 before:-translate-x-full before:animate-shimmer",
+        "before:bg-gradient-to-r before:from-transparent before:via-foreground/10 before:to-transparent",
+        className,
+      )}
+    />
+  );
+}
+
 /** Single skeleton layout reused for every KPI loading state — guarantees identical block sizes and spacing. */
 function KpiSkeleton() {
   return (
@@ -96,16 +110,16 @@ function KpiSkeleton() {
       aria-label="Loading metric"
     >
       <div className="relative flex items-start justify-between gap-2">
-        <div className="h-8 w-8 rounded-md bg-muted/50 animate-pulse" />
+        <SkeletonBlock className="h-8 w-8 rounded-md" />
       </div>
       <div className="relative mt-3 flex items-end justify-between gap-2">
         <div className="min-w-0">
-          <div className="h-7 sm:h-8 w-16 rounded-md bg-muted/60 animate-pulse" />
-          <div className="mt-2 h-3 w-24 rounded bg-muted/40 animate-pulse" />
+          <SkeletonBlock className="h-7 sm:h-8 w-16 rounded-md" />
+          <SkeletonBlock className="mt-2 h-3 w-24" />
         </div>
-        <div className="shrink-0 h-6 w-20 rounded bg-muted/40 animate-pulse" />
+        <SkeletonBlock className="shrink-0 h-6 w-20" />
       </div>
-      <div className="relative mt-2 h-3 w-20 rounded bg-muted/30 animate-pulse" />
+      <SkeletonBlock className="mt-2 h-3 w-20" />
     </div>
   );
 }
