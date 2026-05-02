@@ -41,6 +41,7 @@ import { BrainStatePanel } from "@/components/brain/BrainStatePanel";
 import { PreferencesPanel } from "@/components/brain/PreferencesPanel";
 import { DailyPulseStrip } from "@/components/brain/DailyPulseStrip";
 import { MoneyCard } from "@/components/brain/MoneyCard";
+import { OperationsCard } from "@/components/brain/OperationsCard";
 import { CheckSquare, Send, Eye, Percent, AlertTriangle, MailWarning, ListTodo } from "lucide-react";
 
 type ClientLite = { id: string; name: string; client_number: string | null };
@@ -673,6 +674,10 @@ export default function BrainHub() {
       {/* Money — Cash | Profitability tabs in one card */}
       <div id="money" className="scroll-mt-20">
         <MoneyCard />
+      </div>
+
+      <div id="operations" className="scroll-mt-20">
+        <OperationsCard />
       </div>
 
       {/* Pulse — Today snapshot + Velocity / Risk / Growth in tabbed card */}
