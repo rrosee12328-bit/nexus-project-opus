@@ -119,7 +119,10 @@ function KpiSkeleton() {
         </div>
         <SkeletonBlock className="shrink-0 h-6 w-20" />
       </div>
-      <SkeletonBlock className="mt-2 h-3 w-20" />
+      {/* Trend row placeholder — same h-5 footprint as the loaded delta row so spacing never shifts. */}
+      <div className="mt-2 h-5 flex items-center">
+        <SkeletonBlock className="h-3 w-20" />
+      </div>
     </div>
   );
 }
@@ -177,15 +180,18 @@ export function KpiPulseCard(props: KpiPulse) {
         )}
       </div>
 
-      {typeof props.delta === "number" && (
-        <div className="relative mt-2 flex items-center gap-1">
-          <TrendIcon className={cn("h-3 w-3", positive ? "text-emerald-500" : "text-rose-500", (props.delta ?? 0) === 0 && "text-muted-foreground")} />
-          <span className={cn("font-mono text-[11px] tabular-nums", positive ? "text-emerald-500" : "text-rose-500", (props.delta ?? 0) === 0 && "text-muted-foreground")}>
-            {(props.delta ?? 0) > 0 ? "+" : ""}{props.delta}
-          </span>
-          <span className="text-[10px] text-muted-foreground">vs prev 7d</span>
-        </div>
-      )}
+      {/* Always reserve the trend row so cards with and without a delta share identical height. */}
+      <div className="relative mt-2 h-5 flex items-center gap-1">
+        {typeof props.delta === "number" && (
+          <>
+            <TrendIcon className={cn("h-3 w-3", positive ? "text-emerald-500" : "text-rose-500", (props.delta ?? 0) === 0 && "text-muted-foreground")} />
+            <span className={cn("font-mono text-[11px] tabular-nums", positive ? "text-emerald-500" : "text-rose-500", (props.delta ?? 0) === 0 && "text-muted-foreground")}>
+              {(props.delta ?? 0) > 0 ? "+" : ""}{props.delta}
+            </span>
+            <span className="text-[10px] text-muted-foreground">vs prev 7d</span>
+          </>
+        )}
+      </div>
     </div>
   );
 
