@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import {
   Brain,
@@ -66,7 +67,8 @@ interface PipelineStatus {
 interface MarketInsight {
   title: string;
   type: "opportunity" | "risk" | "trend" | "competitor" | string;
-  insight: string;
+  insight?: string;
+  summary?: string;
   recommended_action?: string;
   urgency: "high" | "medium" | "low" | string;
   sources?: { title?: string; url: string }[] | string[];
@@ -76,6 +78,10 @@ interface MarketReport {
   id: string;
   generated_at: string;
   insights: MarketInsight[];
+  client_id?: string | null;
+  client_name?: string | null;
+  client_number?: string | null;
+  report_type?: "agency" | "client" | string;
 }
 
 function timeAgo(dateStr: string | null | undefined): string {
@@ -113,7 +119,10 @@ export default function BrainHub() {
   });
   const [pipelines, setPipelines] = useState<PipelineStatus[]>([]);
   const [marketReport, setMarketReport] = useState<MarketReport | null>(null);
+  const [clientReports, setClientReports] = useState<MarketReport[]>([]);
   const [marketRunning, setMarketRunning] = useState(false);
+  const [clientRunning, setClientRunning] = useState(false);
+  const [marketTab, setMarketTab] = useState<"agency" | "client">("agency");
   const [marketRunStatus, setMarketRunStatus] = useState<{
     type: "success" | "error";
     message: string;
@@ -247,25 +256,63 @@ export default function BrainHub() {
 
     // Market intelligence — table may not exist yet; fail silently
     try {
-      const { data: marketData } = await (supabase as any)
+      const parseInsights = (raw: any): MarketInsight[] =>
+        Array.isArray(raw) ? raw
+          : typeof raw === "string"
+            ? (() => { try { const j = JSON.parse(raw); return Array.isArray(j) ? j : []; } catch { return []; } })()
+            : [];
+
+      // Latest agency report
+      const { data: agencyRow } = await (supabase as any)
         .from("market_intelligence")
-        .select("id, generated_at, insights")
+        .select("id, generated_at, insights, report_type, client_id")
+        .eq("report_type", "agency")
         .order("generated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (marketData) {
-        const raw = marketData.insights;
-        const insights: MarketInsight[] = Array.isArray(raw)
-          ? raw
-          : typeof raw === "string"
-            ? (() => { try { return JSON.parse(raw); } catch { return []; } })()
-            : [];
-        setMarketReport({ id: marketData.id, generated_at: marketData.generated_at, insights });
+
+      if (agencyRow) {
+        setMarketReport({
+          id: agencyRow.id,
+          generated_at: agencyRow.generated_at,
+          insights: parseInsights(agencyRow.insights),
+          report_type: "agency",
+        });
       } else {
         setMarketReport(null);
       }
+
+      // Latest per-client reports (one per client, most recent each)
+      const { data: clientRows } = await (supabase as any)
+        .from("market_intelligence")
+        .select("id, generated_at, insights, report_type, client_id, clients(name, client_number)")
+        .eq("report_type", "client")
+        .order("generated_at", { ascending: false })
+        .limit(50);
+
+      if (clientRows && clientRows.length) {
+        const seen = new Set<string>();
+        const latest: MarketReport[] = [];
+        for (const row of clientRows as any[]) {
+          if (!row.client_id || seen.has(row.client_id)) continue;
+          seen.add(row.client_id);
+          latest.push({
+            id: row.id,
+            generated_at: row.generated_at,
+            insights: parseInsights(row.insights),
+            client_id: row.client_id,
+            client_name: row.clients?.name ?? "Client",
+            client_number: row.clients?.client_number ?? null,
+            report_type: "client",
+          });
+        }
+        setClientReports(latest);
+      } else {
+        setClientReports([]);
+      }
     } catch {
       setMarketReport(null);
+      setClientReports([]);
     }
 
     setLoading(false);
@@ -331,17 +378,18 @@ export default function BrainHub() {
     setMarketRunStatus(null);
     try {
       const { data, error } = await supabase.functions.invoke("trigger-market-intelligence", {
-        body: {},
+        body: { report_type: "agency" },
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
-      const responseText = typeof (data as any)?.response === "string" ? (data as any).response : "";
+      const tasksCreated = (data as any)?.tasks_created ?? 0;
+      const insightCount = (data as any)?.insight_count ?? 0;
       setMarketRunStatus({
         type: "success",
-        message: "n8n accepted the Market Intelligence run.",
-        detail: responseText
-          ? `Workflow response: ${responseText}`
-          : "Waiting for n8n to save a new market intelligence report.",
+        message: `Agency report generated: ${insightCount} insights.`,
+        detail: tasksCreated
+          ? `${tasksCreated} high-urgency task${tasksCreated === 1 ? "" : "s"} auto-created in Ops.`
+          : "No high-urgency items this run.",
       });
       toast.success("Market Intelligence run triggered.");
       window.setTimeout(() => void fetchAll(), 2500);
@@ -351,6 +399,37 @@ export default function BrainHub() {
       toast.error(message);
     } finally {
       setMarketRunning(false);
+    }
+  };
+
+  const runClientIntelligence = async () => {
+    setClientRunning(true);
+    setMarketRunStatus(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("trigger-market-intelligence", {
+        body: { report_type: "client" },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const results = ((data as any)?.results ?? []) as any[];
+      const totalTasks = results.reduce((s, r) => s + (r.tasks_created ?? 0), 0);
+      const totalInsights = results.reduce((s, r) => s + (r.insight_count ?? 0), 0);
+      setMarketRunStatus({
+        type: "success",
+        message: `Per-client scan: ${results.length} clients, ${totalInsights} insights.`,
+        detail: totalTasks
+          ? `${totalTasks} high-urgency task${totalTasks === 1 ? "" : "s"} auto-created in Ops.`
+          : "No high-urgency items this run.",
+      });
+      toast.success(`Per-client scan complete: ${results.length} clients`);
+      setMarketTab("client");
+      window.setTimeout(() => void fetchAll(), 1500);
+    } catch (e: any) {
+      const message = e?.message || "Failed to run per-client intelligence";
+      setMarketRunStatus({ type: "error", message });
+      toast.error(message);
+    } finally {
+      setClientRunning(false);
     }
   };
 
@@ -438,16 +517,17 @@ export default function BrainHub() {
             <CardTitle className="text-base flex items-center gap-2">
               <Globe className="h-4 w-4 text-primary" />
               Market Intelligence
-              {marketReport && (
-                <Badge variant="outline" className="text-xs ml-1">
-                  Last updated {timeAgo(marketReport.generated_at)}
-                </Badge>
-              )}
             </CardTitle>
-            <Button onClick={runMarketIntelligence} variant="outline" size="sm" disabled={marketRunning}>
-              <Play className={cn("h-4 w-4 mr-2", marketRunning && "animate-pulse")} />
-              Run Now
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button onClick={runMarketIntelligence} variant="outline" size="sm" disabled={marketRunning || clientRunning}>
+                <Play className={cn("h-4 w-4 mr-2", marketRunning && "animate-pulse")} />
+                Run Agency
+              </Button>
+              <Button onClick={runClientIntelligence} variant="default" size="sm" disabled={marketRunning || clientRunning}>
+                <Users className={cn("h-4 w-4 mr-2", clientRunning && "animate-pulse")} />
+                Run Per-Client
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -473,63 +553,73 @@ export default function BrainHub() {
               </div>
             </div>
           )}
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {[...Array(2)].map((_, i) => <Skeleton key={i} className="h-40 w-full" />)}
-            </div>
-          ) : !marketReport || marketReport.insights.length === 0 ? (
-            <div className="text-center py-10 text-sm text-muted-foreground border border-dashed rounded-md">
-              <Globe className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              Market intelligence runs every morning at 6am — first report arrives tomorrow.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {marketReport.insights.map((ins, idx) => {
-                const meta = TYPE_META[ins.type] || { tone: "text-muted-foreground", bg: "bg-muted/40 border-border", icon: Lightbulb, label: ins.type };
-                const urgencyClass = URGENCY_META[ins.urgency] || "bg-muted text-foreground";
-                return (
-                  <div key={idx} className={cn("p-4 rounded-md border", meta.bg)}>
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <meta.icon className={cn("h-4 w-4 shrink-0", meta.tone)} />
-                        <h4 className="text-sm font-semibold truncate">{ins.title}</h4>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Badge variant="outline" className={cn("text-xs capitalize", meta.tone)}>{meta.label}</Badge>
-                        {ins.urgency && (
-                          <Badge className={cn("text-xs capitalize", urgencyClass)}>{ins.urgency}</Badge>
+          <Tabs value={marketTab} onValueChange={(v) => setMarketTab(v as "agency" | "client")}>
+            <TabsList className="mb-3">
+              <TabsTrigger value="agency">
+                Agency
+                {marketReport && (
+                  <Badge variant="outline" className="ml-2 text-xs">{timeAgo(marketReport.generated_at)}</Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="client">
+                By Client
+                {clientReports.length > 0 && (
+                  <Badge variant="outline" className="ml-2 text-xs">{clientReports.length}</Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="agency" className="mt-0">
+              {loading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {[...Array(2)].map((_, i) => <Skeleton key={i} className="h-40 w-full" />)}
+                </div>
+              ) : !marketReport || marketReport.insights.length === 0 ? (
+                <div className="text-center py-10 text-sm text-muted-foreground border border-dashed rounded-md">
+                  <Globe className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  No agency report yet. Click <span className="font-medium">Run Agency</span> to generate one.
+                </div>
+              ) : (
+                <InsightGrid insights={marketReport.insights} TYPE_META={TYPE_META} URGENCY_META={URGENCY_META} />
+              )}
+            </TabsContent>
+
+            <TabsContent value="client" className="mt-0">
+              {loading ? (
+                <div className="space-y-3">
+                  {[...Array(2)].map((_, i) => <Skeleton key={i} className="h-32 w-full" />)}
+                </div>
+              ) : clientReports.length === 0 ? (
+                <div className="text-center py-10 text-sm text-muted-foreground border border-dashed rounded-md">
+                  <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  No per-client reports yet. Click <span className="font-medium">Run Per-Client</span> to generate
+                  tailored insights for every active client.
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {clientReports.map((rep) => (
+                    <div key={rep.id}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <UserPlus className="h-4 w-4 text-primary" />
+                        <h4 className="text-sm font-semibold">{rep.client_name}</h4>
+                        {rep.client_number && (
+                          <Badge variant="outline" className="text-xs">{rep.client_number}</Badge>
                         )}
+                        <span className="ml-auto text-xs text-muted-foreground">{timeAgo(rep.generated_at)}</span>
                       </div>
+                      {rep.insights.length === 0 ? (
+                        <div className="text-xs text-muted-foreground italic px-3 py-2 border border-dashed rounded">
+                          No insights parsed for this client.
+                        </div>
+                      ) : (
+                        <InsightGrid insights={rep.insights} TYPE_META={TYPE_META} URGENCY_META={URGENCY_META} />
+                      )}
                     </div>
-                    <p className="text-sm text-foreground/80 mb-3">{ins.insight}</p>
-                    {ins.recommended_action && (
-                      <div className="text-xs bg-orange-500/10 border border-orange-500/30 rounded p-2 mb-3">
-                        <span className="font-semibold text-orange-600 dark:text-orange-400">Recommended action: </span>
-                        <span className="text-foreground/80">{ins.recommended_action}</span>
-                      </div>
-                    )}
-                    {ins.sources && ins.sources.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {ins.sources.map((s, i) => {
-                          const url = typeof s === "string" ? s : s.url;
-                          const label = typeof s === "string"
-                            ? (() => { try { return new URL(s).hostname.replace("www.",""); } catch { return s; } })()
-                            : (s.title || (() => { try { return new URL(s.url).hostname.replace("www.",""); } catch { return s.url; } })());
-                          return (
-                            <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
-                              <ExternalLink className="h-3 w-3" />
-                              {label}
-                            </a>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 
@@ -647,6 +737,72 @@ export default function BrainHub() {
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function InsightGrid({
+  insights,
+  TYPE_META,
+  URGENCY_META,
+}: {
+  insights: MarketInsight[];
+  TYPE_META: Record<string, { tone: string; bg: string; icon: typeof Mail; label: string }>;
+  URGENCY_META: Record<string, string>;
+}) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {insights.map((ins, idx) => {
+        const meta = TYPE_META[ins.type] || { tone: "text-muted-foreground", bg: "bg-muted/40 border-border", icon: Lightbulb, label: ins.type };
+        const urgencyClass = URGENCY_META[ins.urgency] || "bg-muted text-foreground";
+        const body = ins.summary || ins.insight || "";
+        return (
+          <div key={idx} className={cn("p-4 rounded-md border", meta.bg)}>
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <meta.icon className={cn("h-4 w-4 shrink-0", meta.tone)} />
+                <h4 className="text-sm font-semibold truncate">{ins.title}</h4>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <Badge variant="outline" className={cn("text-xs capitalize", meta.tone)}>{meta.label}</Badge>
+                {ins.urgency && (
+                  <Badge className={cn("text-xs capitalize", urgencyClass)}>{ins.urgency}</Badge>
+                )}
+              </div>
+            </div>
+            <p className="text-sm text-foreground/80 mb-3">{body}</p>
+            {ins.recommended_action && (
+              <div className="text-xs bg-orange-500/10 border border-orange-500/30 rounded p-2 mb-3">
+                <span className="font-semibold text-orange-600 dark:text-orange-400">Recommended action: </span>
+                <span className="text-foreground/80">{ins.recommended_action}</span>
+              </div>
+            )}
+            {ins.urgency === "high" && (
+              <div className="text-xs flex items-center gap-1 text-orange-600 dark:text-orange-400 mb-2">
+                <Zap className="h-3 w-3" />
+                Auto-created Ops task (due in 2 days)
+              </div>
+            )}
+            {ins.sources && ins.sources.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {ins.sources.map((s, i) => {
+                  const url = typeof s === "string" ? s : s.url;
+                  const label = typeof s === "string"
+                    ? (() => { try { return new URL(s).hostname.replace("www.",""); } catch { return s; } })()
+                    : (s.title || (() => { try { return new URL(s.url).hostname.replace("www.",""); } catch { return s.url; } })());
+                  return (
+                    <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                      <ExternalLink className="h-3 w-3" />
+                      {label}
+                    </a>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
