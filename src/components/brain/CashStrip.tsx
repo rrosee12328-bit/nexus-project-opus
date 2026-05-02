@@ -8,7 +8,7 @@ import { DollarSign, Repeat, Receipt, AlertCircle } from "lucide-react";
 const usd0 = (n: number) =>
   n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
-export function CashStrip() {
+export function CashStrip({ embedded = false }: { embedded?: boolean } = {}) {
   const [data, setData] = useState<{
     mtd: number;
     mrr: number;
@@ -68,6 +68,31 @@ export function CashStrip() {
     })();
   }, []);
 
+  const body = !data ? (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16" />)}
+    </div>
+  ) : (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <Stat icon={DollarSign} label="MTD revenue" value={usd0(data.mtd)} tone="success" />
+      <Stat icon={Repeat} label="MRR (active)" value={usd0(data.mrr)} tone="info" />
+      <Stat
+        icon={Receipt}
+        label="Outstanding invoices"
+        value={usd0(data.outstanding)}
+        tone={data.outstanding > 0 ? "warn" : "neutral"}
+      />
+      <Stat
+        icon={AlertCircle}
+        label="Churn risk · 30d silent"
+        value={String(data.churnRisk)}
+        tone={data.churnRisk > 0 ? "danger" : "success"}
+      />
+    </div>
+  );
+
+  if (embedded) return body;
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -75,30 +100,7 @@ export function CashStrip() {
           <DollarSign className="h-3 w-3 text-emerald-500" /> Cash · this month
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        {!data ? (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16" />)}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <Stat icon={DollarSign} label="MTD revenue" value={usd0(data.mtd)} tone="success" />
-            <Stat icon={Repeat} label="MRR (active)" value={usd0(data.mrr)} tone="info" />
-            <Stat
-              icon={Receipt}
-              label="Outstanding invoices"
-              value={usd0(data.outstanding)}
-              tone={data.outstanding > 0 ? "warn" : "neutral"}
-            />
-            <Stat
-              icon={AlertCircle}
-              label="Churn risk · 30d silent"
-              value={String(data.churnRisk)}
-              tone={data.churnRisk > 0 ? "danger" : "success"}
-            />
-          </div>
-        )}
-      </CardContent>
+      <CardContent>{body}</CardContent>
     </Card>
   );
 }
