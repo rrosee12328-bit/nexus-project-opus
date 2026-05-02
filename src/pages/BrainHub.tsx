@@ -36,6 +36,7 @@ import {
 import { toast } from "sonner";
 import { KpiPulseCard, type KpiPulse } from "@/components/brain/KpiPulseCard";
 import { DecisionsPanel } from "@/components/brain/DecisionsPanel";
+import { BrainStatePanel } from "@/components/brain/BrainStatePanel";
 import { CheckSquare, Send, Eye, Percent, AlertTriangle, MailWarning, ListTodo } from "lucide-react";
 
 type ClientLite = { id: string; name: string; client_number: string | null };
@@ -651,6 +652,9 @@ export default function BrainHub() {
 
       {/* AI Decisions Queue */}
       <DecisionsPanel />
+
+      {/* Brain State Snapshot — what the AI sees */}
+      <BrainStatePanel />
 
       {/* Market Intelligence */}
       <Card>
