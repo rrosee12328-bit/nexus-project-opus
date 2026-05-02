@@ -190,11 +190,46 @@ Deno.serve(async (req) => {
         .filter(Boolean),
     );
 
+    // ── Honor learning preferences: skip drafts the admin previously rejected ──
+    const { data: prefs } = await supabase
+      .from("ai_preferences")
+      .select("scope, scope_id, category")
+      .eq("active", true);
+    const blockedClientCategory = new Set(
+      (prefs ?? [])
+        .filter((p: any) => p.scope === "client" && p.scope_id && p.category)
+        .map((p: any) => `${p.scope_id}::${p.category}`),
+    );
+    const blockedCategories = new Set(
+      (prefs ?? [])
+        .filter((p: any) => p.scope === "category" && p.category && !p.scope_id)
+        .map((p: any) => p.category),
+    );
+    const skippedByLearning: string[] = [];
+
     let inserted = 0;
     const newDecisions: DecisionDraft[] = [];
     for (const d of drafts) {
       if (existingKeys.has(d.dedupe_key)) continue;
+      if (d.client_id && blockedClientCategory.has(`${d.client_id}::${d.type}`)) {
+        skippedByLearning.push(d.dedupe_key);
+        continue;
+      }
+      if (blockedCategories.has(d.type)) {
+        skippedByLearning.push(d.dedupe_key);
+        continue;
+      }
       newDecisions.push(d);
+    }
+
+    // Increment hit_count on preferences that blocked drafts (so admins can see what's working)
+    if (skippedByLearning.length > 0 && (prefs?.length ?? 0) > 0) {
+      // Best-effort: bump last_applied_at on all active preferences (cheap)
+      await supabase
+        .from("ai_preferences")
+        .update({ last_applied_at: new Date().toISOString() })
+        .eq("active", true)
+        .in("category", drafts.map((d) => d.type));
     }
 
     if (newDecisions.length > 0) {
@@ -242,6 +277,7 @@ Deno.serve(async (req) => {
         success: true,
         drafts_evaluated: drafts.length,
         decisions_inserted: inserted,
+        skipped_by_learning: skippedByLearning.length,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );

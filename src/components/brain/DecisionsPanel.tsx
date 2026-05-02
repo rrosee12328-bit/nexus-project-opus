@@ -20,6 +20,9 @@ import {
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
 type Decision = {
   id: string;
@@ -131,6 +134,42 @@ export function DecisionsPanel() {
     setResolving(null);
   };
 
+  // Rejection learning dialog
+  const [rejectTarget, setRejectTarget] = useState<Decision | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [savingReject, setSavingReject] = useState(false);
+
+  const submitRejection = async () => {
+    if (!rejectTarget) return;
+    setSavingReject(true);
+    try {
+      // Save preference so the AI learns
+      const reason = rejectReason.trim();
+      const rule = reason
+        ? reason
+        : `Don't flag "${rejectTarget.title}" again — admin rejected this signal.`;
+
+      await supabase.from("ai_preferences").insert({
+        scope: rejectTarget.client_id ? "client" : "category",
+        scope_id: rejectTarget.client_id ?? null,
+        category: rejectTarget.type,
+        rule,
+        reason: reason || null,
+        source_decision_id: rejectTarget.id,
+        created_by: user?.id ?? null,
+      });
+
+      await resolve(rejectTarget.id, "rejected");
+      setRejectTarget(null);
+      setRejectReason("");
+      toast.success("Got it — the AI will remember this");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to save");
+    } finally {
+      setSavingReject(false);
+    }
+  };
+
   const counts = {
     high: decisions.filter((d) => d.risk_tier === "high").length,
     medium: decisions.filter((d) => d.risk_tier === "medium").length,
@@ -138,6 +177,7 @@ export function DecisionsPanel() {
   };
 
   return (
+    <>
     <Card>
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -249,7 +289,7 @@ export function DecisionsPanel() {
                           size="sm"
                           className="h-7 px-2 text-xs text-destructive hover:text-destructive"
                           disabled={isResolving}
-                          onClick={() => resolve(d.id, "rejected")}
+                          onClick={() => setRejectTarget(d)}
                         >
                           <X className="h-3.5 w-3.5 mr-1" /> Wrong call
                         </Button>
@@ -263,5 +303,38 @@ export function DecisionsPanel() {
         )}
       </CardContent>
     </Card>
+
+    <Dialog open={!!rejectTarget} onOpenChange={(o) => { if (!o) { setRejectTarget(null); setRejectReason(""); } }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Teach the AI</DialogTitle>
+          <DialogDescription>
+            Why was this the wrong call? Your reason becomes a rule the AI follows next time.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <Label htmlFor="reject-reason" className="text-xs">Reason (optional)</Label>
+          <Textarea
+            id="reject-reason"
+            placeholder={rejectTarget?.client_id
+              ? `e.g. This client is a strategic loss leader — don't flag low margin.`
+              : `e.g. We don't care about this signal type.`}
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            rows={3}
+          />
+          <p className="text-xs text-muted-foreground">
+            Leave blank to just dismiss without explanation.
+          </p>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setRejectTarget(null)} disabled={savingReject}>Cancel</Button>
+          <Button onClick={submitRejection} disabled={savingReject}>
+            {savingReject ? "Saving…" : "Save & reject"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
