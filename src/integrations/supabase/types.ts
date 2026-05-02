@@ -1297,6 +1297,7 @@ export type Database = {
       }
       market_intelligence: {
         Row: {
+          client_id: string | null
           context_snapshot: Json | null
           created_at: string
           generated_at: string
@@ -1304,8 +1305,10 @@ export type Database = {
           insights: Json | null
           model_used: string | null
           raw_response: string | null
+          report_type: string
         }
         Insert: {
+          client_id?: string | null
           context_snapshot?: Json | null
           created_at?: string
           generated_at?: string
@@ -1313,8 +1316,10 @@ export type Database = {
           insights?: Json | null
           model_used?: string | null
           raw_response?: string | null
+          report_type?: string
         }
         Update: {
+          client_id?: string | null
           context_snapshot?: Json | null
           created_at?: string
           generated_at?: string
@@ -1322,8 +1327,17 @@ export type Database = {
           insights?: Json | null
           model_used?: string | null
           raw_response?: string | null
+          report_type?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "market_intelligence_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       market_intelligence_errors: {
         Row: {
@@ -2262,6 +2276,7 @@ export type Database = {
           priority: Database["public"]["Enums"]["task_priority"]
           recurring_key: string | null
           sort_order: number
+          source_market_insight_id: string | null
           status: Database["public"]["Enums"]["task_status"]
           title: string
           updated_at: string
@@ -2278,6 +2293,7 @@ export type Database = {
           priority?: Database["public"]["Enums"]["task_priority"]
           recurring_key?: string | null
           sort_order?: number
+          source_market_insight_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           title: string
           updated_at?: string
@@ -2294,6 +2310,7 @@ export type Database = {
           priority?: Database["public"]["Enums"]["task_priority"]
           recurring_key?: string | null
           sort_order?: number
+          source_market_insight_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           title?: string
           updated_at?: string
