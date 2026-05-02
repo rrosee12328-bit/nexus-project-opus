@@ -34,6 +34,8 @@ import {
   Target,
 } from "lucide-react";
 import { toast } from "sonner";
+import { KpiPulseCard, type KpiPulse } from "@/components/brain/KpiPulseCard";
+import { CheckSquare, Send, Eye, Percent, AlertTriangle, MailWarning, ListTodo } from "lucide-react";
 
 type ClientLite = { id: string; name: string; client_number: string | null };
 
@@ -143,6 +145,11 @@ export default function BrainHub() {
     contentPublished: 0,
     emailsAwaiting: 0,
   });
+  const [pulse, setPulse] = useState<{
+    velocity: KpiPulse[];
+    risk: KpiPulse[];
+    growth: KpiPulse[];
+  }>({ velocity: [], risk: [], growth: [] });
   const [pipelines, setPipelines] = useState<PipelineStatus[]>([]);
   const [marketReport, setMarketReport] = useState<MarketReport | null>(null);
   const [clientReports, setClientReports] = useState<MarketReport[]>([]);
