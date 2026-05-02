@@ -603,6 +603,37 @@ const ADMIN_ONLY_TOOLS = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'query_client_profitability',
+      description: 'Get TRUE profitability per client including internal labor cost (hours × internal hourly rate from business_settings) plus external client_costs. This is the source-of-truth for "is this client actually profitable?" questions. Returns revenue, hours, labor_cost, external_cost, profit, and margin_pct per month.',
+      parameters: {
+        type: 'object',
+        properties: {
+          client_id: { type: 'string', description: 'Filter to one client.' },
+          months_back: { type: 'number', description: 'How many months of history to return (default 3, max 12).' },
+          unprofitable_only: { type: 'boolean', description: 'If true, only return clients with negative profit or margin below the low-margin threshold.' },
+        },
+        required: [], additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'query_time_vs_revenue',
+      description: 'Compare hours logged on a client (or all clients) against revenue collected over a period. Surfaces clients consuming far more time than they pay for. Use this for "are we spending too much time on X" questions.',
+      parameters: {
+        type: 'object',
+        properties: {
+          client_id: { type: 'string' },
+          since_days: { type: 'number', description: 'Lookback window in days (default 30).' },
+        },
+        required: [], additionalProperties: false,
+      },
+    },
+  },
 ]
 
 const OPS_ONLY_TOOLS = [
