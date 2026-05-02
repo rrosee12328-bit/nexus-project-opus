@@ -95,6 +95,7 @@ export function KpiPulseCard(props: KpiPulse) {
     <div
       className={cn(
         "group relative flex h-full flex-col overflow-hidden rounded-xl border bg-card p-3 sm:p-4 transition-all",
+        "min-h-[136px] sm:min-h-[148px]",
         "hover:-translate-y-0.5 hover:shadow-lg hover:ring-1",
         tone.ring,
       )}
@@ -119,10 +120,19 @@ export function KpiPulseCard(props: KpiPulse) {
 
       <div className="relative mt-3 flex items-end justify-between gap-2">
         <div className="min-w-0">
-          <p className="font-mono text-2xl sm:text-3xl font-semibold leading-none tracking-tight tabular-nums">
-            {props.loading ? "—" : formatNum(animated, props.prefix, props.suffix)}
-          </p>
-          <p className="mt-1.5 text-[11px] sm:text-xs text-muted-foreground line-clamp-1">{props.label}</p>
+          {props.loading ? (
+            <>
+              <div className="h-7 sm:h-8 w-16 rounded-md bg-muted/60 animate-pulse" />
+              <div className="mt-2 h-3 w-24 rounded bg-muted/40 animate-pulse" />
+            </>
+          ) : (
+            <>
+              <p className="font-mono text-2xl sm:text-3xl font-semibold leading-none tracking-tight tabular-nums">
+                {formatNum(animated, props.prefix, props.suffix)}
+              </p>
+              <p className="mt-1.5 text-[11px] sm:text-xs text-muted-foreground line-clamp-1">{props.label}</p>
+            </>
+          )}
         </div>
         {props.spark && props.spark.length > 1 && !props.loading && (
           <div className="shrink-0 opacity-80">
@@ -131,7 +141,9 @@ export function KpiPulseCard(props: KpiPulse) {
         )}
       </div>
 
-      {typeof props.delta === "number" && !props.loading && (
+      {props.loading ? (
+        <div className="relative mt-2 h-3 w-20 rounded bg-muted/30 animate-pulse" />
+      ) : typeof props.delta === "number" && (
         <div className="relative mt-2 flex items-center gap-1">
           <TrendIcon className={cn("h-3 w-3", positive ? "text-emerald-500" : "text-rose-500", (props.delta ?? 0) === 0 && "text-muted-foreground")} />
           <span className={cn("font-mono text-[11px] tabular-nums", positive ? "text-emerald-500" : "text-rose-500", (props.delta ?? 0) === 0 && "text-muted-foreground")}>
