@@ -164,7 +164,7 @@ export default function BrainHub() {
 
   const fetchAll = async () => {
     setLoading(true);
-    /* loadPulseMetrics is defined below (closure) */
+
     const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
