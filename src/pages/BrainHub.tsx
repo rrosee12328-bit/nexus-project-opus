@@ -829,19 +829,32 @@ export default function BrainHub() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Live pulse feed */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-3">
+      <Card id="inbox" className="scroll-mt-20">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
             <CardTitle className="text-base flex items-center gap-2">
               <Activity className="h-4 w-4 text-primary" />
-              Live Pulse Feed
-              <Badge variant="outline" className="ml-auto text-xs">Last 24h</Badge>
+              Activity
             </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[520px] pr-3">
-              {loading ? (
+            <Tabs value={inboxTab} onValueChange={(v) => setInboxTab(v as "feed" | "actions")}>
+              <TabsList className="h-8">
+                <TabsTrigger value="feed" className="text-xs">
+                  Pulse · 24h
+                </TabsTrigger>
+                <TabsTrigger value="actions" className="text-xs">
+                  Action board
+                  {actions.length > 0 && (
+                    <Badge variant="outline" className="ml-1.5 text-[10px] font-mono">{actions.length}</Badge>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ScrollArea className="h-[520px] pr-3">
+            {inboxTab === "feed" ? (
+              loading ? (
                 <div className="space-y-3">
                   {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
                 </div>
@@ -880,23 +893,9 @@ export default function BrainHub() {
                       : <div key={item.id}>{content}</div>;
                   })}
                 </div>
-              )}
-            </ScrollArea>
-          </CardContent>
-        </Card>
-
-        {/* Action board */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Zap className="h-4 w-4 text-orange-500" />
-              Action Board
-              <Badge variant="outline" className="ml-auto text-xs">{actions.length}</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[520px] pr-3">
-              {loading ? (
+              )
+            ) : (
+              loading ? (
                 <div className="space-y-3">
                   {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}
                 </div>
@@ -938,11 +937,11 @@ export default function BrainHub() {
                     </Link>
                   ))}
                 </div>
-              )}
-            </ScrollArea>
-          </CardContent>
-        </Card>
-      </div>
+              )
+            )}
+          </ScrollArea>
+        </CardContent>
+      </Card>
     </div>
   );
 }
