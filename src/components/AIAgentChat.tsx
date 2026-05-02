@@ -122,6 +122,20 @@ export default function AIAgentChat({
   const animFrameRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialPromptFiredRef = useRef(false);
+
+  // Prefill + auto-send when launched with an initialPrompt (e.g. "Ask AI" from Decisions)
+  useEffect(() => {
+    if (!initialPrompt || initialPromptFiredRef.current || !user) return;
+    initialPromptFiredRef.current = true;
+    setInput(initialPrompt);
+    // Send on next tick so the input state is committed
+    const t = window.setTimeout(() => {
+      void handleSend();
+    }, 50);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPrompt, user]);
 
   /* ── Conversation CRUD ── */
   useEffect(() => {
