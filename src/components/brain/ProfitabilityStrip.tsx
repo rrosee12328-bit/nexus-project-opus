@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 
 type ProfitRow = {
@@ -12,42 +13,74 @@ type ProfitRow = {
   month_start: string;
   revenue: number | null;
   hours: number | null;
-  labor_cost: number | null;
-  external_cost: number | null;
   profit: number | null;
   margin_pct: number | null;
 };
 
+type Range = "30d" | "90d" | "ytd";
+
 const usd = (n: number) =>
   n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
+function rangeStartIso(r: Range): string {
+  const d = new Date();
+  if (r === "30d") d.setUTCDate(d.getUTCDate() - 30);
+  else if (r === "90d") d.setUTCDate(d.getUTCDate() - 90);
+  else { d.setUTCMonth(0, 1); d.setUTCHours(0, 0, 0, 0); }
+  // Normalize to month_start
+  d.setUTCDate(1);
+  d.setUTCHours(0, 0, 0, 0);
+  return d.toISOString().slice(0, 10);
+}
+
 export function ProfitabilityStrip() {
+  const [range, setRange] = useState<Range>("30d");
   const [rows, setRows] = useState<ProfitRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     (async () => {
-      const monthStart = new Date();
-      monthStart.setUTCDate(1);
-      monthStart.setUTCHours(0, 0, 0, 0);
-      const iso = monthStart.toISOString().slice(0, 10);
+      const start = rangeStartIso(range);
       const { data, error } = await (supabase as any)
         .from("v_client_profitability")
         .select("*")
-        .eq("month_start", iso);
+        .gte("month_start", start);
       if (error) console.error(error);
-      // Only show clients with any activity this month (revenue or hours)
-      const meaningful = ((data ?? []) as ProfitRow[]).filter(
+      // Aggregate by client across months in range
+      const map = new Map<string, ProfitRow>();
+      for (const r of (data ?? []) as ProfitRow[]) {
+        const cur = map.get(r.client_id);
+        if (!cur) {
+          map.set(r.client_id, { ...r });
+        } else {
+          cur.revenue = Number(cur.revenue ?? 0) + Number(r.revenue ?? 0);
+          cur.hours = Number(cur.hours ?? 0) + Number(r.hours ?? 0);
+          cur.profit = Number(cur.profit ?? 0) + Number(r.profit ?? 0);
+        }
+      }
+      const merged = Array.from(map.values()).map((r) => ({
+        ...r,
+        margin_pct: Number(r.revenue ?? 0) > 0
+          ? (Number(r.profit ?? 0) / Number(r.revenue ?? 0)) * 100
+          : null,
+      }));
+      const meaningful = merged.filter(
         (r) => Number(r.revenue ?? 0) > 0 || Number(r.hours ?? 0) > 0,
       );
       setRows(meaningful);
       setLoading(false);
     })();
-  }, []);
+  }, [range]);
 
-  const sorted = [...rows].sort((a, b) => Number(b.profit ?? 0) - Number(a.profit ?? 0));
+  const sorted = useMemo(
+    () => [...rows].sort((a, b) => Number(b.profit ?? 0) - Number(a.profit ?? 0)),
+    [rows],
+  );
   const winners = sorted.slice(0, 3);
-  const bleeders = [...sorted].reverse().slice(0, 3).filter((r) => Number(r.profit ?? 0) < Number(winners[winners.length - 1]?.profit ?? 0));
+  const bleeders = [...sorted].reverse().slice(0, 3).filter(
+    (r) => Number(r.profit ?? 0) < Number(winners[winners.length - 1]?.profit ?? 0),
+  );
 
   const totalProfit = rows.reduce((s, r) => s + Number(r.profit ?? 0), 0);
   const totalRevenue = rows.reduce((s, r) => s + Number(r.revenue ?? 0), 0);
@@ -79,27 +112,38 @@ export function ProfitabilityStrip() {
     );
   };
 
+  const rangeLabel = range === "30d" ? "last 30 days" : range === "90d" ? "last 90 days" : "year to date";
+
   return (
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <CardTitle className="text-base flex items-center gap-2">
             <DollarSign className="h-4 w-4 text-primary" />
-            Profitability — this month
+            Profitability — {rangeLabel}
           </CardTitle>
-          {!loading && rows.length > 0 && (
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="font-mono text-xs">
-                Net {totalProfit >= 0 ? "+" : ""}{usd(totalProfit)}
-              </Badge>
-              <Badge
-                variant="outline"
-                className={`font-mono text-xs ${blendedMargin < 20 ? "text-destructive border-destructive/40" : "text-emerald-600 border-emerald-500/40"}`}
-              >
-                {blendedMargin}% blended
-              </Badge>
-            </div>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Tabs value={range} onValueChange={(v) => setRange(v as Range)}>
+              <TabsList className="h-8">
+                <TabsTrigger value="30d" className="text-xs">30d</TabsTrigger>
+                <TabsTrigger value="90d" className="text-xs">90d</TabsTrigger>
+                <TabsTrigger value="ytd" className="text-xs">YTD</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            {!loading && rows.length > 0 && (
+              <>
+                <Badge variant="outline" className="font-mono text-xs">
+                  Net {totalProfit >= 0 ? "+" : ""}{usd(totalProfit)}
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className={`font-mono text-xs ${blendedMargin < 20 ? "text-destructive border-destructive/40" : "text-emerald-600 border-emerald-500/40"}`}
+                >
+                  {blendedMargin}% blended
+                </Badge>
+              </>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -109,7 +153,7 @@ export function ProfitabilityStrip() {
           </div>
         ) : rows.length === 0 ? (
           <p className="text-sm text-muted-foreground py-2">
-            No client activity this month yet. Once payments or hours are logged, profitability appears here.
+            No client activity in this range yet.
           </p>
         ) : (
           <div className="grid sm:grid-cols-2 gap-4">
