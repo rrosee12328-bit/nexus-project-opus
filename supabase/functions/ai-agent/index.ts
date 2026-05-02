@@ -1619,10 +1619,16 @@ Deno.serve(async (req) => {
     const systemPrompt = getSystemPrompt(userRole, sessionContext)
     const context = { role: userRole, userId, clientId }
 
-    // Inject latest Brain State snapshot for admin/ops so the AI always has fresh business context
     let brainStateBlock = ''
     let preferencesBlock = ''
-    if (userRole === 'admin' || userRole === 'ops') {
+    // Only inject the (large) Brain State snapshot on the FIRST user turn of a conversation.
+    // After that, the model already has it in conversation history — re-sending it on every
+    // turn just burns tokens. Preferences stay injected every turn (they're small + critical).
+    const userTurnCount = Array.isArray(messages)
+      ? messages.filter((m: any) => m?.role === 'user').length
+      : 0
+    const isFirstTurn = userTurnCount <= 1
+    if ((userRole === 'admin' || userRole === 'ops') && isFirstTurn) {
       const { data: snap } = await adminClient
         .from('brain_state_snapshots')
         .select('summary_md, snapshot_date')
@@ -1632,8 +1638,10 @@ Deno.serve(async (req) => {
       if (snap?.summary_md) {
         brainStateBlock = `\n\n=== CURRENT BRAIN STATE (snapshot ${snap.snapshot_date}) ===\nThis is your live business context. Refer to it before answering strategic questions. Do not re-query data already shown here unless the user asks for fresh numbers.\n\n${snap.summary_md}\n=== END BRAIN STATE ===`
       }
+    }
 
-      // Learning loop: rules the admin has taught us via rejected decisions
+    // Learning loop: rules the admin has taught us via rejected decisions (every turn)
+    if (userRole === 'admin' || userRole === 'ops') {
       const { data: prefs } = await adminClient
         .from('ai_preferences')
         .select('rule, reason, scope, category')
