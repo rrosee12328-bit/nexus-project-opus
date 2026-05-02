@@ -16,7 +16,6 @@ import AssetDownload from "./pages/AssetDownload";
 import ProposalPage from "./pages/Proposal";
 
 import AdminLayout from "./layouts/AdminLayout";
-import AdminDashboard from "./pages/admin/Dashboard";
 import AdminClients from "./pages/admin/Clients";
 import AdminProjects from "./pages/admin/Projects";
 import AdminMessages from "./pages/admin/Messages";
@@ -95,7 +94,7 @@ const App = () => (
               }
             >
               <Route index element={<BrainHub />} />
-              <Route path="dashboard" element={<AdminDashboard />} />
+              <Route path="dashboard" element={<Navigate to="/admin" replace />} />
               <Route path="clients" element={<AdminClients />} />
               <Route path="clients/:clientId" element={<AdminClientDetail />} />
               <Route path="projects" element={<AdminProjects />} />
