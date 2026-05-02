@@ -105,6 +105,32 @@ const SOURCE_META: Record<FeedItem["source"], { icon: typeof Mail; tone: string;
   project:  { icon: FolderKanban,tone: "text-blue-500",       label: "Project" },
 };
 
+/** Strip JSON wrappers, markdown syntax and links so feed summaries read as plain prose. */
+function cleanSummary(raw: unknown): string {
+  if (!raw) return "";
+  let text = typeof raw === "string" ? raw : "";
+  if (typeof raw === "object") {
+    const obj = raw as any;
+    text = obj.markdown_formatted ?? obj.summary ?? obj.text ?? JSON.stringify(raw);
+  } else if (text.trim().startsWith("{")) {
+    try {
+      const parsed = JSON.parse(text);
+      text = parsed.markdown_formatted ?? parsed.summary ?? parsed.text ?? text;
+    } catch { /* keep original */ }
+  }
+  text = text
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")          // images
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")        // links -> label
+    .replace(/^#{1,6}\s+/gm, "")                    // headings
+    .replace(/\*\*([^*]+)\*\*/g, "$1")              // bold
+    .replace(/(^|[^*])\*([^*]+)\*/g, "$1$2")        // italics
+    .replace(/`([^`]+)`/g, "$1")                    // inline code
+    .replace(/^\s*[-*+]\s+/gm, "")                  // bullet markers
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.slice(0, 160);
+}
+
 export default function BrainHub() {
   const [loading, setLoading] = useState(true);
   const [feed, setFeed] = useState<FeedItem[]>([]);
