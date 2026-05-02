@@ -13,7 +13,7 @@ type Stat = {
   icon: any;
 };
 
-export function DailyPulseStrip() {
+export function DailyPulseStrip({ embedded = false }: { embedded?: boolean } = {}) {
   const [stats, setStats] = useState<Stat[] | null>(null);
 
   useEffect(() => {
@@ -89,11 +89,12 @@ export function DailyPulseStrip() {
     })();
   }, []);
 
-  return (
-    <Card>
-      <CardContent className="p-3 flex items-center gap-x-6 gap-y-2 flex-wrap">
+  const body = (
+    <div className="flex items-center gap-x-6 gap-y-2 flex-wrap">
+      {!embedded && (
         <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Today</span>
-        {!stats ? (
+      )}
+      {!stats ? (
           <div className="flex gap-4">
             {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-5 w-32" />)}
           </div>
@@ -123,7 +124,12 @@ export function DailyPulseStrip() {
             );
           })
         )}
-      </CardContent>
+    </div>
+  );
+  if (embedded) return body;
+  return (
+    <Card>
+      <CardContent className="p-3">{body}</CardContent>
     </Card>
   );
 }
