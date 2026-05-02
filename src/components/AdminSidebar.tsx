@@ -41,13 +41,12 @@ import {
 } from "@/components/ui/sidebar";
 
 const navItems = [
-  { title: "The Brain", url: "/admin", icon: Cpu },
-  { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
+  { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
   { title: "Calendar", url: "/admin/calendar", icon: Calendar },
   { title: "Client Management", url: "/admin/clients", icon: Users },
   { title: "Client Summaries", url: "/admin/summaries", icon: BookOpen },
   { title: "Call Intelligence", url: "/admin/calls", icon: Phone },
-  { title: "Knowledge Base", url: "/admin/knowledge-base", icon: Brain },
+  { title: "The Brain", url: "/admin/knowledge-base", icon: Brain },
   { title: "Sales Pipeline", url: "/admin/leads", icon: Target },
   { title: "Proposals", url: "/admin/proposals", icon: FileText },
   { title: "Project Management", url: "/admin/projects", icon: FolderKanban },
