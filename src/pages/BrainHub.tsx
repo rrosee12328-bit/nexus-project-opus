@@ -165,8 +165,7 @@ export default function BrainHub() {
   const [marketTab, setMarketTab] = useState<"agency" | "client">("agency");
   const [inboxTab, setInboxTab] = useState<"feed" | "actions">("feed");
   const [pulseTab, setPulseTab] = useState<"today" | "velocity" | "risk" | "growth">("today");
-  const [marketExpanded, setMarketExpanded] = useState(false);
-  const [activityExpanded, setActivityExpanded] = useState(false);
+  const [activityShowAll, setActivityShowAll] = useState(false);
   const [marketRunStatus, setMarketRunStatus] = useState<{
     type: "success" | "error";
     message: string;
@@ -753,25 +752,18 @@ export default function BrainHub() {
 
       {/* Market Intelligence */}
       <Card id="market" className="scroll-mt-20">
-        <CardHeader
-          className="pb-3 cursor-pointer select-none"
-          role="button"
-          aria-expanded={marketExpanded}
-          onClick={() => setMarketExpanded((v) => !v)}
-        >
+        <CardHeader className="pb-3">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <CardTitle className="text-base flex items-center gap-2">
-              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${marketExpanded ? "" : "-rotate-90"}`} />
               <Globe className="h-4 w-4 text-primary" />
               Market Intelligence
-              {!marketExpanded && (
-                <span className="text-xs text-muted-foreground hidden sm:inline">
-                  · {marketReport ? `agency ${timeAgo(marketReport.generated_at)}` : "no agency report"}
-                  {clientReports.length > 0 && ` · ${clientReports.length} client reports`}
-                </span>
+              {marketReport && (
+                <Badge variant="outline" className="text-[10px] font-normal">
+                  {timeAgo(marketReport.generated_at)}
+                </Badge>
               )}
             </CardTitle>
-            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2">
               <Button onClick={runMarketIntelligence} variant="outline" size="sm" disabled={marketRunning || clientRunning}>
                 <Play className={cn("h-4 w-4 mr-2", marketRunning && "animate-pulse")} />
                 Run Agency
@@ -783,7 +775,6 @@ export default function BrainHub() {
             </div>
           </div>
         </CardHeader>
-        {marketExpanded && (
         <CardContent>
           {marketRunStatus && (
             <div className={cn(
@@ -865,28 +856,15 @@ export default function BrainHub() {
             </TabsContent>
           </Tabs>
         </CardContent>
-        )}
       </Card>
 
       <Card id="inbox" className="scroll-mt-20">
-        <CardHeader
-          className="pb-3 cursor-pointer select-none"
-          role="button"
-          aria-expanded={activityExpanded}
-          onClick={() => setActivityExpanded((v) => !v)}
-        >
+        <CardHeader className="pb-3">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <CardTitle className="text-base flex items-center gap-2">
-              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${activityExpanded ? "" : "-rotate-90"}`} />
               <Activity className="h-4 w-4 text-primary" />
               Activity
-              {!activityExpanded && (
-                <span className="text-xs text-muted-foreground hidden sm:inline">
-                  · {feed.length} events · {actions.length} need action
-                </span>
-              )}
             </CardTitle>
-            <div onClick={(e) => e.stopPropagation()}>
             <Tabs value={inboxTab} onValueChange={(v) => setInboxTab(v as "feed" | "actions")}>
               <TabsList className="h-8">
                 <TabsTrigger value="feed" className="text-xs">
@@ -900,12 +878,10 @@ export default function BrainHub() {
                 </TabsTrigger>
               </TabsList>
             </Tabs>
-            </div>
           </div>
         </CardHeader>
-        {activityExpanded && (
         <CardContent>
-          <ScrollArea className="h-[520px] pr-3">
+          <ScrollArea className={cn("pr-3", activityShowAll ? "h-[520px]" : "h-[280px]")}>
             {inboxTab === "feed" ? (
               loading ? (
                 <div className="space-y-3">
@@ -993,8 +969,15 @@ export default function BrainHub() {
               )
             )}
           </ScrollArea>
+          {((inboxTab === "feed" && feed.length > 4) || (inboxTab === "actions" && actions.length > 4)) && (
+            <button
+              onClick={() => setActivityShowAll((v) => !v)}
+              className="mt-2 w-full rounded-md border border-dashed border-border py-2 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+            >
+              {activityShowAll ? "Show less" : "View all →"}
+            </button>
+          )}
         </CardContent>
-        )}
       </Card>
     </div>
   );
