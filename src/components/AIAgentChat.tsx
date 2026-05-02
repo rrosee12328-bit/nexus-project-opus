@@ -438,6 +438,18 @@ export default function AIAgentChat({
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
+  // Keep ref pointing at the latest handleSend
+  useEffect(() => { handleSendRef.current = handleSend; });
+
+  // Auto-prefill + send when launched with an initialPrompt (e.g. "Ask AI" from Decisions queue)
+  useEffect(() => {
+    if (!initialPrompt || initialPromptFiredRef.current || !user) return;
+    initialPromptFiredRef.current = true;
+    setInput(initialPrompt);
+    const t = window.setTimeout(() => handleSendRef.current?.(), 80);
+    return () => window.clearTimeout(t);
+  }, [initialPrompt, user]);
+
   /* ── Voice ── */
   const startAudioVisualizer = useCallback(async () => {
     try {
