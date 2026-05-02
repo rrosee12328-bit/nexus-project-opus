@@ -517,16 +517,17 @@ export default function BrainHub() {
             <CardTitle className="text-base flex items-center gap-2">
               <Globe className="h-4 w-4 text-primary" />
               Market Intelligence
-              {marketReport && (
-                <Badge variant="outline" className="text-xs ml-1">
-                  Last updated {timeAgo(marketReport.generated_at)}
-                </Badge>
-              )}
             </CardTitle>
-            <Button onClick={runMarketIntelligence} variant="outline" size="sm" disabled={marketRunning}>
-              <Play className={cn("h-4 w-4 mr-2", marketRunning && "animate-pulse")} />
-              Run Now
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button onClick={runMarketIntelligence} variant="outline" size="sm" disabled={marketRunning || clientRunning}>
+                <Play className={cn("h-4 w-4 mr-2", marketRunning && "animate-pulse")} />
+                Run Agency
+              </Button>
+              <Button onClick={runClientIntelligence} variant="default" size="sm" disabled={marketRunning || clientRunning}>
+                <Users className={cn("h-4 w-4 mr-2", clientRunning && "animate-pulse")} />
+                Run Per-Client
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -552,63 +553,73 @@ export default function BrainHub() {
               </div>
             </div>
           )}
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {[...Array(2)].map((_, i) => <Skeleton key={i} className="h-40 w-full" />)}
-            </div>
-          ) : !marketReport || marketReport.insights.length === 0 ? (
-            <div className="text-center py-10 text-sm text-muted-foreground border border-dashed rounded-md">
-              <Globe className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              Market intelligence runs every morning at 6am — first report arrives tomorrow.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {marketReport.insights.map((ins, idx) => {
-                const meta = TYPE_META[ins.type] || { tone: "text-muted-foreground", bg: "bg-muted/40 border-border", icon: Lightbulb, label: ins.type };
-                const urgencyClass = URGENCY_META[ins.urgency] || "bg-muted text-foreground";
-                return (
-                  <div key={idx} className={cn("p-4 rounded-md border", meta.bg)}>
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <meta.icon className={cn("h-4 w-4 shrink-0", meta.tone)} />
-                        <h4 className="text-sm font-semibold truncate">{ins.title}</h4>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Badge variant="outline" className={cn("text-xs capitalize", meta.tone)}>{meta.label}</Badge>
-                        {ins.urgency && (
-                          <Badge className={cn("text-xs capitalize", urgencyClass)}>{ins.urgency}</Badge>
+          <Tabs value={marketTab} onValueChange={(v) => setMarketTab(v as "agency" | "client")}>
+            <TabsList className="mb-3">
+              <TabsTrigger value="agency">
+                Agency
+                {marketReport && (
+                  <Badge variant="outline" className="ml-2 text-xs">{timeAgo(marketReport.generated_at)}</Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="client">
+                By Client
+                {clientReports.length > 0 && (
+                  <Badge variant="outline" className="ml-2 text-xs">{clientReports.length}</Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="agency" className="mt-0">
+              {loading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {[...Array(2)].map((_, i) => <Skeleton key={i} className="h-40 w-full" />)}
+                </div>
+              ) : !marketReport || marketReport.insights.length === 0 ? (
+                <div className="text-center py-10 text-sm text-muted-foreground border border-dashed rounded-md">
+                  <Globe className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  No agency report yet. Click <span className="font-medium">Run Agency</span> to generate one.
+                </div>
+              ) : (
+                <InsightGrid insights={marketReport.insights} TYPE_META={TYPE_META} URGENCY_META={URGENCY_META} />
+              )}
+            </TabsContent>
+
+            <TabsContent value="client" className="mt-0">
+              {loading ? (
+                <div className="space-y-3">
+                  {[...Array(2)].map((_, i) => <Skeleton key={i} className="h-32 w-full" />)}
+                </div>
+              ) : clientReports.length === 0 ? (
+                <div className="text-center py-10 text-sm text-muted-foreground border border-dashed rounded-md">
+                  <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  No per-client reports yet. Click <span className="font-medium">Run Per-Client</span> to generate
+                  tailored insights for every active client.
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {clientReports.map((rep) => (
+                    <div key={rep.id}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <UserPlus className="h-4 w-4 text-primary" />
+                        <h4 className="text-sm font-semibold">{rep.client_name}</h4>
+                        {rep.client_number && (
+                          <Badge variant="outline" className="text-xs">{rep.client_number}</Badge>
                         )}
+                        <span className="ml-auto text-xs text-muted-foreground">{timeAgo(rep.generated_at)}</span>
                       </div>
+                      {rep.insights.length === 0 ? (
+                        <div className="text-xs text-muted-foreground italic px-3 py-2 border border-dashed rounded">
+                          No insights parsed for this client.
+                        </div>
+                      ) : (
+                        <InsightGrid insights={rep.insights} TYPE_META={TYPE_META} URGENCY_META={URGENCY_META} />
+                      )}
                     </div>
-                    <p className="text-sm text-foreground/80 mb-3">{ins.insight}</p>
-                    {ins.recommended_action && (
-                      <div className="text-xs bg-orange-500/10 border border-orange-500/30 rounded p-2 mb-3">
-                        <span className="font-semibold text-orange-600 dark:text-orange-400">Recommended action: </span>
-                        <span className="text-foreground/80">{ins.recommended_action}</span>
-                      </div>
-                    )}
-                    {ins.sources && ins.sources.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {ins.sources.map((s, i) => {
-                          const url = typeof s === "string" ? s : s.url;
-                          const label = typeof s === "string"
-                            ? (() => { try { return new URL(s).hostname.replace("www.",""); } catch { return s; } })()
-                            : (s.title || (() => { try { return new URL(s.url).hostname.replace("www.",""); } catch { return s.url; } })());
-                          return (
-                            <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
-                              <ExternalLink className="h-3 w-3" />
-                              {label}
-                            </a>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 
