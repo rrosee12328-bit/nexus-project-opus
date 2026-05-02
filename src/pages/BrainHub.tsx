@@ -32,6 +32,7 @@ import {
   TrendingDown,
   Lightbulb,
   Target,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { KpiPulseCard, type KpiPulse } from "@/components/brain/KpiPulseCard";
@@ -759,24 +760,14 @@ export default function BrainHub() {
                 </div>
               ) : (
                 <div className="space-y-5">
-                  {clientReports.map((rep) => (
-                    <div key={rep.id}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <UserPlus className="h-4 w-4 text-primary" />
-                        <h4 className="text-sm font-semibold">{rep.client_name}</h4>
-                        {rep.client_number && (
-                          <Badge variant="outline" className="text-xs">{rep.client_number}</Badge>
-                        )}
-                        <span className="ml-auto text-xs text-muted-foreground">{timeAgo(rep.generated_at)}</span>
-                      </div>
-                      {rep.insights.length === 0 ? (
-                        <div className="text-xs text-muted-foreground italic px-3 py-2 border border-dashed rounded">
-                          No insights parsed for this client.
-                        </div>
-                      ) : (
-                        <InsightGrid insights={rep.insights} TYPE_META={TYPE_META} URGENCY_META={URGENCY_META} />
-                      )}
-                    </div>
+                  {clientReports.map((rep, idx) => (
+                    <ClientReportSection
+                      key={rep.id}
+                      rep={rep}
+                      defaultOpen={idx === 0}
+                      TYPE_META={TYPE_META}
+                      URGENCY_META={URGENCY_META}
+                    />
                   ))}
                 </div>
               )}
