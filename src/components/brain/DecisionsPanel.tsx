@@ -177,6 +177,7 @@ export function DecisionsPanel() {
   };
 
   return (
+    <>
     <Card>
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
