@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 
-type Row = {
+type ProfitRow = {
   client_id: string;
   client_name: string;
   month_start: string;
@@ -22,7 +22,7 @@ const usd = (n: number) =>
   n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
 export function ProfitabilityStrip() {
-  const [rows, setRows] = useState<Row[]>([]);
+  const [rows, setRows] = useState<ProfitRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,7 +37,7 @@ export function ProfitabilityStrip() {
         .eq("month_start", iso);
       if (error) console.error(error);
       // Only show clients with any activity this month (revenue or hours)
-      const meaningful = ((data ?? []) as Row[]).filter(
+      const meaningful = ((data ?? []) as ProfitRow[]).filter(
         (r) => Number(r.revenue ?? 0) > 0 || Number(r.hours ?? 0) > 0,
       );
       setRows(meaningful);
@@ -53,7 +53,7 @@ export function ProfitabilityStrip() {
   const totalRevenue = rows.reduce((s, r) => s + Number(r.revenue ?? 0), 0);
   const blendedMargin = totalRevenue > 0 ? Math.round((totalProfit / totalRevenue) * 100) : 0;
 
-  const Row = ({ r, kind }: { r: Row; kind: "win" | "lose" }) => {
+  const RowItem = ({ r, kind }: { r: ProfitRow; kind: "win" | "lose" }) => {
     const profit = Number(r.profit ?? 0);
     const margin = r.margin_pct == null ? null : Math.round(Number(r.margin_pct));
     return (
@@ -118,7 +118,7 @@ export function ProfitabilityStrip() {
                 <TrendingUp className="h-3 w-3 text-emerald-600" /> Top winners
               </p>
               <div className="space-y-1.5">
-                {winners.map((r) => <Row key={r.client_id} r={r} kind="win" />)}
+                {winners.map((r) => <RowItem key={r.client_id} r={r} kind="win" />)}
               </div>
             </div>
             <div>
@@ -127,7 +127,7 @@ export function ProfitabilityStrip() {
               </p>
               <div className="space-y-1.5">
                 {bleeders.length > 0 ? (
-                  bleeders.map((r) => <Row key={r.client_id} r={r} kind="lose" />)
+                  bleeders.map((r) => <RowItem key={r.client_id} r={r} kind="lose" />)
                 ) : (
                   <p className="text-xs text-muted-foreground italic px-1">All clients profitable. Nice.</p>
                 )}
