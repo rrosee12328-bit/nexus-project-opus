@@ -1621,6 +1621,7 @@ Deno.serve(async (req) => {
 
     // Inject latest Brain State snapshot for admin/ops so the AI always has fresh business context
     let brainStateBlock = ''
+    let preferencesBlock = ''
     if (userRole === 'admin' || userRole === 'ops') {
       const { data: snap } = await adminClient
         .from('brain_state_snapshots')
@@ -1631,10 +1632,25 @@ Deno.serve(async (req) => {
       if (snap?.summary_md) {
         brainStateBlock = `\n\n=== CURRENT BRAIN STATE (snapshot ${snap.snapshot_date}) ===\nThis is your live business context. Refer to it before answering strategic questions. Do not re-query data already shown here unless the user asks for fresh numbers.\n\n${snap.summary_md}\n=== END BRAIN STATE ===`
       }
+
+      // Learning loop: rules the admin has taught us via rejected decisions
+      const { data: prefs } = await adminClient
+        .from('ai_preferences')
+        .select('rule, reason, scope, category')
+        .eq('active', true)
+        .order('created_at', { ascending: false })
+        .limit(30)
+      if (prefs && prefs.length > 0) {
+        const lines = prefs.map((p: any) => {
+          const scopeTag = p.category ? `[${p.category}]` : ''
+          return `- ${scopeTag} ${p.rule}${p.reason && p.reason !== p.rule ? ` (${p.reason})` : ''}`
+        }).join('\n')
+        preferencesBlock = `\n\n=== LEARNED PREFERENCES (admin corrections) ===\nThese rules come from times the admin clicked "Wrong call" on your past suggestions. ALWAYS respect them — do not re-suggest things that contradict these rules.\n\n${lines}\n=== END LEARNED PREFERENCES ===`
+      }
     }
 
     const aiMessages: any[] = [
-      { role: 'system', content: systemPrompt + brainStateBlock },
+      { role: 'system', content: systemPrompt + brainStateBlock + preferencesBlock },
       ...messages,
     ]
 
