@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Brain, RefreshCw, History, Columns2, ChevronDown } from "lucide-react";
+import { Brain, RefreshCw, History, Columns2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -67,7 +67,7 @@ export function BrainStatePanel() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [history, setHistory] = useState<Snapshot[]>([]);
   const [selectedHistId, setSelectedHistId] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState(false);
+  const [showFull, setShowFull] = useState(false);
 
   const load = async () => {
     const { data } = await supabase
@@ -115,15 +115,9 @@ export function BrainStatePanel() {
   return (
     <>
     <Card>
-      <CardHeader
-        className="pb-3 cursor-pointer select-none"
-        role="button"
-        aria-expanded={expanded}
-        onClick={() => setExpanded((v) => !v)}
-      >
+      <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <CardTitle className="text-base flex items-center gap-2">
-            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${expanded ? "" : "-rotate-90"}`} />
             <Brain className="h-4 w-4 text-primary" />
             Brain State
             {snap && (
@@ -131,13 +125,8 @@ export function BrainStatePanel() {
                 {formatDistanceToNow(new Date(snap.created_at), { addSuffix: true })}
               </Badge>
             )}
-            {!expanded && (
-              <span className="text-xs text-muted-foreground hidden sm:inline">
-                · {snap ? "what the AI sees today" : "no snapshot yet"}
-              </span>
-            )}
           </CardTitle>
-          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-2">
             {prevSnap && (
               <Button size="sm" variant={compare ? "default" : "ghost"} onClick={() => setCompare((v) => !v)}>
                 <Columns2 className="h-3.5 w-3.5 mr-1.5" />
@@ -154,13 +143,10 @@ export function BrainStatePanel() {
             </Button>
           </div>
         </div>
-        {expanded && (
-          <p className="text-xs text-muted-foreground">
-            The exact business briefing your AI sees on every conversation. Auto-refreshes daily at 6 AM UTC.
-          </p>
-        )}
+        <p className="text-xs text-muted-foreground">
+          The exact business briefing your AI sees on every conversation. Auto-refreshes daily at 6 AM UTC.
+        </p>
       </CardHeader>
-      {expanded && (
       <CardContent>
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
@@ -186,12 +172,26 @@ export function BrainStatePanel() {
             </div>
           </div>
         ) : (
-          <div className="prose prose-sm max-w-none dark:prose-invert">
-            {renderMarkdown(snap.summary_md)}
-          </div>
+          <>
+            <div
+              className={`prose prose-sm max-w-none dark:prose-invert relative ${
+                showFull ? "" : "max-h-48 overflow-hidden"
+              }`}
+            >
+              {renderMarkdown(snap.summary_md)}
+              {!showFull && (
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-card to-transparent" />
+              )}
+            </div>
+            <button
+              onClick={() => setShowFull((v) => !v)}
+              className="mt-2 w-full rounded-md border border-dashed border-border py-2 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+            >
+              {showFull ? "Show less" : "Read full briefing →"}
+            </button>
+          </>
         )}
       </CardContent>
-      )}
     </Card>
 
     <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
