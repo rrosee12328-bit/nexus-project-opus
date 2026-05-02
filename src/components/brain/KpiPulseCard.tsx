@@ -139,6 +139,9 @@ export function KpiPulseCard(props: KpiPulse) {
             <Sparkline data={props.spark} stroke={tone.stroke} />
           </div>
         )}
+        {props.loading && (
+          <div className="shrink-0 h-6 w-20 rounded bg-muted/40 animate-pulse" aria-hidden />
+        )}
       </div>
 
       {props.loading ? (
