@@ -575,15 +575,6 @@ export default function BrainHub() {
     low:    "bg-green-500 text-white",
   };
 
-  const kpiTiles = [
-    { label: "Active Clients",     value: kpis.activeClients,    icon: Users,        tone: "text-green-500",   link: "/admin/clients" },
-    { label: "Open Proposals",     value: kpis.openProposals,    icon: FileText,     tone: "text-yellow-500",  link: "/admin/proposals" },
-    { label: "Leads in Pipeline",  value: kpis.leadsInPipeline,  icon: TrendingUp,   tone: "text-orange-500",  link: "/admin/leads" },
-    { label: "Hours This Month",   value: kpis.hoursThisMonth,   icon: Clock,        tone: "text-blue-500",    link: "/ops/timesheets" },
-    { label: "Content Published",  value: kpis.contentPublished, icon: Video,        tone: "text-pink-500",    link: "/admin/business-media" },
-    { label: "Emails Awaiting",    value: kpis.emailsAwaiting,   icon: Inbox,        tone: "text-primary",     link: "/ops/email-intelligence" },
-  ];
-
   return (
     <div className="space-y-6">
       {/* Header */}
