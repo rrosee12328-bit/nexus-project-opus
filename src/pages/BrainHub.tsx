@@ -183,7 +183,7 @@ export default function BrainHub() {
     (callsRes.data || []).forEach((c: any) => items.push({
       id: `call-${c.id}`, ts: c.created_at, source: "call",
       title: `Call processed${c.sentiment ? ` · ${c.sentiment}` : ""}`,
-      summary: (c.summary || "").slice(0, 140) || "Call transcript ready",
+      summary: cleanSummary(c.summary) || "Call transcript ready",
       client: c.clients, link: "/admin/calls",
     }));
     (contentRes.data || []).forEach((a: any) => items.push({
