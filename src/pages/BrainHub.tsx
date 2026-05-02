@@ -644,12 +644,12 @@ export default function BrainHub() {
             </div>
             {/* Mobile: horizontal snap scroller. Desktop: fixed 4-col grid so card widths stay consistent across sections. */}
             <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
-              <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 sm:grid sm:overflow-visible sm:pb-0 sm:grid-cols-2 lg:[grid-template-columns:repeat(4,minmax(0,1fr))]">
+              <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 sm:grid sm:auto-rows-fr sm:overflow-visible sm:pb-0 sm:grid-cols-2 lg:[grid-template-columns:repeat(4,minmax(0,1fr))]">
                 {(loading && section.items.length === 0
                   ? Array.from({ length: 4 }).map((_, i) => ({ label: "", value: 0, icon: Activity, loading: true } as KpiPulse & { loading: boolean }))
                   : section.items
                 ).map((item, idx) => (
-                  <div key={item.label || idx} className="snap-start shrink-0 w-[78%] xs:w-[60%] sm:w-auto">
+                  <div key={item.label || idx} className="snap-start shrink-0 w-[78%] xs:w-[60%] sm:w-auto sm:h-full">
                     <KpiPulseCard {...item} loading={loading && !item.value} />
                   </div>
                 ))}
