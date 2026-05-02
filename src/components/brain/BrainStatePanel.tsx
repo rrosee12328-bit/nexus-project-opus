@@ -126,6 +126,12 @@ export function BrainStatePanel() {
             )}
           </CardTitle>
           <div className="flex items-center gap-2">
+            {prevSnap && (
+              <Button size="sm" variant={compare ? "default" : "ghost"} onClick={() => setCompare((v) => !v)}>
+                <Columns2 className="h-3.5 w-3.5 mr-1.5" />
+                {compare ? "Hide diff" : "Compare yesterday"}
+              </Button>
+            )}
             <Button size="sm" variant="ghost" onClick={openHistory}>
               <History className="h-3.5 w-3.5 mr-1.5" />
               History
