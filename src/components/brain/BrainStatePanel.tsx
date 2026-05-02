@@ -109,6 +109,7 @@ export function BrainStatePanel() {
   };
 
   return (
+    <>
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
