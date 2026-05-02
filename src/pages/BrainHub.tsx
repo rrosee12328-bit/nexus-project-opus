@@ -277,6 +277,9 @@ export default function BrainHub() {
       emailsAwaiting: emailsActionRes.count || 0,
     });
 
+    // ----- Pulse metrics: 7d trends, deltas, sparklines -----
+    await loadPulseMetrics(totalHours);
+
     // Pipelines
     const now = Date.now();
     const fresh = (ts: string | null | undefined, hours = 48) =>
