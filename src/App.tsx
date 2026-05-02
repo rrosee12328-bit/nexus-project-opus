@@ -16,7 +16,6 @@ import AssetDownload from "./pages/AssetDownload";
 import ProposalPage from "./pages/Proposal";
 
 import AdminLayout from "./layouts/AdminLayout";
-import AdminDashboard from "./pages/admin/Dashboard";
 import AdminClients from "./pages/admin/Clients";
 import AdminProjects from "./pages/admin/Projects";
 import AdminMessages from "./pages/admin/Messages";
