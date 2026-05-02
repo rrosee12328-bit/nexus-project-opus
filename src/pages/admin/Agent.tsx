@@ -5,7 +5,13 @@ export default function AgentPage() {
   const location = useLocation();
 
   // Parse session context from URL state if navigated from a specific page
-  const state = location.state as { entityType?: string; entityId?: string; entityName?: string; page?: string } | null;
+  const state = location.state as {
+    entityType?: string;
+    entityId?: string;
+    entityName?: string;
+    page?: string;
+    initialPrompt?: string;
+  } | null;
 
   return (
     <AIAgentChat
@@ -25,6 +31,7 @@ export default function AgentPage() {
         entityId: state.entityId,
         entityName: state.entityName,
       } : undefined}
+      initialPrompt={state?.initialPrompt}
     />
   );
 }
