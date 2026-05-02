@@ -33,7 +33,7 @@ function rangeStartIso(r: Range): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function ProfitabilityStrip() {
+export function ProfitabilityStrip({ embedded = false }: { embedded?: boolean } = {}) {
   const [range, setRange] = useState<Range>("30d");
   const [rows, setRows] = useState<ProfitRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -114,6 +114,76 @@ export function ProfitabilityStrip() {
 
   const rangeLabel = range === "30d" ? "last 30 days" : range === "90d" ? "last 90 days" : "year to date";
 
+  const body = loading ? (
+    <div className="grid sm:grid-cols-2 gap-3">
+      {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
+    </div>
+  ) : rows.length === 0 ? (
+    <p className="text-sm text-muted-foreground py-2">
+      No client activity in this range yet.
+    </p>
+  ) : (
+    <div className="grid sm:grid-cols-2 gap-4">
+      <div>
+        <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+          <TrendingUp className="h-3 w-3 text-emerald-600" /> Top winners
+        </p>
+        <div className="space-y-1.5">
+          {winners.map((r) => <RowItem key={r.client_id} r={r} kind="win" />)}
+        </div>
+      </div>
+      <div>
+        <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+          <TrendingDown className="h-3 w-3 text-destructive" /> Biggest bleeders
+        </p>
+        <div className="space-y-1.5">
+          {bleeders.length > 0 ? (
+            bleeders.map((r) => <RowItem key={r.client_id} r={r} kind="lose" />)
+          ) : (
+            <p className="text-xs text-muted-foreground italic px-1">All clients profitable. Nice.</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  const controls = (
+    <div className="flex items-center gap-2 flex-wrap">
+      <Tabs value={range} onValueChange={(v) => setRange(v as Range)}>
+        <TabsList className="h-8">
+          <TabsTrigger value="30d" className="text-xs">30d</TabsTrigger>
+          <TabsTrigger value="90d" className="text-xs">90d</TabsTrigger>
+          <TabsTrigger value="ytd" className="text-xs">YTD</TabsTrigger>
+        </TabsList>
+      </Tabs>
+      {!loading && rows.length > 0 && (
+        <>
+          <Badge variant="outline" className="font-mono text-xs">
+            Net {totalProfit >= 0 ? "+" : ""}{usd(totalProfit)}
+          </Badge>
+          <Badge
+            variant="outline"
+            className={`font-mono text-xs ${blendedMargin < 20 ? "text-destructive border-destructive/40" : "text-emerald-600 border-emerald-500/40"}`}
+          >
+            {blendedMargin}% blended
+          </Badge>
+        </>
+      )}
+    </div>
+  );
+
+  if (embedded) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{rangeLabel}</p>
+          {controls}
+        </div>
+        {body}
+      </div>
+    );
+  }
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -122,64 +192,10 @@ export function ProfitabilityStrip() {
             <DollarSign className="h-4 w-4 text-primary" />
             Profitability — {rangeLabel}
           </CardTitle>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Tabs value={range} onValueChange={(v) => setRange(v as Range)}>
-              <TabsList className="h-8">
-                <TabsTrigger value="30d" className="text-xs">30d</TabsTrigger>
-                <TabsTrigger value="90d" className="text-xs">90d</TabsTrigger>
-                <TabsTrigger value="ytd" className="text-xs">YTD</TabsTrigger>
-              </TabsList>
-            </Tabs>
-            {!loading && rows.length > 0 && (
-              <>
-                <Badge variant="outline" className="font-mono text-xs">
-                  Net {totalProfit >= 0 ? "+" : ""}{usd(totalProfit)}
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className={`font-mono text-xs ${blendedMargin < 20 ? "text-destructive border-destructive/40" : "text-emerald-600 border-emerald-500/40"}`}
-                >
-                  {blendedMargin}% blended
-                </Badge>
-              </>
-            )}
-          </div>
+          {controls}
         </div>
       </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="grid sm:grid-cols-2 gap-3">
-            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
-          </div>
-        ) : rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-2">
-            No client activity in this range yet.
-          </p>
-        ) : (
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
-                <TrendingUp className="h-3 w-3 text-emerald-600" /> Top winners
-              </p>
-              <div className="space-y-1.5">
-                {winners.map((r) => <RowItem key={r.client_id} r={r} kind="win" />)}
-              </div>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
-                <TrendingDown className="h-3 w-3 text-destructive" /> Biggest bleeders
-              </p>
-              <div className="space-y-1.5">
-                {bleeders.length > 0 ? (
-                  bleeders.map((r) => <RowItem key={r.client_id} r={r} kind="lose" />)
-                ) : (
-                  <p className="text-xs text-muted-foreground italic px-1">All clients profitable. Nice.</p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </CardContent>
+      <CardContent>{body}</CardContent>
     </Card>
   );
 }
