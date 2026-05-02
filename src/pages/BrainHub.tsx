@@ -67,7 +67,8 @@ interface PipelineStatus {
 interface MarketInsight {
   title: string;
   type: "opportunity" | "risk" | "trend" | "competitor" | string;
-  insight: string;
+  insight?: string;
+  summary?: string;
   recommended_action?: string;
   urgency: "high" | "medium" | "low" | string;
   sources?: { title?: string; url: string }[] | string[];
