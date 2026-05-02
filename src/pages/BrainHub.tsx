@@ -615,9 +615,8 @@ export default function BrainHub() {
         <ul className="flex items-center gap-1 text-xs font-medium whitespace-nowrap">
           {[
             ["pipelines", "Pipelines"],
-            ["today", "Today"],
-            ["money", "Money"],
             ["pulse", "Pulse"],
+            ["money", "Money"],
             ["decisions", "Decisions"],
             ["brain-state", "Brain State"],
             ["preferences", "Preferences"],
@@ -669,47 +668,70 @@ export default function BrainHub() {
         </CardContent>
       </Card>
 
-      {/* What changed today — single-line state-of-business strip */}
-      <div id="today" className="scroll-mt-20">
-        <DailyPulseStrip />
-      </div>
-
       {/* Money — Cash | Profitability tabs in one card */}
       <div id="money" className="scroll-mt-20">
         <MoneyCard />
       </div>
 
-      {/* Mission Control: Velocity / Risk / Growth */}
-      <div id="pulse" className="space-y-4 scroll-mt-20">
-        {([
-          { key: "velocity", title: "Velocity",  hint: "Throughput in the last 7 days",       items: pulse.velocity, accent: "text-emerald-500" },
-          { key: "risk",     title: "Risk",      hint: "What needs attention right now",      items: pulse.risk,     accent: "text-rose-500" },
-          { key: "growth",   title: "Growth",    hint: "Top of funnel · 7-day trend",          items: pulse.growth,   accent: "text-primary" },
-        ] as const).map((section) => (
-          <section key={section.key}>
-            <div className="flex items-baseline justify-between mb-2 px-0.5">
-              <div className="flex items-center gap-2">
-                <span className={cn("h-1.5 w-1.5 rounded-full bg-current", section.accent)} />
-                <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground/80">{section.title}</h2>
-                <span className="text-[11px] text-muted-foreground hidden sm:inline">· {section.hint}</span>
-              </div>
-            </div>
-            {/* Mobile: horizontal snap scroller. Desktop: fixed 4-col grid so card widths stay consistent across sections. */}
-            <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
-              <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 sm:grid sm:auto-rows-fr sm:overflow-visible sm:pb-0 sm:grid-cols-2 lg:[grid-template-columns:repeat(4,minmax(0,1fr))]">
-                {(loading && section.items.length === 0
-                  ? Array.from({ length: 4 }).map((_, i) => ({ label: "", value: 0, icon: Activity, loading: true } as KpiPulse & { loading: boolean }))
-                  : section.items
-                ).map((item, idx) => (
-                  <div key={item.label || idx} className="snap-start shrink-0 w-[78%] xs:w-[60%] sm:w-auto sm:h-full">
-                    <KpiPulseCard {...item} loading={loading && !item.value} />
+      {/* Pulse — Today snapshot + Velocity / Risk / Growth in tabbed card */}
+      <Card id="pulse" className="scroll-mt-20">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Activity className="h-4 w-4 text-primary" />
+              Pulse
+            </CardTitle>
+            <Tabs value={pulseTab} onValueChange={(v) => setPulseTab(v as any)}>
+              <TabsList className="h-8">
+                <TabsTrigger value="today"    className="text-xs">Today</TabsTrigger>
+                <TabsTrigger value="velocity" className="text-xs">Velocity</TabsTrigger>
+                <TabsTrigger value="risk"     className="text-xs">
+                  Risk
+                  {pulse.risk.some(r => Number(r.value) > 0) && (
+                    <Badge variant="outline" className="ml-1.5 text-[10px] font-mono">
+                      {pulse.risk.reduce((s, r) => s + (Number(r.value) || 0), 0)}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="growth"   className="text-xs">Growth</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {pulseTab === "today" ? (
+            <DailyPulseStrip embedded />
+          ) : (
+            (() => {
+              const items =
+                pulseTab === "velocity" ? pulse.velocity :
+                pulseTab === "risk"     ? pulse.risk     :
+                pulse.growth;
+              const hint =
+                pulseTab === "velocity" ? "Throughput in the last 7 days" :
+                pulseTab === "risk"     ? "What needs attention right now" :
+                "Top of funnel · 7-day trend";
+              return (
+                <div className="space-y-2">
+                  <p className="text-[11px] text-muted-foreground px-0.5">{hint}</p>
+                  <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
+                    <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 sm:grid sm:auto-rows-fr sm:overflow-visible sm:pb-0 sm:grid-cols-2 lg:[grid-template-columns:repeat(4,minmax(0,1fr))]">
+                      {(loading && items.length === 0
+                        ? Array.from({ length: 4 }).map((_, i) => ({ label: "", value: 0, icon: Activity } as KpiPulse))
+                        : items
+                      ).map((item, idx) => (
+                        <div key={item.label || idx} className="snap-start shrink-0 w-[78%] xs:w-[60%] sm:w-auto sm:h-full">
+                          <KpiPulseCard {...item} loading={loading && !item.value} />
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        ))}
-      </div>
+                </div>
+              );
+            })()
+          )}
+        </CardContent>
+      </Card>
 
       {/* AI Decisions Queue */}
       <div id="decisions" className="scroll-mt-20">
