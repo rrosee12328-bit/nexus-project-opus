@@ -228,6 +228,7 @@ export function PreferencesPanel() {
           </ul>
         )}
       </CardContent>
+      )}
     </Card>
   );
 }
