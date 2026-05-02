@@ -84,7 +84,38 @@ function formatNum(n: number, prefix?: string, suffix?: string) {
   return `${prefix ?? ""}${body}${suffix ?? ""}`;
 }
 
+/** Single skeleton layout reused for every KPI loading state — guarantees identical block sizes and spacing. */
+function KpiSkeleton() {
+  return (
+    <div
+      className={cn(
+        "group relative flex h-full flex-col overflow-hidden rounded-xl border bg-card p-3 sm:p-4",
+        "min-h-[136px] sm:min-h-[148px]",
+      )}
+      aria-busy="true"
+      aria-label="Loading metric"
+    >
+      <div className="relative flex items-start justify-between gap-2">
+        <div className="h-8 w-8 rounded-md bg-muted/50 animate-pulse" />
+      </div>
+      <div className="relative mt-3 flex items-end justify-between gap-2">
+        <div className="min-w-0">
+          <div className="h-7 sm:h-8 w-16 rounded-md bg-muted/60 animate-pulse" />
+          <div className="mt-2 h-3 w-24 rounded bg-muted/40 animate-pulse" />
+        </div>
+        <div className="shrink-0 h-6 w-20 rounded bg-muted/40 animate-pulse" />
+      </div>
+      <div className="relative mt-2 h-3 w-20 rounded bg-muted/30 animate-pulse" />
+    </div>
+  );
+}
+
 export function KpiPulseCard(props: KpiPulse) {
+  if (props.loading) {
+    return props.link
+      ? <Link to={props.link} className="block h-full" aria-disabled tabIndex={-1}><KpiSkeleton /></Link>
+      : <KpiSkeleton />;
+  }
   const tone = TONE_MAP[props.tone ?? "primary"];
   const animated = useCountUp(props.value);
   const Icon = props.icon;
@@ -120,33 +151,19 @@ export function KpiPulseCard(props: KpiPulse) {
 
       <div className="relative mt-3 flex items-end justify-between gap-2">
         <div className="min-w-0">
-          {props.loading ? (
-            <>
-              <div className="h-7 sm:h-8 w-16 rounded-md bg-muted/60 animate-pulse" />
-              <div className="mt-2 h-3 w-24 rounded bg-muted/40 animate-pulse" />
-            </>
-          ) : (
-            <>
-              <p className="font-mono text-2xl sm:text-3xl font-semibold leading-none tracking-tight tabular-nums">
-                {formatNum(animated, props.prefix, props.suffix)}
-              </p>
-              <p className="mt-1.5 text-[11px] sm:text-xs text-muted-foreground line-clamp-1">{props.label}</p>
-            </>
-          )}
+          <p className="font-mono text-2xl sm:text-3xl font-semibold leading-none tracking-tight tabular-nums">
+            {formatNum(animated, props.prefix, props.suffix)}
+          </p>
+          <p className="mt-1.5 text-[11px] sm:text-xs text-muted-foreground line-clamp-1">{props.label}</p>
         </div>
-        {props.spark && props.spark.length > 1 && !props.loading && (
+        {props.spark && props.spark.length > 1 && (
           <div className="shrink-0 opacity-80">
             <Sparkline data={props.spark} stroke={tone.stroke} />
           </div>
         )}
-        {props.loading && (
-          <div className="shrink-0 h-6 w-20 rounded bg-muted/40 animate-pulse" aria-hidden />
-        )}
       </div>
 
-      {props.loading ? (
-        <div className="relative mt-2 h-3 w-20 rounded bg-muted/30 animate-pulse" />
-      ) : typeof props.delta === "number" && (
+      {typeof props.delta === "number" && (
         <div className="relative mt-2 flex items-center gap-1">
           <TrendIcon className={cn("h-3 w-3", positive ? "text-emerald-500" : "text-rose-500", (props.delta ?? 0) === 0 && "text-muted-foreground")} />
           <span className={cn("font-mono text-[11px] tabular-nums", positive ? "text-emerald-500" : "text-rose-500", (props.delta ?? 0) === 0 && "text-muted-foreground")}>
