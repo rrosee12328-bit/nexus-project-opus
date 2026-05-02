@@ -18,6 +18,7 @@ import {
   CircleSlash,
   Sparkles,
   History,
+  AlarmClock,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -75,10 +76,12 @@ export function DecisionsPanel() {
 
   const load = async () => {
     setLoading(true);
+    const nowIso = new Date().toISOString();
     const { data, error } = await supabase
       .from("ai_decision_queue")
       .select("*")
       .eq("status", "pending")
+      .or(`snooze_until.is.null,snooze_until.lt.${nowIso}`)
       .order("risk_tier", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(15);
@@ -134,6 +137,21 @@ export function DecisionsPanel() {
     else {
       const verb = status === "approved" ? "Approved" : status === "rejected" ? "Rejected" : "Dismissed";
       toast.success(`${verb}`);
+      setDecisions((prev) => prev.filter((d) => d.id !== id));
+    }
+    setResolving(null);
+  };
+
+  const snooze = async (id: string, days: number) => {
+    setResolving(id);
+    const until = new Date(Date.now() + days * 86400000).toISOString();
+    const { error } = await supabase
+      .from("ai_decision_queue")
+      .update({ snooze_until: until } as any)
+      .eq("id", id);
+    if (error) toast.error(error.message);
+    else {
+      toast.success(`Snoozed ${days}d`);
       setDecisions((prev) => prev.filter((d) => d.id !== id));
     }
     setResolving(null);
