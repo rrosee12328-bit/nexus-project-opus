@@ -88,6 +88,7 @@ export type Database = {
           resolved_at: string | null
           resolved_by: string | null
           risk_tier: string
+          snooze_until: string | null
           status: string
           title: string
           type: string
@@ -106,6 +107,7 @@ export type Database = {
           resolved_at?: string | null
           resolved_by?: string | null
           risk_tier?: string
+          snooze_until?: string | null
           status?: string
           title: string
           type: string
@@ -124,6 +126,7 @@ export type Database = {
           resolved_at?: string | null
           resolved_by?: string | null
           risk_tier?: string
+          snooze_until?: string | null
           status?: string
           title?: string
           type?: string
