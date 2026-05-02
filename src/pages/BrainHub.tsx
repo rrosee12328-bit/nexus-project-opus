@@ -955,6 +955,56 @@ function InsightGrid({
   );
 }
 
+function ClientReportSection({
+  rep,
+  defaultOpen,
+  TYPE_META,
+  URGENCY_META,
+}: {
+  rep: MarketReport;
+  defaultOpen?: boolean;
+  TYPE_META: Record<string, { tone: string; bg: string; icon: typeof Mail; label: string }>;
+  URGENCY_META: Record<string, string>;
+}) {
+  const [open, setOpen] = useState(!!defaultOpen);
+  const insightCount = rep.insights.length;
+  const highCount = rep.insights.filter((i) => i.urgency === "high").length;
+  return (
+    <div className="rounded-md border bg-card overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-muted/40 transition-colors text-left"
+      >
+        <UserPlus className="h-4 w-4 text-primary shrink-0" />
+        <h4 className="text-sm font-semibold truncate">{rep.client_name}</h4>
+        {rep.client_number && (
+          <Badge variant="outline" className="text-xs">{rep.client_number}</Badge>
+        )}
+        <Badge variant="outline" className="text-[10px] font-mono">{insightCount}</Badge>
+        {highCount > 0 && (
+          <Badge className="text-[10px] bg-destructive text-destructive-foreground">
+            {highCount} high
+          </Badge>
+        )}
+        <span className="ml-auto text-xs text-muted-foreground shrink-0">{timeAgo(rep.generated_at)}</span>
+        <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform shrink-0", open && "rotate-180")} />
+      </button>
+      {open && (
+        <div className="px-3 pb-3 pt-1 border-t bg-muted/10">
+          {insightCount === 0 ? (
+            <div className="text-xs text-muted-foreground italic px-3 py-2 border border-dashed rounded">
+              No insights parsed for this client.
+            </div>
+          ) : (
+            <InsightGrid insights={rep.insights} TYPE_META={TYPE_META} URGENCY_META={URGENCY_META} />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function InsightCard({
   ins,
   TYPE_META,
