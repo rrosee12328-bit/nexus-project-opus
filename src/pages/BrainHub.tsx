@@ -39,9 +39,8 @@ import { KpiPulseCard, type KpiPulse } from "@/components/brain/KpiPulseCard";
 import { DecisionsPanel } from "@/components/brain/DecisionsPanel";
 import { BrainStatePanel } from "@/components/brain/BrainStatePanel";
 import { PreferencesPanel } from "@/components/brain/PreferencesPanel";
-import { ProfitabilityStrip } from "@/components/brain/ProfitabilityStrip";
 import { DailyPulseStrip } from "@/components/brain/DailyPulseStrip";
-import { CashStrip } from "@/components/brain/CashStrip";
+import { MoneyCard } from "@/components/brain/MoneyCard";
 import { CheckSquare, Send, Eye, Percent, AlertTriangle, MailWarning, ListTodo } from "lucide-react";
 
 type ClientLite = { id: string; name: string; client_number: string | null };
@@ -142,6 +141,7 @@ function cleanSummary(raw: unknown): string {
 
 export default function BrainHub() {
   const [loading, setLoading] = useState(true);
+  const [lastLoadedAt, setLastLoadedAt] = useState<Date | null>(null);
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [actions, setActions] = useState<ActionItem[]>([]);
   const [kpis, setKpis] = useState({
@@ -163,6 +163,7 @@ export default function BrainHub() {
   const [marketRunning, setMarketRunning] = useState(false);
   const [clientRunning, setClientRunning] = useState(false);
   const [marketTab, setMarketTab] = useState<"agency" | "client">("agency");
+  const [inboxTab, setInboxTab] = useState<"feed" | "actions">("feed");
   const [marketRunStatus, setMarketRunStatus] = useState<{
     type: "success" | "error";
     message: string;
@@ -453,6 +454,7 @@ export default function BrainHub() {
     }
 
     setLoading(false);
+    setLastLoadedAt(new Date());
   };
 
   useEffect(() => { fetchAll(); }, []);
@@ -595,45 +597,90 @@ export default function BrainHub() {
             <p className="text-sm text-muted-foreground">Vektiss Autonomous OS — central intelligence hub</p>
           </div>
         </div>
-        <Button onClick={fetchAll} variant="outline" size="sm" disabled={loading}>
-          <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-3">
+          {lastLoadedAt && (
+            <span className="text-xs text-muted-foreground hidden sm:inline">
+              Updated {timeAgo(lastLoadedAt.toISOString())}
+            </span>
+          )}
+          <Button onClick={fetchAll} variant="outline" size="sm" disabled={loading}>
+            <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
+      {/* In-page jump nav */}
+      <nav className="sticky top-0 z-20 -mx-4 px-4 py-2 bg-background/85 backdrop-blur border-b border-border/60 overflow-x-auto">
+        <ul className="flex items-center gap-1 text-xs font-medium whitespace-nowrap">
+          {[
+            ["pipelines", "Pipelines"],
+            ["today", "Today"],
+            ["money", "Money"],
+            ["pulse", "Pulse"],
+            ["decisions", "Decisions"],
+            ["brain-state", "Brain State"],
+            ["preferences", "Preferences"],
+            ["market", "Market"],
+            ["inbox", "Activity"],
+          ].map(([id, label]) => (
+            <li key={id}>
+              <a
+                href={`#${id}`}
+                className="rounded-md px-2.5 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                {label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+
       {/* Brain status bar */}
-      <Card>
+      <Card id="pipelines" className="scroll-mt-20">
         <CardContent className="p-3 flex flex-wrap items-center gap-x-6 gap-y-2">
           <div className="flex items-center gap-2 text-sm font-medium">
             <Activity className="h-4 w-4 text-primary" />
             Pipelines
           </div>
-          {pipelines.map((p) => (
-            <div key={p.name} className="flex items-center gap-2 text-sm">
-              <p.icon className="h-4 w-4 text-muted-foreground" />
-              <span>{p.name}</span>
-              {p.ok ? (
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-              ) : (
-                <AlertCircle className="h-4 w-4 text-orange-500" />
-              )}
-              <span className="text-xs text-muted-foreground">{timeAgo(p.lastRan)}</span>
-            </div>
-          ))}
+          {pipelines.map((p) => {
+            const href =
+              p.name === "Fathom" ? "/admin/calls" :
+              p.name === "Email"  ? "/ops/email-intelligence" :
+              "/admin/business-media";
+            return (
+              <Link
+                key={p.name}
+                to={href}
+                className="flex items-center gap-2 text-sm rounded-md px-1.5 py-0.5 -mx-1.5 hover:bg-muted/60 transition-colors"
+                title={`Open ${p.name}`}
+              >
+                <p.icon className="h-4 w-4 text-muted-foreground" />
+                <span>{p.name}</span>
+                {p.ok ? (
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 text-orange-500" />
+                )}
+                <span className="text-xs text-muted-foreground">{timeAgo(p.lastRan)}</span>
+              </Link>
+            );
+          })}
         </CardContent>
       </Card>
 
       {/* What changed today — single-line state-of-business strip */}
-      <DailyPulseStrip />
+      <div id="today" className="scroll-mt-20">
+        <DailyPulseStrip />
+      </div>
 
-      {/* Cash KPI strip */}
-      <CashStrip />
-
-      {/* Per-client profitability — top winners + biggest bleeders */}
-      <ProfitabilityStrip />
+      {/* Money — Cash | Profitability tabs in one card */}
+      <div id="money" className="scroll-mt-20">
+        <MoneyCard />
+      </div>
 
       {/* Mission Control: Velocity / Risk / Growth */}
-      <div className="space-y-4">
+      <div id="pulse" className="space-y-4 scroll-mt-20">
         {([
           { key: "velocity", title: "Velocity",  hint: "Throughput in the last 7 days",       items: pulse.velocity, accent: "text-emerald-500" },
           { key: "risk",     title: "Risk",      hint: "What needs attention right now",      items: pulse.risk,     accent: "text-rose-500" },
@@ -665,16 +712,22 @@ export default function BrainHub() {
       </div>
 
       {/* AI Decisions Queue */}
-      <DecisionsPanel />
+      <div id="decisions" className="scroll-mt-20">
+        <DecisionsPanel />
+      </div>
 
       {/* Brain State Snapshot — what the AI sees */}
-      <BrainStatePanel />
+      <div id="brain-state" className="scroll-mt-20">
+        <BrainStatePanel />
+      </div>
 
       {/* Learned preferences — admin corrections */}
-      <PreferencesPanel />
+      <div id="preferences" className="scroll-mt-20">
+        <PreferencesPanel />
+      </div>
 
       {/* Market Intelligence */}
-      <Card>
+      <Card id="market" className="scroll-mt-20">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <CardTitle className="text-base flex items-center gap-2">
