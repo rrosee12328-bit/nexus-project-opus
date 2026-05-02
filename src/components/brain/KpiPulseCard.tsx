@@ -94,7 +94,7 @@ export function KpiPulseCard(props: KpiPulse) {
   const inner = (
     <div
       className={cn(
-        "group relative overflow-hidden rounded-xl border bg-card p-3 sm:p-4 transition-all",
+        "group relative flex h-full flex-col overflow-hidden rounded-xl border bg-card p-3 sm:p-4 transition-all",
         "hover:-translate-y-0.5 hover:shadow-lg hover:ring-1",
         tone.ring,
       )}
