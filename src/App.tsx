@@ -37,6 +37,7 @@ import AdminInvoices from "./pages/admin/Invoices";
 import AdminPdfLogs from "./pages/admin/PdfLogs";
 import AdminBusinessMedia from "./pages/admin/BusinessMedia";
 import BrainHub from "./pages/BrainHub";
+import Fulcrum from "./pages/admin/Fulcrum";
 
 import OpsLayout from "./layouts/OpsLayout";
 import OpsDashboard from "./pages/ops/Dashboard";
@@ -93,7 +94,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             >
-              <Route index element={<BrainHub />} />
+              <Route index element={<Fulcrum />} />
               <Route path="dashboard" element={<Navigate to="/admin" replace />} />
               <Route path="clients" element={<AdminClients />} />
               <Route path="clients/:clientId" element={<AdminClientDetail />} />
@@ -111,7 +112,9 @@ const App = () => (
               <Route path="summaries" element={<AdminSummaries />} />
               <Route path="tracker" element={<AdminClientTracker />} />
               <Route path="calls" element={<AdminCalls />} />
-              <Route path="knowledge-base" element={<AdminKnowledgeBase />} />
+              <Route path="fulcrum" element={<Fulcrum />} />
+              <Route path="knowledge-base" element={<Navigate to="/admin/fulcrum?tab=memory" replace />} />
+              <Route path="brain" element={<Navigate to="/admin/fulcrum" replace />} />
               <Route path="invoices" element={<AdminInvoices />} />
               <Route path="pdf-logs" element={<AdminPdfLogs />} />
               <Route path="business-media" element={<AdminBusinessMedia />} />
@@ -126,7 +129,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             >
-              <Route index element={<BrainHub />} />
+              <Route index element={<Fulcrum />} />
             </Route>
 
             {/* Ops Portal */}
