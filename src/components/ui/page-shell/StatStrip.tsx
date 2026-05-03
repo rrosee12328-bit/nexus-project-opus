@@ -22,22 +22,24 @@ export function StatStrip({
   className?: string;
 }) {
   const interactive = !!onSelect;
+  const colsMobile = stats.length > 2 ? 2 : stats.length;
+  const colsDesktop = stats.length;
   return (
     <div
+      data-stat-strip
       className={cn(
         "relative grid border border-border/60 glass rounded-lg overflow-hidden shadow-elev",
         className,
       )}
       style={{
-        // Mobile: 2 cols if more than 2 stats, else fit; Desktop: one column per stat
-        ["--cols-mobile" as any]: stats.length > 2 ? 2 : stats.length,
-        ["--cols-desktop" as any]: stats.length,
-        gridTemplateColumns: `repeat(var(--cols-mobile), minmax(0, 1fr))`,
+        ["--cols-mobile" as any]: colsMobile,
+        ["--cols-desktop" as any]: colsDesktop,
+        gridTemplateColumns: `repeat(${colsMobile}, minmax(0, 1fr))`,
       }}
     >
       <style>{`
         @media (min-width: 640px) {
-          .stat-strip-grid { grid-template-columns: repeat(var(--cols-desktop), minmax(0, 1fr)) !important; }
+          [data-stat-strip] { grid-template-columns: repeat(var(--cols-desktop), minmax(0, 1fr)) !important; }
         }
       `}</style>
       {/* moving scanline accent */}
@@ -47,7 +49,6 @@ export function StatStrip({
       {stats.map((s, i) => {
         const isActive = activeKey === s.key;
         const Tag: any = interactive ? "button" : "div";
-        const colsMobile = stats.length > 2 ? 2 : stats.length;
         return (
           <Tag
             key={s.key}
