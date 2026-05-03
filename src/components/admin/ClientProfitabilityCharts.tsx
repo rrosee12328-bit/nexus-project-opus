@@ -28,12 +28,14 @@ const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov
 const usd = (n: number) =>
   n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
-type Mode = "ytd" | "year";
+type Mode = "ytd" | "year" | "month";
 
 export function ClientProfitabilityCharts() {
   const currentYear = new Date().getUTCFullYear();
+  const currentMonth = new Date().getUTCMonth();
   const [mode, setMode] = useState<Mode>("ytd");
   const [year, setYear] = useState<number>(currentYear);
+  const [month, setMonth] = useState<number>(currentMonth);
 
   const { data: rows, isLoading } = useQuery({
     queryKey: ["client-profitability-all"],
@@ -62,9 +64,12 @@ export function ClientProfitabilityCharts() {
         return d.getUTCFullYear() === currentYear &&
           d <= now;
       }
+      if (mode === "month") {
+        return d.getUTCFullYear() === year && d.getUTCMonth() === month;
+      }
       return d.getUTCFullYear() === year;
     });
-  }, [rows, mode, year, currentYear]);
+  }, [rows, mode, year, month, currentYear]);
 
   const byClient = useMemo(() => {
     const map = new Map<string, { name: string; rows: Row[] }>();
@@ -100,9 +105,10 @@ export function ClientProfitabilityCharts() {
               <TabsList className="h-8">
                 <TabsTrigger value="ytd" className="text-xs">YTD</TabsTrigger>
                 <TabsTrigger value="year" className="text-xs">Year</TabsTrigger>
+                <TabsTrigger value="month" className="text-xs">Month</TabsTrigger>
               </TabsList>
             </Tabs>
-            {mode === "year" && (
+            {(mode === "year" || mode === "month") && (
               <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
                 <SelectTrigger className="h-8 w-[90px] text-xs">
                   <SelectValue />
@@ -110,6 +116,18 @@ export function ClientProfitabilityCharts() {
                 <SelectContent>
                   {years.map((y) => (
                     <SelectItem key={y} value={String(y)} className="text-xs">{y}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {mode === "month" && (
+              <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
+                <SelectTrigger className="h-8 w-[100px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONTHS.map((m, i) => (
+                    <SelectItem key={m} value={String(i)} className="text-xs">{m}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
