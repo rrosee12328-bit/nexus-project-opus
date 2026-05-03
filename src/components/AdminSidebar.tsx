@@ -27,6 +27,7 @@ import {
   TrendingUp,
   Truck,
   Cog,
+  Radio,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -78,7 +79,6 @@ const navGroups: NavGroup[] = [
     items: [
       { title: "Sales Pipeline", url: "/admin/leads", icon: Target },
       { title: "Proposals", url: "/admin/proposals", icon: FileText },
-      { title: "Call Intelligence", url: "/admin/calls", icon: Phone },
     ],
   },
   {
@@ -87,8 +87,16 @@ const navGroups: NavGroup[] = [
     items: [
       { title: "Project Management", url: "/admin/projects", icon: FolderKanban },
       { title: "Assets", url: "/admin/assets", icon: Upload },
-      { title: "Messages", url: "/admin/messages", icon: MessageSquare },
       { title: "Business Media", url: "/admin/business-media", icon: Video },
+    ],
+  },
+  {
+    label: "Communication",
+    icon: Radio,
+    items: [
+      { title: "Messages", url: "/admin/messages", icon: MessageSquare },
+      { title: "Email Dashboard", url: "/admin/emails", icon: Mail },
+      { title: "Call Intelligence", url: "/admin/calls", icon: Phone },
     ],
   },
   {
@@ -105,7 +113,6 @@ const navGroups: NavGroup[] = [
     icon: Cog,
     items: [
       { title: "Ops Portal", url: "/ops", icon: ClipboardList },
-      { title: "Email Dashboard", url: "/admin/emails", icon: Mail },
       { title: "PDF Logs", url: "/admin/pdf-logs", icon: ScrollText },
       { title: "Settings", url: "/admin/settings", icon: Settings },
     ],
