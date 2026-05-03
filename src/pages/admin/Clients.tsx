@@ -104,6 +104,43 @@ export default function AdminClients() {
     },
   });
 
+  // Charge vs cost (last 90 days) per client — uses live profitability view.
+  const { data: profitRows } = useQuery({
+    queryKey: ["client-profitability-90d"],
+    queryFn: async () => {
+      const d = new Date();
+      d.setUTCDate(d.getUTCDate() - 90);
+      d.setUTCDate(1);
+      d.setUTCHours(0, 0, 0, 0);
+      const start = d.toISOString().slice(0, 10);
+      const { data, error } = await (supabase as any)
+        .from("v_client_profitability")
+        .select("client_id, revenue, hours, labor_cost, external_cost, profit")
+        .gte("month_start", start);
+      if (error) throw error;
+      return data as Array<{
+        client_id: string;
+        revenue: number | null;
+        hours: number | null;
+        labor_cost: number | null;
+        external_cost: number | null;
+        profit: number | null;
+      }>;
+    },
+  });
+
+  const profitByClient = (profitRows ?? []).reduce<
+    Record<string, { revenue: number; hours: number; cost: number; profit: number }>
+  >((acc, r) => {
+    const cur = acc[r.client_id] ?? { revenue: 0, hours: 0, cost: 0, profit: 0 };
+    cur.revenue += Number(r.revenue ?? 0);
+    cur.hours += Number(r.hours ?? 0);
+    cur.cost += Number(r.labor_cost ?? 0) + Number(r.external_cost ?? 0);
+    cur.profit += Number(r.profit ?? 0);
+    acc[r.client_id] = cur;
+    return acc;
+  }, {});
+
   const costsByClient = (clientCosts ?? []).reduce<Record<string, typeof clientCosts>>((acc, c) => {
     const key = c.client_id;
     if (!acc[key]) acc[key] = [];
