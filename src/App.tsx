@@ -32,11 +32,9 @@ import AdminProposals from "./pages/admin/Proposals";
 import AdminSummaries from "./pages/admin/Summaries";
 import AdminClientTracker from "./pages/admin/ClientTracker";
 import AdminCalls from "./pages/admin/Calls";
-import AdminKnowledgeBase from "./pages/admin/KnowledgeBase";
 import AdminInvoices from "./pages/admin/Invoices";
 import AdminPdfLogs from "./pages/admin/PdfLogs";
 import AdminBusinessMedia from "./pages/admin/BusinessMedia";
-import BrainHub from "./pages/BrainHub";
 import Fulcrum from "./pages/admin/Fulcrum";
 
 import OpsLayout from "./layouts/OpsLayout";
