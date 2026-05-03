@@ -28,7 +28,7 @@ import {
   Truck,
   Cog,
   Radio,
-  Anchor,
+  Zap,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -59,7 +59,7 @@ const navGroups: NavGroup[] = [
     label: "Command",
     icon: Command,
     items: [
-      { title: "Fulcrum", url: "/admin", icon: Anchor },
+      { title: "Lever", url: "/admin", icon: Zap },
       { title: "Calendar", url: "/admin/calendar", icon: Calendar },
       { title: "AI Agent", url: "/admin/agent", icon: Bot },
     ],
