@@ -22,6 +22,7 @@ import {
   ChevronDown, ChevronUp, Pencil, Trash2, ExternalLink, Download, RefreshCw,
   Brain, AlertTriangle, CheckCircle2, XCircle, Link2Off,
 } from "lucide-react";
+import { PageHero, StatStrip } from "@/components/ui/page-shell";
 import { CallSummaryMarkdown, getBriefSummary } from "@/components/admin/CallSummaryMarkdown";
 // PDF generation handled server-side via edge function `generate-call-summary-pdf`
 
