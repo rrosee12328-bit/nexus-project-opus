@@ -11,7 +11,6 @@ import {
   Users, CheckSquare, FolderKanban, Phone, ExternalLink, Video, PhoneCall, Flag, Star, Clock, Mail,
 } from "lucide-react";
 import { PageHero } from "@/components/ui/page-shell";
-import { Calendar as CalIcon } from "lucide-react";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth,
   isSameDay, isToday, addMonths, subMonths, parseISO, startOfWeek, endOfWeek,
