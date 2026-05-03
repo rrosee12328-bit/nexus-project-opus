@@ -1,14 +1,15 @@
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Anchor, Brain } from "lucide-react";
+import { Zap, Brain } from "lucide-react";
 import BrainHub from "@/pages/BrainHub";
 import AdminKnowledgeBase from "@/pages/admin/KnowledgeBase";
 
 /**
- * Fulcrum — the pivot point where knowledge + AI multiply force.
+ * Lever — from the Latin "vectis" (the root of Vektiss). The mechanism that
+ * amplifies what you know and how you work into more revenue and saved time.
  * Merges the former Brain Hub (operational state) and Knowledge Base (long-term memory).
  */
-export default function Fulcrum() {
+export default function Lever() {
   const [params, setParams] = useSearchParams();
   const tab = params.get("tab") === "memory" ? "memory" : "hub";
 
@@ -26,14 +27,14 @@ export default function Fulcrum() {
         <div className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="flex items-center gap-4 px-6 py-3">
             <div className="flex items-center gap-2">
-              <Anchor className="h-4 w-4 text-primary" />
+              <Zap className="h-4 w-4 text-primary" />
               <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                Fulcrum
+                Lever
               </span>
             </div>
             <TabsList className="h-9">
               <TabsTrigger value="hub" className="gap-1.5">
-                <Anchor className="h-3.5 w-3.5" />
+                <Zap className="h-3.5 w-3.5" />
                 Hub
               </TabsTrigger>
               <TabsTrigger value="memory" className="gap-1.5">
