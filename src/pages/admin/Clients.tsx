@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { UserCheck, UserPlus, DollarSign, Plus, MoreHorizontal, Pencil, Trash2, ChevronDown, ChevronRight, FileText, Calendar, Briefcase, Users, Send, RefreshCw, Eye } from "lucide-react";
 import { ClientFormDialog } from "@/components/ClientFormDialog";
 import { DeleteClientDialog } from "@/components/DeleteClientDialog";
+import { ClientProfitabilityCharts } from "@/components/admin/ClientProfitabilityCharts";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
@@ -536,6 +537,15 @@ export default function AdminClients() {
         </Card>
         </motion.div>
       )}
+
+      {/* Per-client profitability graphs */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.7 }}
+      >
+        <ClientProfitabilityCharts />
+      </motion.div>
 
       <ClientFormDialog open={formOpen} onOpenChange={setFormOpen} client={editClient} />
       <DeleteClientDialog
