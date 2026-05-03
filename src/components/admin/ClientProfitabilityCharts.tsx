@@ -89,13 +89,13 @@ export function ClientProfitabilityCharts() {
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-primary" />
-            Profitability Trends — Charge vs Cost & Hours
+      <CardHeader className="px-4 sm:px-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-primary shrink-0" />
+            <span className="truncate">Profitability — Charge vs Cost &amp; Hours</span>
           </CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
               <TabsList className="h-8">
                 <TabsTrigger value="ytd" className="text-xs">YTD</TabsTrigger>
@@ -104,7 +104,7 @@ export function ClientProfitabilityCharts() {
             </Tabs>
             {mode === "year" && (
               <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
-                <SelectTrigger className="h-8 w-[100px] text-xs">
+                <SelectTrigger className="h-8 w-[90px] text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -117,7 +117,7 @@ export function ClientProfitabilityCharts() {
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-3 sm:px-6">
         {isLoading ? (
           <Skeleton className="h-64 w-full" />
         ) : byClient.length === 0 ? (
@@ -125,7 +125,7 @@ export function ClientProfitabilityCharts() {
             No profitability data for this period yet.
           </p>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             {byClient.map((c) => {
               const profit = c.totalRevenue - c.totalCost;
               const positive = profit >= 0;
@@ -142,10 +142,10 @@ export function ClientProfitabilityCharts() {
                   };
                 });
               return (
-                <div key={c.id} className="rounded-lg border bg-card p-4 space-y-2">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div key={c.id} className="rounded-lg border bg-card p-3 sm:p-4 space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2">
                     <p className="font-medium text-sm truncate">{c.name}</p>
-                    <div className="flex items-center gap-3 text-xs font-mono">
+                    <div className="flex items-center gap-2 sm:gap-3 text-[11px] sm:text-xs font-mono flex-wrap">
                       <span className="text-muted-foreground">{c.totalHours.toFixed(1)}h</span>
                       <span>{usd(c.totalRevenue)}</span>
                       <span className={positive ? "text-success" : "text-destructive"}>
@@ -153,14 +153,14 @@ export function ClientProfitabilityCharts() {
                       </span>
                     </div>
                   </div>
-                  <div className="h-48">
+                  <div className="h-40 sm:h-48 -ml-2 sm:ml-0">
                     <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -8 }}>
+                      <ComposedChart data={data} margin={{ top: 8, right: 4, bottom: 0, left: -12 }}>
                         <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
-                        <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                        <YAxis yAxisId="left" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))"
+                        <XAxis dataKey="month" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" interval="preserveStartEnd" />
+                        <YAxis yAxisId="left" tick={{ fontSize: 9 }} stroke="hsl(var(--muted-foreground))" width={36}
                           tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : `${v}`} />
-                        <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }}
+                        <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 9 }} width={28}
                           stroke="hsl(var(--muted-foreground))" />
                         <Tooltip
                           contentStyle={{
