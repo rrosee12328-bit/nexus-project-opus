@@ -10,6 +10,8 @@ import {
   ChevronLeft, ChevronRight, Calendar as CalIcon, Plus,
   Users, CheckSquare, FolderKanban, Phone, ExternalLink, Video, PhoneCall, Flag, Star, Clock, Mail,
 } from "lucide-react";
+import { PageHero } from "@/components/ui/page-shell";
+import { Calendar as CalIcon } from "lucide-react";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth,
   isSameDay, isToday, addMonths, subMonths, parseISO, startOfWeek, endOfWeek,
@@ -377,18 +379,19 @@ export default function AdminCalendar() {
 
   return (
     <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Calendar</h1>
-          <p className="text-muted-foreground text-sm">Follow-ups, deadlines, milestones, meetings & events · <span className="font-medium">Central Time (CT)</span></p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={goToToday}>Today</Button>
-          <Button size="sm" onClick={() => openNewEvent(selectedDate ?? new Date())}>
-            <Plus className="h-4 w-4 mr-1" /> Add Event
-          </Button>
-        </div>
-      </motion.div>
+      <PageHero
+        kicker={<><CalIcon className="h-3 w-3" />Vektiss / Calendar</>}
+        title="Calendar"
+        description="Follow-ups, deadlines, milestones, meetings & events · Central Time (CT)"
+        action={
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={goToToday}>Today</Button>
+            <Button size="sm" onClick={() => openNewEvent(selectedDate ?? new Date())}>
+              <Plus className="h-4 w-4 mr-1" /> Add Event
+            </Button>
+          </div>
+        }
+      />
 
       {/* Filter + summary row */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
