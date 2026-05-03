@@ -360,45 +360,30 @@ export default function AdminCalls() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Call Intelligence</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            All Fathom, Retell, and manual call records linked to clients and projects.
-          </p>
+      <PageHero
+        kicker={<><Phone className="h-3 w-3" />Vektiss / Calls</>}
+        title="Call Intelligence"
+        description="All Fathom, Retell, and manual call records linked to clients and projects."
+        action={
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => syncFathom({ sync_all_missing: true })}>
+              <RefreshCw className="h-4 w-4 mr-2" /> Sync from Fathom
+            </Button>
+            <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" /> Log Call</Button>
+          </div>
+        }
+      >
+        <div className="mt-6">
+          <StatStrip
+            stats={[
+              { key: "total", label: "Total Calls", value: stats.total },
+              { key: "positive", label: "Positive", value: stats.positive },
+              { key: "transcript", label: "With Transcript", value: stats.withTranscript },
+              { key: "clients", label: "Clients", value: stats.clients },
+            ]}
+          />
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => syncFathom({ sync_all_missing: true })} title="Pull share URLs & transcripts from Fathom for calls missing them">
-            <RefreshCw className="h-4 w-4 mr-2" /> Sync from Fathom
-          </Button>
-          <Button onClick={openAdd}>
-            <Plus className="h-4 w-4 mr-2" /> Log Call
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: "Total Calls", value: stats.total, icon: Phone, color: "text-primary" },
-          { label: "Positive Sentiment", value: stats.positive, icon: TrendingUp, color: "text-emerald-400" },
-          { label: "With Transcript", value: stats.withTranscript, icon: Mic, color: "text-blue-400" },
-          { label: "Clients Covered", value: stats.clients, icon: Users, color: "text-purple-400" },
-        ].map((s, i) => (
-          <motion.div key={s.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-muted-foreground">{s.label}</p>
-                    <p className="text-2xl font-semibold mt-1">{s.value}</p>
-                  </div>
-                  <s.icon className={`h-5 w-5 ${s.color}`} />
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
+      </PageHero>
 
       {/* Brain Ingestion Dashboard */}
       <Card className="border-primary/20">
