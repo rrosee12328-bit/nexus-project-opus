@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { MessageSquare, Send, Loader2, Users, CheckCheck, Check, Search } from "lucide-react";
+import { PageHero } from "@/components/ui/page-shell";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { format, isToday, isYesterday } from "date-fns";
@@ -232,10 +233,11 @@ export default function AdminMessages() {
 
   return (
     <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-        <h1 className="text-2xl font-bold tracking-tight">Messages</h1>
-        <p className="text-muted-foreground">Real-time conversations with your clients.</p>
-      </motion.div>
+      <PageHero
+        kicker={<><MessageSquare className="h-3 w-3" />Vektiss / Messages</>}
+        title="Messages"
+        description="Real-time conversations with your clients."
+      />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
