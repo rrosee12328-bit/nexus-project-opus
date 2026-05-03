@@ -83,11 +83,32 @@ export default {
         shimmer: {
           "100%": { transform: "translateX(100%)" },
         },
+        "glow-pulse": {
+          "0%, 100%": { opacity: "0.35" },
+          "50%": { opacity: "0.7" },
+        },
+        "drift": {
+          "0%": { transform: "translate(0,0)" },
+          "50%": { transform: "translate(-20px,-10px)" },
+          "100%": { transform: "translate(0,0)" },
+        },
+        "scan": {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(100%)" },
+        },
+        "fade-up": {
+          "0%": { opacity: "0", transform: "translateY(8px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         shimmer: "shimmer 1.8s ease-in-out infinite",
+        "glow-pulse": "glow-pulse 4s ease-in-out infinite",
+        drift: "drift 20s ease-in-out infinite",
+        scan: "scan 6s linear infinite",
+        "fade-up": "fade-up 0.5s ease-out both",
       },
     },
   },
