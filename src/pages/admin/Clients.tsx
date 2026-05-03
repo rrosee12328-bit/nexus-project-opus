@@ -18,6 +18,7 @@ import { DeleteClientDialog } from "@/components/DeleteClientDialog";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
+import { PageHero, StatStrip, type Stat } from "@/components/ui/page-shell";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
@@ -121,10 +122,11 @@ export default function AdminClients() {
   const mrr = activeClients.reduce((s, c) => s + (c.monthly_fee ?? 0), 0);
   const pendingSetup = actualClients.reduce((s, c) => s + (c.balance_due ?? 0), 0);
 
-  const stats = [
-    { label: "Active Clients", value: activeClients.length, icon: UserCheck, color: "text-primary" },
-    { label: "Onboarding", value: onboardingClients.length, icon: UserPlus, color: "text-warning" },
-    { label: "Monthly Recurring", value: formatCurrency(mrr), icon: DollarSign, color: "text-emerald-400" },
+  const stats: Stat[] = [
+    { key: "total", label: "Clients", value: actualClients.length },
+    { key: "active", label: "Active", value: activeClients.length },
+    { key: "onboarding", label: "Onboarding", value: onboardingClients.length },
+    { key: "mrr", label: "MRR", value: mrr, format: (n) => formatCurrency(Math.round(n)) ?? "—" },
   ];
 
   const openEdit = (c: Client) => { setEditClient(c); setFormOpen(true); };
@@ -187,41 +189,14 @@ export default function AdminClients() {
 
   return (
     <div className="space-y-6">
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+      <PageHero
+        kicker={<><Users className="h-3 w-3" />Vektiss / Clients</>}
+        title="Client Management"
+        description="Every active client, their MRR, and onboarding status — at a glance."
+        action={<Button onClick={openAdd} size="sm"><Plus className="mr-2 h-4 w-4" />Add Client</Button>}
       >
-        <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Client Management</h1>
-          <p className="text-sm text-muted-foreground hidden sm:block">View and manage all clients, payments, and services.</p>
-        </div>
-        <Button onClick={openAdd} size="sm" className="shrink-0 self-start sm:self-auto"><Plus className="mr-2 h-4 w-4" /> Add Client</Button>
-      </motion.div>
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        {stats.map((s, i) => (
-          <motion.div
-            key={s.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.1 + i * 0.07 }}
-          >
-            <Card className="group hover:border-primary/20 transition-colors">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">{s.label}</CardTitle>
-                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <s.icon className={`h-4 w-4 ${s.color}`} />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold font-mono">{s.value}</div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
+        <div className="mt-6"><StatStrip stats={stats} /></div>
+      </PageHero>
 
       {/* Clients with expandable summaries */}
       <motion.div
