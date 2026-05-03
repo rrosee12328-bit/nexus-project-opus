@@ -15,7 +15,6 @@ import {
   FolderKanban, FileSpreadsheet, Clock, CheckCircle2, AlertCircle, Target, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
 import { PageHero } from "@/components/ui/page-shell";
-import { BarChart3 } from "lucide-react";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid,
   BarChart, Bar, Legend, RadialBarChart, RadialBar, ComposedChart, Line,
