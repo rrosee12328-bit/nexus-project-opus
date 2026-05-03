@@ -31,6 +31,7 @@ import {
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import AdminClientBilling from "@/components/admin/AdminClientBilling";
+import { ChargeVsCostCard } from "@/components/admin/ChargeVsCostCard";
 import { format, formatDistanceToNow } from "date-fns";
 import { SendProposalDialog } from "@/components/proposals/SendProposalDialog";
 import ClientContractsTab from "@/components/admin/ClientContractsTab";
@@ -445,6 +446,13 @@ export default function ClientDetail() {
             clientName={client.name}
             stripeCustomerId={(client as any).stripe_customer_id ?? null}
           />
+        </motion.div>
+      )}
+
+      {/* Charge vs Cost */}
+      {client && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.36 }}>
+          <ChargeVsCostCard clientId={client.id} />
         </motion.div>
       )}
 
