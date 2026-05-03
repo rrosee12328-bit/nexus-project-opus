@@ -9,6 +9,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { DollarSign, TrendingUp, TrendingDown, Download, Wallet, Plus, Pencil, Trash2, CreditCard, AlertCircle } from "lucide-react";
+import { PageHero } from "@/components/ui/page-shell";
 import { Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Line, ComposedChart, Legend } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -292,20 +293,12 @@ export default function AdminFinancials() {
   return (
     <div className="space-y-6">
       <AICommandCenter pageContext={{ pageType: "financials", title: "Financial Tracking" }} />
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-      >
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Financial Tracking</h1>
-          <p className="text-muted-foreground">Revenue, expenses, profit margins, and investment tracking.</p>
-        </div>
-        <Button variant="outline" onClick={exportCSV}>
-          <Download className="mr-2 h-4 w-4" /> Export CSV
-        </Button>
-      </motion.div>
+      <PageHero
+        kicker={<><DollarSign className="h-3 w-3" />Vektiss / Finance</>}
+        title="Financial Tracking"
+        description="Revenue, expenses, profit margins, and investment tracking."
+        action={<Button variant="outline" onClick={exportCSV}><Download className="mr-2 h-4 w-4" />Export CSV</Button>}
+      />
 
       {/* Filters */}
       <motion.div

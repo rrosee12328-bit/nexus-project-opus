@@ -43,6 +43,7 @@ import { DailyPulseStrip } from "@/components/brain/DailyPulseStrip";
 import { MoneyCard } from "@/components/brain/MoneyCard";
 import { OperationsCard } from "@/components/brain/OperationsCard";
 import { CheckSquare, Send, Eye, Percent, AlertTriangle, MailWarning, ListTodo } from "lucide-react";
+import { PageHero, MetaRow, PulseDot } from "@/components/ui/page-shell";
 
 type ClientLite = { id: string; name: string; client_number: string | null };
 
@@ -589,29 +590,26 @@ export default function BrainHub() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/15 flex items-center justify-center">
-            <Brain className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">The Brain</h1>
-            <p className="text-sm text-muted-foreground">Vektiss Autonomous OS — central intelligence hub</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          {lastLoadedAt && (
-            <span className="text-xs text-muted-foreground hidden sm:inline">
-              Updated {timeAgo(lastLoadedAt.toISOString())}
-            </span>
-          )}
+      <PageHero
+        kicker={<><Brain className="h-3 w-3" />Vektiss / Command Center</>}
+        title="Dashboard"
+        description="The autonomous OS — every signal, every decision, every dollar in one view."
+        action={
           <Button onClick={fetchAll} variant="outline" size="sm" disabled={loading}>
             <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
             Refresh
           </Button>
-        </div>
-      </div>
+        }
+      >
+        <MetaRow
+          items={[
+            <><PulseDot />{lastLoadedAt ? `synced ${timeAgo(lastLoadedAt.toISOString())}` : "syncing…"}</>,
+            <>{kpis.activeClients} active clients</>,
+            <>{kpis.openProposals} open proposals</>,
+            <>{kpis.emailsAwaiting} emails awaiting</>,
+          ]}
+        />
+      </PageHero>
 
       {/* In-page jump nav */}
       <nav className="sticky top-0 z-20 -mx-4 px-4 py-2 bg-background/85 backdrop-blur border-b border-border/60 overflow-x-auto">

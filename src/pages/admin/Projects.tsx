@@ -37,6 +37,7 @@ import {
   Circle,
   Sheet as SheetIcon,
 } from "lucide-react";
+import { PageHero, StatStrip, type Stat } from "@/components/ui/page-shell";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Constants } from "@/integrations/supabase/types";
@@ -262,49 +263,24 @@ export default function AdminProjects() {
     return acc;
   }, {});
 
-  const statItems = [
-    { label: "Total", value: projects.length, color: "text-foreground" },
-    { label: "In Progress", value: projects.filter((p) => p.status === "in_progress").length, color: "text-primary" },
-    { label: "Completed", value: projects.filter((p) => p.status === "completed").length, color: "text-success" },
-    { label: "On Hold", value: projects.filter((p) => p.status === "on_hold").length, color: "text-warning" },
+  const statItems: Stat[] = [
+    { key: "total", label: "Projects", value: projects.length },
+    { key: "in_progress", label: "In Progress", value: projects.filter((p) => p.status === "in_progress").length },
+    { key: "completed", label: "Completed", value: projects.filter((p) => p.status === "completed").length },
+    { key: "on_hold", label: "On Hold", value: projects.filter((p) => p.status === "on_hold").length },
   ];
 
   return (
     <div className="space-y-6">
       <AICommandCenter pageContext={{ pageType: "projects", title: "Project Management" }} />
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="flex items-center justify-between"
+      <PageHero
+        kicker={<><FolderKanban className="h-3 w-3" />Vektiss / Projects</>}
+        title="Project Management"
+        description="Track every project's phase, milestones, and progress across all clients."
+        action={<Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />New Project</Button>}
       >
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Project Management</h1>
-          <p className="text-muted-foreground">Create, edit, and track project phases.</p>
-        </div>
-        <Button onClick={openCreate}>
-          <Plus className="h-4 w-4 mr-2" /> New Project
-        </Button>
-      </motion.div>
-
-      {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-4">
-        {statItems.map((s, i) => (
-          <motion.div
-            key={s.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.1 + i * 0.07 }}
-          >
-            <Card className="hover:border-primary/20 transition-colors">
-              <CardContent className="pt-4 pb-4 text-center">
-                <p className={`text-2xl font-bold font-mono ${s.color}`}>{s.value}</p>
-                <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
+        <div className="mt-6"><StatStrip stats={statItems} /></div>
+      </PageHero>
 
       {isLoading && (
         <div className="flex justify-center py-16">
