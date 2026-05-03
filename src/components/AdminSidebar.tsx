@@ -179,13 +179,13 @@ export function AdminSidebar() {
           return (
             <Collapsible key={group.label} defaultOpen={activeInGroup} className="group/collapsible">
               <SidebarGroup>
-                <SidebarGroupLabel asChild className="kicker !text-[12px] cursor-pointer hover:text-foreground transition-colors py-2">
+                <SidebarGroupLabel asChild className="font-sans !text-[13px] font-semibold uppercase tracking-wider !text-sidebar-foreground cursor-pointer hover:!text-white transition-colors py-2">
                   <CollapsibleTrigger className="flex w-full items-center justify-between">
                     <span className="flex items-center gap-2">
-                      <group.icon className="h-3.5 w-3.5" />
+                      <group.icon className="h-4 w-4" />
                       {group.label}
                     </span>
-                    <ChevronRight className="h-3.5 w-3.5 transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                    <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
                   </CollapsibleTrigger>
                 </SidebarGroupLabel>
                 <CollapsibleContent>
@@ -203,7 +203,7 @@ export function AdminSidebar() {
                             >
                               <span className="nav-indicator absolute left-0 top-1/2 -translate-y-1/2 h-4 w-px bg-primary opacity-0 shadow-[0_0_8px_hsl(var(--primary))] transition-opacity" />
                               <item.icon className="h-4 w-4" />
-                              <span className="text-sm tracking-tight">{item.title}</span>
+                              <span className="font-sans text-[14px] font-medium text-sidebar-foreground">{item.title}</span>
                             </NavLink>
                           </SidebarMenuButton>
                         </SidebarMenuItem>
