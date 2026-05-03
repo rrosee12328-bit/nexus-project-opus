@@ -1,5 +1,6 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import Landing from "./Landing";
 
 export default function Index() {
   const { user, role, loading } = useAuth();
@@ -12,7 +13,7 @@ export default function Index() {
     );
   }
 
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Landing />;
   if (role === "admin") return <Navigate to="/admin" replace />;
   if (role === "ops") return <Navigate to="/ops" replace />;
   return <Navigate to="/portal" replace />;
