@@ -14,6 +14,8 @@ import {
   BarChart3, Users, DollarSign, TrendingUp, Activity, Heart, AlertTriangle,
   FolderKanban, FileSpreadsheet, Clock, CheckCircle2, AlertCircle, Target, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
+import { PageHero } from "@/components/ui/page-shell";
+import { BarChart3 } from "lucide-react";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid,
   BarChart, Bar, Legend, RadialBarChart, RadialBar, ComposedChart, Line,
@@ -377,16 +379,12 @@ export default function AdminReports() {
   return (
     <div className="space-y-6">
       <AICommandCenter pageContext={{ pageType: "reports", title: "Reports & Analytics" }} />
-      {/* Header */}
-      <motion.div {...anim(0)} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Reports & Analytics</h1>
-          <p className="text-muted-foreground">KPIs, trends, profitability, utilization, and business intelligence.</p>
-        </div>
-        <Button variant="outline" onClick={exportExcel} className="gap-2">
-          <FileSpreadsheet className="h-4 w-4" /> Export Full Report
-        </Button>
-      </motion.div>
+      <PageHero
+        kicker={<><BarChart3 className="h-3 w-3" />Vektiss / Analytics</>}
+        title="Reports & Analytics"
+        description="KPIs, trends, profitability, utilization, and business intelligence."
+        action={<Button variant="outline" onClick={exportExcel} className="gap-2"><FileSpreadsheet className="h-4 w-4" />Export Full Report</Button>}
+      />
 
       {/* Date Range Filter */}
       <motion.div {...anim(0.05)}>
