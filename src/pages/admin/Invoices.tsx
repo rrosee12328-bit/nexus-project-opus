@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Receipt, Send, ExternalLink, Loader2, FileText, CheckCircle2, Clock, CalendarClock, Timer, Eye, Download, Mail, FlaskConical } from "lucide-react";
+import { PageHero } from "@/components/ui/page-shell";
 import {
   Dialog,
   DialogContent,
@@ -287,14 +288,11 @@ export default function Invoices() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Receipt className="h-6 w-6 text-primary" /> Hourly Invoices
-          </h1>
-          <p className="text-sm text-muted-foreground">Bill clients for tracked hourly work via Stripe</p>
-        </div>
-      </div>
+      <PageHero
+        kicker={<><Receipt className="h-3 w-3" />Vektiss / Invoices</>}
+        title="Hourly Invoices"
+        description="Bill clients for tracked hourly work via Stripe."
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
