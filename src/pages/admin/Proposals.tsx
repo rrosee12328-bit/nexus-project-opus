@@ -13,6 +13,7 @@ import {
   Send, Copy, Check, ArrowLeft, Sparkles, Loader2, Edit3,
   Briefcase, Clock, Repeat, Download, UserPlus,
 } from "lucide-react";
+import { PageHero, StatStrip } from "@/components/ui/page-shell";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { motion } from "framer-motion";
@@ -633,41 +634,22 @@ export default function AdminProposals() {
   const viewed = all.filter((p) => (p as any).view_count > 0).length;
 
   const stats = [
-    { label: "Total Sent", value: all.length, icon: FileText, color: "text-amber-400" },
-    { label: "Opened", value: viewed, icon: Eye, color: "text-purple-400" },
-    { label: "Signed", value: signed, icon: CheckCircle, color: "text-blue-400" },
-    { label: "Paid", value: paid, icon: CreditCard, color: "text-emerald-400" },
+    { key: "sent", label: "Total Sent", value: all.length },
+    { key: "viewed", label: "Opened", value: viewed },
+    { key: "signed", label: "Signed", value: signed },
+    { key: "paid", label: "Paid", value: paid },
   ];
 
   return (
     <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Proposals</h1>
-          <p className="text-sm text-muted-foreground hidden sm:block">Track proposals from sent to signed to paid.</p>
-        </div>
-        <Button onClick={() => setQuickCreateOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" /> New Proposal
-        </Button>
-      </motion.div>
-
-      <div className="grid gap-4 sm:grid-cols-4">
-        {stats.map((s, i) => (
-          <motion.div key={s.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 + i * 0.07 }}>
-            <Card className="group hover:border-primary/20 transition-colors">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">{s.label}</CardTitle>
-                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <s.icon className={`h-4 w-4 ${s.color}`} />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold font-mono">{s.value}</div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
+      <PageHero
+        kicker={<><FileText className="h-3 w-3" />Vektiss / Proposals</>}
+        title="Proposals"
+        description="Track proposals from sent to signed to paid."
+        action={<Button onClick={() => setQuickCreateOpen(true)}><Plus className="h-4 w-4 mr-2" />New Proposal</Button>}
+      >
+        <div className="mt-6"><StatStrip stats={stats} /></div>
+      </PageHero>
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }}>
         <Card>
