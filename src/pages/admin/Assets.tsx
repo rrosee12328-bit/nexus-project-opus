@@ -29,6 +29,8 @@ import {
   Package,
   Eye,
 } from "lucide-react";
+import { PageHero } from "@/components/ui/page-shell";
+import { Upload as UploadIcon } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -191,14 +193,11 @@ export default function AdminAssets() {
 
   return (
     <div className="space-y-6">
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        <h1 className="text-2xl font-bold tracking-tight">Asset Management</h1>
-        <p className="text-muted-foreground">Upload deliverables and view client uploads.</p>
-      </motion.div>
+      <PageHero
+        kicker={<><UploadIcon className="h-3 w-3" />Vektiss / Assets</>}
+        title="Asset Management"
+        description="Upload deliverables and view client uploads."
+      />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
