@@ -324,6 +324,24 @@ export default function AdminClients() {
                           <p className="text-xs text-muted-foreground">YTD</p>
                           <p className="font-mono font-medium">{formatCurrency(ytdByClient[client.id] ?? 0)}</p>
                         </div>
+                        {(() => {
+                          const p = profitByClient[client.id];
+                          if (!p || (p.revenue === 0 && p.hours === 0)) return null;
+                          const positive = p.profit >= 0;
+                          return (
+                            <div className="text-right" title="Last 90d: charged vs cost (time × $/h + external)">
+                              <p className="text-xs text-muted-foreground">Charge / Cost · 90d</p>
+                              <p className="font-mono font-medium text-xs">
+                                <span>{formatCurrency(p.revenue)}</span>
+                                <span className="text-muted-foreground"> / </span>
+                                <span>{formatCurrency(p.cost)}</span>
+                                <span className={`ml-1 ${positive ? "text-success" : "text-destructive"}`}>
+                                  ({positive ? "+" : ""}{formatCurrency(p.profit)})
+                                </span>
+                              </p>
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       {hasNotes && (
