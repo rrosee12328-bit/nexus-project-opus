@@ -22,15 +22,26 @@ export function StatStrip({
   className?: string;
 }) {
   const interactive = !!onSelect;
+  const colsMobile = stats.length > 2 ? 2 : stats.length;
+  const colsDesktop = stats.length;
   return (
     <div
+      data-stat-strip
       className={cn(
         "relative grid border border-border/60 glass rounded-lg overflow-hidden shadow-elev",
-        `grid-cols-2 sm:grid-cols-${Math.min(stats.length, 6)}`,
         className,
       )}
-      style={{ gridTemplateColumns: `repeat(${stats.length}, minmax(0, 1fr))` }}
+      style={{
+        ["--cols-mobile" as any]: colsMobile,
+        ["--cols-desktop" as any]: colsDesktop,
+        gridTemplateColumns: `repeat(${colsMobile}, minmax(0, 1fr))`,
+      }}
     >
+      <style>{`
+        @media (min-width: 640px) {
+          [data-stat-strip] { grid-template-columns: repeat(var(--cols-desktop), minmax(0, 1fr)) !important; }
+        }
+      `}</style>
       {/* moving scanline accent */}
       <span className="pointer-events-none absolute top-0 left-0 right-0 h-px overflow-hidden">
         <span className="block h-px w-1/3 edge-line animate-scan" />
@@ -43,8 +54,10 @@ export function StatStrip({
             key={s.key}
             onClick={interactive ? () => onSelect?.(s.key) : undefined}
             className={cn(
-              "group relative text-left px-5 py-4 transition-all",
-              i > 0 && "sm:border-l border-border/60",
+              "group relative text-left px-3 sm:px-5 py-3 sm:py-4 transition-all min-w-0",
+              i > 0 && i % colsMobile !== 0 && "border-l border-border/60",
+              i >= colsMobile && "border-t border-border/60",
+              i > 0 && "sm:border-l sm:border-t-0 border-border/60",
               isActive ? "bg-primary/5" : interactive && "hover:bg-primary/[0.04]",
             )}
           >
@@ -54,14 +67,14 @@ export function StatStrip({
                 <span className="absolute -bottom-px left-1/2 -translate-x-1/2 h-px w-1/2 edge-line opacity-80" />
               </>
             )}
-            <div className="kicker flex items-center gap-1.5">
+            <div className="kicker flex items-center gap-1.5 truncate">
               <span className={cn(
                 "h-1 w-1 rounded-full",
                 isActive ? "bg-primary shadow-[0_0_6px_hsl(var(--primary))]" : "bg-muted-foreground/40",
               )} />
-              {s.label}
+              <span className="truncate">{s.label}</span>
             </div>
-            <div className="mt-2 text-2xl sm:text-3xl font-semibold tabular-nums tracking-tight">
+            <div className="mt-1.5 sm:mt-2 text-lg sm:text-3xl font-semibold tabular-nums tracking-tight truncate">
               <Counter value={s.value} format={s.format} />
             </div>
             {s.hint && (
