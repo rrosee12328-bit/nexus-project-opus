@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { AuthShell } from "@/components/auth/AuthShell";
 
 export default function Signup() {
   const { signUp, user, role, loading } = useAuth();
@@ -42,13 +43,17 @@ export default function Signup() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md border-border bg-card">
+    <AuthShell kicker="VEKTISS / NEW OPERATOR">
+      <Card className="w-full max-w-md border-border/60 bg-card/70 backdrop-blur-xl shadow-glow relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px edge-line" aria-hidden />
         <CardHeader className="text-center space-y-4">
           <img src="/vektiss-logo.png" alt="Vektiss" className="h-20 mx-auto object-contain" />
-          <CardTitle className="text-2xl font-bold tracking-tight text-foreground">
-            Create Account
-          </CardTitle>
+          <div className="space-y-1">
+            <p className="kicker text-[10px] text-muted-foreground">SECURE / CREATE ACCOUNT</p>
+            <CardTitle className="text-2xl font-bold tracking-tight text-foreground">
+              Create Account
+            </CardTitle>
+          </div>
           <CardDescription className="text-muted-foreground">
             Join the Vektiss Portal
           </CardDescription>
@@ -100,6 +105,6 @@ export default function Signup() {
           </p>
         </CardContent>
       </Card>
-    </div>
+    </AuthShell>
   );
 }
