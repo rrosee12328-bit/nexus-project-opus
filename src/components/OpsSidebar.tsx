@@ -52,8 +52,9 @@ export function OpsSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader className="border-b border-sidebar-border px-4 py-2">
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border/60">
+      <SidebarHeader className="border-b border-sidebar-border/60 px-4 py-2 relative">
+        <span className="absolute bottom-0 left-0 right-0 h-px edge-line opacity-60" />
         {!collapsed && (
           <img src="/vektiss-logo.png" alt="Vektiss" className="h-20 object-contain" />
         )}
@@ -63,7 +64,9 @@ export function OpsSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel className="kicker !text-[10px]">
+            {!collapsed && "// Navigation"}
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item) => (
@@ -72,12 +75,13 @@ export function OpsSidebar() {
                     <NavLink
                       to={item.url}
                       end={item.url === "/ops"}
-                      className="hover:bg-sidebar-accent"
-                      activeClassName="bg-sidebar-accent text-sidebar-primary"
+                      className="relative hover:bg-sidebar-accent transition-colors group"
+                      activeClassName="bg-sidebar-accent text-sidebar-primary [&_.nav-indicator]:opacity-100"
                       onClick={handleNavClick}
                     >
+                      <span className="nav-indicator absolute left-0 top-1/2 -translate-y-1/2 h-4 w-px bg-primary opacity-0 shadow-[0_0_8px_hsl(var(--primary))] transition-opacity" />
                       <item.icon className="h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
+                      {!collapsed && <span className="text-[13px] tracking-tight">{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -86,7 +90,14 @@ export function OpsSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="border-t border-sidebar-border p-2">
+      <SidebarFooter className="border-t border-sidebar-border/60 p-2 relative">
+        <span className="absolute top-0 left-0 right-0 h-px edge-line opacity-60" />
+        {!collapsed && (
+          <div className="px-2 pt-1 pb-2 flex items-center gap-2 kicker">
+            <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
+            Ops / Online
+          </div>
+        )}
         <SidebarMenu>
           {role === "admin" && (
             <SidebarMenuItem>
