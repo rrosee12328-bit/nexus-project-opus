@@ -93,8 +93,8 @@ function CodeBlock({ children, className }: { children: string; className?: stri
 }
 
 export default function AIAgentChat({
-  title = "AI Agent",
-  subtitle = "Ask questions, take actions, get insights",
+  title = "Assistant",
+  subtitle = "Ask anything",
   suggestions = [],
   sessionContext,
   initialPrompt,
