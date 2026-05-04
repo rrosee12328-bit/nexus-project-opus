@@ -50,6 +50,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
 
 type NavItem = { title: string; url: string; icon: any };
 type NavGroup = { label: string; icon: any; items: NavItem[] };
@@ -148,6 +149,47 @@ export function AdminSidebar() {
           <img src="/vektiss-icon.png" alt="Vektiss" className="h-12 w-12 object-contain" />
         )}
       </SidebarHeader>
+      {/* Brain — universal context router */}
+      <div className={cn("px-2 pt-3", collapsed && "px-1")}>
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent("brain:open"))}
+          title="Brain — universal input (⌘B)"
+          className={cn(
+            "group relative w-full overflow-hidden rounded-lg border border-primary/40",
+            "bg-[radial-gradient(ellipse_at_top_left,hsl(var(--primary)/0.25),transparent_60%),linear-gradient(135deg,hsl(var(--primary)/0.18),hsl(var(--primary)/0.04))]",
+            "shadow-[0_0_24px_-6px_hsl(var(--primary)/0.55),inset_0_1px_0_hsl(var(--primary)/0.35)]",
+            "transition-all duration-300 hover:shadow-[0_0_36px_-4px_hsl(var(--primary)/0.85),inset_0_1px_0_hsl(var(--primary)/0.5)]",
+            "hover:border-primary/70 active:scale-[0.98]",
+            collapsed ? "h-10 flex items-center justify-center" : "p-3"
+          )}
+        >
+          {/* animated scanline */}
+          <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary to-transparent opacity-80" />
+          <span className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
+          <span className="pointer-events-none absolute -inset-px rounded-lg bg-[conic-gradient(from_0deg,transparent_0deg,hsl(var(--primary)/0.35)_60deg,transparent_120deg)] opacity-0 group-hover:opacity-100 transition-opacity duration-500 animate-[spin_6s_linear_infinite]" />
+
+          {collapsed ? (
+            <Brain className="h-5 w-5 text-primary drop-shadow-[0_0_6px_hsl(var(--primary))]" />
+          ) : (
+            <div className="relative flex items-center gap-3">
+              <div className="relative flex h-9 w-9 items-center justify-center rounded-md bg-primary/15 ring-1 ring-primary/40">
+                <Brain className="h-5 w-5 text-primary drop-shadow-[0_0_6px_hsl(var(--primary))]" />
+                <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary animate-pulse shadow-[0_0_8px_hsl(var(--primary))]" />
+              </div>
+              <div className="flex-1 text-left min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-primary/80">Vektiss</span>
+                  <span className="h-px flex-1 bg-gradient-to-r from-primary/50 to-transparent" />
+                </div>
+                <div className="font-semibold text-[15px] leading-tight text-foreground">Brain</div>
+                <div className="text-[11px] text-muted-foreground leading-tight">Universal context router</div>
+              </div>
+              <kbd className="hidden md:inline shrink-0 text-[9px] px-1.5 py-0.5 rounded bg-background/60 border border-border/60 text-muted-foreground font-mono">⌘B</kbd>
+            </div>
+          )}
+        </button>
+      </div>
       <SidebarContent>
         {navGroups.map((group) => {
           const activeInGroup = groupHasActive(group);
