@@ -509,7 +509,7 @@ export default function ClientDetail() {
       )}
 
       {/* Phase-based billing timeline (shown when no monthly fee) */}
-      {client && (client.monthly_fee ?? 0) === 0 && (client.setup_fee ?? 0) > 0 && (
+      {client && Number(client.monthly_fee ?? 0) === 0 && Number(client.setup_fee ?? 0) > 0 && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.355 }}>
           <PhaseBillingTimeline clientId={client.id} setupFee={Number(client.setup_fee) || 0} />
         </motion.div>
