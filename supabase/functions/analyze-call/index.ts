@@ -1,8 +1,9 @@
 // Analyzes a call_intelligence record with Lovable AI, then:
 //  1. Stores structured ai_analysis (takeaways, sentiment, action_items, key_decisions, client_status, next_steps)
-//  2. Auto-creates follow-up tasks linked to the client
-//  3. Updates clients.last_contact_date
-//  4. Adds a `meeting` note to client_notes summarizing the call
+//  2. Auto-creates follow-up tasks linked to the client (flagged ai_generated + needs_review)
+//  3. Updates clients.last_contact_date, current_sentiment, last_call_headline, aspirations
+//  4. Adds a `meeting` recap note + a `goals` note (history) to client_notes
+//  5. Files project scope changes as approval_requests for admin review
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 
@@ -98,6 +99,8 @@ Deno.serve(async (req: Request) => {
   "headline": "1-sentence summary of what happened",
   "client_status": "1-2 sentence overview of where the client stands now (mood, momentum, blockers)",
   "sentiment": "positive | neutral | negative | mixed",
+  "aspirations": "1-3 sentences capturing the client's stated goals/dreams/vision from this call (null if nothing new)",
+  "scope_changes": ["proposed addition or change to project scope (each ~1 sentence)"],
   "key_decisions": ["decision 1", "decision 2"],
   "action_items": [
     {"title": "short verb-led task", "description": "why & detail", "priority": "high|medium|low", "due_in_days": 3, "owner": "vektiss|client"}
@@ -108,7 +111,10 @@ Deno.serve(async (req: Request) => {
 Rules:
 - 2-5 action_items, only ones Vektiss should do (owner=vektiss). Skip client-side todos but list them in next_steps.
 - Be specific with names, numbers, dates from the call.
-- due_in_days is an integer 1-14.`;
+- due_in_days is an integer 1-14.
+- aspirations: only fill if the client expressed new goals/vision/dreams. Otherwise return null.
+- scope_changes: only items that change project scope/timeline/deliverables. Empty array if none.
+- Never use markdown bold (**) anywhere.`;
 
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -174,6 +180,9 @@ Rules:
           priority,
           client_id: call.client_id,
           due_date: due.toISOString().slice(0, 10),
+          ai_generated: true,
+          needs_review: true,
+          source_call_id: call.id,
         });
         created.tasks++;
       }
@@ -209,6 +218,59 @@ Rules:
           created_by: createdBy,
         });
         created.note = true;
+      }
+
+      // Update profile snapshot fields (aspirations, sentiment, last call)
+      const profileUpdate: Record<string, any> = {
+        last_contact_date: callDay,
+        current_sentiment: analysis.sentiment ?? null,
+        last_call_headline: analysis.headline ?? null,
+        last_call_id: call.id,
+      };
+      if (analysis.aspirations && String(analysis.aspirations).trim() && String(analysis.aspirations).toLowerCase() !== "null") {
+        profileUpdate.aspirations = String(analysis.aspirations).trim();
+        profileUpdate.aspirations_updated_at = new Date().toISOString();
+
+        // Append to goals history timeline
+        const createdBy = userId ?? "00000000-0000-0000-0000-000000000000";
+        await admin.from("client_notes").insert({
+          client_id: call.client_id,
+          type: "goals",
+          title: `Goals from call — ${callDay}`,
+          content: profileUpdate.aspirations,
+          meeting_date: call.call_date,
+          created_by: createdBy,
+        });
+        created.goals_logged = true;
+      }
+      await admin.from("clients").update(profileUpdate).eq("id", call.client_id);
+
+      // File scope changes as approval requests for admin review
+      const scopeChanges: string[] = Array.isArray(analysis.scope_changes) ? analysis.scope_changes : [];
+      if (scopeChanges.length) {
+        const { data: activeProject } = await admin
+          .from("projects")
+          .select("id")
+          .eq("client_id", call.client_id)
+          .in("status", ["not_started", "in_progress"])
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (activeProject?.id) {
+          const submittedBy = userId ?? "00000000-0000-0000-0000-000000000000";
+          for (const change of scopeChanges) {
+            if (!change || !String(change).trim()) continue;
+            await admin.from("approval_requests").insert({
+              client_id: call.client_id,
+              project_id: activeProject.id,
+              title: `Scope change proposed — ${callDay}`,
+              description: String(change).trim(),
+              status: "pending",
+              submitted_by: submittedBy,
+            });
+          }
+          created.scope_proposals = scopeChanges.length;
+        }
       }
     }
 
