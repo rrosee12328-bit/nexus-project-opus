@@ -93,8 +93,8 @@ function CodeBlock({ children, className }: { children: string; className?: stri
 }
 
 export default function AIAgentChat({
-  title = "AI Agent",
-  subtitle = "Ask questions, take actions, get insights",
+  title = "Assistant",
+  subtitle = "Ask anything",
   suggestions = [],
   sessionContext,
   initialPrompt,
@@ -657,26 +657,25 @@ export default function AIAgentChat({
       )}
 
       {/* Chat area */}
-      <div className="flex-1 min-w-0 min-h-0 flex flex-col pl-10 md:pl-0">
-        {/* Header */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-border/30">
-          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center ring-1 ring-primary/20">
-            <Zap className="h-4 w-4 text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-sm font-semibold text-foreground leading-tight">{title}</h1>
-            <p className="text-[11px] text-muted-foreground truncate">{subtitle}</p>
-          </div>
-          {messages.length > 0 && (
-            <span className="text-[10px] text-muted-foreground/60 tabular-nums">
-              {messages.length} messages
-            </span>
-          )}
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col">
+        {/* Header — minimalist, ChatGPT-style */}
+        <div className="flex items-center gap-2 px-3 md:px-4 py-2.5 border-b border-border/30 sticky top-0 bg-background/85 backdrop-blur-md z-[5]">
+          <div className="w-9 md:hidden shrink-0" />
+          <h1 className="flex-1 text-sm font-semibold text-foreground leading-tight truncate text-center md:text-left">{title}</h1>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={startNewConversation}
+            className="h-9 w-9 shrink-0"
+            title="New chat"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
         </div>
 
         {/* Messages */}
         <ScrollArea className="flex-1 min-h-0 touch-pan-y overscroll-contain" ref={scrollRef}>
-          <div className="max-w-3xl mx-auto px-4 py-4">
+          <div className="max-w-3xl mx-auto px-3 md:px-4 py-4 pb-6">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center text-center py-16 gap-5">
                 <motion.div
@@ -722,18 +721,18 @@ export default function AIAgentChat({
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.25 }}
-                  className={`flex gap-3 mb-5 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                  className={`flex gap-2.5 md:gap-3 mb-5 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   {msg.role === "assistant" && (
-                    <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex-shrink-0 flex items-center justify-center mt-1 ring-1 ring-primary/10">
+                    <div className="h-7 w-7 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex-shrink-0 flex items-center justify-center mt-0.5 ring-1 ring-primary/10">
                       <Bot className="h-3.5 w-3.5 text-primary" />
                     </div>
                   )}
                   <div
-                    className={`rounded-2xl px-4 py-3 max-w-[88%] md:max-w-[78%] text-sm ${
+                    className={`text-sm ${
                       msg.role === "user"
-                        ? "bg-primary text-primary-foreground rounded-br-md"
-                        : "bg-card border border-border/40 text-card-foreground rounded-bl-md"
+                        ? "bg-primary text-primary-foreground rounded-2xl rounded-br-md px-3.5 py-2.5 max-w-[85%]"
+                        : "text-foreground flex-1 min-w-0 pt-0.5"
                     }`}
                   >
                     {/* Show attached files */}
@@ -761,22 +760,17 @@ export default function AIAgentChat({
                       <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                     )}
                   </div>
-                  {msg.role === "user" && (
-                    <div className="h-7 w-7 rounded-lg bg-muted flex-shrink-0 flex items-center justify-center mt-1">
-                      <User className="h-3.5 w-3.5 text-muted-foreground" />
-                    </div>
-                  )}
                 </motion.div>
               ))}
             </AnimatePresence>
 
             {/* Loading indicator */}
             {isLoading && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-3 mb-5">
-                <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex-shrink-0 flex items-center justify-center mt-1 ring-1 ring-primary/10">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2.5 md:gap-3 mb-5">
+                <div className="h-7 w-7 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex-shrink-0 flex items-center justify-center mt-0.5 ring-1 ring-primary/10">
                   <Bot className="h-3.5 w-3.5 text-primary" />
                 </div>
-                <div className="bg-card border border-border/40 rounded-2xl rounded-bl-md px-4 py-3.5 flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 pt-2">
                   <span className="flex gap-1">
                     <span className="h-1.5 w-1.5 rounded-full bg-primary/50 animate-bounce [animation-delay:0ms]" />
                     <span className="h-1.5 w-1.5 rounded-full bg-primary/50 animate-bounce [animation-delay:150ms]" />
@@ -803,7 +797,7 @@ export default function AIAgentChat({
         </ScrollArea>
 
         {/* Input area */}
-        <div className="border-t border-border/30 p-3 bg-card/30 backdrop-blur-sm">
+        <div className="border-t border-border/30 px-3 pt-2 bg-background/95 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <AnimatePresence>
             {isListening && (
               <motion.div
@@ -844,41 +838,41 @@ export default function AIAgentChat({
                 ))}
               </div>
             )}
-            <div className="flex gap-2 items-end bg-background/80 rounded-xl border border-border/50 p-1.5 focus-within:border-primary/30 focus-within:ring-1 focus-within:ring-primary/10 transition-all">
+            <div className="flex gap-1 items-end bg-muted/50 rounded-3xl border border-border/60 px-2 py-1.5 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 transition-all">
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*,.txt,.md,.csv,.json,.xml,.html,.css,.js,.ts,.tsx,.jsx,.py,.sql,.yaml,.yml,.toml,.log,.sh,.pdf,.doc,.docx"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:text-foreground self-end"
+                title="Attach file"
+                disabled={isLoading}
+              >
+                <Paperclip className="h-4 w-4" />
+              </Button>
               <Textarea
                 ref={textareaRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onFocus={() => scrollToBottom("smooth")}
                 onKeyDown={handleKeyDown}
-                placeholder={pendingFiles.length > 0 ? "Add a message about the file(s)..." : "Ask anything..."}
-                className="min-h-[40px] max-h-32 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 text-sm placeholder:text-muted-foreground/50"
+                placeholder={pendingFiles.length > 0 ? "Add a message…" : "Message Assistant…"}
+                className="min-h-[40px] max-h-40 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 text-base md:text-sm placeholder:text-muted-foreground/50 py-2"
                 rows={1}
               />
-              <div className="flex gap-1 pb-0.5">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept="image/*,.txt,.md,.csv,.json,.xml,.html,.css,.js,.ts,.tsx,.jsx,.py,.sql,.yaml,.yml,.toml,.log,.sh,.pdf,.doc,.docx"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                <Button
-                  onClick={() => fileInputRef.current?.click()}
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
-                  title="Attach file"
-                  disabled={isLoading}
-                >
-                  <Paperclip className="h-4 w-4" />
-                </Button>
+              <div className="flex gap-1 self-end pb-0.5">
                 <Button
                   onClick={toggleVoice}
                   variant="ghost"
                   size="icon"
-                  className={`h-8 w-8 shrink-0 rounded-lg ${
+                  className={`h-9 w-9 shrink-0 rounded-full ${
                     isListening
                       ? "bg-destructive/10 text-destructive hover:bg-destructive/20 animate-pulse"
                       : "text-muted-foreground hover:text-foreground"
@@ -891,14 +885,14 @@ export default function AIAgentChat({
                   onClick={handleSend}
                   disabled={(!input.trim() && pendingFiles.length === 0) || isLoading}
                   size="icon"
-                  className="h-8 w-8 shrink-0 rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-30"
+                  className="h-9 w-9 shrink-0 rounded-full bg-primary hover:bg-primary/90 disabled:opacity-30"
                 >
-                  {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
-            <p className="text-[10px] text-muted-foreground/40 text-center mt-2">
-              AI can make mistakes. Verify important information.
+            <p className="text-[10px] text-muted-foreground/40 text-center mt-1.5">
+              Assistant can make mistakes. Verify important info.
             </p>
           </div>
         </div>

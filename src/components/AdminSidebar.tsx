@@ -62,7 +62,7 @@ const navGroups: NavGroup[] = [
     items: [
       { title: "Lever", url: "/admin", icon: Zap },
       { title: "Calendar", url: "/admin/calendar", icon: Calendar },
-      { title: "AI Agent", url: "/admin/agent", icon: Bot },
+      { title: "Assistant", url: "/admin/agent", icon: Bot },
     ],
   },
   {
