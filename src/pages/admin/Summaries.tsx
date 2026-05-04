@@ -171,6 +171,36 @@ export default function AdminSummaries() {
     }
   };
 
+  const addContext = async (clientId: string) => {
+    const content = contextDraft.trim();
+    if (!content || !user) return;
+    if (content.length > 2000) {
+      toast.error("Keep context under 2000 characters");
+      return;
+    }
+    setSavingContext(true);
+    try {
+      const firstLine = content.split("\n")[0].slice(0, 80);
+      const { error } = await supabase.from("client_notes").insert({
+        client_id: clientId,
+        created_by: user.id,
+        title: firstLine || "Context update",
+        content,
+        type: "note",
+        meeting_date: new Date().toISOString(),
+      });
+      if (error) throw error;
+      setContextDraft("");
+      toast.success("Context added — summary refreshing");
+      // Trigger fires the regen automatically; nudge a refetch
+      setTimeout(() => refetch(), 2500);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to save context");
+    } finally {
+      setSavingContext(false);
+    }
+  };
+
   const filtered = useMemo(
     () => clients.filter((c) => c.name.toLowerCase().includes(search.toLowerCase())),
     [clients, search]
