@@ -1,68 +1,109 @@
-## Seed Plan: Clients (Approved Inputs)
+## What we're fixing
 
-Final values confirmed. Ready to execute on approval.
+The right-side Client Summaries sidebar today just shows whichever `client_notes` row was most recently created — random titles, raw text, no context. You said you wouldn't even open it. We're going to turn it into a rolling, plain-English briefing per client that you'd actually want to glance at every morning.
 
-### 1. Clients (`clients`)
+## What you'll see (the experience)
 
-| Name | Status | Type | Start | Monthly Fee | Setup | Paid | Balance |
-|------|--------|------|-------|-------------|-------|------|---------|
-| Rose Credit Repair (Roekeisha Brisby) | active | Financial Services | 2026-01-20 | $1,600 | 0 | 0 | 0 |
-| Jeremy Ford | active | Schedule App | 2026-04-23 | $0 (until launch → $700) | $7,000 | $3,500 | $3,500 |
-| Marvshricka Quinn (Peace Reconnection Care) | active | Therapist | 2026-01-01 | $1,250 | 0 | 0 | 0 |
-| Goodland Church (Rhema Eheireme) | closed | Church / Media | 2026-01-01 | $600 | 0 | 0 | 0 |
-| Stephen Taylor (Kairo Security) | active | Security / Education | 2026-01-01 | $625 | 0 | 0 | 0 |
-| Greg McCann (Crown & Associates) | active | Real Estate / Construction | 2026-04-07 | $0 (hourly $125) | 0 | $281.25 | $1,906.25 |
+Open the sidebar and each client is a card that reads like a short status memo a teammate would hand you:
 
-Email/phone/profitability_sheet_url populated from your data.
+- One-line **headline** — where they stand right now (e.g. "Awaiting KB so we can launch AI Chatbox").
+- 2–3 sentence **rolling summary** — what's active, last decision, current vibe, what we owe them or they owe us.
+- A small **next step** line — the single most important next action.
+- Quiet metadata: `Updated 2h ago · 3 calls · 5 notes · sentiment: positive`
+- Status badge + monthly fee chip stay.
 
-### 2. Projects (`projects`)
+Header gets:
+- "Refresh all" button (regenerates stale ones in the background)
+- Search (already there)
+- Sort: "Needs attention" first (stale, negative sentiment, or overdue follow-up), then alphabetical.
 
-- **Rose (5):** YouTube Content · AI Chatbox ($3,500 paid, awaiting KB) · Rose Mentee ($1,500 — 2 of 12 done, remainder credited to Credit Reader App) · AI Avatar YouTube ($676/mo × 3, Apr–Jun) · Credit Reader App (hourly $125)
-- **Jeremy (1):** Jaylin Universal Scheduler — Development phase, target 2026-06-08
-- **Sharie (1):** Short-Form Content + Blog Automation
-- **Goodland (1):** Business Media (closed, pending new event-based scope)
-- **Stephen (5):** Kairo Security Academy · Find Guards · Start a Security Class (Avatar) · Business Media Content · Budgeting/Faith App
-- **Greg (3):** Audare PI Platform · Building Forensics AI · Bible Video App
+Per-card hover reveals: a refresh icon (regenerate just this one) and a "Open client" link.
 
-### 3. Client Costs (`client_costs`, recurring monthly)
+Empty state per client: "Not enough context yet — add a note or log a call."
 
-- **Rose:** Editing $266.67 · Capcut $32 · In-Person Labor $750 · Lovable $29 · Avatar Hosting $29
-- **Jeremy:** Lovable $29 · n8n $60 · Resend $25
-- **Sharie (new):** Editing $128 · Zoom Labor $250 · Capcut $32 · Blog Infra $4 · Blog LLM $0.02 · Blog Labor $125
-- **Stephen:** HeyGen $29 · Capcut $32 · Lovable $29 · Resend $25 · Supabase $25
-- **Greg / Goodland:** none recurring
+## Why this works as a "rolling document"
 
-### 4. Payments (`client_payments`)
+The summary is **cached in the DB** and **automatically refreshes itself** when something meaningful changes for that client:
 
-**Backdated recurring (Jan–Apr 2026):**
-- Rose $1,600 × 4 = $6,400
-- Sharie $1,000 × 4 = $4,000 (new $1,250 rate begins May)
-- Stephen $625 × 4 = $2,500
-- Goodland $600 × 4 = $2,400 (then ended)
+- A new call gets analyzed → that client's summary regenerates.
+- A new `client_notes` entry is added → summary regenerates.
+- A new payment, approval, or phase change → summary regenerates.
+- Otherwise nothing happens — it just sits there, accurate, ready for you.
 
-**One-off / project payments (April 2026):**
-- Rose: $3,500 (AI Chatbox) · $1,500 (Mentee package) · $676 (Avatar Apr — May/Jun will accrue monthly at $676)
-- Jeremy: $3,500 (Jaylin kickoff)
-- Greg: $156.25 (Forensics 1.25h paid) · $125 (Bible app 1h paid)
+So every time you open the panel, every card already reflects the latest state without you having to think about it. It's the same idea as your Brain Snapshot, but per client.
 
-### 5. Calls (`call_intelligence`)
+## Sources the AI reads
 
-Last meeting per client with short summary:
-- Rose 2026-04-29 · Jeremy 2026-04-27 (recurring Mondays 10am) · Sharie 2026-04-22 · Goodland 2026-05-01 · Stephen 2026-05-01 · Greg 2026-04-30
+For each client, the generator pulls and feeds the model:
 
-### 6. Long-form Notes (`client_notes`)
+1. The client row itself: name, type, status, monthly_fee, billing_model, billing_paused_until, aspirations, current_sentiment, current_status_recap, last_call_headline, last_contact_date, balance_due.
+2. All `client_notes` (your seed narrative — Rose's history, Jeremy's Jaylin scope, Greg's outstanding invoice, etc.), most recent first, content trimmed.
+3. All `call_intelligence` rows (date, type, summary, key_decisions, sentiment), most recent first.
+4. Open `tasks` for that client (so "next step" is grounded, not invented).
+5. Latest `approval_requests` and any `phase_milestone_invoices` pending.
 
-Full narrative context per client so AI Brain has the story:
-- Rose: history, Rickey Rose merger, $1,600 monthly basis, credit transfer logic
-- Jeremy: full Jaylin MVP scope (centralized hub, sync engine, API integrations, fallback strategy, 8-wk plan, payment splits, $700/mo post-launch)
-- Sharie: old vs new pricing structure, 12→8 video shift, blog automation rationale
-- Goodland: relationship summary, prior $600 arrangement, pending special-Sundays/training scope
-- Stephen: 5-project breakdown (Academy, Find Guards, Security Class, Business Media, Budgeting/Faith App)
-- Greg: full Audare PI proposal, Building Forensics AI proposal, Bible Video App scope
+The prompt forces: plain English, no markdown bold (per your memory rule), 4 lines max, name a concrete next step, say "not enough context" when thin.
 
-### 7. Greg Outstanding Invoice
-Audare PI: 15.25h × $125 = **$1,906.25 sent, not paid** → reflected as `balance_due` + flagged note.
+## Technical plan
 
----
+### 1. New table `client_ai_summaries` (one row per client)
 
-Approve and I'll insert everything in one batch.
+Columns:
+- `client_id uuid PK references clients(id) on delete cascade`
+- `headline text` — the one-liner
+- `summary text` — the 2–3 sentence body
+- `next_step text` — single action
+- `sentiment text` — pulled through from latest signal
+- `notes_count int`, `calls_count int`
+- `source_hash text` — fingerprint of inputs so we skip work when nothing changed
+- `generated_at timestamptz`, `model text`
+- RLS: admin + ops select; service role full access.
+
+### 2. Edge function `generate-client-summary`
+
+- Body: `{ client_id }` or `{ client_ids: [...] }` or `{ all: true, max_age_minutes: 60 }`
+- Loads everything in section "Sources" above using service role client.
+- Computes `source_hash`. If unchanged → returns cached row (no AI call).
+- Calls Lovable AI Gateway, model `google/gemini-3-flash-preview`, with structured tool-calling so we get back `{ headline, summary, next_step, sentiment }` cleanly (no markdown parsing).
+- Upserts `client_ai_summaries`.
+- Bulk mode iterates 4 at a time.
+
+### 3. Auto-refresh triggers (the "rolling" part)
+
+Postgres triggers + `pg_net` to fire-and-forget the edge function on:
+- `INSERT` on `client_notes`
+- `INSERT` or `UPDATE of summary, key_decisions` on `call_intelligence`
+- `INSERT` on `client_payments` (non-Projected)
+- `UPDATE of status, current_phase` on `projects` (resolves to client_id)
+- `UPDATE of status` on `approval_requests`
+
+Each trigger calls `net.http_post` to `/functions/v1/generate-client-summary` with `{ client_id }` using the vault-stored service role key (same pattern as `auto_invite_on_first_payment`). Trigger never blocks the original write.
+
+A nightly pg_cron `0 5 * * *` calls the function with `{ all: true, max_age_minutes: 1440 }` so even silent clients get a freshness pass once a day.
+
+### 4. Frontend rewrite of `src/components/ClientSummariesPanel.tsx`
+
+- Single query joins `clients` + `client_ai_summaries` + counts.
+- Renders headline / summary / next_step / metadata as described above.
+- "Needs attention" sort uses: stale (cache older than newest note/call) OR sentiment in (negative, frustrated) OR `last_contact_date > 14 days ago` for active clients.
+- Per-card refresh button → invokes function with `{ client_id }`, optimistic spinner, refetch.
+- Header "Refresh all" → invokes with `{ all: true, max_age_minutes: 0 }`, shows toast "Refreshing N clients…".
+- Realtime subscription on `client_ai_summaries` so cards update live as the background regen finishes.
+- First open auto-fills any client missing a row (batched).
+
+### 5. Memory
+
+New entry: `mem/features/admin/client-summaries-panel.md` — describes the rolling doc, sources, trigger list, and the "no markdown bold" rule already applies.
+
+## Files
+
+- new migration: `client_ai_summaries` table + RLS + the 5 triggers + cron job
+- new edge function: `supabase/functions/generate-client-summary/index.ts` (verify_jwt = false, validates service-role caller for trigger paths, validates admin/ops JWT for client-initiated paths)
+- edited: `src/components/ClientSummariesPanel.tsx`
+- new memory file + index update
+
+## Out of scope (kept separate on purpose)
+
+- The Executive Summary modal on Client Detail (still hits n8n)
+- The Latest Briefing card on Client Detail (different purpose: tied to last call)
+- Per-client docs on `/admin/summaries`
