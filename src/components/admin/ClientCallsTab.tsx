@@ -10,7 +10,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Phone, Mic, FileText, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
-import { CallSummaryMarkdown, getBriefSummary } from "@/components/admin/CallSummaryMarkdown";
+import { CallSummaryMarkdown, getBriefSummary, unwrapTranscript } from "@/components/admin/CallSummaryMarkdown";
 
 type CallRecord = {
   id: string;
@@ -218,7 +218,7 @@ export default function ClientCallsTab({ clientId }: { clientId: string }) {
                     </button>
                     {transcriptExpanded && (
                       <pre className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap bg-muted/40 rounded p-3 max-h-[300px] overflow-y-auto">
-                        {viewingCall.transcript}
+                        {unwrapTranscript(viewingCall.transcript)}
                       </pre>
                     )}
                   </div>
