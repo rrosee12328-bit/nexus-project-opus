@@ -54,23 +54,41 @@ Deno.serve(async (req) => {
     const url = `https://graph.microsoft.com/v1.0/me/calendarView?startDateTime=${start.toISOString()}&endDateTime=${end.toISOString()}&$top=500&$orderby=start/dateTime`;
 
     const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${accessToken}`, Prefer: 'outlook.timezone="Central Standard Time"' },
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
     const json = await res.json();
     if (!res.ok) throw new Error(`Graph fetch [${res.status}]: ${JSON.stringify(json)}`);
+
+    // Convert a UTC ISO datetime to America/Chicago wall-clock parts (DST-aware: CDT/CST)
+    const TZ = "America/Chicago";
+    const fmt = new Intl.DateTimeFormat("en-US", {
+      timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+    });
+    const toChicago = (utc: Date) => {
+      const parts = Object.fromEntries(fmt.formatToParts(utc).map(p => [p.type, p.value]));
+      const hour = parts.hour === "24" ? "00" : parts.hour;
+      return {
+        date: `${parts.year}-${parts.month}-${parts.day}`,
+        time: `${hour}:${parts.minute}:${parts.second}`,
+      };
+    };
 
     const events = json.value || [];
     let upserted = 0, skipped = 0;
     for (const ev of events) {
       if (ev.isCancelled) continue;
-      // Graph returns local-time strings (no offset) when Prefer: outlook.timezone is set.
-      // Format: "2026-05-04T13:00:00.0000000". Parse without timezone conversion.
+      // Graph returns UTC by default: "2026-05-04T18:00:00.0000000"
       const startStr: string = ev.start?.dateTime || "";
       const endStr: string = ev.end?.dateTime || "";
-      if (!startStr) { skipped++; continue; }
-      const event_date = startStr.slice(0, 10);
-      const start_time = startStr.slice(11, 19);
-      const end_time = endStr.slice(11, 19);
+      const startDt = new Date(startStr + "Z");
+      const endDt = new Date(endStr + "Z");
+      if (isNaN(startDt.getTime())) { skipped++; continue; }
+      const s = toChicago(startDt);
+      const e = toChicago(endDt);
+      const event_date = s.date;
+      const start_time = s.time;
+      const end_time = e.time;
 
       let client_id: string | null = VEKTISS_CLIENT_ID;
       const attendeeEmails: string[] = (ev.attendees || []).map((a: any) => a?.emailAddress?.address?.toLowerCase()).filter(Boolean);
