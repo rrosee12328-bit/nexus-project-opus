@@ -58,10 +58,13 @@ type Row = {
 
 export default function AdminSummaries() {
   const qc = useQueryClient();
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [refreshingAll, setRefreshingAll] = useState(false);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
+  const [contextDraft, setContextDraft] = useState("");
+  const [savingContext, setSavingContext] = useState(false);
 
   const { data: clients = [], isLoading, refetch } = useQuery({
     queryKey: ["admin-client-summaries-page"],
