@@ -450,6 +450,20 @@ export default function ClientDetail() {
         </motion.div>
       )}
 
+      {/* AI proposed tasks needing review */}
+      {client && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.31 }}>
+          <AITaskReviewCard clientId={client.id} />
+        </motion.div>
+      )}
+
+      {/* Aspirations & Sentiment */}
+      {client && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.32 }}>
+          <AspirationsCard clientId={client.id} />
+        </motion.div>
+      )}
+
       {/* Contracts */}
       {client && (
         <ClientContractsTab clientId={client.id} clientName={client.name} />
