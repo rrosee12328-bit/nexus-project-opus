@@ -1,31 +1,30 @@
-import { Outlet } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { Outlet, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { NotificationBell } from "@/components/NotificationBell";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AdminSidebar } from "@/components/AdminSidebar";
-import { BrainDialog } from "@/components/BrainDialog";
 
 
 export default function AdminLayout() {
-  const [brainOpen, setBrainOpen] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b" && !e.shiftKey) {
         e.preventDefault();
-        setBrainOpen((v) => !v);
+        navigate("/admin/brain");
       }
     };
-    const onOpen = () => setBrainOpen(true);
+    const onOpen = () => navigate("/admin/brain");
     window.addEventListener("keydown", onKey);
     window.addEventListener("brain:open", onOpen as EventListener);
     return () => {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("brain:open", onOpen as EventListener);
     };
-  }, []);
+  }, [navigate]);
 
   return (
     <SidebarProvider>
@@ -54,7 +53,6 @@ export default function AdminLayout() {
             <Outlet />
           </main>
         </div>
-        <BrainDialog open={brainOpen} onOpenChange={setBrainOpen} />
       </div>
     </SidebarProvider>
   );
