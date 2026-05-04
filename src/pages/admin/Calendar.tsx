@@ -18,6 +18,7 @@ import {
 import { motion } from "framer-motion";
 import CalendarEventDialog from "@/components/calendar/CalendarEventDialog";
 import DayViewDialog from "@/components/calendar/DayViewDialog";
+import OutlookConnectButton from "@/components/calendar/OutlookConnectButton";
 
 interface CalendarEvent {
   id: string;
@@ -384,6 +385,7 @@ export default function AdminCalendar() {
         description="Follow-ups, deadlines, milestones, meetings & events · Central Time (CT)"
         action={
           <div className="flex gap-2">
+            <OutlookConnectButton />
             <Button variant="outline" size="sm" onClick={goToToday}>Today</Button>
             <Button size="sm" onClick={() => openNewEvent(selectedDate ?? new Date())}>
               <Plus className="h-4 w-4 mr-1" /> Add Event
