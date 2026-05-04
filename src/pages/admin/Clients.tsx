@@ -277,17 +277,26 @@ export default function AdminClients() {
                     {/* Header row */}
                     <div className="flex items-center gap-2 sm:gap-4 px-3 sm:px-6 py-3 sm:py-4 hover:bg-accent/50 transition-colors">
                       <CollapsibleTrigger asChild>
-                        <button className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                        <button
+                          className="shrink-0 p-1 -ml-1 rounded hover:bg-accent text-muted-foreground"
+                          aria-label={isExpanded ? "Collapse" : "Expand"}
+                        >
                           {isExpanded ? (
                             <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
                           ) : (
                             <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                           )}
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/20 text-sm font-bold text-primary">
+                        </button>
+                      </CollapsibleTrigger>
+                      <button
+                        onClick={() => navigate(`/admin/clients/${client.id}`)}
+                        className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                      >
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/20 text-sm font-bold text-primary">
                             {client.name.charAt(0).toUpperCase()}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="font-medium truncate flex items-center gap-2">
+                            <p className="font-medium truncate flex items-center gap-2 hover:text-primary transition-colors">
                               {client.name}
                               {(client as any).client_number && (
                         <span className="font-mono text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
@@ -297,8 +306,7 @@ export default function AdminClients() {
                             </p>
                             <p className="text-xs text-muted-foreground">{client.type ?? "No type set"}</p>
                           </div>
-                        </button>
-                      </CollapsibleTrigger>
+                      </button>
 
                       <Badge variant="outline" className={`shrink-0 ${statusColor[client.status] ?? ""}`}>
                         {client.status}
