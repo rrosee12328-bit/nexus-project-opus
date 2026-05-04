@@ -797,7 +797,7 @@ export default function AIAgentChat({
         </ScrollArea>
 
         {/* Input area */}
-        <div className="border-t border-border/30 p-3 bg-card/30 backdrop-blur-sm">
+        <div className="border-t border-border/30 px-3 pt-2 bg-background/95 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <AnimatePresence>
             {isListening && (
               <motion.div
@@ -838,41 +838,41 @@ export default function AIAgentChat({
                 ))}
               </div>
             )}
-            <div className="flex gap-2 items-end bg-background/80 rounded-xl border border-border/50 p-1.5 focus-within:border-primary/30 focus-within:ring-1 focus-within:ring-primary/10 transition-all">
+            <div className="flex gap-1 items-end bg-muted/50 rounded-3xl border border-border/60 px-2 py-1.5 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 transition-all">
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*,.txt,.md,.csv,.json,.xml,.html,.css,.js,.ts,.tsx,.jsx,.py,.sql,.yaml,.yml,.toml,.log,.sh,.pdf,.doc,.docx"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:text-foreground self-end"
+                title="Attach file"
+                disabled={isLoading}
+              >
+                <Paperclip className="h-4 w-4" />
+              </Button>
               <Textarea
                 ref={textareaRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onFocus={() => scrollToBottom("smooth")}
                 onKeyDown={handleKeyDown}
-                placeholder={pendingFiles.length > 0 ? "Add a message about the file(s)..." : "Ask anything..."}
-                className="min-h-[40px] max-h-32 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 text-sm placeholder:text-muted-foreground/50"
+                placeholder={pendingFiles.length > 0 ? "Add a message…" : "Message Assistant…"}
+                className="min-h-[40px] max-h-40 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 text-base md:text-sm placeholder:text-muted-foreground/50 py-2"
                 rows={1}
               />
-              <div className="flex gap-1 pb-0.5">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept="image/*,.txt,.md,.csv,.json,.xml,.html,.css,.js,.ts,.tsx,.jsx,.py,.sql,.yaml,.yml,.toml,.log,.sh,.pdf,.doc,.docx"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                <Button
-                  onClick={() => fileInputRef.current?.click()}
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
-                  title="Attach file"
-                  disabled={isLoading}
-                >
-                  <Paperclip className="h-4 w-4" />
-                </Button>
+              <div className="flex gap-1 self-end pb-0.5">
                 <Button
                   onClick={toggleVoice}
                   variant="ghost"
                   size="icon"
-                  className={`h-8 w-8 shrink-0 rounded-lg ${
+                  className={`h-9 w-9 shrink-0 rounded-full ${
                     isListening
                       ? "bg-destructive/10 text-destructive hover:bg-destructive/20 animate-pulse"
                       : "text-muted-foreground hover:text-foreground"
@@ -885,14 +885,14 @@ export default function AIAgentChat({
                   onClick={handleSend}
                   disabled={(!input.trim() && pendingFiles.length === 0) || isLoading}
                   size="icon"
-                  className="h-8 w-8 shrink-0 rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-30"
+                  className="h-9 w-9 shrink-0 rounded-full bg-primary hover:bg-primary/90 disabled:opacity-30"
                 >
-                  {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
-            <p className="text-[10px] text-muted-foreground/40 text-center mt-2">
-              AI can make mistakes. Verify important information.
+            <p className="text-[10px] text-muted-foreground/40 text-center mt-1.5">
+              Assistant can make mistakes. Verify important info.
             </p>
           </div>
         </div>
