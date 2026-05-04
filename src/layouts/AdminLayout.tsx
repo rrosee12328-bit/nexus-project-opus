@@ -1,12 +1,10 @@
 import { Outlet } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AdminSidebar } from "@/components/AdminSidebar";
 import { NotificationBell } from "@/components/NotificationBell";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Button } from "@/components/ui/button";
-import { Brain } from "lucide-react";
+import { AdminSidebar } from "@/components/AdminSidebar";
 import { BrainDialog } from "@/components/BrainDialog";
 
 
@@ -42,17 +40,6 @@ export default function AdminLayout() {
               </span>
             </div>
             <div className="flex items-center gap-1 sm:gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setBrainOpen(true)}
-                className="h-8 gap-1.5 text-xs"
-                title="Brain (⌘B)"
-              >
-                <Brain className="h-3.5 w-3.5 text-primary" />
-                <span className="hidden sm:inline">Brain</span>
-                <kbd className="hidden md:inline ml-1 text-[9px] px-1 py-0.5 rounded bg-muted text-muted-foreground font-mono">⌘B</kbd>
-              </Button>
               <GlobalSearch />
               <ThemeToggle />
               <NotificationBell />
