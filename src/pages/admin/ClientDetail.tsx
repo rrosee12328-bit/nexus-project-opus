@@ -31,6 +31,7 @@ import {
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import AdminClientBilling from "@/components/admin/AdminClientBilling";
+import PhaseBillingTimeline from "@/components/admin/PhaseBillingTimeline";
 import { ChargeVsCostCard } from "@/components/admin/ChargeVsCostCard";
 import { format, formatDistanceToNow } from "date-fns";
 import { SendProposalDialog } from "@/components/proposals/SendProposalDialog";
