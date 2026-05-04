@@ -38,6 +38,7 @@ import AdminPdfLogs from "./pages/admin/PdfLogs";
 import AdminBusinessMedia from "./pages/admin/BusinessMedia";
 import Lever from "./pages/admin/Lever";
 import AdminSeedReview from "./pages/admin/SeedReview";
+import AdminBrain from "./pages/admin/Brain";
 
 import OpsLayout from "./layouts/OpsLayout";
 import OpsDashboard from "./pages/ops/Dashboard";
