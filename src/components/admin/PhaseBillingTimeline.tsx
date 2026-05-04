@@ -20,11 +20,12 @@ type Milestone = {
 export default function PhaseBillingTimeline({ clientId, setupFee }: Props) {
   const [paid, setPaid] = useState(0);
   const [currentPhase, setCurrentPhase] = useState<string | null>(null);
+  const [milestoneStatus, setMilestoneStatus] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
-      const [{ data: payments }, { data: projects }] = await Promise.all([
+      const [{ data: payments }, { data: projects }, { data: milestones }] = await Promise.all([
         supabase
           .from("client_payments")
           .select("amount, notes")
@@ -35,12 +36,21 @@ export default function PhaseBillingTimeline({ clientId, setupFee }: Props) {
           .eq("client_id", clientId)
           .order("created_at", { ascending: false })
           .limit(1),
+        supabase
+          .from("phase_milestone_invoices")
+          .select("phase, status, amount")
+          .eq("client_id", clientId),
       ]);
       const total = (payments ?? [])
         .filter((p: any) => p.notes !== "Projected")
         .reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
       setPaid(total);
       setCurrentPhase((projects?.[0] as any)?.current_phase ?? null);
+      setMilestoneStatus(
+        Object.fromEntries(
+          (milestones ?? []).map((m: any) => [m.phase, m.status])
+        )
+      );
       setLoading(false);
     };
     load();
@@ -56,9 +66,11 @@ export default function PhaseBillingTimeline({ clientId, setupFee }: Props) {
   let cumulative = 0;
   const withStatus = milestones.map((m) => {
     cumulative += m.amount;
-    const isPaid = paid + 0.01 >= cumulative;
+    const ms = milestoneStatus[m.key];
+    const isPaid = ms === "paid" || paid + 0.01 >= cumulative;
+    const isInvoiced = ms === "invoiced" && !isPaid;
     const isCurrent = currentPhase === m.key;
-    return { ...m, isPaid, isCurrent };
+    return { ...m, isPaid, isCurrent, isInvoiced };
   });
 
   return (
@@ -111,6 +123,8 @@ export default function PhaseBillingTimeline({ clientId, setupFee }: Props) {
                     )}
                     {m.isPaid ? (
                       <Badge className="bg-primary">Paid</Badge>
+                    ) : m.isInvoiced ? (
+                      <Badge variant="outline" className="border-blue-500 text-blue-600">Invoiced</Badge>
                     ) : (
                       <Badge variant="secondary">Pending</Badge>
                     )}
