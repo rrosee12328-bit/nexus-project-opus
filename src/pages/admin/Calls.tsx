@@ -23,7 +23,7 @@ import {
   Brain, AlertTriangle, CheckCircle2, XCircle, Link2Off,
 } from "lucide-react";
 import { PageHero, StatStrip } from "@/components/ui/page-shell";
-import { CallSummaryMarkdown, getBriefSummary, unwrapTranscript } from "@/components/admin/CallSummaryMarkdown";
+import { CallSummaryMarkdown, getBriefSummary, unwrapTranscript, extractKeyTakeaways } from "@/components/admin/CallSummaryMarkdown";
 // PDF generation handled server-side via edge function `generate-call-summary-pdf`
 
 type CallRecord = {
@@ -742,13 +742,16 @@ export default function AdminCalls() {
                     if (!t) return null;
                     try { arr = JSON.parse(t); } catch { arr = [t]; }
                   }
-                  const items = (Array.isArray(arr) ? arr : arr ? [arr] : [])
+                  let items = (Array.isArray(arr) ? arr : arr ? [arr] : [])
                     .map((d: any) => (typeof d === "string" ? d.trim() : String(d)))
                     .filter(Boolean);
+                  if (items.length === 0) {
+                    items = extractKeyTakeaways(viewingCall.summary);
+                  }
                   if (items.length === 0) return null;
                   return (
                     <div>
-                      <h3 className="text-sm font-semibold mb-1">Key Decisions</h3>
+                      <h3 className="text-sm font-semibold mb-1">Key Takeaways</h3>
                       <ul className="text-sm text-muted-foreground space-y-1">
                         {items.map((d: string, i: number) => (
                           <li key={i} className="flex gap-2">
