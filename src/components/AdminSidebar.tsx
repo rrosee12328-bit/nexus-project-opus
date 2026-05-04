@@ -31,7 +31,7 @@ import {
   Zap,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Sidebar,
@@ -125,6 +125,7 @@ export function AdminSidebar() {
   const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const navigate = useNavigate();
   const { signOut } = useAuth();
 
   const isActive = (url: string) =>
@@ -153,14 +154,18 @@ export function AdminSidebar() {
       <div className={cn("px-2 pt-3", collapsed && "px-1")}>
         <button
           type="button"
-          onClick={() => window.dispatchEvent(new CustomEvent("brain:open"))}
-          title="Brain — universal input (⌘B)"
+          onClick={() => {
+            if (isMobile) setOpenMobile(false);
+            navigate("/admin/brain");
+          }}
+          title="Brain — universal context router"
           className={cn(
             "group relative w-full overflow-hidden rounded-lg border border-primary/40",
             "bg-[radial-gradient(ellipse_at_top_left,hsl(var(--primary)/0.25),transparent_60%),linear-gradient(135deg,hsl(var(--primary)/0.18),hsl(var(--primary)/0.04))]",
             "shadow-[0_0_24px_-6px_hsl(var(--primary)/0.55),inset_0_1px_0_hsl(var(--primary)/0.35)]",
             "transition-all duration-300 hover:shadow-[0_0_36px_-4px_hsl(var(--primary)/0.85),inset_0_1px_0_hsl(var(--primary)/0.5)]",
             "hover:border-primary/70 active:scale-[0.98]",
+            location.pathname.startsWith("/admin/brain") && "border-primary/80 ring-1 ring-primary/50",
             collapsed ? "h-10 flex items-center justify-center" : "p-3"
           )}
         >
