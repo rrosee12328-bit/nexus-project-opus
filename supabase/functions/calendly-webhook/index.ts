@@ -101,6 +101,17 @@ Deno.serve(async (req) => {
         });
       }
 
+      // Auto-link to client by invitee email
+      let linkedClientId: string | null = null;
+      if (inviteeEmail) {
+        const { data: matchClient } = await supabase
+          .from("clients")
+          .select("id")
+          .ilike("email", inviteeEmail)
+          .maybeSingle();
+        linkedClientId = matchClient?.id ?? null;
+      }
+
       const { error } = await supabase.from("calendar_events").insert({
         title,
         description,
@@ -109,6 +120,7 @@ Deno.serve(async (req) => {
         end_time: end?.time || null,
         event_type: "calendly",
         created_by: createdBy,
+        client_id: linkedClientId,
       });
 
       if (error) {
