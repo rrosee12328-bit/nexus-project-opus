@@ -333,10 +333,9 @@ export function LeadPipelineKanban({ leads, onEdit, onDelete }: LeadPipelineKanb
                                   </Button>
                                 )}
 
-                                {/* Notes preview (only show if no other indicators) */}
-                                {lead.notes && !followUp && !lastContact && !dealValue && (
-                                  <p className="text-[10px] text-muted-foreground/70 mt-2 line-clamp-2 leading-relaxed">
-                                    {lead.notes.slice(0, 80)}{lead.notes.length > 80 ? "…" : ""}
+                                {lead.notes && (
+                                  <p className="text-[10px] text-muted-foreground/80 mt-2 line-clamp-3 leading-relaxed">
+                                    {lead.notes}
                                   </p>
                                 )}
                               </div>
