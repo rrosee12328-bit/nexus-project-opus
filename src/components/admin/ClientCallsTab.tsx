@@ -12,7 +12,7 @@ import {
 import { Phone, Mic, FileText, ChevronDown, ChevronUp, ExternalLink, Brain } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { CallSummaryMarkdown, getBriefSummary, unwrapTranscript } from "@/components/admin/CallSummaryMarkdown";
+import { CallSummaryMarkdown, getBriefSummary, unwrapTranscript, extractKeyTakeaways } from "@/components/admin/CallSummaryMarkdown";
 
 type CallRecord = {
   id: string;
@@ -264,11 +264,14 @@ export default function ClientCallsTab({ clientId }: { clientId: string }) {
                   </div>
                 )}
                 {(() => {
-                  const decisions = normalizeDecisions(viewingCall.key_decisions);
+                  let decisions = normalizeDecisions(viewingCall.key_decisions);
+                  if (decisions.length === 0) {
+                    decisions = extractKeyTakeaways(viewingCall.summary);
+                  }
                   if (decisions.length === 0) return null;
                   return (
                     <div>
-                      <h3 className="text-sm font-semibold mb-1">Key Decisions</h3>
+                      <h3 className="text-sm font-semibold mb-1">Key Takeaways</h3>
                       <ul className="text-sm text-muted-foreground space-y-1">
                         {decisions.map((d, i) => (
                           <li key={i} className="flex gap-2">
