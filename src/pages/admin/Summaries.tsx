@@ -358,6 +358,45 @@ export default function AdminSummaries() {
 
             <ScrollArea className="flex-1">
               <article className="px-6 md:px-10 lg:px-16 py-6 md:py-10 max-w-3xl mx-auto space-y-6">
+                {/* Add context composer — writes a client_note, triggers AI refresh */}
+                <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1.5">
+                      <Plus className="h-3 w-3" />
+                      Add context
+                    </div>
+                    <span className="text-[10px] text-muted-foreground/70">
+                      Saved as a note · summary auto-refreshes
+                    </span>
+                  </div>
+                  <Textarea
+                    value={contextDraft}
+                    onChange={(e) => setContextDraft(e.target.value)}
+                    placeholder={`e.g. "${selected.name} is traveling until June 15", "Sent updated pricing", "They want to add Instagram"…`}
+                    className="min-h-[60px] text-sm resize-none"
+                    maxLength={2000}
+                    onKeyDown={(e) => {
+                      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                        e.preventDefault();
+                        if (contextDraft.trim() && !savingContext) addContext(selected.id);
+                      }
+                    }}
+                  />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-muted-foreground/70">
+                      {contextDraft.length}/2000 · ⌘/Ctrl + Enter to save
+                    </span>
+                    <Button
+                      size="sm"
+                      onClick={() => addContext(selected.id)}
+                      disabled={!contextDraft.trim() || savingContext}
+                      className="h-7 text-xs"
+                    >
+                      {savingContext ? "Saving…" : "Add context"}
+                    </Button>
+                  </div>
+                </div>
+
                 {selected.ai ? (
                   <>
                     {selected.ai.headline && (
