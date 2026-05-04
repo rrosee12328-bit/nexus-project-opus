@@ -29,6 +29,19 @@ type CallRecord = {
   created_at: string | null;
 };
 
+const extractFathomUrl = (value?: string | null) => {
+  if (!value) return null;
+  const match = value.match(/https:\/\/fathom\.video\/[^\s)\]]+/i);
+  return match?.[0] ?? null;
+};
+
+const getFathomUrl = (call: CallRecord) => (
+  call.fathom_url
+  || extractFathomUrl(call.summary)
+  || extractFathomUrl(call.transcript)
+  || (call.fathom_meeting_id ? `https://fathom.video/calls/${call.fathom_meeting_id}` : null)
+);
+
 const CALL_TYPES: Record<string, string> = {
   discovery: "Discovery",
   onboarding: "Onboarding",
@@ -115,12 +128,15 @@ export default function ClientCallsTab({ clientId }: { clientId: string }) {
             </p>
           ) : (
             <div className="space-y-2">
-              {calls.map((call) => (
-                <div
-                  key={call.id}
-                  className="flex gap-3 p-3 rounded-md border border-border hover:bg-muted/40 cursor-pointer transition-colors"
-                  onClick={() => { setViewingCall(call); setTranscriptExpanded(false); }}
-                >
+              {calls.map((call) => {
+                const fathomUrl = getFathomUrl(call);
+
+                return (
+                  <div
+                    key={call.id}
+                    className="flex gap-3 p-3 rounded-md border border-border hover:bg-muted/40 cursor-pointer transition-colors"
+                    onClick={() => { setViewingCall(call); setTranscriptExpanded(false); }}
+                  >
                   <div className="mt-0.5">
                     {call.fathom_meeting_id ? (
                       <Mic className="h-4 w-4 text-blue-400" />
@@ -149,9 +165,9 @@ export default function ClientCallsTab({ clientId }: { clientId: string }) {
                         {getBriefSummary(call.summary, 180)}
                       </p>
                     )}
-                    {(call.fathom_url || call.fathom_meeting_id) && (
+                    {fathomUrl && (
                       <a
-                        href={call.fathom_url || `https://fathom.video/calls/${call.fathom_meeting_id}`}
+                        href={fathomUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
@@ -160,9 +176,10 @@ export default function ClientCallsTab({ clientId }: { clientId: string }) {
                         <ExternalLink className="h-3 w-3" /> Open in Fathom
                       </a>
                     )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -172,6 +189,11 @@ export default function ClientCallsTab({ clientId }: { clientId: string }) {
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           {viewingCall && (
             <>
+              {(() => {
+                const fathomUrl = getFathomUrl(viewingCall);
+
+                return (
+                  <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Phone className="h-4 w-4" />
@@ -191,9 +213,9 @@ export default function ClientCallsTab({ clientId }: { clientId: string }) {
                   <Badge variant="outline" className={TYPE_COLORS[viewingCall.call_type] ?? TYPE_COLORS.other}>
                     {CALL_TYPES[viewingCall.call_type]}
                   </Badge>
-                  {(viewingCall.fathom_url || viewingCall.fathom_meeting_id) && (
+                  {fathomUrl && (
                     <a
-                      href={viewingCall.fathom_url || `https://fathom.video/calls/${viewingCall.fathom_meeting_id}`}
+                      href={fathomUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
@@ -263,6 +285,9 @@ export default function ClientCallsTab({ clientId }: { clientId: string }) {
               <DialogFooter>
                 <Button onClick={() => setViewingCall(null)}>Close</Button>
               </DialogFooter>
+                  </>
+                );
+              })()}
             </>
           )}
         </DialogContent>
