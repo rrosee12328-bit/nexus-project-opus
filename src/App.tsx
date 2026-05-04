@@ -38,6 +38,7 @@ import AdminPdfLogs from "./pages/admin/PdfLogs";
 import AdminBusinessMedia from "./pages/admin/BusinessMedia";
 import Lever from "./pages/admin/Lever";
 import AdminSeedReview from "./pages/admin/SeedReview";
+import AdminBrain from "./pages/admin/Brain";
 
 import OpsLayout from "./layouts/OpsLayout";
 import OpsDashboard from "./pages/ops/Dashboard";
@@ -116,7 +117,7 @@ const App = () => (
               <Route path="lever" element={<Lever />} />
               <Route path="fulcrum" element={<Navigate to="/admin/lever" replace />} />
               <Route path="knowledge-base" element={<Navigate to="/admin/lever?tab=memory" replace />} />
-              <Route path="brain" element={<Navigate to="/admin/lever" replace />} />
+              <Route path="brain" element={<AdminBrain />} />
               <Route path="invoices" element={<AdminInvoices />} />
               <Route path="pdf-logs" element={<AdminPdfLogs />} />
               <Route path="business-media" element={<AdminBusinessMedia />} />
