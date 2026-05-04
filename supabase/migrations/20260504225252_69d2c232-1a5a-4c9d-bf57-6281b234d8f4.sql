@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS calendar_events_outlook_event_id_uniq ON public.calendar_events(outlook_event_id) WHERE outlook_event_id IS NOT NULL;
