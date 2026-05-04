@@ -675,7 +675,7 @@ export default function AIAgentChat({
 
         {/* Messages */}
         <ScrollArea className="flex-1 min-h-0 touch-pan-y overscroll-contain" ref={scrollRef}>
-          <div className="max-w-3xl mx-auto px-4 py-4">
+          <div className="max-w-3xl mx-auto px-3 md:px-4 py-4 pb-6">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center text-center py-16 gap-5">
                 <motion.div
@@ -721,18 +721,18 @@ export default function AIAgentChat({
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.25 }}
-                  className={`flex gap-3 mb-5 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                  className={`flex gap-2.5 md:gap-3 mb-5 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   {msg.role === "assistant" && (
-                    <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex-shrink-0 flex items-center justify-center mt-1 ring-1 ring-primary/10">
+                    <div className="h-7 w-7 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex-shrink-0 flex items-center justify-center mt-0.5 ring-1 ring-primary/10">
                       <Bot className="h-3.5 w-3.5 text-primary" />
                     </div>
                   )}
                   <div
-                    className={`rounded-2xl px-4 py-3 max-w-[88%] md:max-w-[78%] text-sm ${
+                    className={`text-sm ${
                       msg.role === "user"
-                        ? "bg-primary text-primary-foreground rounded-br-md"
-                        : "bg-card border border-border/40 text-card-foreground rounded-bl-md"
+                        ? "bg-primary text-primary-foreground rounded-2xl rounded-br-md px-3.5 py-2.5 max-w-[85%]"
+                        : "text-foreground flex-1 min-w-0 pt-0.5"
                     }`}
                   >
                     {/* Show attached files */}
@@ -760,22 +760,17 @@ export default function AIAgentChat({
                       <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                     )}
                   </div>
-                  {msg.role === "user" && (
-                    <div className="h-7 w-7 rounded-lg bg-muted flex-shrink-0 flex items-center justify-center mt-1">
-                      <User className="h-3.5 w-3.5 text-muted-foreground" />
-                    </div>
-                  )}
                 </motion.div>
               ))}
             </AnimatePresence>
 
             {/* Loading indicator */}
             {isLoading && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-3 mb-5">
-                <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex-shrink-0 flex items-center justify-center mt-1 ring-1 ring-primary/10">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2.5 md:gap-3 mb-5">
+                <div className="h-7 w-7 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex-shrink-0 flex items-center justify-center mt-0.5 ring-1 ring-primary/10">
                   <Bot className="h-3.5 w-3.5 text-primary" />
                 </div>
-                <div className="bg-card border border-border/40 rounded-2xl rounded-bl-md px-4 py-3.5 flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 pt-2">
                   <span className="flex gap-1">
                     <span className="h-1.5 w-1.5 rounded-full bg-primary/50 animate-bounce [animation-delay:0ms]" />
                     <span className="h-1.5 w-1.5 rounded-full bg-primary/50 animate-bounce [animation-delay:150ms]" />
