@@ -42,6 +42,22 @@ const getFathomUrl = (call: CallRecord) => (
   || (call.fathom_meeting_id ? `https://fathom.video/calls/${call.fathom_meeting_id}` : null)
 );
 
+const normalizeDecisions = (raw: any): string[] => {
+  if (!raw) return [];
+  let val: any = raw;
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (!trimmed) return [];
+    try { val = JSON.parse(trimmed); }
+    catch { return [trimmed]; }
+  }
+  if (Array.isArray(val)) {
+    return val.map((d) => (typeof d === "string" ? d.trim() : String(d))).filter(Boolean);
+  }
+  const s = String(val).trim();
+  return s ? [s] : [];
+};
+
 const CALL_TYPES: Record<string, string> = {
   discovery: "Discovery",
   onboarding: "Onboarding",
@@ -247,22 +263,23 @@ export default function ClientCallsTab({ clientId }: { clientId: string }) {
                     </details>
                   </div>
                 )}
-                {viewingCall.key_decisions && (
-                  <div>
-                    <h3 className="text-sm font-semibold mb-1">Key Decisions</h3>
-                    <ul className="text-sm text-muted-foreground space-y-1">
-                      {(Array.isArray(viewingCall.key_decisions)
-                        ? viewingCall.key_decisions
-                        : [viewingCall.key_decisions]
-                      ).map((d: string, i: number) => (
-                        <li key={i} className="flex gap-2">
-                          <span>•</span>
-                          <span>{d}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                {(() => {
+                  const decisions = normalizeDecisions(viewingCall.key_decisions);
+                  if (decisions.length === 0) return null;
+                  return (
+                    <div>
+                      <h3 className="text-sm font-semibold mb-1">Key Decisions</h3>
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        {decisions.map((d, i) => (
+                          <li key={i} className="flex gap-2">
+                            <span>•</span>
+                            <span>{d}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })()}
                 {viewingCall.transcript && (
                   <div>
                     <button
