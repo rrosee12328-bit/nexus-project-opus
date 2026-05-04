@@ -328,39 +328,42 @@ export default function ClientDetail() {
       {/* Quick stats */}
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
         {[
-          { label: "Total Entries", value: notes.length, icon: FileText, color: "text-foreground", tab: "all" },
-          { label: "Meetings", value: typeCounts.meeting, icon: Video, color: "text-blue-500", tab: "meeting" },
-          { label: "Pending Actions", value: pendingActions, icon: Clock, color: "text-amber-500", tab: "action_item" },
-          { label: "Documents", value: typeCounts.document, icon: LinkIcon, color: "text-emerald-500", tab: "document" },
+          {
+            label: "Total Entries", value: notes.length, icon: FileText, color: "text-foreground",
+            onClick: () => { setActiveTab("all"); document.getElementById("activity-records")?.scrollIntoView({ behavior: "smooth", block: "start" }); },
+          },
+          {
+            label: "Meetings", value: typeCounts.meeting, icon: Video, color: "text-blue-500",
+            onClick: () => navigate(`/admin/calls?clientId=${clientId}`),
+          },
+          {
+            label: "Pending Actions", value: pendingActions, icon: Clock, color: "text-amber-500",
+            onClick: () => { setActiveTab("action_item"); document.getElementById("activity-records")?.scrollIntoView({ behavior: "smooth", block: "start" }); },
+          },
+          {
+            label: "Documents", value: typeCounts.document, icon: LinkIcon, color: "text-emerald-500",
+            onClick: () => { setActiveTab("document"); document.getElementById("activity-records")?.scrollIntoView({ behavior: "smooth", block: "start" }); },
+          },
         ].map((s, i) => (
           <motion.div key={s.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.05 }}>
-            <Card
-              role="button"
-              tabIndex={0}
-              onClick={() => {
-                setActiveTab(s.tab);
-                document.getElementById("activity-records")?.scrollIntoView({ behavior: "smooth", block: "start" });
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  setActiveTab(s.tab);
-                  document.getElementById("activity-records")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                }
-              }}
-              className={`cursor-pointer transition-all hover:border-primary/50 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/40 ${activeTab === s.tab ? "border-primary/60 bg-primary/5" : ""}`}
-              aria-label={`Filter activity by ${s.label}`}
+            <button
+              type="button"
+              onClick={s.onClick}
+              className="w-full text-left"
+              aria-label={`Open ${s.label}`}
             >
-              <CardContent className="pt-4 pb-4 flex items-center gap-3">
-                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <s.icon className={`h-4 w-4 ${s.color}`} />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold font-mono">{s.value}</p>
-                  <p className="text-xs text-muted-foreground">{s.label}</p>
-                </div>
-              </CardContent>
-            </Card>
+              <Card className="cursor-pointer transition-all hover:border-primary/60 hover:shadow-glow focus:outline-none">
+                <CardContent className="pt-4 pb-4 flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <s.icon className={`h-4 w-4 ${s.color}`} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold font-mono">{s.value}</p>
+                    <p className="text-xs text-muted-foreground">{s.label}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </button>
           </motion.div>
         ))}
       </div>
@@ -512,7 +515,7 @@ export default function ClientDetail() {
       )}
 
       {/* Tabs + timeline */}
-      <motion.div id="activity-records" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
+      <motion.div id="activity-records" className="scroll-mt-20" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
         <Card>
           <CardHeader className="pb-3">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
