@@ -309,7 +309,8 @@ Deno.serve(async (req: Request) => {
         }
 
         const share_url: string | null = meeting?.share_url ?? meeting?.url ?? null;
-        const summaryMd: string | null = meeting?.default_summary?.markdown_formatted ?? null;
+        const summaryMd: string | null = normalizeSummary(meeting?.default_summary)
+          ?? normalizeSummary(meeting?.summary);
 
         // Pull transcript on-demand (only if missing in DB it would be re-fetched; we fetch always to refresh)
         let transcript: string | null = null;
