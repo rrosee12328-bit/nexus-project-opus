@@ -15,8 +15,8 @@ export default function AgentPage() {
 
   return (
     <AIAgentChat
-      title="AI Operations Agent"
-      subtitle="Query data, get recommendations, and execute approved actions across the portal."
+      title="Assistant"
+      subtitle="Ask anything about your operations, clients, and projects."
       suggestions={[
         "Give me a full operational briefing",
         "Show all at-risk clients this week",
