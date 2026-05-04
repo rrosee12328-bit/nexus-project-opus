@@ -652,6 +652,14 @@ export default function AdminCalls() {
                       <RefreshCw className="h-3 w-3" /> Sync from Fathom
                     </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => analyzeCall(viewingCall.id)}
+                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                    title="Generate tasks, update profile, add meeting note"
+                  >
+                    <Brain className="h-3 w-3" /> Analyze with AI
+                  </button>
                 </div>
                 {viewingCall.summary && (
                   <div>
