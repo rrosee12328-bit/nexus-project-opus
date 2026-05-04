@@ -117,7 +117,7 @@ const App = () => (
               <Route path="lever" element={<Lever />} />
               <Route path="fulcrum" element={<Navigate to="/admin/lever" replace />} />
               <Route path="knowledge-base" element={<Navigate to="/admin/lever?tab=memory" replace />} />
-              <Route path="brain" element={<Navigate to="/admin/lever" replace />} />
+              <Route path="brain" element={<AdminBrain />} />
               <Route path="invoices" element={<AdminInvoices />} />
               <Route path="pdf-logs" element={<AdminPdfLogs />} />
               <Route path="business-media" element={<AdminBusinessMedia />} />
