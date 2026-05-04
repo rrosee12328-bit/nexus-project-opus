@@ -657,21 +657,20 @@ export default function AIAgentChat({
       )}
 
       {/* Chat area */}
-      <div className="flex-1 min-w-0 min-h-0 flex flex-col pl-10 md:pl-0">
-        {/* Header */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-border/30">
-          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center ring-1 ring-primary/20">
-            <Zap className="h-4 w-4 text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-sm font-semibold text-foreground leading-tight">{title}</h1>
-            <p className="text-[11px] text-muted-foreground truncate">{subtitle}</p>
-          </div>
-          {messages.length > 0 && (
-            <span className="text-[10px] text-muted-foreground/60 tabular-nums">
-              {messages.length} messages
-            </span>
-          )}
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col">
+        {/* Header — minimalist, ChatGPT-style */}
+        <div className="flex items-center gap-2 px-3 md:px-4 py-2.5 border-b border-border/30 sticky top-0 bg-background/85 backdrop-blur-md z-[5]">
+          <div className="w-9 md:hidden shrink-0" />
+          <h1 className="flex-1 text-sm font-semibold text-foreground leading-tight truncate text-center md:text-left">{title}</h1>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleNewConversation}
+            className="h-9 w-9 shrink-0"
+            title="New chat"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
         </div>
 
         {/* Messages */}
