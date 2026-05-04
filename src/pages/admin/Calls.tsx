@@ -405,6 +405,15 @@ export default function AdminCalls() {
         </div>
       </PageHero>
 
+      {clientFilter !== "all" && (
+        <div className="flex items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+          <span>
+            Filtered to client: <span className="font-medium">{clients.find((c) => c.id === clientFilter)?.name ?? "Selected"}</span>
+          </span>
+          <Button variant="ghost" size="sm" onClick={() => setClientFilter("all")}>Clear filter</Button>
+        </div>
+      )}
+
       {/* Brain Ingestion Dashboard */}
       <Card className="border-primary/20">
         <CardContent className="p-5">
