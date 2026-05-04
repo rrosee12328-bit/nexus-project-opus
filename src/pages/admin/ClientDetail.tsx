@@ -168,14 +168,14 @@ export default function ClientDetail() {
     const channel = supabase
       .channel(`client-detail-${clientId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "clients", filter: `id=eq.${clientId}` },
-        () => qc.invalidateQueries({ queryKey: ["client-detail", clientId] }))
+        () => queryClient.invalidateQueries({ queryKey: ["client-detail", clientId] }))
       .on("postgres_changes", { event: "*", schema: "public", table: "client_notes", filter: `client_id=eq.${clientId}` },
-        () => qc.invalidateQueries({ queryKey: ["client-notes", clientId] }))
+        () => queryClient.invalidateQueries({ queryKey: ["client-notes", clientId] }))
       .on("postgres_changes", { event: "*", schema: "public", table: "call_intelligence", filter: `client_id=eq.${clientId}` },
-        () => qc.invalidateQueries({ queryKey: ["client-detail", clientId] }))
+        () => queryClient.invalidateQueries({ queryKey: ["client-detail", clientId] }))
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [clientId, qc]);
+  }, [clientId, queryClient]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
