@@ -277,6 +277,27 @@ Rules:
           created.scope_proposals = scopeChanges.length;
         }
       }
+
+      // Nudge admins to attach reference materials (Gamma decks, Dropbox folders, etc.) used during the call
+      try {
+        const { data: admins } = await admin
+          .from("user_roles")
+          .select("user_id")
+          .in("role", ["admin"]);
+        const adminIds = Array.from(new Set((admins ?? []).map((r: any) => r.user_id))).filter(Boolean);
+        if (adminIds.length) {
+          const link = `/admin/clients/${call.client_id}`;
+          const rows = adminIds.map((uid: string) => ({
+            user_id: uid,
+            type: "call_assets_prompt",
+            title: `Attach assets for ${clientName}?`,
+            body: `A call was just analyzed. Did you reference a Gamma deck, Dropbox folder, or other materials? Add them to the Latest Briefing so the team has full context.`,
+            link,
+          }));
+          await admin.from("notifications").insert(rows);
+          created.assets_prompt = adminIds.length;
+        }
+      } catch (_) { /* non-fatal */ }
     }
 
     return new Response(JSON.stringify({ ok: true, analysis, created }), {
