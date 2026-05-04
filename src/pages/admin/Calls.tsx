@@ -734,18 +734,31 @@ export default function AdminCalls() {
                     </details>
                   </div>
                 )}
-                {viewingCall.key_decisions && (
-                  <div>
-                    <h3 className="text-sm font-semibold mb-1">Key Decisions</h3>
-                    <ul className="text-sm text-muted-foreground space-y-1">
-                      {(Array.isArray(viewingCall.key_decisions) ? viewingCall.key_decisions : [viewingCall.key_decisions]).map((d: string, i: number) => (
-                        <li key={i} className="flex gap-2">
-                          <span>•</span><span>{d}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                {(() => {
+                  const raw: any = viewingCall.key_decisions;
+                  let arr: any = raw;
+                  if (typeof arr === "string") {
+                    const t = arr.trim();
+                    if (!t) return null;
+                    try { arr = JSON.parse(t); } catch { arr = [t]; }
+                  }
+                  const items = (Array.isArray(arr) ? arr : arr ? [arr] : [])
+                    .map((d: any) => (typeof d === "string" ? d.trim() : String(d)))
+                    .filter(Boolean);
+                  if (items.length === 0) return null;
+                  return (
+                    <div>
+                      <h3 className="text-sm font-semibold mb-1">Key Decisions</h3>
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        {items.map((d: string, i: number) => (
+                          <li key={i} className="flex gap-2">
+                            <span>•</span><span>{d}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })()}
                 {viewingCall.transcript && (
                   <div>
                     <button
