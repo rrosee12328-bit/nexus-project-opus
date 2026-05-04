@@ -289,6 +289,7 @@ Deno.serve(async (req) => {
         context: { ...d.context, _dedupe_key: d.dedupe_key },
         risk_tier: d.risk_tier,
         client_id: d.client_id ?? null,
+        project_id: d.project_id ?? null,
         link: d.link ?? null,
       }));
       const { error } = await supabase.from("ai_decision_queue").insert(rows);
