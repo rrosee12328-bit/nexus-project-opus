@@ -465,6 +465,7 @@ export type Database = {
           id: string
           invoiced_at: string | null
           outlook_event_id: string | null
+          outlook_user_id: string | null
           project_id: string | null
           start_time: string | null
           stripe_invoice_id: string | null
@@ -485,6 +486,7 @@ export type Database = {
           id?: string
           invoiced_at?: string | null
           outlook_event_id?: string | null
+          outlook_user_id?: string | null
           project_id?: string | null
           start_time?: string | null
           stripe_invoice_id?: string | null
@@ -505,6 +507,7 @@ export type Database = {
           id?: string
           invoiced_at?: string | null
           outlook_event_id?: string | null
+          outlook_user_id?: string | null
           project_id?: string | null
           start_time?: string | null
           stripe_invoice_id?: string | null
@@ -1790,6 +1793,48 @@ export type Database = {
             referencedColumns: ["client_id"]
           },
         ]
+      }
+      ms_outlook_tokens: {
+        Row: {
+          access_token: string
+          created_at: string
+          expires_at: string
+          id: string
+          last_synced_at: string | null
+          ms_email: string | null
+          ms_user_id: string | null
+          refresh_token: string
+          scope: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          last_synced_at?: string | null
+          ms_email?: string | null
+          ms_user_id?: string | null
+          refresh_token: string
+          scope?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          last_synced_at?: string | null
+          ms_email?: string | null
+          ms_user_id?: string | null
+          refresh_token?: string
+          scope?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       notification_preferences: {
         Row: {
