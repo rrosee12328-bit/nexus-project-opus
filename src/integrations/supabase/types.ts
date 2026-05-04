@@ -708,6 +708,60 @@ export type Database = {
         }
         Relationships: []
       }
+      client_ai_summaries: {
+        Row: {
+          calls_count: number
+          client_id: string
+          generated_at: string
+          headline: string | null
+          model: string | null
+          next_step: string | null
+          notes_count: number
+          sentiment: string | null
+          source_hash: string | null
+          summary: string | null
+        }
+        Insert: {
+          calls_count?: number
+          client_id: string
+          generated_at?: string
+          headline?: string | null
+          model?: string | null
+          next_step?: string | null
+          notes_count?: number
+          sentiment?: string | null
+          source_hash?: string | null
+          summary?: string | null
+        }
+        Update: {
+          calls_count?: number
+          client_id?: string
+          generated_at?: string
+          headline?: string | null
+          model?: string | null
+          next_step?: string | null
+          notes_count?: number
+          sentiment?: string | null
+          source_hash?: string | null
+          summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_ai_summaries_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_ai_summaries_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "v_client_profitability"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
       client_contracts: {
         Row: {
           client_id: string
@@ -3087,6 +3141,10 @@ export type Database = {
           source_queue: string
         }
         Returns: number
+      }
+      queue_client_summary_refresh: {
+        Args: { _client_id: string }
+        Returns: undefined
       }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
