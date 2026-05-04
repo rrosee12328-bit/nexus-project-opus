@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { Mail, RefreshCw, Plug } from "lucide-react";
 import { toast } from "sonner";
 
 export default function OutlookConnectButton() {
+  const queryClient = useQueryClient();
   const [connected, setConnected] = useState<boolean | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -57,6 +59,7 @@ export default function OutlookConnectButton() {
       const { data, error } = await supabase.functions.invoke("ms-sync-my-calendar");
       if (error) throw error;
       const d = data as any;
+      await queryClient.invalidateQueries({ queryKey: ["calendar-custom-events"] });
       toast.success(`Synced ${d.upserted} event${d.upserted === 1 ? "" : "s"}`);
     } catch (e: any) {
       toast.error(e.message || "Sync failed");
