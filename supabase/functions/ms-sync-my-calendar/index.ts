@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
     const url = `https://graph.microsoft.com/v1.0/me/calendarView?startDateTime=${start.toISOString()}&endDateTime=${end.toISOString()}&$top=500&$orderby=start/dateTime`;
 
     const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${accessToken}`, Prefer: 'outlook.timezone="UTC"' },
+      headers: { Authorization: `Bearer ${accessToken}`, Prefer: 'outlook.timezone="Central Standard Time"' },
     });
     const json = await res.json();
     if (!res.ok) throw new Error(`Graph fetch [${res.status}]: ${JSON.stringify(json)}`);
@@ -63,9 +63,14 @@ Deno.serve(async (req) => {
     let upserted = 0, skipped = 0;
     for (const ev of events) {
       if (ev.isCancelled) continue;
-      const startDt = new Date(ev.start?.dateTime + "Z");
-      const endDt = new Date(ev.end?.dateTime + "Z");
-      if (isNaN(startDt.getTime())) { skipped++; continue; }
+      // Graph returns local-time strings (no offset) when Prefer: outlook.timezone is set.
+      // Format: "2026-05-04T13:00:00.0000000". Parse without timezone conversion.
+      const startStr: string = ev.start?.dateTime || "";
+      const endStr: string = ev.end?.dateTime || "";
+      if (!startStr) { skipped++; continue; }
+      const event_date = startStr.slice(0, 10);
+      const start_time = startStr.slice(11, 19);
+      const end_time = endStr.slice(11, 19);
 
       let client_id: string | null = VEKTISS_CLIENT_ID;
       const attendeeEmails: string[] = (ev.attendees || []).map((a: any) => a?.emailAddress?.address?.toLowerCase()).filter(Boolean);
@@ -77,9 +82,9 @@ Deno.serve(async (req) => {
       const row = {
         title: ev.subject || "(No title)",
         description: (ev.bodyPreview || "").slice(0, 500),
-        event_date: startDt.toISOString().slice(0, 10),
-        start_time: startDt.toISOString().slice(11, 19),
-        end_time: endDt.toISOString().slice(11, 19),
+        event_date,
+        start_time,
+        end_time,
         event_type: "outlook",
         client_id,
         outlook_event_id: ev.id,
