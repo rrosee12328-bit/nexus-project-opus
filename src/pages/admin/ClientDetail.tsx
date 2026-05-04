@@ -31,6 +31,7 @@ import {
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import AdminClientBilling from "@/components/admin/AdminClientBilling";
+import PhaseBillingTimeline from "@/components/admin/PhaseBillingTimeline";
 import { ChargeVsCostCard } from "@/components/admin/ChargeVsCostCard";
 import { format, formatDistanceToNow } from "date-fns";
 import { SendProposalDialog } from "@/components/proposals/SendProposalDialog";
@@ -504,6 +505,13 @@ export default function ClientDetail() {
             clientName={client.name}
             stripeCustomerId={(client as any).stripe_customer_id ?? null}
           />
+        </motion.div>
+      )}
+
+      {/* Phase-based billing timeline (shown when no monthly fee) */}
+      {client && (client.monthly_fee ?? 0) === 0 && (client.setup_fee ?? 0) > 0 && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.355 }}>
+          <PhaseBillingTimeline clientId={client.id} setupFee={Number(client.setup_fee) || 0} />
         </motion.div>
       )}
 
