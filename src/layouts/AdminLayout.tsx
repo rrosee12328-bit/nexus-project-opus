@@ -18,8 +18,13 @@ export default function AdminLayout() {
         setBrainOpen((v) => !v);
       }
     };
+    const onOpen = () => setBrainOpen(true);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("brain:open", onOpen as EventListener);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("brain:open", onOpen as EventListener);
+    };
   }, []);
 
   return (
