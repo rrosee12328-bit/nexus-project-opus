@@ -178,6 +178,54 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── 5. Paused billing without phase movement (14+ days) ──
+    const pausedCutoff = new Date(now.getTime() - 14 * 86400000);
+    const { data: pausedClients } = await supabase
+      .from("clients")
+      .select("id, name, billing_paused_until, updated_at, billing_model")
+      .not("billing_paused_until", "is", null)
+      .in("billing_model", ["phase_based", "hybrid"]);
+    for (const c of pausedClients ?? []) {
+      const pauseEnd = new Date((c as any).billing_paused_until);
+      if (pauseEnd < now) continue; // already expired
+      const updated = new Date((c as any).updated_at);
+      if (updated > pausedCutoff) continue;
+      drafts.push({
+        type: "paused_billing_stalled",
+        title: `${c.name}: billing paused with no movement in 14+ days`,
+        body: `Billing paused until ${pauseEnd.toISOString().split("T")[0]}. No project activity recently.`,
+        recommendation: "Advance the project phase or update the pause date.",
+        context: { client_id: c.id, paused_until: (c as any).billing_paused_until },
+        risk_tier: "medium",
+        client_id: c.id,
+        link: `/admin/clients/${c.id}`,
+        dedupe_key: `paused_stalled:${c.id}:${monthStart}`,
+      });
+    }
+
+    // ── 6. Phase advanced but milestone invoice not finalized within 24h ──
+    const cutoff24 = new Date(now.getTime() - 86400000).toISOString();
+    const { data: pendingMilestones } = await supabase
+      .from("phase_milestone_invoices")
+      .select("id, client_id, project_id, phase, amount, status, created_at, clients(name)")
+      .eq("status", "pending")
+      .lt("created_at", cutoff24);
+    for (const m of pendingMilestones ?? []) {
+      const name = (m as any).clients?.name ?? "Client";
+      drafts.push({
+        type: "milestone_invoice_pending",
+        title: `${name}: ${(m as any).phase} milestone needs invoicing`,
+        body: `$${Number((m as any).amount).toFixed(0)} milestone for ${(m as any).phase} phase has been pending 24h+.`,
+        recommendation: "Generate and send the Stripe invoice for this milestone.",
+        context: { milestone_id: (m as any).id, phase: (m as any).phase, amount: (m as any).amount },
+        risk_tier: "high",
+        client_id: (m as any).client_id,
+        project_id: (m as any).project_id,
+        link: `/admin/clients/${(m as any).client_id}`,
+        dedupe_key: `milestone_pending:${(m as any).id}`,
+      });
+    }
+
     // ── Insert decisions, skipping duplicates by recent dedupe_key in context ──
     const { data: existing } = await supabase
       .from("ai_decision_queue")
@@ -241,6 +289,7 @@ Deno.serve(async (req) => {
         context: { ...d.context, _dedupe_key: d.dedupe_key },
         risk_tier: d.risk_tier,
         client_id: d.client_id ?? null,
+        project_id: d.project_id ?? null,
         link: d.link ?? null,
       }));
       const { error } = await supabase.from("ai_decision_queue").insert(rows);

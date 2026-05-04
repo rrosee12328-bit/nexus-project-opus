@@ -58,11 +58,17 @@ Deno.serve(async (req: Request) => {
       if (proposal.client_id) {
         const { data: client } = await supabase
           .from("clients")
-          .select("id, name, email, stripe_customer_id")
+          .select("id, name, email, stripe_customer_id, billing_paused_until")
           .eq("id", proposal.client_id)
           .single();
 
         if (client) {
+          if (client.billing_paused_until && new Date(client.billing_paused_until) > new Date()) {
+            return new Response(
+              JSON.stringify({ error: "Billing is paused for this client. Contact your account manager." }),
+              { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+            );
+          }
           customerId = client.stripe_customer_id ?? undefined;
           if (!customerId) {
             const customer = await stripe.customers.create({
