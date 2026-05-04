@@ -1002,6 +1002,7 @@ export type Database = {
           aspirations: string | null
           aspirations_updated_at: string | null
           balance_due: number | null
+          billing_paused_until: string | null
           client_number: string | null
           created_at: string
           current_sentiment: string | null
@@ -1036,6 +1037,7 @@ export type Database = {
           aspirations?: string | null
           aspirations_updated_at?: string | null
           balance_due?: number | null
+          billing_paused_until?: string | null
           client_number?: string | null
           created_at?: string
           current_sentiment?: string | null
@@ -1070,6 +1072,7 @@ export type Database = {
           aspirations?: string | null
           aspirations_updated_at?: string | null
           balance_due?: number | null
+          billing_paused_until?: string | null
           client_number?: string | null
           created_at?: string
           current_sentiment?: string | null

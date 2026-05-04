@@ -1,0 +1,2 @@
+ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS billing_paused_until date;
+COMMENT ON COLUMN public.clients.billing_paused_until IS 'If set, no automated invoices should be sent until this date or until manually cleared.';
