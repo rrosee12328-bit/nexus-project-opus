@@ -71,6 +71,7 @@ const navGroups: NavGroup[] = [
       { title: "Client Management", url: "/admin/clients", icon: Users },
       { title: "Client Summaries", url: "/admin/summaries", icon: BookOpen },
       { title: "Client Tracker", url: "/admin/tracker", icon: Sheet },
+      { title: "Seed Review", url: "/admin/seed-review", icon: Sheet },
     ],
   },
   {
