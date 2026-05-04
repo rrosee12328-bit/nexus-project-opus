@@ -358,6 +358,21 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // Fire-and-forget AI analysis for every call we just touched (creates tasks,
+    // updates last_contact_date, adds a meeting note on the client profile).
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const fnBase = Deno.env.get("SUPABASE_URL")!;
+    await Promise.all(results.filter((r) => !r.error).map((r) =>
+      fetch(`${fnBase}/functions/v1/analyze-call`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${serviceKey}`,
+        },
+        body: JSON.stringify({ call_id: r.call_id }),
+      }).catch(() => null)
+    ));
+
     return new Response(JSON.stringify({ ok: true, count: results.length, results }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
