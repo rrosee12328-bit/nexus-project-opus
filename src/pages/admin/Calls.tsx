@@ -359,6 +359,22 @@ export default function AdminCalls() {
     }
   };
 
+  const analyzeCall = async (callId: string) => {
+    const toastId = toast.loading("Analyzing call with AI…");
+    try {
+      const { data, error } = await supabase.functions.invoke("analyze-call", { body: { call_id: callId } });
+      if (error) throw error;
+      const c = (data as any)?.created;
+      toast.success(
+        `Analyzed${c ? ` — ${c.tasks ?? 0} task(s) created${c.note ? ", note added" : ""}` : ""}`,
+        { id: toastId },
+      );
+      queryClient.invalidateQueries({ queryKey: ["call-intelligence"] });
+    } catch (e: any) {
+      toast.error(e.message || "Analyze failed", { id: toastId });
+    }
+  };
+
   return (
     <div className="space-y-6 p-6">
       <PageHero
