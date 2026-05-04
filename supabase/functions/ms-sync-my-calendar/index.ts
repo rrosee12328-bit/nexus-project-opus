@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
         event_date: startDt.toISOString().slice(0, 10),
         start_time: startDt.toISOString().slice(11, 19),
         end_time: endDt.toISOString().slice(11, 19),
-        event_type: "meeting",
+        event_type: "outlook",
         client_id,
         outlook_event_id: ev.id,
         outlook_user_id: userRes.user.id,
