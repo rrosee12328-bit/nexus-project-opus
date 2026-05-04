@@ -6,9 +6,44 @@ import remarkGfm from "remark-gfm";
  * Strips markdown formatting (headings, links, bold, etc.) and returns
  * the first meaningful sentence (or a short truncation).
  */
+function unwrapSummary(raw: string | null | undefined): string {
+  if (!raw) return "";
+  const s = raw.trim();
+  if (s.startsWith("{")) {
+    try {
+      const obj = JSON.parse(s);
+      return obj.markdown_formatted ?? obj.summary ?? obj.text ?? s;
+    } catch { /* fall through */ }
+  }
+  return raw;
+}
+
+function unwrapTranscript(raw: string | null | undefined): string {
+  if (!raw) return "";
+  const s = raw.trim();
+  if (s.startsWith("[") || s.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(s);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((t: any) => {
+            const speaker = t?.speaker?.display_name ?? t?.speaker ?? "";
+            const text = t?.text ?? "";
+            const ts = t?.timestamp ? `[${t.timestamp}] ` : "";
+            return `${ts}${speaker}${speaker ? ": " : ""}${text}`.trim();
+          })
+          .join("\n");
+      }
+    } catch { /* fall through */ }
+  }
+  return raw;
+}
+
+export { unwrapSummary, unwrapTranscript };
+
 export function getBriefSummary(raw: string | null | undefined, maxLen = 140): string {
   if (!raw) return "";
-  let text = raw;
+  let text = unwrapSummary(raw);
   // Drop fenced code blocks
   text = text.replace(/```[\s\S]*?```/g, " ");
   // Convert markdown links [label](url) -> label
@@ -39,6 +74,7 @@ export function getBriefSummary(raw: string | null | undefined, maxLen = 140): s
  * lists, tables) with the same typography we use in the Summaries reader.
  */
 export function CallSummaryMarkdown({ content }: { content: string }) {
+  const safe = unwrapSummary(content);
   return (
     <div className="text-sm leading-relaxed">
       <ReactMarkdown
@@ -101,7 +137,7 @@ export function CallSummaryMarkdown({ content }: { content: string }) {
           tr: ({ children }) => <tr className="hover:bg-muted/30 transition-colors">{children}</tr>,
         }}
       >
-        {content}
+        {safe}
       </ReactMarkdown>
     </div>
   );
