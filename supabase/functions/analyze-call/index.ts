@@ -98,6 +98,7 @@ Deno.serve(async (req: Request) => {
 {
   "headline": "1-sentence summary of what happened",
   "client_status": "1-2 sentence overview of where the client stands now (mood, momentum, blockers)",
+  "current_status_recap": "3-5 sentence plain-English brief that someone reading it for the FIRST time can fully understand. Cover: who the client is in 1 phrase, what they hired/are hiring us for, what was decided/discussed in this most recent contact, and what we owe them next. No jargon, no bullets, no markdown.",
   "sentiment": "positive | neutral | negative | mixed",
   "aspirations": "1-3 sentences capturing the client's stated goals/dreams/vision from this call (null if nothing new)",
   "scope_changes": ["proposed addition or change to project scope (each ~1 sentence)"],
@@ -227,6 +228,10 @@ Rules:
         last_call_headline: analysis.headline ?? null,
         last_call_id: call.id,
       };
+      if (analysis.current_status_recap && String(analysis.current_status_recap).trim()) {
+        profileUpdate.current_status_recap = String(analysis.current_status_recap).trim();
+        profileUpdate.current_status_updated_at = new Date().toISOString();
+      }
       if (analysis.aspirations && String(analysis.aspirations).trim() && String(analysis.aspirations).toLowerCase() !== "null") {
         profileUpdate.aspirations = String(analysis.aspirations).trim();
         profileUpdate.aspirations_updated_at = new Date().toISOString();

@@ -1005,6 +1005,8 @@ export type Database = {
           client_number: string | null
           created_at: string
           current_sentiment: string | null
+          current_status_recap: string | null
+          current_status_updated_at: string | null
           email: string | null
           follow_up_end: string | null
           follow_up_start: string | null
@@ -1036,6 +1038,8 @@ export type Database = {
           client_number?: string | null
           created_at?: string
           current_sentiment?: string | null
+          current_status_recap?: string | null
+          current_status_updated_at?: string | null
           email?: string | null
           follow_up_end?: string | null
           follow_up_start?: string | null
@@ -1067,6 +1071,8 @@ export type Database = {
           client_number?: string | null
           created_at?: string
           current_sentiment?: string | null
+          current_status_recap?: string | null
+          current_status_updated_at?: string | null
           email?: string | null
           follow_up_end?: string | null
           follow_up_start?: string | null
