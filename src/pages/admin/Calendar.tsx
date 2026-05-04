@@ -284,7 +284,7 @@ export default function AdminCalendar() {
         result.push({
           id: `custom-${evt.id}`, date: parseISO(evt.event_date),
           title: evt.title, type: "outlook",
-          color: isVektiss ? "bg-primary" : "bg-blue-600",
+          color: isVektiss ? "bg-primary" : "bg-emerald-600",
           meta: clientName ?? "Outlook",
           timeRange: timeStr ? `${timeStr} CT` : undefined,
           startTime: evt.start_time ?? undefined,
