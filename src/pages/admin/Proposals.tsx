@@ -620,7 +620,7 @@ export default function AdminProposals() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("proposals")
-        .select("*, clients(name)")
+        .select("*, clients!proposals_client_id_fkey(name)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
