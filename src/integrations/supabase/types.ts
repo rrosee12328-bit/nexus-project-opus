@@ -1002,6 +1002,7 @@ export type Database = {
           aspirations: string | null
           aspirations_updated_at: string | null
           balance_due: number | null
+          billing_model: string
           billing_paused_until: string | null
           client_number: string | null
           created_at: string
@@ -1037,6 +1038,7 @@ export type Database = {
           aspirations?: string | null
           aspirations_updated_at?: string | null
           balance_due?: number | null
+          billing_model?: string
           billing_paused_until?: string | null
           client_number?: string | null
           created_at?: string
@@ -1072,6 +1074,7 @@ export type Database = {
           aspirations?: string | null
           aspirations_updated_at?: string | null
           balance_due?: number | null
+          billing_model?: string
           billing_paused_until?: string | null
           client_number?: string | null
           created_at?: string
@@ -1941,6 +1944,54 @@ export type Database = {
           level?: string
           request_id?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      phase_milestone_invoices: {
+        Row: {
+          amount: number
+          client_id: string
+          created_at: string
+          id: string
+          invoiced_at: string | null
+          notes: string | null
+          paid_at: string | null
+          pct: number
+          phase: string
+          project_id: string | null
+          status: string
+          stripe_invoice_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          client_id: string
+          created_at?: string
+          id?: string
+          invoiced_at?: string | null
+          notes?: string | null
+          paid_at?: string | null
+          pct: number
+          phase: string
+          project_id?: string | null
+          status?: string
+          stripe_invoice_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          client_id?: string
+          created_at?: string
+          id?: string
+          invoiced_at?: string | null
+          notes?: string | null
+          paid_at?: string | null
+          pct?: number
+          phase?: string
+          project_id?: string | null
+          status?: string
+          stripe_invoice_id?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
