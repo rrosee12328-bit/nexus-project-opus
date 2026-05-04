@@ -999,13 +999,18 @@ export type Database = {
       }
       clients: {
         Row: {
+          aspirations: string | null
+          aspirations_updated_at: string | null
           balance_due: number | null
           client_number: string | null
           created_at: string
+          current_sentiment: string | null
           email: string | null
           follow_up_end: string | null
           follow_up_start: string | null
           id: string
+          last_call_headline: string | null
+          last_call_id: string | null
           last_contact_date: string | null
           lead_source: string | null
           monthly_fee: number | null
@@ -1025,13 +1030,18 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          aspirations?: string | null
+          aspirations_updated_at?: string | null
           balance_due?: number | null
           client_number?: string | null
           created_at?: string
+          current_sentiment?: string | null
           email?: string | null
           follow_up_end?: string | null
           follow_up_start?: string | null
           id?: string
+          last_call_headline?: string | null
+          last_call_id?: string | null
           last_contact_date?: string | null
           lead_source?: string | null
           monthly_fee?: number | null
@@ -1051,13 +1061,18 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          aspirations?: string | null
+          aspirations_updated_at?: string | null
           balance_due?: number | null
           client_number?: string | null
           created_at?: string
+          current_sentiment?: string | null
           email?: string | null
           follow_up_end?: string | null
           follow_up_start?: string | null
           id?: string
+          last_call_headline?: string | null
+          last_call_id?: string | null
           last_contact_date?: string | null
           lead_source?: string | null
           monthly_fee?: number | null
@@ -1077,6 +1092,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "clients_last_call_id_fkey"
+            columns: ["last_call_id"]
+            isOneToOne: false
+            referencedRelation: "call_intelligence"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "clients_proposal_id_fkey"
             columns: ["proposal_id"]
@@ -2597,6 +2619,7 @@ export type Database = {
       }
       tasks: {
         Row: {
+          ai_generated: boolean
           archived_at: string | null
           assigned_to: string | null
           client_id: string | null
@@ -2605,15 +2628,20 @@ export type Database = {
           description: string | null
           due_date: string | null
           id: string
+          needs_review: boolean
           priority: Database["public"]["Enums"]["task_priority"]
           recurring_key: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           sort_order: number
+          source_call_id: string | null
           source_market_insight_id: string | null
           status: Database["public"]["Enums"]["task_status"]
           title: string
           updated_at: string
         }
         Insert: {
+          ai_generated?: boolean
           archived_at?: string | null
           assigned_to?: string | null
           client_id?: string | null
@@ -2622,15 +2650,20 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          needs_review?: boolean
           priority?: Database["public"]["Enums"]["task_priority"]
           recurring_key?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           sort_order?: number
+          source_call_id?: string | null
           source_market_insight_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           title: string
           updated_at?: string
         }
         Update: {
+          ai_generated?: boolean
           archived_at?: string | null
           assigned_to?: string | null
           client_id?: string | null
@@ -2639,9 +2672,13 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          needs_review?: boolean
           priority?: Database["public"]["Enums"]["task_priority"]
           recurring_key?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           sort_order?: number
+          source_call_id?: string | null
           source_market_insight_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           title?: string
@@ -2661,6 +2698,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_client_profitability"
             referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "tasks_source_call_id_fkey"
+            columns: ["source_call_id"]
+            isOneToOne: false
+            referencedRelation: "call_intelligence"
+            referencedColumns: ["id"]
           },
         ]
       }

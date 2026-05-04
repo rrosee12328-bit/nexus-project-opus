@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AICommandCenter from "@/components/AICommandCenter";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -36,6 +36,8 @@ import { format, formatDistanceToNow } from "date-fns";
 import { SendProposalDialog } from "@/components/proposals/SendProposalDialog";
 import ClientContractsTab from "@/components/admin/ClientContractsTab";
 import ClientCallsTab from "@/components/admin/ClientCallsTab";
+import { AspirationsCard } from "@/components/admin/AspirationsCard";
+import { AITaskReviewCard } from "@/components/admin/AITaskReviewCard";
 
 type NoteType = "meeting" | "document" | "action_item" | "note";
 
@@ -159,6 +161,21 @@ export default function ClientDetail() {
     },
     enabled: !!clientId,
   });
+
+  // Realtime: refresh client + notes when anything related changes
+  useEffect(() => {
+    if (!clientId) return;
+    const channel = supabase
+      .channel(`client-detail-${clientId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "clients", filter: `id=eq.${clientId}` },
+        () => queryClient.invalidateQueries({ queryKey: ["client-detail", clientId] }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "client_notes", filter: `client_id=eq.${clientId}` },
+        () => queryClient.invalidateQueries({ queryKey: ["client-notes", clientId] }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "call_intelligence", filter: `client_id=eq.${clientId}` },
+        () => queryClient.invalidateQueries({ queryKey: ["client-detail", clientId] }))
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [clientId, queryClient]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -430,6 +447,20 @@ export default function ClientDetail() {
       {client && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
           <ClientCallsTab clientId={client.id} />
+        </motion.div>
+      )}
+
+      {/* AI proposed tasks needing review */}
+      {client && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.31 }}>
+          <AITaskReviewCard clientId={client.id} />
+        </motion.div>
+      )}
+
+      {/* Aspirations & Sentiment */}
+      {client && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.32 }}>
+          <AspirationsCard clientId={client.id} />
         </motion.div>
       )}
 
