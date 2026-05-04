@@ -149,6 +149,17 @@ export default function ClientCallsTab({ clientId }: { clientId: string }) {
                         {getBriefSummary(call.summary, 180)}
                       </p>
                     )}
+                    {(call.fathom_url || call.fathom_meeting_id) && (
+                      <a
+                        href={call.fathom_url || `https://fathom.video/calls/${call.fathom_meeting_id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1"
+                      >
+                        <ExternalLink className="h-3 w-3" /> Open in Fathom
+                      </a>
+                    )}
                   </div>
                 </div>
               ))}
