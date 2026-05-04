@@ -665,7 +665,7 @@ export default function AIAgentChat({
           <Button
             variant="ghost"
             size="icon"
-            onClick={handleNewConversation}
+            onClick={startNewConversation}
             className="h-9 w-9 shrink-0"
             title="New chat"
           >
