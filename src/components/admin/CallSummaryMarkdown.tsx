@@ -61,8 +61,14 @@ export function extractKeyTakeaways(raw: string | null | undefined): string[] {
     let s = bullet[1];
     // Convert markdown links [label](url) -> label
     s = s.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+    // Handle unclosed markdown links: [label](url   -> label
+    s = s.replace(/\[([^\]]+)\]\([^\s)]*\)?/g, "$1");
+    // Strip any leftover bare URLs
+    s = s.replace(/https?:\/\/\S+/g, "").trim();
     // Strip bold/italic markers
     s = s.replace(/\*\*([^*]+)\*\*/g, "$1").replace(/[*_`]+/g, "");
+    // Drop trailing punctuation/brackets left over
+    s = s.replace(/[\s\[\]()]+$/g, "");
     s = s.replace(/\s+/g, " ").trim();
     if (s) items.push(s);
   }
