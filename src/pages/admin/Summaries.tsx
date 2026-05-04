@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -13,10 +14,12 @@ import {
   ArrowUpRight,
   FileText,
   Users,
+  Plus,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 const STATUS_COLOR: Record<string, string> = {
   active: "bg-emerald-500/15 text-emerald-600 border-emerald-500/30",
@@ -55,10 +58,13 @@ type Row = {
 
 export default function AdminSummaries() {
   const qc = useQueryClient();
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [refreshingAll, setRefreshingAll] = useState(false);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
+  const [contextDraft, setContextDraft] = useState("");
+  const [savingContext, setSavingContext] = useState(false);
 
   const { data: clients = [], isLoading, refetch } = useQuery({
     queryKey: ["admin-client-summaries-page"],
@@ -162,6 +168,36 @@ export default function AdminSummaries() {
       toast.error(e?.message ?? "Refresh failed");
     } finally {
       setRefreshingId(null);
+    }
+  };
+
+  const addContext = async (clientId: string) => {
+    const content = contextDraft.trim();
+    if (!content || !user) return;
+    if (content.length > 2000) {
+      toast.error("Keep context under 2000 characters");
+      return;
+    }
+    setSavingContext(true);
+    try {
+      const firstLine = content.split("\n")[0].slice(0, 80);
+      const { error } = await supabase.from("client_notes").insert({
+        client_id: clientId,
+        created_by: user.id,
+        title: firstLine || "Context update",
+        content,
+        type: "note",
+        meeting_date: new Date().toISOString(),
+      });
+      if (error) throw error;
+      setContextDraft("");
+      toast.success("Context added — summary refreshing");
+      // Trigger fires the regen automatically; nudge a refetch
+      setTimeout(() => refetch(), 2500);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to save context");
+    } finally {
+      setSavingContext(false);
     }
   };
 
@@ -322,6 +358,45 @@ export default function AdminSummaries() {
 
             <ScrollArea className="flex-1">
               <article className="px-6 md:px-10 lg:px-16 py-6 md:py-10 max-w-3xl mx-auto space-y-6">
+                {/* Add context composer — writes a client_note, triggers AI refresh */}
+                <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1.5">
+                      <Plus className="h-3 w-3" />
+                      Add context
+                    </div>
+                    <span className="text-[10px] text-muted-foreground/70">
+                      Saved as a note · summary auto-refreshes
+                    </span>
+                  </div>
+                  <Textarea
+                    value={contextDraft}
+                    onChange={(e) => setContextDraft(e.target.value)}
+                    placeholder={`e.g. "${selected.name} is traveling until June 15", "Sent updated pricing", "They want to add Instagram"…`}
+                    className="min-h-[60px] text-sm resize-none"
+                    maxLength={2000}
+                    onKeyDown={(e) => {
+                      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                        e.preventDefault();
+                        if (contextDraft.trim() && !savingContext) addContext(selected.id);
+                      }
+                    }}
+                  />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-muted-foreground/70">
+                      {contextDraft.length}/2000 · ⌘/Ctrl + Enter to save
+                    </span>
+                    <Button
+                      size="sm"
+                      onClick={() => addContext(selected.id)}
+                      disabled={!contextDraft.trim() || savingContext}
+                      className="h-7 text-xs"
+                    >
+                      {savingContext ? "Saving…" : "Add context"}
+                    </Button>
+                  </div>
+                </div>
+
                 {selected.ai ? (
                   <>
                     {selected.ai.headline && (
