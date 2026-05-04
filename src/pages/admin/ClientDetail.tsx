@@ -334,7 +334,7 @@ export default function ClientDetail() {
           },
           {
             label: "Meetings", value: typeCounts.meeting, icon: Video, color: "text-blue-500",
-            onClick: () => navigate(`/admin/calls?clientId=${clientId}`),
+            onClick: () => document.getElementById("client-calls")?.scrollIntoView({ behavior: "smooth", block: "start" }),
           },
           {
             label: "Pending Actions", value: pendingActions, icon: Clock, color: "text-amber-500",
@@ -472,7 +472,7 @@ export default function ClientDetail() {
 
       {/* Call Intelligence */}
       {client && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+        <motion.div id="client-calls" className="scroll-mt-20" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
           <ClientCallsTab clientId={client.id} />
         </motion.div>
       )}
