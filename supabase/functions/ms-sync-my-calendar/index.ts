@@ -84,6 +84,7 @@ Deno.serve(async (req) => {
         client_id,
         outlook_event_id: ev.id,
         outlook_user_id: userRes.user.id,
+        created_by: userRes.user.id,
       };
       const { error } = await admin.from("calendar_events").upsert(row, { onConflict: "outlook_event_id" });
       if (error) { console.error("upsert", error); skipped++; continue; }
