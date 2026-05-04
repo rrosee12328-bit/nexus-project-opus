@@ -41,6 +41,34 @@ function unwrapTranscript(raw: string | null | undefined): string {
 
 export { unwrapSummary, unwrapTranscript };
 
+/**
+ * Extract bullet items from a "## Key Takeaways" / "Key Decisions" section
+ * of a Fathom-style markdown summary. Strips markdown links, bold, timestamps.
+ */
+export function extractKeyTakeaways(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  const text = unwrapSummary(raw);
+  // Find a "Key Takeaways" or "Key Decisions" heading and capture until next heading
+  const re = /^#{1,6}\s*(?:key\s+takeaways|key\s+decisions|decisions)\b[^\n]*\n([\s\S]*?)(?=^#{1,6}\s|\Z)/im;
+  const m = text.match(re);
+  if (!m) return [];
+  const block = m[1];
+  const lines = block.split("\n");
+  const items: string[] = [];
+  for (const ln of lines) {
+    const bullet = ln.match(/^\s*[-*+]\s+(.*)$/);
+    if (!bullet) continue;
+    let s = bullet[1];
+    // Convert markdown links [label](url) -> label
+    s = s.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+    // Strip bold/italic markers
+    s = s.replace(/\*\*([^*]+)\*\*/g, "$1").replace(/[*_`]+/g, "");
+    s = s.replace(/\s+/g, " ").trim();
+    if (s) items.push(s);
+  }
+  return items;
+}
+
 export function getBriefSummary(raw: string | null | undefined, maxLen = 140): string {
   if (!raw) return "";
   let text = unwrapSummary(raw);
