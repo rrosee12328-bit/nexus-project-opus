@@ -100,7 +100,9 @@ const emptyForm = (): FormData => ({
 
 export default function AdminCalls() {
   const queryClient = useQueryClient();
+  const urlClientId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("clientId") : null;
   const [search, setSearch] = useState("");
+  const [clientFilter, setClientFilter] = useState<string>(urlClientId ?? "all");
   const [filterType, setFilterType] = useState<string>("all");
   const [brainFilter, setBrainFilter] = useState<"all" | "ingested" | "missing_summary" | "missing_client" | "flagged" | "edited">("all");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -223,6 +225,7 @@ export default function AdminCalls() {
         c.summary?.toLowerCase().includes(search.toLowerCase()) ||
         c.call_type.toLowerCase().includes(search.toLowerCase());
       const matchesType = filterType === "all" || c.call_type === filterType;
+      const matchesClient = clientFilter === "all" || c.client_id === clientFilter;
       const flaggedCount = Array.isArray(c.flagged_amounts) ? c.flagged_amounts.length : 0;
       const isIngested = !!c.summary && !!c.client_id;
       const matchesBrain =
@@ -233,9 +236,9 @@ export default function AdminCalls() {
         brainFilter === "flagged" ? flaggedCount > 0 :
         brainFilter === "edited" ? !!c.summary_edited :
         true;
-      return matchesSearch && matchesType && matchesBrain;
+      return matchesSearch && matchesType && matchesBrain && matchesClient;
     });
-  }, [calls, clients, search, filterType, brainFilter]);
+  }, [calls, clients, search, filterType, brainFilter, clientFilter]);
 
   const stats = useMemo(() => ({
     total: calls.length,
