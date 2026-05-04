@@ -157,7 +157,6 @@ async function commitOne(action: Action, user_id: string): Promise<{ ok: boolean
         priority: (p.priority as string) ?? "medium",
         due_date: (p.due_date as string) ?? null,
         status: "todo",
-        created_by: user_id,
       });
       return error ? { ok: false, error: error.message } : { ok: true, route: "tasks" };
     }
