@@ -28,7 +28,7 @@ async function gatherContext(client_id: string) {
   const [clientRes, notesRes, callsRes, tasksRes, approvalsRes, milestonesRes] = await Promise.all([
     admin.from("clients").select("id, name, type, status, monthly_fee, billing_model, billing_paused_until, balance_due, aspirations, current_sentiment, current_status_recap, last_call_headline, last_contact_date, start_date").eq("id", client_id).maybeSingle(),
     admin.from("client_notes").select("title, type, content, meeting_date, created_at").eq("client_id", client_id).order("created_at", { ascending: false }).limit(20),
-    admin.from("call_intelligence").select("call_date, call_type, summary, key_decisions, sentiment").eq("client_id", client_id).order("call_date", { ascending: false }).limit: 15 as any }).limit(15),
+    admin.from("call_intelligence").select("call_date, call_type, summary, key_decisions, sentiment").eq("client_id", client_id).order("call_date", { ascending: false }).limit(15),
     admin.from("tasks").select("title, status, priority, due_date").eq("client_id", client_id).neq("status", "done").order("created_at", { ascending: false }).limit(10),
     admin.from("approval_requests").select("title, status, phase, created_at").eq("client_id", client_id).order("created_at", { ascending: false }).limit(5),
     admin.from("phase_milestone_invoices").select("phase, amount, status, created_at").eq("client_id", client_id).eq("status", "pending").order("created_at", { ascending: false }).limit(5),
