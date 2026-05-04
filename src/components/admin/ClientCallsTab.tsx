@@ -9,7 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Phone, Mic, FileText, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
+import { Phone, Mic, FileText, ChevronDown, ChevronUp, ExternalLink, Brain } from "lucide-react";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { CallSummaryMarkdown, getBriefSummary, unwrapTranscript } from "@/components/admin/CallSummaryMarkdown";
 
 type CallRecord = {
@@ -55,6 +57,22 @@ const TYPE_COLORS: Record<string, string> = {
 export default function ClientCallsTab({ clientId }: { clientId: string }) {
   const [viewingCall, setViewingCall] = useState<CallRecord | null>(null);
   const [transcriptExpanded, setTranscriptExpanded] = useState(false);
+  const queryClient = useQueryClient();
+
+  const analyzeCall = async (callId: string) => {
+    const toastId = toast.loading("Analyzing call with AI…");
+    try {
+      const { data, error } = await supabase.functions.invoke("analyze-call", { body: { call_id: callId } });
+      if (error) throw error;
+      const c = (data as any)?.created;
+      toast.success(`Analyzed — ${c?.tasks ?? 0} task(s) created${c?.note ? ", note added" : ""}`, { id: toastId });
+      queryClient.invalidateQueries({ queryKey: ["call-intelligence", "client", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["client-notes", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    } catch (e: any) {
+      toast.error(e.message || "Analyze failed", { id: toastId });
+    }
+  };
 
   const { data: calls = [], isLoading } = useQuery({
     queryKey: ["call-intelligence", "client", clientId],
@@ -172,6 +190,13 @@ export default function ClientCallsTab({ clientId }: { clientId: string }) {
                       <ExternalLink className="h-3 w-3" /> View in Fathom
                     </a>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => analyzeCall(viewingCall.id)}
+                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                  >
+                    <Brain className="h-3 w-3" /> Analyze with AI
+                  </button>
                 </div>
                 {viewingCall.summary && (
                   <div>
