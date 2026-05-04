@@ -15,6 +15,7 @@ import {
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import PhaseBillingTimeline from "@/components/admin/PhaseBillingTimeline";
 
 const fmt = (cents: number) =>
   (cents / 100).toLocaleString("en-US", {
@@ -66,7 +67,7 @@ export default function ClientBilling() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("clients")
-        .select("id, name, stripe_customer_id, monthly_fee")
+        .select("id, name, stripe_customer_id, monthly_fee, setup_fee, billing_model")
         .eq("id", clientId!)
         .single();
       if (error) throw error;
@@ -196,6 +197,13 @@ export default function ClientBilling() {
           </Button>
         )}
       </motion.div>
+
+      {/* Phase-based milestone timeline */}
+      {clientRecord && ((clientRecord as any).billing_model === 'phase_based' || (clientRecord as any).billing_model === 'hybrid') && Number((clientRecord as any).setup_fee ?? 0) > 0 && (
+        <motion.div {...anim(0.05)}>
+          <PhaseBillingTimeline clientId={clientRecord.id} setupFee={Number((clientRecord as any).setup_fee) || 0} />
+        </motion.div>
+      )}
 
       {/* Overview Cards */}
       <motion.div {...anim(0.05)} className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
