@@ -190,13 +190,13 @@ Rules:
 
       if (!existingNote) {
         const noteContent = [
-          analysis.headline ? `**${analysis.headline}**` : null,
-          analysis.client_status ? `\n**Where they stand:** ${analysis.client_status}` : null,
+          analysis.headline ? `${analysis.headline}` : null,
+          analysis.client_status ? `\nWhere they stand: ${analysis.client_status}` : null,
           Array.isArray(analysis.key_decisions) && analysis.key_decisions.length
-            ? `\n**Decisions:**\n` + analysis.key_decisions.map((d: string) => `- ${d}`).join("\n") : null,
-          analysis.next_steps ? `\n**Next steps:** ${analysis.next_steps}` : null,
+            ? `\nDecisions:\n` + analysis.key_decisions.map((d: string) => `- ${d}`).join("\n") : null,
+          analysis.next_steps ? `\nNext steps: ${analysis.next_steps}` : null,
           Array.isArray(analysis.risks) && analysis.risks.length
-            ? `\n**Risks:**\n` + analysis.risks.map((d: string) => `- ${d}`).join("\n") : null,
+            ? `\nRisks:\n` + analysis.risks.map((d: string) => `- ${d}`).join("\n") : null,
         ].filter(Boolean).join("\n");
 
         const createdBy = userId ?? "00000000-0000-0000-0000-000000000000";
