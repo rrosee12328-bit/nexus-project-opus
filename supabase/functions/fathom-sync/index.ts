@@ -50,6 +50,16 @@ async function fathomGet(path: string, apiKey: string) {
 }
 
 function transcriptArrayToText(arr: any): string | null {
+  // Tolerate string input (already-formatted) or JSON-string input
+  if (typeof arr === "string") {
+    const s = arr.trim();
+    if (!s) return null;
+    if (s.startsWith("[") || s.startsWith("{")) {
+      try { arr = JSON.parse(s); } catch { return s; }
+    } else {
+      return s;
+    }
+  }
   if (!Array.isArray(arr)) return null;
   return arr
     .map((t: any) => {
@@ -59,6 +69,27 @@ function transcriptArrayToText(arr: any): string | null {
       return `${ts}${speaker}: ${text}`.trim();
     })
     .join("\n");
+}
+
+// Normalize a Fathom summary value (which may arrive as an object, a JSON
+// string of an object, or already-clean markdown) into a markdown string.
+function normalizeSummary(val: any): string | null {
+  if (val == null) return null;
+  if (typeof val === "object") {
+    return val.markdown_formatted ?? val.summary ?? val.text ?? null;
+  }
+  if (typeof val === "string") {
+    const s = val.trim();
+    if (!s) return null;
+    if (s.startsWith("{")) {
+      try {
+        const parsed = JSON.parse(s);
+        return parsed.markdown_formatted ?? parsed.summary ?? parsed.text ?? s;
+      } catch { return s; }
+    }
+    return s;
+  }
+  return null;
 }
 
 // Detect suspicious money amounts in the Fathom summary that are very likely
