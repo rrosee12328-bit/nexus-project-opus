@@ -1,0 +1,1 @@
+UPDATE public.proposals SET signed_at=NULL, signed_name=NULL, paid_at=NULL, stripe_checkout_session_id=NULL, contract_pdf_path=NULL, status='draft' WHERE proposal_number='PRP-1002';
