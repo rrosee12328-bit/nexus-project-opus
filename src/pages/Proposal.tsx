@@ -820,6 +820,7 @@ export default function ProposalPage() {
           {step === "pay" && (() => {
             const hasSetup = proposal.setup_fee > 0;
             const hasMonthly = proposal.monthly_fee > 0;
+            const isBimonthly = (proposal.billing_schedule || "monthly").toLowerCase() === "bimonthly";
             const halfAmount = proposal.monthly_fee / 2;
             // Determine next 15th & 30th for display
             const now = new Date();
@@ -871,7 +872,7 @@ export default function ProposalPage() {
                         </div>
                       )}
 
-                      {hasMonthly && !hasSetup && (
+                      {hasMonthly && !hasSetup && isBimonthly && (
                         <>
                           <Separator />
                           <div className="space-y-1.5">
@@ -896,6 +897,17 @@ export default function ProposalPage() {
                           </div>
                         </>
                       )}
+                      {hasMonthly && !hasSetup && !isBimonthly && (
+                        <>
+                          <Separator />
+                          <div className="space-y-1.5">
+                            <p className="text-xs font-semibold text-foreground">Billing Schedule</p>
+                            <p className="text-xs text-muted-foreground">
+                              Single monthly payment of <strong className="text-foreground">{fmt(proposal.monthly_fee)}</strong>, billed automatically each month.
+                            </p>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -917,7 +929,7 @@ export default function ProposalPage() {
                       <>
                         <p className="text-sm text-muted-foreground">
                           You'll be redirected to our secure payment provider to save your card. Your first charge of{" "}
-                          <strong className="text-foreground">{fmt(halfAmount)}</strong> will be on{" "}
+                          <strong className="text-foreground">{fmt(isBimonthly ? halfAmount : proposal.monthly_fee)}</strong> will be on{" "}
                           <strong className="text-foreground">{dateFmt(next15 < next30 ? next15 : next30)}</strong>.
                         </p>
                         <Button size="lg" onClick={handlePay}>
