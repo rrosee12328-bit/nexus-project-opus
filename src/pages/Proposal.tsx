@@ -929,8 +929,8 @@ export default function ProposalPage() {
                       <>
                         <p className="text-sm text-muted-foreground">
                           You'll be redirected to our secure payment provider to save your card. Your first charge of{" "}
-                          <strong className="text-foreground">{fmt(isBimonthly ? halfAmount : proposal.monthly_fee)}</strong> will be on{" "}
-                          <strong className="text-foreground">{dateFmt(next15 < next30 ? next15 : next30)}</strong>.
+                          <strong className="text-foreground">{fmt(isBimonthly ? halfAmount : proposal.monthly_fee)}</strong> will be{" "}
+                          <strong className="text-foreground">today ({dateFmt(new Date())})</strong>, and you'll be charged the same amount on this day each month going forward unless cancelled.
                         </p>
                         <Button size="lg" onClick={handlePay}>
                           <CreditCard className="h-4 w-4 mr-2" />
