@@ -65,9 +65,9 @@ Project Number: {{PROJECT_NUMBER}}
   },
   {
     title: "4. TERM AND DURATION",
-    content: `**4.1 Initial Term** — The initial term of this Contract is a single thirty (30) day Subscription Term commencing on the Effective Date. There is no minimum multi‑month commitment.
+    content: `**4.1 Initial Term** — The initial term shall commence on the Effective Date and continue until completion of the Services, unless earlier terminated.
 
-**4.2 Automatic 30‑Day Renewal** — At the end of the initial 30‑day term, this Contract automatically renews for successive 30‑day Subscription Terms on a month‑to‑month basis until either Party provides at least thirty (30) days' written notice of cancellation prior to the next renewal date.
+**4.2 Ongoing and Recurring Services** — For any Monthly Service, this Contract shall continue on a month‑to‑month basis.
 
 **4.3 Survival** — Provisions relating to Intellectual Property, Payment Obligations, Disclaimers, Indemnification, Limitation of Liability, Governing Law, Arbitration, and Confidentiality shall survive termination.`,
   },
@@ -246,7 +246,7 @@ export function renderContract(data: {
     // retainer (existing default behavior)
     feeBlock = `**3A.2 One‑Time Setup and Build Fee** — Client shall pay a one‑time setup fee of **${fmt(data.setupFee)}** covering initial planning, configuration, development, integration, and deployment.
 
-**3A.3 Monthly Service Fee (30‑Day Term)** — Monthly Service Fee Amount: **${fmt(data.monthlyFee)}** per 30‑day Subscription Term, which may include:
+**3A.3 Monthly Service Fee** — Monthly Service Fee Amount: **${fmt(data.monthlyFee)}** per month, which may include:
 • Updates to AI prompts, responses, messaging, and logic
 • Technical troubleshooting and issue resolution
 • Monitoring system stability and performance
@@ -254,7 +254,7 @@ export function renderContract(data: {
 • Updates to knowledge‑bases or training materials
 • Routine support and guidance
 
-**3A.4 Automatic 30‑Day Renewal — No Multi‑Month Commitment** — The Monthly Service is sold as a recurring 30‑day Subscription Term and automatically renews every 30 days unless Client provides at least thirty (30) days' written notice of cancellation prior to the next renewal date. There is no 60‑day, 90‑day, or other multi‑month minimum commitment.
+**3A.4 Automatic Renewal** — The Monthly Service will automatically renew on a month‑to‑month basis unless Client provides at least thirty (30) days' written notice of cancellation.
 
 **3A.5 Exclusions** — The Monthly Service Fee does not cover new projects, new automations, major redesigns, or expanded scope beyond the original Deliverables.`;
   }
