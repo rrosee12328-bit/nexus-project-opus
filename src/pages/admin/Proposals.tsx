@@ -34,7 +34,8 @@ import { logActivity } from "@/lib/activityLogger";
 import ConvertToClientDialog from "@/components/admin/ConvertToClientDialog";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
-  draft: { label: "Sent", color: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
+  draft: { label: "Draft", color: "bg-muted text-muted-foreground border-border" },
+  sent: { label: "Sent", color: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
   signed: { label: "Signed", color: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
   paid: { label: "Paid", color: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
 };
