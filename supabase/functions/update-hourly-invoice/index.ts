@@ -76,21 +76,32 @@ serve(async (req) => {
       await stripe.invoices.update(header.stripe_invoice_id, invoiceUpdate);
     }
 
-    // Apply line item edits
+    const getInvoiceItemId = (line: any): string | null => {
+      if (typeof line.invoice_item === "string") return line.invoice_item;
+      if (line.invoice_item?.id) return line.invoice_item.id;
+      return line.parent?.invoice_item_details?.invoice_item ?? null;
+    };
+
+    // Apply line item edits. Replace all Stripe draft lines so deleted/hidden paginated
+    // lines cannot survive and keep the total wrong.
     if (Array.isArray(line_items)) {
-      for (const li of line_items) {
+      let startingAfter: string | undefined;
+      do {
+        const page: any = await stripe.invoices.listLineItems(header.stripe_invoice_id, {
+          limit: 100,
+          ...(startingAfter ? { starting_after: startingAfter } : {}),
+        });
+        for (const line of page.data ?? []) {
+          const invoiceItemId = getInvoiceItemId(line);
+          if (!invoiceItemId) throw new Error("This draft contains a non-editable Stripe line. Recreate it as a draft before editing.");
+          await stripe.invoiceItems.del(invoiceItemId);
+        }
+        startingAfter = page.has_more ? page.data?.[page.data.length - 1]?.id : undefined;
+      } while (startingAfter);
+
+      for (const li of line_items.filter((item) => !item.delete)) {
         const amountCents = Math.round(Number(li.amount) * 100);
-        if (li.invoice_item_id) {
-          if (li.delete) {
-            await stripe.invoiceItems.del(li.invoice_item_id);
-          } else {
-            await stripe.invoiceItems.update(li.invoice_item_id, {
-              description: li.description,
-              amount: amountCents,
-              currency: "usd",
-            });
-          }
-        } else if (!li.delete) {
+        if (Number.isFinite(amountCents) && amountCents !== 0) {
           await stripe.invoiceItems.create({
             customer: header.stripe_customer_id!,
             invoice: header.stripe_invoice_id,
