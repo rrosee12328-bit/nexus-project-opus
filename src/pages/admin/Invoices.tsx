@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Receipt, Send, ExternalLink, Loader2, FileText, CheckCircle2, Clock, CalendarClock, Timer, Eye, Download, Mail, FlaskConical, MoreHorizontal, Pencil, Copy, Ban, Trash2, Plus } from "lucide-react";
+import { Receipt, Send, ExternalLink, Loader2, FileText, CheckCircle2, Clock, CalendarClock, Timer, Eye, Download, Mail, FlaskConical, MoreHorizontal, Pencil, Copy, Ban, Trash2, Plus, MinusCircle, Replace } from "lucide-react";
 import { PageHero } from "@/components/ui/page-shell";
 import {
   Dialog,
@@ -329,6 +329,38 @@ export default function Invoices() {
       qc.invalidateQueries({ queryKey: ["invoice-entries"] });
     } catch (e: any) {
       toast.error(e.message ?? `Failed to ${verb} invoice`);
+    } finally {
+      setActionBusyId(null);
+    }
+  };
+
+  const voidAndDuplicateWithCredit = async (id: string, num: string | null) => {
+    if (!confirm(
+      `Void ${num ?? "this invoice"} and create an editable draft copy?\n\n` +
+      `\u2022 The original will be voided in Stripe (client can no longer pay it).\n` +
+      `\u2022 The hours/time stay attached to the new draft (no work lost).\n` +
+      `\u2022 You'll be able to add a credit line for what they paid elsewhere.`
+    )) return;
+    setActionBusyId(id);
+    try {
+      const { data: voidRes, error: voidErr } = await supabase.functions.invoke("void-hourly-invoice", {
+        body: { hourly_invoice_id: id, release_entries: false },
+      });
+      if (voidErr) throw voidErr;
+      if (voidRes?.error) throw new Error(voidRes.error);
+
+      const { data: dupRes, error: dupErr } = await supabase.functions.invoke("duplicate-hourly-invoice", {
+        body: { hourly_invoice_id: id, transfer_entries: true },
+      });
+      if (dupErr) throw dupErr;
+      if (dupRes?.error) throw new Error(dupRes.error);
+
+      toast.success("Original voided & draft created — add a credit line and save");
+      qc.invalidateQueries({ queryKey: ["hourly-invoices"] });
+      qc.invalidateQueries({ queryKey: ["invoice-entries"] });
+      if (dupRes?.hourly_invoice_id) setEditId(dupRes.hourly_invoice_id);
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to void & duplicate");
     } finally {
       setActionBusyId(null);
     }
@@ -650,6 +682,11 @@ export default function Invoices() {
                                 {(inv.status === "draft" || inv.status === "open") && (
                                   <>
                                     <DropdownMenuSeparator />
+                                    {inv.status === "open" && (
+                                      <DropdownMenuItem onClick={() => voidAndDuplicateWithCredit(inv.id, inv.invoice_number)}>
+                                        <Replace className="h-3.5 w-3.5 mr-2" /> Void & duplicate with credit
+                                      </DropdownMenuItem>
+                                    )}
                                     <DropdownMenuItem
                                       onClick={() => voidInvoice(inv.id, inv.invoice_number, inv.status)}
                                       className="text-destructive focus:text-destructive"
