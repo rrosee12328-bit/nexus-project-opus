@@ -106,7 +106,7 @@ serve(async (req) => {
     const refreshed = await stripe.invoices.retrieve(header.stripe_invoice_id);
 
     const dbUpdate: any = {
-      amount_due: (refreshed.amount_due ?? 0) / 100,
+      amount_due: (refreshed.total ?? refreshed.amount_due ?? 0) / 100,
       updated_at: new Date().toISOString(),
     };
     if (notes !== undefined) dbUpdate.notes = notes;

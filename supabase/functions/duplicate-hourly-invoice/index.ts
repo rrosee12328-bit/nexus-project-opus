@@ -143,7 +143,7 @@ serve(async (req) => {
         hosted_invoice_url: refreshed.hosted_invoice_url ?? null,
         invoice_pdf: refreshed.invoice_pdf ?? null,
         status: refreshed.status ?? "draft",
-        amount_due: (refreshed.amount_due ?? 0) / 100,
+        amount_due: (refreshed.total ?? refreshed.amount_due ?? 0) / 100,
       })
       .eq("id", header.id);
 
