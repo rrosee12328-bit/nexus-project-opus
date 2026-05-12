@@ -1001,6 +1001,7 @@ function EditHourlyInvoiceDialog({
 }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [sending, setSending] = useState(false);
   const [notes, setNotes] = useState("");
   const [rate, setRate] = useState<string>("");
   const [lines, setLines] = useState<EditableLine[]>([]);
@@ -1080,11 +1081,15 @@ function EditHourlyInvoiceDialog({
   const total = Math.max(0, subtotal - credits);
 
   const save = async () => {
-    if (!invoiceId) return;
+    return await persist();
+  };
+
+  const persist = async (): Promise<boolean> => {
+    if (!invoiceId) return false;
     const hr = Number(rate);
     if (!Number.isFinite(hr) || hr <= 0) {
       toast.error("Enter a valid hourly rate");
-      return;
+      return false;
     }
     setSaving(true);
     try {
@@ -1106,11 +1111,33 @@ function EditHourlyInvoiceDialog({
       if (data?.error) throw new Error(data.error);
       toast.success("Invoice updated");
       onSaved();
-      onClose();
+      return true;
     } catch (e: any) {
       toast.error(e.message ?? "Failed to save");
+      return false;
     } finally {
       setSaving(false);
+    }
+  };
+
+  const saveAndSend = async () => {
+    if (!invoiceId) return;
+    const ok = await persist();
+    if (!ok) return;
+    setSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("finalize-hourly-invoice", {
+        body: { hourly_invoice_id: invoiceId, send: true },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success("Invoice finalized & emailed to client");
+      onSaved();
+      onClose();
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to send");
+    } finally {
+      setSending(false);
     }
   };
 
@@ -1244,11 +1271,17 @@ function EditHourlyInvoiceDialog({
         )}
 
         <div className="border-t pt-3 flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button onClick={save} disabled={saving || loading}>
+          <Button variant="ghost" onClick={onClose} disabled={saving || sending}>Cancel</Button>
+          <Button variant="outline" onClick={save} disabled={saving || sending || loading}>
             {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-1.5" />}
             Save changes
           </Button>
+          {invoiceMeta?.status === "draft" && (
+            <Button onClick={saveAndSend} disabled={saving || sending || loading}>
+              {sending ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Send className="h-4 w-4 mr-1.5" />}
+              Save & send to client
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
