@@ -3,21 +3,20 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors'
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, { apiVersion: "2024-06-20" });
 const INVOICE_ID = "in_1TWLN7RwKYaOJUtPnLFDHv3b";
+const CUSTOMER_ID = "cus_UJ4CtAfgC489gi";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    const inv: any = await stripe.invoices.retrieve(INVOICE_ID, { expand: ["lines.data"] });
-    const negLines = inv.lines.data.filter((l: any) => l.amount < 0);
-    let deleted = 0;
-    for (const line of negLines) {
-      const iiId = line.invoice_item || (line.parent?.invoice_item_details?.invoice_item);
-      if (iiId) {
-        try { await stripe.invoiceItems.del(iiId); deleted++; } catch (e) { console.log("del fail", iiId, e); }
-      }
-    }
-    const final = await stripe.invoices.retrieve(INVOICE_ID);
-    return new Response(JSON.stringify({ ok: true, deleted, total: final.total, negCount: negLines.length }), {
+    const created = await stripe.invoiceItems.create({
+      customer: CUSTOMER_ID,
+      invoice: INVOICE_ID,
+      currency: "usd",
+      amount: -44425,
+      description: "Credit for May 8th payment for Vektiss Studio Equipment",
+    });
+    const inv = await stripe.invoices.retrieve(INVOICE_ID);
+    return new Response(JSON.stringify({ ok: true, created: created.id, total: inv.total }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
