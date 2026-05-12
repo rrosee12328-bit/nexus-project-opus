@@ -35,7 +35,7 @@ serve(async (req) => {
       .maybeSingle();
     if (!roleRow) throw new Error("Admin role required");
 
-    const { hourly_invoice_id, target_client_id } = await req.json();
+    const { hourly_invoice_id, target_client_id, transfer_entries = false } = await req.json();
     if (!hourly_invoice_id) throw new Error("hourly_invoice_id required");
 
     const admin = createClient(
@@ -146,6 +146,19 @@ serve(async (req) => {
         amount_due: (refreshed.amount_due ?? 0) / 100,
       })
       .eq("id", header.id);
+
+    // Optionally transfer linked timesheet/calendar entries from the original
+    // to the new draft so the work isn't double-billed and isn't lost.
+    if (transfer_entries) {
+      await admin
+        .from("timesheets")
+        .update({ hourly_invoice_id: header.id, stripe_invoice_id: refreshed.id })
+        .eq("hourly_invoice_id", original.id);
+      await admin
+        .from("calendar_events")
+        .update({ hourly_invoice_id: header.id, stripe_invoice_id: refreshed.id })
+        .eq("hourly_invoice_id", original.id);
+    }
 
     return new Response(
       JSON.stringify({ hourly_invoice_id: header.id, stripe_invoice_id: refreshed.id }),
