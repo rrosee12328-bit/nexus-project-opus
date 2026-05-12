@@ -1109,7 +1109,15 @@ function EditHourlyInvoiceDialog({
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toast.success("Invoice updated");
+      const stripeTotal = Number(data?.amount_due ?? NaN);
+      const expected = Number(total.toFixed(2));
+      if (Number.isFinite(stripeTotal) && Math.abs(stripeTotal - expected) > 0.01) {
+        toast.warning(
+          `Saved, but Stripe total is $${stripeTotal.toFixed(2)} (expected $${expected.toFixed(2)}). Reopen the invoice to verify.`
+        );
+      } else {
+        toast.success(`Invoice saved — total $${stripeTotal.toFixed(2)}`);
+      }
       onSaved();
       return true;
     } catch (e: any) {
