@@ -3,20 +3,13 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors'
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, { apiVersion: "2024-06-20" });
 const INVOICE_ID = "in_1TWLN7RwKYaOJUtPnLFDHv3b";
-const CUSTOMER_ID = "cus_UJ4CtAfgC489gi";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    const created = await stripe.invoiceItems.create({
-      customer: CUSTOMER_ID,
-      invoice: INVOICE_ID,
-      currency: "usd",
-      amount: -44425,
-      description: "Credit for May 8th payment for Vektiss Studio Equipment",
-    });
-    const inv = await stripe.invoices.retrieve(INVOICE_ID);
-    return new Response(JSON.stringify({ ok: true, created: created.id, total: inv.total }), {
+    const today = Math.floor(Date.now() / 1000);
+    const updated = await stripe.invoices.update(INVOICE_ID, { due_date: today, collection_method: "send_invoice" } as any);
+    return new Response(JSON.stringify({ ok: true, due_date: updated.due_date, collection_method: updated.collection_method }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
