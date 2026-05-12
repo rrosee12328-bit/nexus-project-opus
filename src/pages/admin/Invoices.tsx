@@ -943,3 +943,226 @@ function InvoicePreviewDialog({
     </Dialog>
   );
 }
+
+type EditableLine = {
+  invoice_item_id: string | null;
+  description: string;
+  amount: number;
+  isNew?: boolean;
+  delete?: boolean;
+};
+
+function EditHourlyInvoiceDialog({
+  invoiceId,
+  onClose,
+  onSaved,
+}: {
+  invoiceId: string | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [notes, setNotes] = useState("");
+  const [rate, setRate] = useState<string>("");
+  const [lines, setLines] = useState<EditableLine[]>([]);
+  const [invoiceMeta, setInvoiceMeta] = useState<{ number: string | null; status: string } | null>(null);
+
+  const load = async (id: string) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("preview-hourly-invoice", {
+        body: { hourly_invoice_id: id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const inv = data.invoice;
+      const items = data.line_items ?? [];
+      setNotes(inv?.notes ?? "");
+      setRate(String(inv?.hourly_rate ?? ""));
+      setLines(
+        items.map((l: any) => ({
+          invoice_item_id: l.invoice_item_id ?? null,
+          description: l.description ?? "",
+          amount: Number(l.amount ?? 0),
+        }))
+      );
+      setInvoiceMeta({ number: inv?.invoice_number ?? null, status: inv?.status ?? "draft" });
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to load invoice");
+      onClose();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (invoiceId) {
+      setLines([]);
+      setInvoiceMeta(null);
+      void load(invoiceId);
+    }
+  }, [invoiceId]);
+
+  const updateLine = (idx: number, patch: Partial<EditableLine>) => {
+    setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
+  };
+
+  const removeLine = (idx: number) => {
+    setLines((prev) => {
+      const line = prev[idx];
+      if (line.invoice_item_id) {
+        // existing item — mark for deletion
+        return prev.map((l, i) => (i === idx ? { ...l, delete: true } : l));
+      }
+      // new unsaved item — drop
+      return prev.filter((_, i) => i !== idx);
+    });
+  };
+
+  const addLine = () => {
+    setLines((prev) => [...prev, { invoice_item_id: null, description: "", amount: 0, isNew: true }]);
+  };
+
+  const visibleLines = lines.filter((l) => !l.delete);
+  const total = visibleLines.reduce((s, l) => s + Number(l.amount || 0), 0);
+
+  const save = async () => {
+    if (!invoiceId) return;
+    const hr = Number(rate);
+    if (!Number.isFinite(hr) || hr <= 0) {
+      toast.error("Enter a valid hourly rate");
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = lines.map((l) => ({
+        invoice_item_id: l.invoice_item_id,
+        description: l.description,
+        amount: Number(l.amount || 0),
+        delete: !!l.delete,
+      }));
+      const { data, error } = await supabase.functions.invoke("update-hourly-invoice", {
+        body: {
+          hourly_invoice_id: invoiceId,
+          hourly_rate: hr,
+          notes,
+          line_items: payload,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success("Invoice updated");
+      onSaved();
+      onClose();
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={!!invoiceId} onOpenChange={(v) => !v && !saving && onClose()}>
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Pencil className="h-4 w-4" /> Edit invoice {invoiceMeta?.number ?? ""}
+          </DialogTitle>
+          <DialogDescription>
+            Adjust line items, amounts, rate or notes. Changes sync to Stripe immediately. Only available while the invoice is a draft.
+          </DialogDescription>
+        </DialogHeader>
+
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <div className="flex-1 overflow-auto space-y-4 pr-1">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <Label>Hourly rate (USD)</Label>
+                <Input type="number" min={1} step="0.01" value={rate} onChange={(e) => setRate(e.target.value)} />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Notes (appears on invoice)</Label>
+                <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label>Line items</Label>
+                <Button size="sm" variant="outline" onClick={addLine}>
+                  <Plus className="h-3.5 w-3.5 mr-1.5" /> Add line
+                </Button>
+              </div>
+              <div className="rounded-md border">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/40 text-xs text-muted-foreground">
+                    <tr>
+                      <th className="text-left px-3 py-2">Description</th>
+                      <th className="text-right px-3 py-2 w-32">Amount (USD)</th>
+                      <th className="w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleLines.length === 0 ? (
+                      <tr><td colSpan={3} className="px-3 py-4 text-center text-muted-foreground">No line items — add one to invoice the client.</td></tr>
+                    ) : (
+                      lines.map((l, idx) =>
+                        l.delete ? null : (
+                          <tr key={idx} className="border-t">
+                            <td className="px-2 py-2">
+                              <Input
+                                value={l.description}
+                                onChange={(e) => updateLine(idx, { description: e.target.value })}
+                                placeholder="Description"
+                              />
+                            </td>
+                            <td className="px-2 py-2">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={l.amount}
+                                onChange={(e) => updateLine(idx, { amount: Number(e.target.value) })}
+                                className="text-right font-mono"
+                              />
+                            </td>
+                            <td className="px-2 py-2 text-center">
+                              <Button size="sm" variant="ghost" onClick={() => removeLine(idx)} title="Remove line">
+                                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                              </Button>
+                            </td>
+                          </tr>
+                        )
+                      )
+                    )}
+                  </tbody>
+                  <tfoot className="bg-muted/30 border-t">
+                    <tr>
+                      <td className="px-3 py-2 text-right font-medium">Total</td>
+                      <td className="px-3 py-2 text-right font-mono font-bold">
+                        ${total.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      </td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="border-t pt-3 flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button onClick={save} disabled={saving || loading}>
+            {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-1.5" />}
+            Save changes
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
