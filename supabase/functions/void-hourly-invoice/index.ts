@@ -33,7 +33,7 @@ serve(async (req) => {
       .maybeSingle();
     if (!roleRow) throw new Error("Admin role required");
 
-    const { hourly_invoice_id } = await req.json();
+    const { hourly_invoice_id, release_entries = true } = await req.json();
     if (!hourly_invoice_id) throw new Error("hourly_invoice_id required");
 
     const admin = createClient(
@@ -75,17 +75,19 @@ serve(async (req) => {
       .update({ status: "void", updated_at: new Date().toISOString() })
       .eq("id", header.id);
 
-    // Release linked timesheet entries back to unbilled
-    await admin
-      .from("timesheets")
-      .update({ invoiced_at: null, hourly_invoice_id: null, stripe_invoice_id: null })
-      .eq("hourly_invoice_id", header.id);
+    if (release_entries) {
+      // Release linked timesheet entries back to unbilled
+      await admin
+        .from("timesheets")
+        .update({ invoiced_at: null, hourly_invoice_id: null, stripe_invoice_id: null })
+        .eq("hourly_invoice_id", header.id);
 
-    // Release linked calendar events back to unbilled
-    await admin
-      .from("calendar_events")
-      .update({ invoiced_at: null, hourly_invoice_id: null, stripe_invoice_id: null })
-      .eq("hourly_invoice_id", header.id);
+      // Release linked calendar events back to unbilled
+      await admin
+        .from("calendar_events")
+        .update({ invoiced_at: null, hourly_invoice_id: null, stripe_invoice_id: null })
+        .eq("hourly_invoice_id", header.id);
+    }
 
     return new Response(JSON.stringify({ ok: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

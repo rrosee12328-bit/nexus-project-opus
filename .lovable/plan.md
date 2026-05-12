@@ -1,75 +1,57 @@
 ## Goal
-Add Edit, Duplicate, and Void/Cancel actions to each row in the Hourly Invoices History table on `/admin/invoices`, so you can fix mistakes on a draft, kill an invoice that was sent in error, or copy an existing invoice into a new editable draft (e.g. to credit work toward something else the client already paid for).
+On a sent (open) invoice, let me void the original and immediately spawn an editable duplicate that:
+1. Keeps all the timesheet & calendar hours from the original (no time lost), and
+2. Lets me add a credit line for what the client already paid for elsewhere, so the new invoice's total = original − credit.
 
-## Why three actions instead of just "edit"
-Stripe enforces hard rules we can't bend:
-- **Draft** invoices → fully editable (line items, amounts, descriptions, notes, rate). Safe to change.
-- **Open** (sent, unpaid) → can't edit. Only option is **Void** (cancel) and start over.
-- **Paid** → can't edit or void. Need a refund/credit + a fresh invoice (Duplicate covers this).
+## How it works in Stripe
+- Void cancels the original (Stripe `void_invoice`).
+- The new draft gets the same line items copied over, plus one or more **negative-amount invoice items** acting as the credit (Stripe supports negative `invoice_items.amount` natively — total floors at $0).
+- The timesheet/calendar rows that pointed at the voided invoice get re-linked to the new draft so we don't double-bill them and we don't lose the work.
 
-So the right pattern is:
-- Edit on drafts
-- Duplicate on anything (creates a new editable draft from the old one)
-- Void on draft/open
+## Changes
 
-## UI changes (`src/pages/admin/Invoices.tsx`)
+### 1. `void-hourly-invoice` edge function — add `release_entries` flag
+- New optional `release_entries: boolean` (default `true` to keep existing behavior).
+- When `false`, void in Stripe and flip status to `void` in DB, but **do not** clear `invoiced_at` / `hourly_invoice_id` on linked `timesheets` and `calendar_events`. Keeps the work attached so the duplicate flow can claim it.
 
-In the History tab table, add an Actions column with a small dropdown menu per row:
+### 2. `duplicate-hourly-invoice` edge function — add `transfer_entries` flag
+- New optional `transfer_entries: boolean` (default `false`).
+- When `true`, after creating the new draft row + Stripe draft, re-point all `timesheets` and `calendar_events` rows that have `hourly_invoice_id = <original.id>` to the new draft (`hourly_invoice_id = <new.id>`, `stripe_invoice_id = <new.stripe_invoice_id>`). The work stays "billed", just on the new invoice.
+
+### 3. New combined UI action: "Void & duplicate with credit"
+In the History row dropdown, when status is `open` (sent), add a new item above Duplicate:
 
 ```text
-Invoice  Client  Amount  Status  Date  [⋯]
-                                        ├─ Preview        (existing)
-                                        ├─ Edit           (drafts only)
-                                        ├─ Duplicate      (any status)
-                                        └─ Void / Cancel  (draft + open)
+Edit invoice            (drafts only)
+Duplicate as draft      (any)
+─────────────────
+Void & duplicate with credit   ← new, open invoices only
+Void / Cancel
 ```
 
-New `EditHourlyInvoiceDialog` component:
-- Loads the invoice + its line items (reuse `preview-hourly-invoice` for the read).
-- Editable fields: hourly rate, notes, and per-line `description` + `amount` (with add/remove row).
-- Save calls a new edge function `update-hourly-invoice` (draft only). On success, refresh history + preview.
+Clicking it runs (in one go):
+1. `void-hourly-invoice` with `release_entries: false`
+2. `duplicate-hourly-invoice` with `transfer_entries: true`
+3. Opens the Edit dialog on the new draft with a clear empty "Credit" line ready to fill in.
 
-New `DuplicateInvoiceDialog` (lightweight confirm):
-- "Create a new draft copy of INV-1234?" with optional new client picker (default = same client).
-- Calls new edge function `duplicate-hourly-invoice`, then opens the new draft in the edit dialog so you can adjust before sending.
+### 4. Edit dialog — first-class "Add credit" button
+Right next to the existing "Add line" button, add an "Add credit" button that inserts a new line pre-filled with:
+- description: `"Credit — "` (cursor placed for me to type the reason)
+- amount: `0` but stored as the **negative** of whatever I enter (UI shows positive number with a "Credit" badge; payload sends `-amount` to the edge function)
 
-Void confirm dialog:
-- Warns that the invoice will be cancelled in Stripe and the underlying timesheet / calendar entries will be released back to "unbilled" so they can be re-invoiced.
-- Calls new edge function `void-hourly-invoice`.
+The existing `update-hourly-invoice` already passes `amount` straight through to Stripe, so negative amounts work without backend changes. We just need the UI to render credit lines clearly (red minus, separate row style) and convert sign on save.
 
-## New edge functions
-
-All three follow the same pattern as `create-hourly-invoice` (admin auth check, service-role client, Stripe SDK).
-
-1. **`supabase/functions/update-hourly-invoice/index.ts`**
-   - Input: `hourly_invoice_id`, `hourly_rate?`, `notes?`, `line_items?: [{ stripe_item_id?, description, amount, delete? }]`.
-   - Guard: `status === 'draft'` only — otherwise return 400.
-   - For each line: `stripe.invoiceItems.update / create / del`.
-   - Update Stripe invoice `description` (notes).
-   - Refresh totals from Stripe and write back to `hourly_invoices` (`amount_due`, `total_hours` if rate changed, `notes`, `hourly_rate`).
-
-2. **`supabase/functions/duplicate-hourly-invoice/index.ts`**
-   - Input: `hourly_invoice_id`, `target_client_id?` (defaults to original).
-   - Loads original invoice + Stripe line items.
-   - Creates a new `hourly_invoices` row (status `draft`, no timesheet/calendar links — this is intentional so the original entries stay marked invoiced and the copy is a free-form credit/adjustment invoice).
-   - Creates a fresh Stripe draft invoice + copies each line item (description + amount).
-   - Returns new `hourly_invoice_id` so the UI can pop the edit dialog.
-
-3. **`supabase/functions/void-hourly-invoice/index.ts`**
-   - Input: `hourly_invoice_id`.
-   - Guard: status must be `draft` or `open`. Paid invoices return a clear error pointing the user to Duplicate (so they can issue a credit).
-   - For draft → `stripe.invoices.del`. For open → `stripe.invoices.voidInvoice`.
-   - Set `hourly_invoices.status = 'void'`.
-   - Release linked entries: `UPDATE timesheets / calendar_events SET invoiced_at = NULL, hourly_invoice_id = NULL, stripe_invoice_id = NULL WHERE hourly_invoice_id = <id>`.
-
-## Out of scope
-- No refund flow for paid invoices (Stripe Dashboard handles partial refunds better; Duplicate covers the "credit toward something else" case).
-- No bulk actions.
+### 5. Footer math in Edit dialog
+Show "Subtotal", "Credits", "Total" so I can see the credit applied before saving.
 
 ## Files touched
-- `src/pages/admin/Invoices.tsx` — actions menu, edit dialog, duplicate confirm, void confirm.
-- `supabase/functions/update-hourly-invoice/index.ts` (new)
-- `supabase/functions/duplicate-hourly-invoice/index.ts` (new)
-- `supabase/functions/void-hourly-invoice/index.ts` (new)
+- `supabase/functions/void-hourly-invoice/index.ts` — add `release_entries` param
+- `supabase/functions/duplicate-hourly-invoice/index.ts` — add `transfer_entries` param + UPDATE on timesheets/calendar_events
+- `src/pages/admin/Invoices.tsx`:
+  - History row: new "Void & duplicate with credit" menu item for `open` invoices
+  - `EditHourlyInvoiceDialog`: "Add credit" button, sign handling, credit-line styling, Subtotal / Credits / Total footer
 
-No DB migrations required — `hourly_invoices.status = 'void'` is already supported.
+## Out of scope
+- No real Stripe Credit Note (those only apply to finalized/paid invoices). We're modelling the credit as a negative line item on the new draft, which is the standard pattern when nothing was actually paid yet.
+- Refunds (nothing was paid, so nothing to refund).
+- DB migrations — not needed.
