@@ -57,6 +57,8 @@ serve(async (req) => {
         expand: ["lines.data"],
       });
       lineItems = (stripeInvoice.lines?.data ?? []).map((l: any) => ({
+        id: l.id,
+        invoice_item_id: l.invoice_item ?? null,
         description: l.description,
         amount: (l.amount ?? 0) / 100,
         quantity: l.quantity,
