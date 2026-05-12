@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Receipt, Send, ExternalLink, Loader2, FileText, CheckCircle2, Clock, CalendarClock, Timer, Eye, Download, Mail, FlaskConical } from "lucide-react";
+import { Receipt, Send, ExternalLink, Loader2, FileText, CheckCircle2, Clock, CalendarClock, Timer, Eye, Download, Mail, FlaskConical, MoreHorizontal, Pencil, Copy, Ban, Trash2, Plus } from "lucide-react";
 import { PageHero } from "@/components/ui/page-shell";
 import {
   Dialog,
@@ -22,6 +22,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type Client = { id: string; name: string; client_number: string | null; email: string | null };
 
@@ -82,6 +89,8 @@ export default function Invoices() {
   const [autoFinalize, setAutoFinalize] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [actionBusyId, setActionBusyId] = useState<string | null>(null);
 
   // composite key helpers: "timesheet:<id>" / "calendar:<id>"
   const key = (e: Pick<Entry, "source" | "id">) => `${e.source}:${e.id}`;
@@ -285,6 +294,45 @@ export default function Invoices() {
       .reduce((s, i) => s + Number(i.amount_paid), 0);
     return { outstanding, paidThisMonth, count: invoices.length };
   }, [invoices, today]);
+
+  const duplicateInvoice = async (id: string, num: string | null) => {
+    if (!confirm(`Create an editable draft copy of ${num ?? "this invoice"}?`)) return;
+    setActionBusyId(id);
+    try {
+      const { data, error } = await supabase.functions.invoke("duplicate-hourly-invoice", {
+        body: { hourly_invoice_id: id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success("Draft copy created");
+      qc.invalidateQueries({ queryKey: ["hourly-invoices"] });
+      if (data?.hourly_invoice_id) setEditId(data.hourly_invoice_id);
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to duplicate invoice");
+    } finally {
+      setActionBusyId(null);
+    }
+  };
+
+  const voidInvoice = async (id: string, num: string | null, status: string) => {
+    const verb = status === "draft" ? "delete" : "void";
+    if (!confirm(`Are you sure you want to ${verb} ${num ?? "this invoice"}? Linked timesheet & calendar entries will be released back to unbilled.`)) return;
+    setActionBusyId(id);
+    try {
+      const { data, error } = await supabase.functions.invoke("void-hourly-invoice", {
+        body: { hourly_invoice_id: id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(verb === "delete" ? "Draft deleted" : "Invoice voided");
+      qc.invalidateQueries({ queryKey: ["hourly-invoices"] });
+      qc.invalidateQueries({ queryKey: ["invoice-entries"] });
+    } catch (e: any) {
+      toast.error(e.message ?? `Failed to ${verb} invoice`);
+    } finally {
+      setActionBusyId(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -580,6 +628,42 @@ export default function Invoices() {
                                 </a>
                               </Button>
                             )}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size="sm" variant="ghost" disabled={actionBusyId === inv.id} title="More actions">
+                                  {actionBusyId === inv.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <MoreHorizontal className="h-3.5 w-3.5" />
+                                  )}
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                {inv.status === "draft" && (
+                                  <DropdownMenuItem onClick={() => setEditId(inv.id)}>
+                                    <Pencil className="h-3.5 w-3.5 mr-2" /> Edit invoice
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem onClick={() => duplicateInvoice(inv.id, inv.invoice_number)}>
+                                  <Copy className="h-3.5 w-3.5 mr-2" /> Duplicate as draft
+                                </DropdownMenuItem>
+                                {(inv.status === "draft" || inv.status === "open") && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onClick={() => voidInvoice(inv.id, inv.invoice_number, inv.status)}
+                                      className="text-destructive focus:text-destructive"
+                                    >
+                                      {inv.status === "draft" ? (
+                                        <><Trash2 className="h-3.5 w-3.5 mr-2" /> Delete draft</>
+                                      ) : (
+                                        <><Ban className="h-3.5 w-3.5 mr-2" /> Void / Cancel</>
+                                      )}
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -595,6 +679,13 @@ export default function Invoices() {
         invoiceId={previewId}
         onClose={() => setPreviewId(null)}
         onChanged={() => qc.invalidateQueries({ queryKey: ["hourly-invoices"] })}
+      />
+      <EditHourlyInvoiceDialog
+        invoiceId={editId}
+        onClose={() => setEditId(null)}
+        onSaved={() => {
+          qc.invalidateQueries({ queryKey: ["hourly-invoices"] });
+        }}
       />
     </div>
   );
