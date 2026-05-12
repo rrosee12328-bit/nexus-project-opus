@@ -984,7 +984,8 @@ function InvoicePreviewDialog({
 type EditableLine = {
   invoice_item_id: string | null;
   description: string;
-  amount: number;
+  amount: number; // always stored as positive in UI; sign applied via isCredit on save
+  isCredit?: boolean;
   isNew?: boolean;
   delete?: boolean;
 };
@@ -1021,7 +1022,8 @@ function EditHourlyInvoiceDialog({
         items.map((l: any) => ({
           invoice_item_id: l.invoice_item_id ?? null,
           description: l.description ?? "",
-          amount: Number(l.amount ?? 0),
+          amount: Math.abs(Number(l.amount ?? 0)),
+          isCredit: Number(l.amount ?? 0) < 0,
         }))
       );
       setInvoiceMeta({ number: inv?.invoice_number ?? null, status: inv?.status ?? "draft" });
@@ -1061,8 +1063,21 @@ function EditHourlyInvoiceDialog({
     setLines((prev) => [...prev, { invoice_item_id: null, description: "", amount: 0, isNew: true }]);
   };
 
+  const addCredit = () => {
+    setLines((prev) => [
+      ...prev,
+      { invoice_item_id: null, description: "Credit — ", amount: 0, isNew: true, isCredit: true },
+    ]);
+  };
+
   const visibleLines = lines.filter((l) => !l.delete);
-  const total = visibleLines.reduce((s, l) => s + Number(l.amount || 0), 0);
+  const subtotal = visibleLines
+    .filter((l) => !l.isCredit)
+    .reduce((s, l) => s + Number(l.amount || 0), 0);
+  const credits = visibleLines
+    .filter((l) => l.isCredit)
+    .reduce((s, l) => s + Number(l.amount || 0), 0);
+  const total = Math.max(0, subtotal - credits);
 
   const save = async () => {
     if (!invoiceId) return;
@@ -1076,7 +1091,7 @@ function EditHourlyInvoiceDialog({
       const payload = lines.map((l) => ({
         invoice_item_id: l.invoice_item_id,
         description: l.description,
-        amount: Number(l.amount || 0),
+        amount: l.isCredit ? -Math.abs(Number(l.amount || 0)) : Math.abs(Number(l.amount || 0)),
         delete: !!l.delete,
       }));
       const { data, error } = await supabase.functions.invoke("update-hourly-invoice", {
@@ -1131,9 +1146,14 @@ function EditHourlyInvoiceDialog({
             <div>
               <div className="flex items-center justify-between mb-2">
                 <Label>Line items</Label>
-                <Button size="sm" variant="outline" onClick={addLine}>
-                  <Plus className="h-3.5 w-3.5 mr-1.5" /> Add line
-                </Button>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={addLine}>
+                    <Plus className="h-3.5 w-3.5 mr-1.5" /> Add line
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={addCredit}>
+                    <MinusCircle className="h-3.5 w-3.5 mr-1.5 text-emerald-600" /> Add credit
+                  </Button>
+                </div>
               </div>
               <div className="rounded-md border">
                 <table className="w-full text-sm">
@@ -1150,22 +1170,35 @@ function EditHourlyInvoiceDialog({
                     ) : (
                       lines.map((l, idx) =>
                         l.delete ? null : (
-                          <tr key={idx} className="border-t">
+                          <tr key={idx} className={`border-t ${l.isCredit ? "bg-emerald-500/5" : ""}`}>
                             <td className="px-2 py-2">
-                              <Input
-                                value={l.description}
-                                onChange={(e) => updateLine(idx, { description: e.target.value })}
-                                placeholder="Description"
-                              />
+                              <div className="flex items-center gap-2">
+                                {l.isCredit && (
+                                  <Badge variant="outline" className="text-xs bg-emerald-500/15 text-emerald-700 border-emerald-500/30 shrink-0">
+                                    Credit
+                                  </Badge>
+                                )}
+                                <Input
+                                  value={l.description}
+                                  onChange={(e) => updateLine(idx, { description: e.target.value })}
+                                  placeholder={l.isCredit ? "Credit reason (e.g. paid via INV-1023)" : "Description"}
+                                />
+                              </div>
                             </td>
                             <td className="px-2 py-2">
-                              <Input
-                                type="number"
-                                step="0.01"
-                                value={l.amount}
-                                onChange={(e) => updateLine(idx, { amount: Number(e.target.value) })}
-                                className="text-right font-mono"
-                              />
+                              <div className="relative">
+                                {l.isCredit && (
+                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-emerald-700 font-mono text-sm pointer-events-none">−</span>
+                                )}
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min={0}
+                                  value={l.amount}
+                                  onChange={(e) => updateLine(idx, { amount: Math.abs(Number(e.target.value)) })}
+                                  className={`text-right font-mono ${l.isCredit ? "pl-6 text-emerald-700" : ""}`}
+                                />
+                              </div>
                             </td>
                             <td className="px-2 py-2 text-center">
                               <Button size="sm" variant="ghost" onClick={() => removeLine(idx)} title="Remove line">
@@ -1178,6 +1211,24 @@ function EditHourlyInvoiceDialog({
                     )}
                   </tbody>
                   <tfoot className="bg-muted/30 border-t">
+                    {credits > 0 && (
+                      <>
+                        <tr>
+                          <td className="px-3 py-1.5 text-right text-xs text-muted-foreground">Subtotal</td>
+                          <td className="px-3 py-1.5 text-right font-mono text-xs text-muted-foreground">
+                            ${subtotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                          </td>
+                          <td></td>
+                        </tr>
+                        <tr>
+                          <td className="px-3 py-1.5 text-right text-xs text-emerald-700">Credits</td>
+                          <td className="px-3 py-1.5 text-right font-mono text-xs text-emerald-700">
+                            −${credits.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                          </td>
+                          <td></td>
+                        </tr>
+                      </>
+                    )}
                     <tr>
                       <td className="px-3 py-2 text-right font-medium">Total</td>
                       <td className="px-3 py-2 text-right font-mono font-bold">
