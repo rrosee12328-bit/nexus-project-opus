@@ -72,6 +72,16 @@ Deno.serve(async (req) => {
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     let totalEnqueued = 0;
 
+    // ── Load email-level suppression list (case-insensitive) ──
+    const { data: suppressedRows } = await supabase
+      .from("suppressed_emails").select("email");
+    const suppressedSet = new Set(
+      (suppressedRows ?? []).map((r: any) => String(r.email).toLowerCase().trim())
+    );
+    function isSuppressed(email: string): boolean {
+      return suppressedSet.has(String(email).toLowerCase().trim());
+    }
+
     // Check if today is a weekday (Mon-Fri). Payments send any day; all others only weekdays.
     const dayOfWeek = new Date().getUTCDay(); // 0=Sun, 6=Sat
     const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
@@ -93,6 +103,10 @@ Deno.serve(async (req) => {
       type: string, refId: string, email: string, userId: string | null,
       subject: string, html: string, plainText: string
     ) {
+      if (isSuppressed(email)) {
+        console.log(`Skipping ${type} to ${email} — suppressed`);
+        return;
+      }
       const msgId = crypto.randomUUID();
       await supabase.from("reminder_log").insert({
         reminder_type: type, reference_id: refId,
