@@ -585,6 +585,7 @@ export default function AdminCalls() {
                   <TableHead>Type</TableHead>
                   <TableHead>Client</TableHead>
                   <TableHead>Project</TableHead>
+                  <TableHead>Topic</TableHead>
                   <TableHead>Sentiment</TableHead>
                   <TableHead>Summary</TableHead>
                   <TableHead>Src</TableHead>
@@ -608,6 +609,24 @@ export default function AdminCalls() {
                     </TableCell>
                     <TableCell className="text-sm">{getClientName(call.client_id)}</TableCell>
                     <TableCell className="text-sm">{getProjectName(call.project_id)}</TableCell>
+                    <TableCell>
+                      {call.primary_topic ? (
+                        <Badge
+                          variant="outline"
+                          className={TOPIC_COLORS[call.primary_topic] ?? TOPIC_COLORS.unclear}
+                          title={call.topic_reason || ""}
+                        >
+                          {TOPIC_LABELS[call.primary_topic] ?? call.primary_topic}
+                          {typeof call.topic_confidence === "number" && (
+                            <span className="ml-1 opacity-70">
+                              {Math.round(call.topic_confidence * 100)}%
+                            </span>
+                          )}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       {call.sentiment ? (
                         <Badge variant="outline" className={SENTIMENT_COLORS[call.sentiment] ?? SENTIMENT_COLORS.neutral}>
