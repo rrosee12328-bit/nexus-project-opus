@@ -160,6 +160,54 @@ async function fetchMeetingsForTargets(
   return map;
 }
 
+// List ALL Fathom meetings since createdAfter (used to discover meetings that
+// don't yet have a call_intelligence row).
+async function listAllMeetings(
+  apiKey: string,
+  createdAfter?: string,
+  maxPages = 20,
+): Promise<any[]> {
+  const out: any[] = [];
+  let cursor: string | null = null;
+  let pages = 0;
+  do {
+    const qs = new URLSearchParams({ include_summary: "true" });
+    if (createdAfter) qs.set("created_after", createdAfter);
+    if (cursor) qs.set("cursor", cursor);
+    const resp: any = await fathomGet(`/meetings?${qs.toString()}`, apiKey);
+    const items = resp?.items ?? [];
+    out.push(...items);
+    cursor = resp?.next_cursor ?? null;
+    pages++;
+    if (pages >= maxPages) break;
+  } while (cursor);
+  return out;
+}
+
+function pickCallDate(meeting: any): string {
+  return (
+    meeting?.scheduled_start_time
+    ?? meeting?.recording_start_time
+    ?? meeting?.created_at
+    ?? new Date().toISOString()
+  );
+}
+
+function pickCallType(meeting: any): "client_facing" | "internal" {
+  const invitees: any[] = Array.isArray(meeting?.calendar_invitees) ? meeting.calendar_invitees : [];
+  const hasExternal = invitees.some((i) => i?.is_external);
+  return hasExternal ? "client_facing" : "internal";
+}
+
+function pickDurationMinutes(meeting: any): number | null {
+  const s = meeting?.recording_start_time ?? meeting?.scheduled_start_time;
+  const e = meeting?.recording_end_time ?? meeting?.scheduled_end_time;
+  if (!s || !e) return null;
+  const ms = new Date(e).getTime() - new Date(s).getTime();
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+  return Math.round(ms / 60000);
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
