@@ -424,6 +424,9 @@ export default function AdminCalls() {
         description="All Fathom, Retell, and manual call records linked to clients and projects."
         action={
           <div className="flex gap-2">
+            <Button variant="outline" onClick={() => scoreAttribution({})}>
+              <Target className="h-4 w-4 mr-2" /> Score Topics
+            </Button>
             <Button variant="outline" onClick={() => syncFathom({ sync_all_missing: true })}>
               <RefreshCw className="h-4 w-4 mr-2" /> Sync from Fathom
             </Button>
