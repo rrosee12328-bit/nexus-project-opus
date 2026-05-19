@@ -704,6 +704,21 @@ export default function AdminCalls() {
                   </Badge>
                   {viewingCall.client_id && <Badge variant="outline">{getClientName(viewingCall.client_id)}</Badge>}
                   {viewingCall.project_id && <Badge variant="outline">{getProjectName(viewingCall.project_id)}</Badge>}
+                  {viewingCall.primary_topic && (
+                    <Badge
+                      variant="outline"
+                      className={TOPIC_COLORS[viewingCall.primary_topic] ?? TOPIC_COLORS.unclear}
+                      title={viewingCall.topic_reason || ""}
+                    >
+                      <Target className="h-3 w-3 mr-1" />
+                      {TOPIC_LABELS[viewingCall.primary_topic] ?? viewingCall.primary_topic}
+                      {typeof viewingCall.topic_confidence === "number" && (
+                        <span className="ml-1 opacity-70">
+                          {Math.round(viewingCall.topic_confidence * 100)}%
+                        </span>
+                      )}
+                    </Badge>
+                  )}
                   {(viewingCall.fathom_url || viewingCall.fathom_meeting_id) && (
                     <a
                       href={viewingCall.fathom_url || `https://fathom.video/calls/${viewingCall.fathom_meeting_id}`}
@@ -732,7 +747,20 @@ export default function AdminCalls() {
                   >
                     <Brain className="h-3 w-3" /> Analyze with AI
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => scoreAttribution({ call_id: viewingCall.id })}
+                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                    title="Re-score primary topic from transcript"
+                  >
+                    <Target className="h-3 w-3" /> Score topic
+                  </button>
                 </div>
+                {viewingCall.primary_topic && viewingCall.topic_reason && (
+                  <div className="text-xs text-muted-foreground -mt-2">
+                    Topic rationale: {viewingCall.topic_reason}
+                  </div>
+                )}
                 {viewingCall.summary && (
                   <div>
                     <div className="flex items-center justify-between mb-2">
