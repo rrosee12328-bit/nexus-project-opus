@@ -546,6 +546,7 @@ export type Database = {
           flagged_amounts: Json
           id: string
           key_decisions: Json | null
+          primary_topic: string | null
           project_id: string | null
           sentiment: string | null
           summary: string | null
@@ -553,6 +554,9 @@ export type Database = {
           summary_edited_at: string | null
           summary_edited_by: string | null
           summary_original: string | null
+          topic_confidence: number | null
+          topic_reason: string | null
+          topic_scored_at: string | null
           transcript: string | null
         }
         Insert: {
@@ -569,6 +573,7 @@ export type Database = {
           flagged_amounts?: Json
           id?: string
           key_decisions?: Json | null
+          primary_topic?: string | null
           project_id?: string | null
           sentiment?: string | null
           summary?: string | null
@@ -576,6 +581,9 @@ export type Database = {
           summary_edited_at?: string | null
           summary_edited_by?: string | null
           summary_original?: string | null
+          topic_confidence?: number | null
+          topic_reason?: string | null
+          topic_scored_at?: string | null
           transcript?: string | null
         }
         Update: {
@@ -592,6 +600,7 @@ export type Database = {
           flagged_amounts?: Json
           id?: string
           key_decisions?: Json | null
+          primary_topic?: string | null
           project_id?: string | null
           sentiment?: string | null
           summary?: string | null
@@ -599,6 +608,9 @@ export type Database = {
           summary_edited_at?: string | null
           summary_edited_by?: string | null
           summary_original?: string | null
+          topic_confidence?: number | null
+          topic_reason?: string | null
+          topic_scored_at?: string | null
           transcript?: string | null
         }
         Relationships: [
