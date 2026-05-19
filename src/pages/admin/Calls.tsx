@@ -397,6 +397,25 @@ export default function AdminCalls() {
     }
   };
 
+  const scoreAttribution = async (opts: { call_id?: string; rescore_all?: boolean }) => {
+    const toastId = toast.loading(
+      opts.call_id ? "Scoring this call…" : opts.rescore_all ? "Rescoring all calls…" : "Scoring unscored calls…",
+    );
+    try {
+      const { data, error } = await supabase.functions.invoke("score-call-attribution", { body: opts });
+      if (error) throw error;
+      const scored = (data as any)?.scored ?? 0;
+      const skipped = (data as any)?.skipped ?? 0;
+      toast.success(
+        `Scored ${scored} call${scored === 1 ? "" : "s"}${skipped ? ` · ${skipped} skipped` : ""}`,
+        { id: toastId },
+      );
+      queryClient.invalidateQueries({ queryKey: ["call-intelligence"] });
+    } catch (e: any) {
+      toast.error(e.message || "Scoring failed", { id: toastId });
+    }
+  };
+
   return (
     <div className="space-y-6 p-6">
       <PageHero
