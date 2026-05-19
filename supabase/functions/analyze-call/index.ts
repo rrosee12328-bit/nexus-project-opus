@@ -29,6 +29,8 @@ Deno.serve(async (req: Request) => {
 
     const admin = createClient(supabaseUrl, serviceRoleKey);
 
+    const VEKTISS_INTERNAL_CLIENT_ID = "7662c4e3-bf78-494e-b203-40a9ba06fb27";
+
     // Resolve user (admin/ops) — allow service_role bypass for internal calls
     let userId: string | null = null;
     let isService = false;
