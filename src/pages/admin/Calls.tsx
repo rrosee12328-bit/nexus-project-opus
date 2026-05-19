@@ -79,6 +79,7 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 const TOPIC_LABELS: Record<string, string> = {
+  client: "Client focus",
   vektiss: "Vektiss",
   crown: "Crown",
   other: "Other",
@@ -86,6 +87,7 @@ const TOPIC_LABELS: Record<string, string> = {
 };
 
 const TOPIC_COLORS: Record<string, string> = {
+  client: "bg-emerald-500/15 text-emerald-600 border-emerald-500/30",
   vektiss: "bg-primary/15 text-primary border-primary/30",
   crown: "bg-amber-500/20 text-amber-500 border-amber-500/30",
   other: "bg-muted text-muted-foreground border-border",

@@ -9,20 +9,35 @@ const corsHeaders = {
 
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 
-const SYSTEM_PROMPT = `You classify the PRIMARY topic of a meeting recording into one of:
-- "vektiss" — Vektiss internal company operations (Vektiss financials, Vektiss clients, Vektiss strategy, Vektiss team, Vektiss product/portal).
-- "crown" — Crown And Associates business (Greg McCain's other company; Crown clients, Crown operations, Crown projects unrelated to Vektiss).
-- "other" — clearly about a different topic / a third party / unrelated personal matter.
-- "unclear" — too little content or evenly split; cannot decide.
-
-Greg McCain is involved in both companies. Decide based on the DOMINANT topic of the conversation, not who is present.
+function buildSystemPrompt(clientName: string | null, isInternal: boolean) {
+  if (isInternal) {
+    return `You classify the PRIMARY topic of a meeting where the linked client record is the INTERNAL Vektiss company.
+Labels:
+- "vektiss" — Vektiss internal operations (default when meeting is internal).
+- "crown" — Crown And Associates business (Greg McCain's other company).
+- "other" — clearly about a different third party / unrelated matter.
+- "unclear" — too little content to decide.
+Default to "vektiss" unless the conversation is overwhelmingly about Crown or another company.
 Return JSON only: {"label":"vektiss|crown|other|unclear","confidence":0.0-1.0,"reason":"<= 16 words"}`;
+  }
+  return `You classify the PRIMARY topic of a meeting that is linked to client: "${clientName}".
+When a call is attributed to a specific client, the focus is ASSUMED to be that client and their project — not Vektiss internal operations — unless the transcript clearly shows otherwise.
+Labels:
+- "client" — the conversation is primarily about ${clientName} and/or their project (this is the default).
+- "vektiss" — overwhelmingly about Vektiss internal company operations, not this client.
+- "other" — about a different third party entirely.
+- "unclear" — too little content to decide.
+Default to "client" unless evidence is strong otherwise. Discussions of deliverables, strategy, content, or work FOR this client all count as "client".
+Return JSON only: {"label":"client|vektiss|other|unclear","confidence":0.0-1.0,"reason":"<= 16 words"}`;
+}
 
-async function classify(text: string): Promise<{ label: string; confidence: number; reason: string } | null> {
+const VEKTISS_INTERNAL_CLIENT_ID = "7662c4e3-bf78-494e-b203-40a9ba06fb27";
+
+async function classify(text: string, clientName: string | null, isInternal: boolean): Promise<{ label: string; confidence: number; reason: string } | null> {
   const body = {
     model: "google/gemini-2.5-flash",
     messages: [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: buildSystemPrompt(clientName, isInternal) },
       { role: "user", content: `TRANSCRIPT/SUMMARY:\n${(text || "").slice(0, 12000)}` },
     ],
     response_format: { type: "json_object" },
@@ -43,7 +58,10 @@ async function classify(text: string): Promise<{ label: string; confidence: numb
   try {
     const raw = j?.choices?.[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(raw);
-    const label = ["vektiss", "crown", "other", "unclear"].includes(parsed.label) ? parsed.label : "unclear";
+    const allowed = isInternal
+      ? ["vektiss", "crown", "other", "unclear"]
+      : ["client", "vektiss", "other", "unclear"];
+    const label = allowed.includes(parsed.label) ? parsed.label : "unclear";
     const confidence = Math.max(0, Math.min(1, Number(parsed.confidence ?? 0)));
     const reason = String(parsed.reason ?? "").slice(0, 240);
     return { label, confidence, reason };
@@ -66,7 +84,7 @@ Deno.serve(async (req) => {
 
     let query = supabase
       .from("call_intelligence")
-      .select("id, transcript, summary")
+      .select("id, transcript, summary, client_id, clients:client_id(name)")
       .order("call_date", { ascending: false });
 
     if (call_id) {
@@ -89,7 +107,9 @@ Deno.serve(async (req) => {
         results.push({ id: c.id });
         continue;
       }
-      const out = await classify(text);
+      const isInternal = (c as any).client_id === VEKTISS_INTERNAL_CLIENT_ID || !(c as any).client_id;
+      const clientName = (c as any).clients?.name ?? null;
+      const out = await classify(text, clientName, isInternal);
       if (!out) {
         skipped++;
         results.push({ id: c.id });
