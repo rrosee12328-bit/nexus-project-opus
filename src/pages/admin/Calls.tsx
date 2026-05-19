@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Phone, Plus, Search, FileText, Mic, TrendingUp, Users,
   ChevronDown, ChevronUp, Pencil, Trash2, ExternalLink, Download, RefreshCw,
-  Brain, AlertTriangle, CheckCircle2, XCircle, Link2Off,
+  Brain, AlertTriangle, CheckCircle2, XCircle, Link2Off, Target,
 } from "lucide-react";
 import { PageHero, StatStrip } from "@/components/ui/page-shell";
 import { CallSummaryMarkdown, getBriefSummary, unwrapTranscript, extractKeyTakeaways } from "@/components/admin/CallSummaryMarkdown";
@@ -44,6 +44,10 @@ type CallRecord = {
   summary_edited?: boolean;
   summary_original?: string | null;
   flagged_amounts?: Array<{ value: string; suggestion: string; context: string }> | null;
+  primary_topic?: string | null;
+  topic_confidence?: number | null;
+  topic_reason?: string | null;
+  topic_scored_at?: string | null;
 };
 
 type Client = { id: string; name: string };
@@ -72,6 +76,20 @@ const TYPE_COLORS: Record<string, string> = {
   sales: "bg-green-500/20 text-green-400 border-green-500/30",
   internal: "bg-orange-500/20 text-orange-400 border-orange-500/30",
   other: "bg-muted text-muted-foreground border-border",
+};
+
+const TOPIC_LABELS: Record<string, string> = {
+  vektiss: "Vektiss",
+  crown: "Crown",
+  other: "Other",
+  unclear: "Unclear",
+};
+
+const TOPIC_COLORS: Record<string, string> = {
+  vektiss: "bg-primary/15 text-primary border-primary/30",
+  crown: "bg-amber-500/20 text-amber-500 border-amber-500/30",
+  other: "bg-muted text-muted-foreground border-border",
+  unclear: "bg-muted text-muted-foreground border-border",
 };
 
 type FormData = {
