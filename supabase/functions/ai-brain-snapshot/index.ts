@@ -132,6 +132,24 @@ Deno.serve(async (req) => {
       md += '\n'
     }
 
+    // ===== Internal call recaps (last 14 days) — Vektiss company-state context =====
+    const { data: internalRecaps } = await supabase
+      .from('company_summaries')
+      .select('title, content, summary_date')
+      .ilike('title', 'Internal call recap%')
+      .gte('summary_date', fourteenDaysAgo.split('T')[0])
+      .order('summary_date', { ascending: false })
+      .limit(5)
+
+    if ((internalRecaps || []).length > 0) {
+      md += `## 🏢 Internal Vektiss Calls (last 14d)\n`
+      for (const r of internalRecaps!) {
+        const firstLine = String(r.content || '').split('\n').find((l) => l.trim()) || ''
+        md += `- ${r.summary_date}: ${firstLine.slice(0, 180)}\n`
+      }
+      md += '\n'
+    }
+
     const metrics = {
       cash: { actual: actualRevenue, projected: projectedRevenue, expenses: totalExpenses, net: netCash },
       active_clients: activeCount,
@@ -141,6 +159,7 @@ Deno.serve(async (req) => {
       open_proposals: proposals?.length || 0,
       warm_proposals: warmProposals.length,
       open_decisions: decisions?.length || 0,
+      internal_call_recaps: internalRecaps?.length || 0,
     }
 
     // Upsert today's snapshot (one per day)
