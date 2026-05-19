@@ -1,4 +1,4 @@
-// Score each call's primary topic (Vektiss vs Crown And Associates vs Other vs Unclear)
+// Score each call's primary topic (linked client vs Vektiss vs Crown And Associates vs Other vs Unclear)
 // using transcript/summary text. Admin only.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 
@@ -21,13 +21,13 @@ Default to "vektiss" unless the conversation is overwhelmingly about Crown or an
 Return JSON only: {"label":"vektiss|crown|other|unclear","confidence":0.0-1.0,"reason":"<= 16 words"}`;
   }
   return `You classify the PRIMARY topic of a meeting that is linked to client: "${clientName}".
-When a call is attributed to a specific client, the focus is ASSUMED to be that client and their project — not Vektiss internal operations — unless the transcript clearly shows otherwise.
+When a call is attributed to a specific external client, the focus is that client and their project — not Vektiss internal operations — unless the transcript clearly shows the linked client is wrong.
 Labels:
-- "client" — the conversation is primarily about ${clientName} and/or their project (this is the default).
+- "client" — the conversation is about ${clientName} and/or their project (this is the default and expected label).
 - "vektiss" — overwhelmingly about Vektiss internal company operations, not this client.
 - "other" — about a different third party entirely.
 - "unclear" — too little content to decide.
-Default to "client" unless evidence is strong otherwise. Discussions of deliverables, strategy, content, or work FOR this client all count as "client".
+Default to "client". Discussions of deliverables, strategy, content, or work FOR this client all count as "client".
 Return JSON only: {"label":"client|vektiss|other|unclear","confidence":0.0-1.0,"reason":"<= 16 words"}`;
 }
 
@@ -102,13 +102,32 @@ Deno.serve(async (req) => {
 
     for (const c of calls ?? []) {
       const text = (c.transcript || c.summary || "").trim();
+      const isInternal = (c as any).client_id === VEKTISS_INTERNAL_CLIENT_ID || !(c as any).client_id;
+      const clientName = (c as any).clients?.name ?? null;
+      if (!isInternal && clientName) {
+        const { error: upErr } = await supabase
+          .from("call_intelligence")
+          .update({
+            primary_topic: "client",
+            topic_confidence: 1,
+            topic_reason: `Linked meeting focus: ${clientName}`.slice(0, 240),
+            topic_scored_at: new Date().toISOString(),
+          })
+          .eq("id", c.id);
+        if (upErr) {
+          console.error("update error", c.id, upErr);
+          skipped++;
+        } else {
+          scored++;
+          results.push({ id: c.id, label: "client", confidence: 1 });
+        }
+        continue;
+      }
       if (text.length < 80) {
         skipped++;
         results.push({ id: c.id });
         continue;
       }
-      const isInternal = (c as any).client_id === VEKTISS_INTERNAL_CLIENT_ID || !(c as any).client_id;
-      const clientName = (c as any).clients?.name ?? null;
       const out = await classify(text, clientName, isInternal);
       if (!out) {
         skipped++;
