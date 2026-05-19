@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Phone, Plus, Search, FileText, Mic, TrendingUp, Users,
   ChevronDown, ChevronUp, Pencil, Trash2, ExternalLink, Download, RefreshCw,
-  Brain, AlertTriangle, CheckCircle2, XCircle, Link2Off,
+  Brain, AlertTriangle, CheckCircle2, XCircle, Link2Off, Target,
 } from "lucide-react";
 import { PageHero, StatStrip } from "@/components/ui/page-shell";
 import { CallSummaryMarkdown, getBriefSummary, unwrapTranscript, extractKeyTakeaways } from "@/components/admin/CallSummaryMarkdown";
@@ -44,6 +44,10 @@ type CallRecord = {
   summary_edited?: boolean;
   summary_original?: string | null;
   flagged_amounts?: Array<{ value: string; suggestion: string; context: string }> | null;
+  primary_topic?: string | null;
+  topic_confidence?: number | null;
+  topic_reason?: string | null;
+  topic_scored_at?: string | null;
 };
 
 type Client = { id: string; name: string };
@@ -72,6 +76,20 @@ const TYPE_COLORS: Record<string, string> = {
   sales: "bg-green-500/20 text-green-400 border-green-500/30",
   internal: "bg-orange-500/20 text-orange-400 border-orange-500/30",
   other: "bg-muted text-muted-foreground border-border",
+};
+
+const TOPIC_LABELS: Record<string, string> = {
+  vektiss: "Vektiss",
+  crown: "Crown",
+  other: "Other",
+  unclear: "Unclear",
+};
+
+const TOPIC_COLORS: Record<string, string> = {
+  vektiss: "bg-primary/15 text-primary border-primary/30",
+  crown: "bg-amber-500/20 text-amber-500 border-amber-500/30",
+  other: "bg-muted text-muted-foreground border-border",
+  unclear: "bg-muted text-muted-foreground border-border",
 };
 
 type FormData = {
@@ -379,6 +397,25 @@ export default function AdminCalls() {
     }
   };
 
+  const scoreAttribution = async (opts: { call_id?: string; rescore_all?: boolean }) => {
+    const toastId = toast.loading(
+      opts.call_id ? "Scoring this call…" : opts.rescore_all ? "Rescoring all calls…" : "Scoring unscored calls…",
+    );
+    try {
+      const { data, error } = await supabase.functions.invoke("score-call-attribution", { body: opts });
+      if (error) throw error;
+      const scored = (data as any)?.scored ?? 0;
+      const skipped = (data as any)?.skipped ?? 0;
+      toast.success(
+        `Scored ${scored} call${scored === 1 ? "" : "s"}${skipped ? ` · ${skipped} skipped` : ""}`,
+        { id: toastId },
+      );
+      queryClient.invalidateQueries({ queryKey: ["call-intelligence"] });
+    } catch (e: any) {
+      toast.error(e.message || "Scoring failed", { id: toastId });
+    }
+  };
+
   return (
     <div className="space-y-6 p-6">
       <PageHero
@@ -387,6 +424,9 @@ export default function AdminCalls() {
         description="All Fathom, Retell, and manual call records linked to clients and projects."
         action={
           <div className="flex gap-2">
+            <Button variant="outline" onClick={() => scoreAttribution({})}>
+              <Target className="h-4 w-4 mr-2" /> Score Topics
+            </Button>
             <Button variant="outline" onClick={() => syncFathom({ sync_all_missing: true })}>
               <RefreshCw className="h-4 w-4 mr-2" /> Sync from Fathom
             </Button>
@@ -545,6 +585,7 @@ export default function AdminCalls() {
                   <TableHead>Type</TableHead>
                   <TableHead>Client</TableHead>
                   <TableHead>Project</TableHead>
+                  <TableHead>Topic</TableHead>
                   <TableHead>Sentiment</TableHead>
                   <TableHead>Summary</TableHead>
                   <TableHead>Src</TableHead>
@@ -568,6 +609,24 @@ export default function AdminCalls() {
                     </TableCell>
                     <TableCell className="text-sm">{getClientName(call.client_id)}</TableCell>
                     <TableCell className="text-sm">{getProjectName(call.project_id)}</TableCell>
+                    <TableCell>
+                      {call.primary_topic ? (
+                        <Badge
+                          variant="outline"
+                          className={TOPIC_COLORS[call.primary_topic] ?? TOPIC_COLORS.unclear}
+                          title={call.topic_reason || ""}
+                        >
+                          {TOPIC_LABELS[call.primary_topic] ?? call.primary_topic}
+                          {typeof call.topic_confidence === "number" && (
+                            <span className="ml-1 opacity-70">
+                              {Math.round(call.topic_confidence * 100)}%
+                            </span>
+                          )}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       {call.sentiment ? (
                         <Badge variant="outline" className={SENTIMENT_COLORS[call.sentiment] ?? SENTIMENT_COLORS.neutral}>
@@ -645,6 +704,21 @@ export default function AdminCalls() {
                   </Badge>
                   {viewingCall.client_id && <Badge variant="outline">{getClientName(viewingCall.client_id)}</Badge>}
                   {viewingCall.project_id && <Badge variant="outline">{getProjectName(viewingCall.project_id)}</Badge>}
+                  {viewingCall.primary_topic && (
+                    <Badge
+                      variant="outline"
+                      className={TOPIC_COLORS[viewingCall.primary_topic] ?? TOPIC_COLORS.unclear}
+                      title={viewingCall.topic_reason || ""}
+                    >
+                      <Target className="h-3 w-3 mr-1" />
+                      {TOPIC_LABELS[viewingCall.primary_topic] ?? viewingCall.primary_topic}
+                      {typeof viewingCall.topic_confidence === "number" && (
+                        <span className="ml-1 opacity-70">
+                          {Math.round(viewingCall.topic_confidence * 100)}%
+                        </span>
+                      )}
+                    </Badge>
+                  )}
                   {(viewingCall.fathom_url || viewingCall.fathom_meeting_id) && (
                     <a
                       href={viewingCall.fathom_url || `https://fathom.video/calls/${viewingCall.fathom_meeting_id}`}
@@ -673,7 +747,20 @@ export default function AdminCalls() {
                   >
                     <Brain className="h-3 w-3" /> Analyze with AI
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => scoreAttribution({ call_id: viewingCall.id })}
+                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                    title="Re-score primary topic from transcript"
+                  >
+                    <Target className="h-3 w-3" /> Score topic
+                  </button>
                 </div>
+                {viewingCall.primary_topic && viewingCall.topic_reason && (
+                  <div className="text-xs text-muted-foreground -mt-2">
+                    Topic rationale: {viewingCall.topic_reason}
+                  </div>
+                )}
                 {viewingCall.summary && (
                   <div>
                     <div className="flex items-center justify-between mb-2">
