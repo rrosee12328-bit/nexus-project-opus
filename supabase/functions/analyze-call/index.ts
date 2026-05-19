@@ -29,6 +29,8 @@ Deno.serve(async (req: Request) => {
 
     const admin = createClient(supabaseUrl, serviceRoleKey);
 
+    const VEKTISS_INTERNAL_CLIENT_ID = "7662c4e3-bf78-494e-b203-40a9ba06fb27";
+
     // Resolve user (admin/ops) — allow service_role bypass for internal calls
     let userId: string | null = null;
     let isService = false;
@@ -296,6 +298,42 @@ Rules:
           }));
           await admin.from("notifications").insert(rows);
           created.assets_prompt = adminIds.length;
+        }
+      } catch (_) { /* non-fatal */ }
+    }
+
+    // Internal/Vektiss call bridge → company brain
+    // When the call is tied to the internal Vektiss client, mirror the recap
+    // into company_summaries so the daily briefing + AI brain pick it up as
+    // company-state context (not just one client's record).
+    if (call.client_id === VEKTISS_INTERNAL_CLIENT_ID) {
+      try {
+        const callDay = (call.call_date ?? new Date().toISOString()).slice(0, 10);
+        const summaryBody = [
+          analysis.headline ? analysis.headline : null,
+          analysis.client_status ? `\nState: ${analysis.client_status}` : null,
+          Array.isArray(analysis.key_decisions) && analysis.key_decisions.length
+            ? `\nDecisions:\n` + analysis.key_decisions.map((d: string) => `- ${d}`).join("\n") : null,
+          analysis.next_steps ? `\nNext steps: ${analysis.next_steps}` : null,
+          Array.isArray(analysis.risks) && analysis.risks.length
+            ? `\nRisks:\n` + analysis.risks.map((d: string) => `- ${d}`).join("\n") : null,
+        ].filter(Boolean).join("\n");
+
+        const createdBy = userId ?? "00000000-0000-0000-0000-000000000000";
+        const title = `Internal call recap — ${callDay}`;
+        const { data: existingSummary } = await admin
+          .from("company_summaries")
+          .select("id")
+          .eq("title", title)
+          .maybeSingle();
+        if (!existingSummary) {
+          await admin.from("company_summaries").insert({
+            title,
+            content: summaryBody,
+            summary_date: callDay,
+            created_by: createdBy,
+          });
+          created.company_summary = true;
         }
       } catch (_) { /* non-fatal */ }
     }
