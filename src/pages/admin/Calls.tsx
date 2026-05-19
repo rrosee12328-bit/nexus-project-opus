@@ -618,7 +618,9 @@ export default function AdminCalls() {
                           className={TOPIC_COLORS[call.primary_topic] ?? TOPIC_COLORS.unclear}
                           title={call.topic_reason || ""}
                         >
-                          {TOPIC_LABELS[call.primary_topic] ?? call.primary_topic}
+                          {call.primary_topic === "client"
+                            ? getClientName(call.client_id)
+                            : TOPIC_LABELS[call.primary_topic] ?? call.primary_topic}
                           {typeof call.topic_confidence === "number" && (
                             <span className="ml-1 opacity-70">
                               {Math.round(call.topic_confidence * 100)}%
@@ -713,7 +715,9 @@ export default function AdminCalls() {
                       title={viewingCall.topic_reason || ""}
                     >
                       <Target className="h-3 w-3 mr-1" />
-                      {TOPIC_LABELS[viewingCall.primary_topic] ?? viewingCall.primary_topic}
+                      {viewingCall.primary_topic === "client"
+                        ? getClientName(viewingCall.client_id)
+                        : TOPIC_LABELS[viewingCall.primary_topic] ?? viewingCall.primary_topic}
                       {typeof viewingCall.topic_confidence === "number" && (
                         <span className="ml-1 opacity-70">
                           {Math.round(viewingCall.topic_confidence * 100)}%
