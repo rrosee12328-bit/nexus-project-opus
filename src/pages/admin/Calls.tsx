@@ -637,18 +637,16 @@ export default function AdminCalls() {
                     <TableCell className="text-sm">{getClientName(call.client_id)}</TableCell>
                     <TableCell className="text-sm">{getProjectName(call.project_id)}</TableCell>
                     <TableCell>
-                      {call.primary_topic ? (
+                      {getDisplayTopic(call) ? (
                         <Badge
                           variant="outline"
-                          className={TOPIC_COLORS[call.primary_topic] ?? TOPIC_COLORS.unclear}
-                          title={call.topic_reason || ""}
+                          className={TOPIC_COLORS[getDisplayTopic(call) ?? "unclear"] ?? TOPIC_COLORS.unclear}
+                          title={getTopicReason(call) || ""}
                         >
-                          {call.primary_topic === "client"
-                            ? getClientName(call.client_id)
-                            : TOPIC_LABELS[call.primary_topic] ?? call.primary_topic}
-                          {typeof call.topic_confidence === "number" && (
+                          {getTopicLabel(call)}
+                          {typeof getTopicConfidence(call) === "number" && (
                             <span className="ml-1 opacity-70">
-                              {Math.round(call.topic_confidence * 100)}%
+                              {Math.round((getTopicConfidence(call) ?? 0) * 100)}%
                             </span>
                           )}
                         </Badge>
