@@ -352,8 +352,9 @@ export default function AdminCalls() {
       const results = (data as any)?.results ?? [];
       const updated = results.filter((r: any) => !r.error && (r.updated?.length ?? 0) > 0).length;
       const errored = results.filter((r: any) => r.error).length;
+      const inserted = (data as any)?.inserted ?? 0;
       toast.success(
-        `Synced ${updated} call${updated === 1 ? "" : "s"}${errored ? ` (${errored} failed)` : ""}`,
+        `${inserted ? `Imported ${inserted} new · ` : ""}Synced ${updated} call${updated === 1 ? "" : "s"}${errored ? ` (${errored} failed)` : ""}`,
         { id: toastId },
       );
       queryClient.invalidateQueries({ queryKey: ["call-intelligence"] });
