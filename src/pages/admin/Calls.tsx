@@ -94,6 +94,8 @@ const TOPIC_COLORS: Record<string, string> = {
   unclear: "bg-muted text-muted-foreground border-border",
 };
 
+const VEKTISS_INTERNAL_CLIENT_ID = "7662c4e3-bf78-494e-b203-40a9ba06fb27";
+
 type FormData = {
   call_date: string;
   call_type: string;
@@ -323,6 +325,29 @@ export default function AdminCalls() {
 
   const getProjectName = (id: string | null) =>
     id ? (projects.find((p) => p.id === id)?.name ?? "—") : "—";
+
+  const isExternalClientCall = (call: CallRecord) =>
+    !!call.client_id && call.client_id !== VEKTISS_INTERNAL_CLIENT_ID;
+
+  const getDisplayTopic = (call: CallRecord) =>
+    isExternalClientCall(call) ? "client" : call.primary_topic;
+
+  const getTopicLabel = (call: CallRecord) => {
+    const topic = getDisplayTopic(call);
+    return topic === "client"
+      ? getClientName(call.client_id)
+      : topic
+        ? TOPIC_LABELS[topic] ?? topic
+        : "—";
+  };
+
+  const getTopicConfidence = (call: CallRecord) =>
+    isExternalClientCall(call) ? 1 : call.topic_confidence;
+
+  const getTopicReason = (call: CallRecord) =>
+    isExternalClientCall(call)
+      ? `Linked meeting focus: ${getClientName(call.client_id)}`
+      : call.topic_reason;
 
   const handleDownloadPdf = async (call: CallRecord) => {
     const toastId = toast.loading("Generating PDF…");
