@@ -258,12 +258,14 @@ Deno.serve(async (req: Request) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { call_id, fathom_meeting_id, sync_all_missing } = body ?? {};
+    const { call_id, fathom_meeting_id, sync_all_missing, lookback_days } = body ?? {};
 
     // Build list of (callRowId, meetingId) tuples to process
     let targets: Array<{ id: string; meeting_id: string }> = [];
 
     let earliestCallDate: string | null = null;
+    // Set when sync_all_missing: lower bound for discovering NEW meetings.
+    let discoverAfter: string | null = null;
 
     if (sync_all_missing) {
       const { data: rows, error } = await admin
@@ -287,6 +289,11 @@ Deno.serve(async (req: Request) => {
         d.setUTCDate(d.getUTCDate() - 1);
         earliestCallDate = d.toISOString();
       }
+      // Default: look back 60 days (override via lookback_days) for new meetings.
+      const days = Number.isFinite(Number(lookback_days)) ? Number(lookback_days) : 60;
+      const lb = new Date();
+      lb.setUTCDate(lb.getUTCDate() - Math.max(1, Math.min(365, days)));
+      discoverAfter = lb.toISOString();
     } else if (call_id) {
       const { data: row, error } = await admin
         .from("call_intelligence")
@@ -321,11 +328,22 @@ Deno.serve(async (req: Request) => {
 
     // Fathom has no GET /meetings/{id}; we must list and match by recording_id.
     const targetIds = new Set(targets.map((t) => t.meeting_id));
-    const meetingsMap = await fetchMeetingsForTargets(
-      FATHOM_API_KEY,
-      targetIds,
-      earliestCallDate ?? undefined,
-    );
+    let meetingsMap: Map<string, any>;
+    let allListed: any[] = [];
+    if (discoverAfter) {
+      // Discovery mode: pull every meeting in the window, then match.
+      allListed = await listAllMeetings(FATHOM_API_KEY, discoverAfter);
+      meetingsMap = new Map();
+      for (const m of allListed) {
+        if (m?.recording_id != null) meetingsMap.set(String(m.recording_id), m);
+      }
+    } else {
+      meetingsMap = await fetchMeetingsForTargets(
+        FATHOM_API_KEY,
+        targetIds,
+        earliestCallDate ?? undefined,
+      );
+    }
 
     // Load all clients for invitee → client matching
     const { data: allClients } = await admin
@@ -344,6 +362,50 @@ Deno.serve(async (req: Request) => {
       const domain = email.split("@")[1];
       if (domain && !GENERIC_DOMAINS.has(domain) && !clientsByDomain.has(domain)) {
         clientsByDomain.set(domain, c.id);
+      }
+    }
+
+    // Discovery: insert call_intelligence rows for Fathom meetings we don't have yet.
+    let inserted = 0;
+    if (discoverAfter && allListed.length > 0) {
+      const ids = allListed
+        .map((m: any) => (m?.recording_id != null ? String(m.recording_id) : null))
+        .filter((x): x is string => !!x);
+      const existing = new Set<string>();
+      if (ids.length > 0) {
+        const { data: have } = await admin
+          .from("call_intelligence")
+          .select("fathom_meeting_id")
+          .in("fathom_meeting_id", ids);
+        for (const r of have ?? []) {
+          if (r.fathom_meeting_id) existing.add(String(r.fathom_meeting_id));
+        }
+      }
+      for (const m of allListed) {
+        const mid = m?.recording_id != null ? String(m.recording_id) : null;
+        if (!mid || existing.has(mid)) continue;
+        const summaryMd = normalizeSummary(m?.default_summary) ?? normalizeSummary(m?.summary);
+        const newRow: any = {
+          fathom_meeting_id: mid,
+          fathom_url: m?.share_url ?? m?.url ?? null,
+          call_date: pickCallDate(m),
+          call_start_time: m?.scheduled_start_time ?? m?.recording_start_time ?? null,
+          call_end_time: m?.scheduled_end_time ?? m?.recording_end_time ?? null,
+          duration_minutes: pickDurationMinutes(m),
+          call_type: pickCallType(m),
+          client_id: matchClientId(m, clientsByEmail, clientsByDomain),
+          summary: summaryMd,
+          summary_original: summaryMd,
+          flagged_amounts: detectSuspiciousAmounts(summaryMd),
+        };
+        const { data: ins, error: insErr } = await admin
+          .from("call_intelligence")
+          .insert(newRow)
+          .select("id")
+          .maybeSingle();
+        if (insErr || !ins) continue;
+        inserted++;
+        targets.push({ id: ins.id, meeting_id: mid });
       }
     }
 
@@ -421,7 +483,7 @@ Deno.serve(async (req: Request) => {
       }).catch(() => null)
     ));
 
-    return new Response(JSON.stringify({ ok: true, count: results.length, results }), {
+    return new Response(JSON.stringify({ ok: true, count: results.length, inserted, results }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
