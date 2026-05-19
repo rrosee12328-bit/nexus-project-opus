@@ -94,6 +94,8 @@ const TOPIC_COLORS: Record<string, string> = {
   unclear: "bg-muted text-muted-foreground border-border",
 };
 
+const VEKTISS_INTERNAL_CLIENT_ID = "7662c4e3-bf78-494e-b203-40a9ba06fb27";
+
 type FormData = {
   call_date: string;
   call_type: string;
@@ -323,6 +325,29 @@ export default function AdminCalls() {
 
   const getProjectName = (id: string | null) =>
     id ? (projects.find((p) => p.id === id)?.name ?? "—") : "—";
+
+  const isExternalClientCall = (call: CallRecord) =>
+    !!call.client_id && call.client_id !== VEKTISS_INTERNAL_CLIENT_ID;
+
+  const getDisplayTopic = (call: CallRecord) =>
+    isExternalClientCall(call) ? "client" : call.primary_topic;
+
+  const getTopicLabel = (call: CallRecord) => {
+    const topic = getDisplayTopic(call);
+    return topic === "client"
+      ? getClientName(call.client_id)
+      : topic
+        ? TOPIC_LABELS[topic] ?? topic
+        : "—";
+  };
+
+  const getTopicConfidence = (call: CallRecord) =>
+    isExternalClientCall(call) ? 1 : call.topic_confidence;
+
+  const getTopicReason = (call: CallRecord) =>
+    isExternalClientCall(call)
+      ? `Linked meeting focus: ${getClientName(call.client_id)}`
+      : call.topic_reason;
 
   const handleDownloadPdf = async (call: CallRecord) => {
     const toastId = toast.loading("Generating PDF…");
@@ -612,18 +637,16 @@ export default function AdminCalls() {
                     <TableCell className="text-sm">{getClientName(call.client_id)}</TableCell>
                     <TableCell className="text-sm">{getProjectName(call.project_id)}</TableCell>
                     <TableCell>
-                      {call.primary_topic ? (
+                      {getDisplayTopic(call) ? (
                         <Badge
                           variant="outline"
-                          className={TOPIC_COLORS[call.primary_topic] ?? TOPIC_COLORS.unclear}
-                          title={call.topic_reason || ""}
+                          className={TOPIC_COLORS[getDisplayTopic(call) ?? "unclear"] ?? TOPIC_COLORS.unclear}
+                          title={getTopicReason(call) || ""}
                         >
-                          {call.primary_topic === "client"
-                            ? getClientName(call.client_id)
-                            : TOPIC_LABELS[call.primary_topic] ?? call.primary_topic}
-                          {typeof call.topic_confidence === "number" && (
+                          {getTopicLabel(call)}
+                          {typeof getTopicConfidence(call) === "number" && (
                             <span className="ml-1 opacity-70">
-                              {Math.round(call.topic_confidence * 100)}%
+                              {Math.round((getTopicConfidence(call) ?? 0) * 100)}%
                             </span>
                           )}
                         </Badge>
@@ -708,19 +731,17 @@ export default function AdminCalls() {
                   </Badge>
                   {viewingCall.client_id && <Badge variant="outline">{getClientName(viewingCall.client_id)}</Badge>}
                   {viewingCall.project_id && <Badge variant="outline">{getProjectName(viewingCall.project_id)}</Badge>}
-                  {viewingCall.primary_topic && (
+                  {getDisplayTopic(viewingCall) && (
                     <Badge
                       variant="outline"
-                      className={TOPIC_COLORS[viewingCall.primary_topic] ?? TOPIC_COLORS.unclear}
-                      title={viewingCall.topic_reason || ""}
+                      className={TOPIC_COLORS[getDisplayTopic(viewingCall) ?? "unclear"] ?? TOPIC_COLORS.unclear}
+                      title={getTopicReason(viewingCall) || ""}
                     >
                       <Target className="h-3 w-3 mr-1" />
-                      {viewingCall.primary_topic === "client"
-                        ? getClientName(viewingCall.client_id)
-                        : TOPIC_LABELS[viewingCall.primary_topic] ?? viewingCall.primary_topic}
-                      {typeof viewingCall.topic_confidence === "number" && (
+                      {getTopicLabel(viewingCall)}
+                      {typeof getTopicConfidence(viewingCall) === "number" && (
                         <span className="ml-1 opacity-70">
-                          {Math.round(viewingCall.topic_confidence * 100)}%
+                          {Math.round((getTopicConfidence(viewingCall) ?? 0) * 100)}%
                         </span>
                       )}
                     </Badge>
@@ -762,9 +783,9 @@ export default function AdminCalls() {
                     <Target className="h-3 w-3" /> Score topic
                   </button>
                 </div>
-                {viewingCall.primary_topic && viewingCall.topic_reason && (
+                {getDisplayTopic(viewingCall) && getTopicReason(viewingCall) && (
                   <div className="text-xs text-muted-foreground -mt-2">
-                    Topic rationale: {viewingCall.topic_reason}
+                    Topic rationale: {getTopicReason(viewingCall)}
                   </div>
                 )}
                 {viewingCall.summary && (
