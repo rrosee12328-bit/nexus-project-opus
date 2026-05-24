@@ -83,7 +83,8 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const sourceText = (call.summary ?? "") + (call.transcript ? "\n\nTRANSCRIPT:\n" + call.transcript.slice(0, 18000) : "");
+    // Cost cap: truncate transcript to keep prompt small
+    const sourceText = (call.summary ?? "").slice(0, 4000) + (call.transcript ? "\n\nTRANSCRIPT:\n" + call.transcript.slice(0, 8000) : "");
     if (!sourceText.trim()) {
       return new Response(JSON.stringify({ error: "Call has no summary or transcript to analyze" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -123,7 +124,7 @@ Rules:
       method: "POST",
       headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-flash-lite",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: `Client: ${clientName}\nCall type: ${call.call_type}\nDate: ${call.call_date}\n\n${sourceText}` },
