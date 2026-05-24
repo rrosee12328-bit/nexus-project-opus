@@ -1670,7 +1670,7 @@ Deno.serve(async (req) => {
       ? 'https://ai.gateway.lovable.dev/v1/chat/completions'
       : 'https://api.openai.com/v1/chat/completions'
     const apiKey = lovableApiKey || openaiApiKey
-    const model = lovableApiKey ? 'google/gemini-3-flash-preview' : 'gpt-4o'
+    const model = lovableApiKey ? 'google/gemini-2.5-flash-lite' : 'gpt-4o'
 
     if (!apiKey) {
       return new Response(JSON.stringify({ error: 'No AI API key configured' }), {
