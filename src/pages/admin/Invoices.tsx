@@ -47,6 +47,29 @@ type Entry = {
 
 const EMPTY_ENTRIES: Entry[] = [];
 
+// Extract a useful error message from a Supabase FunctionsHttpError.
+// supabase-js stores the underlying Response in error.context, so we read its body.
+async function extractFnError(error: any, fallback: string): Promise<string> {
+  try {
+    const ctx = error?.context;
+    if (ctx && typeof ctx.json === "function") {
+      const body = await ctx.clone().json().catch(() => null);
+      if (body?.error) return String(body.error);
+    }
+    if (ctx && typeof ctx.text === "function") {
+      const txt = await ctx.clone().text().catch(() => "");
+      if (txt) {
+        try {
+          const parsed = JSON.parse(txt);
+          if (parsed?.error) return String(parsed.error);
+        } catch {}
+        return txt.slice(0, 300);
+      }
+    }
+  } catch {}
+  return error?.message || fallback;
+}
+
 type HourlyInvoice = {
   id: string;
   client_id: string;
