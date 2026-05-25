@@ -88,13 +88,20 @@ serve(async (req) => {
       daysUntilDue = (source as any).days_until_due;
     }
 
-    // Create test invoice
+    // Carry the source invoice's memo/description through so the preview shows
+    // the same notes the real client would see. Prefix with a TEST banner.
+    const sourceDescription = (source.description ?? "").trim();
+    const testBanner = `TEST PREVIEW — copy of invoice for ${header.clients?.name ?? "client"}. Do not pay.`;
+    const testDescription = sourceDescription
+      ? `${testBanner}\n\n${sourceDescription}`
+      : testBanner;
+
     const testInvoice = await stripe.invoices.create({
       customer: testCustomer.id,
       collection_method: "send_invoice",
       days_until_due: daysUntilDue,
       auto_advance: false,
-      description: `TEST PREVIEW — copy of invoice for ${header.clients?.name ?? "client"}. Do not pay.`,
+      description: testDescription,
       metadata: {
         vektiss_test: "true",
         source_hourly_invoice_id: header.id,
