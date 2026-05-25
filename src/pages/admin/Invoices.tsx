@@ -644,8 +644,6 @@ export default function Invoices() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="history" className="mt-4">
-
         <TabsContent value="flat" className="space-y-4 mt-4">
           <Card>
             <CardHeader className="pb-3">
@@ -769,6 +767,7 @@ export default function Invoices() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="history" className="mt-4">
           <Card>
             <CardContent className="p-0">
               {loadingInvoices ? (
