@@ -62,6 +62,7 @@ type HourlyInvoice = {
   period_end: string | null;
   paid_at: string | null;
   created_at: string;
+  invoice_type?: "hourly" | "flat" | null;
   clients?: { name: string; client_number: string | null } | null;
 };
 
@@ -91,6 +92,19 @@ export default function Invoices() {
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
+
+  // Flat-fee invoice state
+  const [flatClientId, setFlatClientId] = useState<string>("");
+  const [flatNotes, setFlatNotes] = useState("");
+  const [flatDueDays, setFlatDueDays] = useState("14");
+  const [flatAutoFinalize, setFlatAutoFinalize] = useState(true);
+  const [flatLines, setFlatLines] = useState<{ description: string; amount: string }[]>([
+    { description: "", amount: "" },
+  ]);
+  const flatTotal = flatLines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
+  const flatValid =
+    !!flatClientId &&
+    flatLines.some((l) => l.description.trim() && Number(l.amount) > 0);
 
   // composite key helpers: "timesheet:<id>" / "calendar:<id>"
   const key = (e: Pick<Entry, "source" | "id">) => `${e.source}:${e.id}`;
@@ -285,6 +299,36 @@ export default function Invoices() {
     onError: (e: any) => toast.error(e.message ?? "Failed to create invoice"),
   });
 
+  const createFlatInvoice = useMutation({
+    mutationFn: async () => {
+      if (!flatClientId) throw new Error("Pick a client");
+      const clean = flatLines
+        .map((l) => ({ description: l.description.trim(), amount: Number(l.amount) }))
+        .filter((l) => l.description && Number.isFinite(l.amount) && l.amount > 0);
+      if (!clean.length) throw new Error("Add at least one line with a description and amount");
+      const { data, error } = await supabase.functions.invoke("create-flat-invoice", {
+        body: {
+          client_id: flatClientId,
+          line_items: clean,
+          notes: flatNotes || undefined,
+          days_until_due: Number(flatDueDays) || 14,
+          auto_finalize: flatAutoFinalize,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data: any) => {
+      toast.success(flatAutoFinalize ? "Invoice sent to client" : "Draft invoice created");
+      setFlatLines([{ description: "", amount: "" }]);
+      setFlatNotes("");
+      qc.invalidateQueries({ queryKey: ["hourly-invoices"] });
+      if (data?.hosted_invoice_url) window.open(data.hosted_invoice_url, "_blank");
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to create invoice"),
+  });
+
   const stats = useMemo(() => {
     const outstanding = invoices
       .filter((i) => i.status === "open")
@@ -370,8 +414,8 @@ export default function Invoices() {
     <div className="space-y-6">
       <PageHero
         kicker={<><Receipt className="h-3 w-3" />Vektiss / Invoices</>}
-        title="Hourly Invoices"
-        description="Bill clients for tracked hourly work via Stripe."
+        title="Invoices"
+        description="Bill clients hourly from tracked time, or send a flat-fee invoice for an agreed price."
       />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -406,7 +450,8 @@ export default function Invoices() {
 
       <Tabs defaultValue="builder">
         <TabsList>
-          <TabsTrigger value="builder" className="gap-1.5"><Send className="h-3.5 w-3.5" /> New Invoice</TabsTrigger>
+          <TabsTrigger value="builder" className="gap-1.5"><Timer className="h-3.5 w-3.5" /> New Hourly Invoice</TabsTrigger>
+          <TabsTrigger value="flat" className="gap-1.5"><FileText className="h-3.5 w-3.5" /> New Flat Invoice</TabsTrigger>
           <TabsTrigger value="history" className="gap-1.5"><Receipt className="h-3.5 w-3.5" /> History</TabsTrigger>
         </TabsList>
 
@@ -599,6 +644,129 @@ export default function Invoices() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="flat" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Flat-fee invoice</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Use this when you've agreed a fixed price with the client (e.g. milestone, phase, or one-off project deliverable). No timesheets or hourly rate needed.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>Client</Label>
+                <Select value={flatClientId} onValueChange={setFlatClientId}>
+                  <SelectTrigger><SelectValue placeholder="Pick a client…" /></SelectTrigger>
+                  <SelectContent>
+                    {clients.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} {c.email ? "" : "· no email"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Line items</Label>
+                <div className="space-y-2">
+                  {flatLines.map((line, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <Input
+                        placeholder="Description (e.g. Jey Link App — phase 2 delivery)"
+                        value={line.description}
+                        onChange={(e) =>
+                          setFlatLines((prev) => prev.map((l, idx) => idx === i ? { ...l, description: e.target.value } : l))
+                        }
+                        className="flex-1"
+                      />
+                      <div className="relative w-36">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
+                        <Input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          placeholder="1750.00"
+                          value={line.amount}
+                          onChange={(e) =>
+                            setFlatLines((prev) => prev.map((l, idx) => idx === i ? { ...l, amount: e.target.value } : l))
+                          }
+                          className="pl-6 text-right font-mono"
+                        />
+                      </div>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => setFlatLines((prev) => prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev)}
+                        disabled={flatLines.length === 1}
+                        title="Remove line"
+                      >
+                        <MinusCircle className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setFlatLines((prev) => [...prev, { description: "", amount: "" }])}
+                  className="gap-1.5"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add line
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <Label>Due in (days)</Label>
+                  <Input type="number" min={1} value={flatDueDays} onChange={(e) => setFlatDueDays(e.target.value)} />
+                </div>
+                <div className="md:col-span-2">
+                  <Label>Notes (appears on invoice)</Label>
+                  <Textarea
+                    rows={2}
+                    value={flatNotes}
+                    onChange={(e) => setFlatNotes(e.target.value)}
+                    placeholder="Jey Link App — phase 2 milestone (agreed flat fee)"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Checkbox id="flat-auto-fin" checked={flatAutoFinalize} onCheckedChange={(v) => setFlatAutoFinalize(!!v)} />
+                <Label htmlFor="flat-auto-fin" className="text-sm font-normal cursor-pointer">
+                  Finalize and email immediately (uncheck to create a draft you review first)
+                </Label>
+              </div>
+
+              <div className="flex items-center justify-between p-4 rounded-md bg-muted/40 border">
+                <div className="text-sm">
+                  <p className="text-muted-foreground">
+                    {flatLines.filter((l) => l.description.trim() && Number(l.amount) > 0).length} line(s)
+                  </p>
+                  <p className="text-2xl font-bold text-foreground">
+                    ${flatTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  </p>
+                  {!flatValid && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                      Pick a client and add at least one line with description + amount
+                    </p>
+                  )}
+                </div>
+                <Button
+                  size="lg"
+                  onClick={() => createFlatInvoice.mutate()}
+                  disabled={createFlatInvoice.isPending || !flatValid}
+                  className="gap-2"
+                >
+                  {createFlatInvoice.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  {flatAutoFinalize ? "Create & Send" : "Create Draft"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="history" className="mt-4">
           <Card>
             <CardContent className="p-0">
@@ -612,6 +780,7 @@ export default function Invoices() {
                     <TableRow>
                       <TableHead>#</TableHead>
                       <TableHead>Client</TableHead>
+                      <TableHead>Type</TableHead>
                       <TableHead>Period</TableHead>
                       <TableHead className="text-right">Hours</TableHead>
                       <TableHead className="text-right">Rate</TableHead>
@@ -629,13 +798,24 @@ export default function Invoices() {
                           <p className="text-sm text-foreground">{inv.clients?.name ?? "—"}</p>
                           <p className="text-xs text-muted-foreground font-mono">{inv.clients?.client_number ?? ""}</p>
                         </TableCell>
+                        <TableCell>
+                          {inv.invoice_type === "flat" ? (
+                            <Badge variant="outline" className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30 text-xs">Flat</Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30 text-xs">Hourly</Badge>
+                          )}
+                        </TableCell>
                         <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                           {inv.period_start && inv.period_end
                             ? `${format(new Date(inv.period_start), "MMM d")} – ${format(new Date(inv.period_end), "MMM d")}`
-                            : "—"}
+                            : inv.invoice_type === "flat" ? "—" : "—"}
                         </TableCell>
-                        <TableCell className="text-right font-mono text-sm">{Number(inv.total_hours).toFixed(2)}</TableCell>
-                        <TableCell className="text-right font-mono text-sm">${Number(inv.hourly_rate).toFixed(2)}</TableCell>
+                        <TableCell className="text-right font-mono text-sm">
+                          {inv.invoice_type === "flat" ? "—" : Number(inv.total_hours).toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-sm">
+                          {inv.invoice_type === "flat" ? "—" : `$${Number(inv.hourly_rate).toFixed(2)}`}
+                        </TableCell>
                         <TableCell className="text-right font-mono text-sm">
                           ${Number(inv.amount_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                         </TableCell>

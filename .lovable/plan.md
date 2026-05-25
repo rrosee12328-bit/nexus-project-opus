@@ -1,39 +1,50 @@
 ## Goal
-Stop the high-cost AI automations from firing on their own. Everything stays deployed — you (or buttons in the app) can still run them on demand.
 
-## What gets paused
+Rename the "Hourly Invoices" area to just **Invoices**, and add a second invoice type — **Flat-fee invoice** — so you can bill an agreed price (e.g. Jeremy Ford / Jey Link App = $1,750) without needing timesheets or an hourly rate. You'll pick the type when creating the invoice.
 
-1. **Auto-analyze every new call**
-   - Drop trigger `trg_auto_analyze_call` on `call_intelligence` (and keep the function body in case you re-enable later).
-   - Effect: new Fathom syncs / call rows no longer auto-invoke `analyze-call`. You'll trigger it manually from the call detail page (the existing "Analyze" button keeps working).
+## What you'll see in the portal
 
-2. **Nightly client summaries cron (5am)**
-   - Unschedule pg_cron job `client-summaries-nightly` (jobid 13).
-   - Effect: rolling client summaries stop refreshing in bulk at night. Per-event triggers (notes, calls, payments, projects, approvals) are *not* part of this request and stay on — say the word if you want those off too.
+Admin → **Invoices** page gets a new "Create invoice" dialog with a type toggle at the top:
 
-3. **AI brain + daily engine + watcher crons**
-   - Unschedule:
-     - `ai-brain-snapshot-daily` (jobid 12, 6am)
-     - `ai-daily-engine` (jobid 7, 7am)
-     - `ai-watcher-daily` (jobid 11, 9am)
-     - `ai-watcher-every-4-hours` (jobid 9)
-   - Effect: no autonomous daily briefing, brain snapshot, or watcher flags. Brain Hub will show whatever the last snapshot was. You can re-run any of these manually from the existing admin UI / curl.
+```text
+ Create invoice
+ ┌─────────────────────────────────────────────┐
+ │  Client:   [ Jeremy Ford ▾ ]                │
+ │                                             │
+ │  Invoice type:                              │
+ │  ( ) Hourly  — bill from timesheets/calendar│
+ │  (•) Flat fee — one or more fixed line items│
+ │                                             │
+ │  ── Flat-fee mode ──                        │
+ │  Line items:                                │
+ │   • Jey Link App — phase 2 delivery  $1,750 │
+ │   [ + Add line ]                            │
+ │                                             │
+ │  Notes / description: [_________________]   │
+ │  Due in: [14] days   [ ] Send immediately   │
+ │                                             │
+ │            [ Cancel ]   [ Create invoice ]  │
+ └─────────────────────────────────────────────┘
+```
 
-## What stays on (untouched)
-- `process-email-queue` (every 5s) — needed for transactional email delivery
-- `send-daily-reminders` (1pm) — lightweight, no AI cost
-- `archive-done-tasks-daily` — pure SQL
-- `calendar-prep-tasks-hourly`, `sync-outlook-calendar-every-15min` — calendar sync, no AI
-- Per-event `queue_client_summary_refresh` triggers on notes/calls/payments/etc.
-- Manual buttons (Analyze call, Refresh summary, Run brain snapshot, etc.)
+Hourly mode keeps today's behavior (pick timesheets + calendar entries, multiply by rate). Flat mode skips all of that — you just add line items with a description and dollar amount, hit create, and it generates a Stripe invoice you can send from the portal exactly like the hourly ones.
 
-## How re-enable works
-A short SQL snippet brings each cron job and the trigger back. I'll drop it in a comment in the migration so you can flip everything back on in seconds.
+The invoice list will show a small badge next to each row (`Hourly` / `Flat`) so you can tell them apart at a glance, and the page heading changes from "Hourly invoices" to "Invoices".
 
-## Single migration
-One migration:
-- `DROP TRIGGER IF EXISTS trg_auto_analyze_call ON public.call_intelligence;`
-- `SELECT cron.unschedule(jobname)` for the 4 cron jobs above (guarded with IF EXISTS).
-- Comment block with the exact re-enable SQL.
+## Implementation
 
-No edge-function code changes, no UI changes.
+1. **DB**: add `invoice_type text not null default 'hourly'` to `hourly_invoices` (keep the table name to avoid breaking everything; only labels change). Allowed values: `hourly` | `flat`.
+2. **New edge function `create-flat-invoice`**: takes `client_id`, `line_items: [{ description, amount }]`, `notes`, `days_until_due`, `auto_finalize`. Creates Stripe customer if missing, creates draft invoice + items, inserts a row in `hourly_invoices` with `invoice_type='flat'`, `total_hours=0`, `hourly_rate=0`, `amount_due=sum(line_items)`. No timesheet/calendar touching.
+3. **`src/pages/admin/Invoices.tsx`**:
+   - Rename headings/labels: "Hourly Invoices" → "Invoices", "Hourly rate" stays only inside the Hourly tab.
+   - Add a radio toggle (Hourly | Flat fee) in the create dialog.
+   - Flat mode: dynamic list of `{description, amount}` rows with add/remove, total auto-summed. Disable timesheet selection UI in this mode.
+   - Send to `create-flat-invoice` when flat, otherwise existing `create-hourly-invoice`.
+   - Add a "Type" column / badge in the invoices table reading `invoice_type`.
+4. **Edit / duplicate / void / finalize / preview** functions already operate on `hourly_invoices` rows and Stripe line items — they work as-is for flat invoices (line items are just descriptions + amounts). No changes needed there.
+5. **Client portal billing** already lists invoices via the same table; flat invoices will appear automatically.
+
+## Out of scope
+
+- No rename of the underlying `hourly_invoices` table (would force regenerating every edge function for zero user benefit).
+- No change to milestone/phase-based auto-billing — this is a manual "send invoice now" flow you trigger from the portal.
