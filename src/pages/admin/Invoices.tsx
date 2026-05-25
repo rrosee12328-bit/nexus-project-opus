@@ -645,6 +645,130 @@ export default function Invoices() {
         </TabsContent>
 
         <TabsContent value="history" className="mt-4">
+
+        <TabsContent value="flat" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Flat-fee invoice</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Use this when you've agreed a fixed price with the client (e.g. milestone, phase, or one-off project deliverable). No timesheets or hourly rate needed.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>Client</Label>
+                <Select value={flatClientId} onValueChange={setFlatClientId}>
+                  <SelectTrigger><SelectValue placeholder="Pick a client…" /></SelectTrigger>
+                  <SelectContent>
+                    {clients.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} {c.email ? "" : "· no email"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Line items</Label>
+                <div className="space-y-2">
+                  {flatLines.map((line, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <Input
+                        placeholder="Description (e.g. Jey Link App — phase 2 delivery)"
+                        value={line.description}
+                        onChange={(e) =>
+                          setFlatLines((prev) => prev.map((l, idx) => idx === i ? { ...l, description: e.target.value } : l))
+                        }
+                        className="flex-1"
+                      />
+                      <div className="relative w-36">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
+                        <Input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          placeholder="1750.00"
+                          value={line.amount}
+                          onChange={(e) =>
+                            setFlatLines((prev) => prev.map((l, idx) => idx === i ? { ...l, amount: e.target.value } : l))
+                          }
+                          className="pl-6 text-right font-mono"
+                        />
+                      </div>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => setFlatLines((prev) => prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev)}
+                        disabled={flatLines.length === 1}
+                        title="Remove line"
+                      >
+                        <MinusCircle className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setFlatLines((prev) => [...prev, { description: "", amount: "" }])}
+                  className="gap-1.5"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add line
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <Label>Due in (days)</Label>
+                  <Input type="number" min={1} value={flatDueDays} onChange={(e) => setFlatDueDays(e.target.value)} />
+                </div>
+                <div className="md:col-span-2">
+                  <Label>Notes (appears on invoice)</Label>
+                  <Textarea
+                    rows={2}
+                    value={flatNotes}
+                    onChange={(e) => setFlatNotes(e.target.value)}
+                    placeholder="Jey Link App — phase 2 milestone (agreed flat fee)"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Checkbox id="flat-auto-fin" checked={flatAutoFinalize} onCheckedChange={(v) => setFlatAutoFinalize(!!v)} />
+                <Label htmlFor="flat-auto-fin" className="text-sm font-normal cursor-pointer">
+                  Finalize and email immediately (uncheck to create a draft you review first)
+                </Label>
+              </div>
+
+              <div className="flex items-center justify-between p-4 rounded-md bg-muted/40 border">
+                <div className="text-sm">
+                  <p className="text-muted-foreground">
+                    {flatLines.filter((l) => l.description.trim() && Number(l.amount) > 0).length} line(s)
+                  </p>
+                  <p className="text-2xl font-bold text-foreground">
+                    ${flatTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  </p>
+                  {!flatValid && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                      Pick a client and add at least one line with description + amount
+                    </p>
+                  )}
+                </div>
+                <Button
+                  size="lg"
+                  onClick={() => createFlatInvoice.mutate()}
+                  disabled={createFlatInvoice.isPending || !flatValid}
+                  className="gap-2"
+                >
+                  {createFlatInvoice.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  {flatAutoFinalize ? "Create & Send" : "Create Draft"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
           <Card>
             <CardContent className="p-0">
               {loadingInvoices ? (
