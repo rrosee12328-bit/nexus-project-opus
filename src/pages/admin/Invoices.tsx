@@ -286,7 +286,7 @@ export default function Invoices() {
           auto_finalize: autoFinalize,
         },
       });
-      if (error) throw error;
+      if (error) throw new Error(await extractFnError(error, "Failed to create invoice"));
       if (data?.error) throw new Error(data.error);
       return data;
     },
@@ -314,9 +314,10 @@ export default function Invoices() {
           notes: flatNotes || undefined,
           days_until_due: Number(flatDueDays) || 14,
           auto_finalize: flatAutoFinalize,
+          force: flatForce || undefined,
         },
       });
-      if (error) throw error;
+      if (error) throw new Error(await extractFnError(error, "Failed to create invoice"));
       if (data?.error) throw new Error(data.error);
       return data;
     },
