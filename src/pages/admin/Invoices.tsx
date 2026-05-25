@@ -62,6 +62,7 @@ type HourlyInvoice = {
   period_end: string | null;
   paid_at: string | null;
   created_at: string;
+  invoice_type?: "hourly" | "flat" | null;
   clients?: { name: string; client_number: string | null } | null;
 };
 
@@ -91,6 +92,19 @@ export default function Invoices() {
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
+
+  // Flat-fee invoice state
+  const [flatClientId, setFlatClientId] = useState<string>("");
+  const [flatNotes, setFlatNotes] = useState("");
+  const [flatDueDays, setFlatDueDays] = useState("14");
+  const [flatAutoFinalize, setFlatAutoFinalize] = useState(true);
+  const [flatLines, setFlatLines] = useState<{ description: string; amount: string }[]>([
+    { description: "", amount: "" },
+  ]);
+  const flatTotal = flatLines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
+  const flatValid =
+    !!flatClientId &&
+    flatLines.some((l) => l.description.trim() && Number(l.amount) > 0);
 
   // composite key helpers: "timesheet:<id>" / "calendar:<id>"
   const key = (e: Pick<Entry, "source" | "id">) => `${e.source}:${e.id}`;
@@ -285,6 +299,36 @@ export default function Invoices() {
     onError: (e: any) => toast.error(e.message ?? "Failed to create invoice"),
   });
 
+  const createFlatInvoice = useMutation({
+    mutationFn: async () => {
+      if (!flatClientId) throw new Error("Pick a client");
+      const clean = flatLines
+        .map((l) => ({ description: l.description.trim(), amount: Number(l.amount) }))
+        .filter((l) => l.description && Number.isFinite(l.amount) && l.amount > 0);
+      if (!clean.length) throw new Error("Add at least one line with a description and amount");
+      const { data, error } = await supabase.functions.invoke("create-flat-invoice", {
+        body: {
+          client_id: flatClientId,
+          line_items: clean,
+          notes: flatNotes || undefined,
+          days_until_due: Number(flatDueDays) || 14,
+          auto_finalize: flatAutoFinalize,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data: any) => {
+      toast.success(flatAutoFinalize ? "Invoice sent to client" : "Draft invoice created");
+      setFlatLines([{ description: "", amount: "" }]);
+      setFlatNotes("");
+      qc.invalidateQueries({ queryKey: ["hourly-invoices"] });
+      if (data?.hosted_invoice_url) window.open(data.hosted_invoice_url, "_blank");
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to create invoice"),
+  });
+
   const stats = useMemo(() => {
     const outstanding = invoices
       .filter((i) => i.status === "open")
@@ -370,8 +414,8 @@ export default function Invoices() {
     <div className="space-y-6">
       <PageHero
         kicker={<><Receipt className="h-3 w-3" />Vektiss / Invoices</>}
-        title="Hourly Invoices"
-        description="Bill clients for tracked hourly work via Stripe."
+        title="Invoices"
+        description="Bill clients hourly from tracked time, or send a flat-fee invoice for an agreed price."
       />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -406,7 +450,8 @@ export default function Invoices() {
 
       <Tabs defaultValue="builder">
         <TabsList>
-          <TabsTrigger value="builder" className="gap-1.5"><Send className="h-3.5 w-3.5" /> New Invoice</TabsTrigger>
+          <TabsTrigger value="builder" className="gap-1.5"><Timer className="h-3.5 w-3.5" /> New Hourly Invoice</TabsTrigger>
+          <TabsTrigger value="flat" className="gap-1.5"><FileText className="h-3.5 w-3.5" /> New Flat Invoice</TabsTrigger>
           <TabsTrigger value="history" className="gap-1.5"><Receipt className="h-3.5 w-3.5" /> History</TabsTrigger>
         </TabsList>
 
