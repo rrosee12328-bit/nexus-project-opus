@@ -63,21 +63,36 @@ serve(async (req) => {
     }));
     if (!lines.length) throw new Error("No line items to test with");
 
-    // Find or create a Stripe customer for the test recipient
+    // Find or create a Stripe customer for the test recipient.
+    // Always refresh the name/metadata so the test invoice reflects the CURRENT source client,
+    // not whichever client was tested previously with this email.
+    const testCustomerName = `TEST — ${header.clients?.name ?? "Invoice preview"}`;
     const existing = await stripe.customers.list({ email: recipient, limit: 1 });
     const testCustomer = existing.data.length
-      ? existing.data[0]
+      ? await stripe.customers.update(existing.data[0].id, {
+          name: testCustomerName,
+          metadata: { vektiss_test: "true", source_client: header.clients?.name ?? "" },
+        })
       : await stripe.customers.create({
           email: recipient,
-          name: `TEST — ${header.clients?.name ?? "Invoice preview"}`,
-          metadata: { vektiss_test: "true" },
+          name: testCustomerName,
+          metadata: { vektiss_test: "true", source_client: header.clients?.name ?? "" },
         });
+
+    // Mirror the source invoice's due date / collection method so the preview matches reality.
+    let daysUntilDue = 14;
+    if (source.due_date) {
+      const diffDays = Math.ceil((source.due_date * 1000 - Date.now()) / 86400000);
+      daysUntilDue = Math.max(1, diffDays);
+    } else if (typeof (source as any).days_until_due === "number") {
+      daysUntilDue = (source as any).days_until_due;
+    }
 
     // Create test invoice
     const testInvoice = await stripe.invoices.create({
       customer: testCustomer.id,
       collection_method: "send_invoice",
-      days_until_due: 30,
+      days_until_due: daysUntilDue,
       auto_advance: false,
       description: `TEST PREVIEW — copy of invoice for ${header.clients?.name ?? "client"}. Do not pay.`,
       metadata: {
