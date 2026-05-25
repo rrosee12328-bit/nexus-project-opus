@@ -1,50 +1,30 @@
-## Goal
+## What's actually happening
 
-Rename the "Hourly Invoices" area to just **Invoices**, and add a second invoice type — **Flat-fee invoice** — so you can bill an agreed price (e.g. Jeremy Ford / Jey Link App = $1,750) without needing timesheets or an hourly rate. You'll pick the type when creating the invoice.
+The edge function ran fine — it rejected the request on purpose. From the logs:
 
-## What you'll see in the portal
-
-Admin → **Invoices** page gets a new "Create invoice" dialog with a type toggle at the top:
-
-```text
- Create invoice
- ┌─────────────────────────────────────────────┐
- │  Client:   [ Jeremy Ford ▾ ]                │
- │                                             │
- │  Invoice type:                              │
- │  ( ) Hourly  — bill from timesheets/calendar│
- │  (•) Flat fee — one or more fixed line items│
- │                                             │
- │  ── Flat-fee mode ──                        │
- │  Line items:                                │
- │   • Jey Link App — phase 2 delivery  $1,750 │
- │   [ + Add line ]                            │
- │                                             │
- │  Notes / description: [_________________]   │
- │  Due in: [14] days   [ ] Send immediately   │
- │                                             │
- │            [ Cancel ]   [ Create invoice ]  │
- └─────────────────────────────────────────────┘
+```
+create-flat-invoice error: Error: Billing is paused for this client
 ```
 
-Hourly mode keeps today's behavior (pick timesheets + calendar entries, multiply by rate). Flat mode skips all of that — you just add line items with a description and dollar amount, hit create, and it generates a Stripe invoice you can send from the portal exactly like the hourly ones.
+The client you picked (Jeremy Ford / Jey Link App) has `billing_paused_until` set to a future date in the `clients` table, so `create-flat-invoice` refuses to create the invoice. The frontend only shows the generic "Edge Function returned a non-2xx status code" because it doesn't read the error body.
 
-The invoice list will show a small badge next to each row (`Hourly` / `Flat`) so you can tell them apart at a glance, and the page heading changes from "Hourly invoices" to "Invoices".
+## Fix
 
-## Implementation
+Two small changes, both UI-side. No business-logic change unless you want one.
 
-1. **DB**: add `invoice_type text not null default 'hourly'` to `hourly_invoices` (keep the table name to avoid breaking everything; only labels change). Allowed values: `hourly` | `flat`.
-2. **New edge function `create-flat-invoice`**: takes `client_id`, `line_items: [{ description, amount }]`, `notes`, `days_until_due`, `auto_finalize`. Creates Stripe customer if missing, creates draft invoice + items, inserts a row in `hourly_invoices` with `invoice_type='flat'`, `total_hours=0`, `hourly_rate=0`, `amount_due=sum(line_items)`. No timesheet/calendar touching.
-3. **`src/pages/admin/Invoices.tsx`**:
-   - Rename headings/labels: "Hourly Invoices" → "Invoices", "Hourly rate" stays only inside the Hourly tab.
-   - Add a radio toggle (Hourly | Flat fee) in the create dialog.
-   - Flat mode: dynamic list of `{description, amount}` rows with add/remove, total auto-summed. Disable timesheet selection UI in this mode.
-   - Send to `create-flat-invoice` when flat, otherwise existing `create-hourly-invoice`.
-   - Add a "Type" column / badge in the invoices table reading `invoice_type`.
-4. **Edit / duplicate / void / finalize / preview** functions already operate on `hourly_invoices` rows and Stripe line items — they work as-is for flat invoices (line items are just descriptions + amounts). No changes needed there.
-5. **Client portal billing** already lists invoices via the same table; flat invoices will appear automatically.
+1. **Show the real error in the toast** in `src/pages/admin/Invoices.tsx`. When `supabase.functions.invoke` returns an error, also read `data?.error` (the edge function already returns `{ error: "..." }` with status 400) and surface that string in the toast — so next time you'd see "Billing is paused for this client" instead of the generic message. Apply the same fix to the hourly create path while we're in there.
+
+2. **Add an "Override billing pause" checkbox** to the Flat invoice form (admin-only, off by default). When checked, the request sends `force: true`; `create-flat-invoice` skips the `billing_paused_until` guard in that case. Same toggle can be added to hourly later if you want.
+
+If you'd rather just unpause Jeremy Ford's account instead of adding the override, say the word and I'll skip step 2 and instead clear `billing_paused_until` for that client.
+
+## Technical details
+
+- `src/pages/admin/Invoices.tsx` — wrap the `createFlatInvoice` / `createHourlyInvoice` mutations to extract `error.context?.body` (Supabase v2 puts the function's JSON response there) or refetch via `error.message`, then `toast.error(parsedError)`.
+- `supabase/functions/create-flat-invoice/index.ts` — accept optional `force: boolean` in the body; only bypass the `billing_paused_until` check when `force === true` and the caller is admin (already verified above).
+- No DB migration, no change to hourly function unless you ask.
 
 ## Out of scope
 
-- No rename of the underlying `hourly_invoices` table (would force regenerating every edge function for zero user benefit).
-- No change to milestone/phase-based auto-billing — this is a manual "send invoice now" flow you trigger from the portal.
+- Auto-unpausing the client.
+- Changing how `billing_paused_until` gets set elsewhere.
