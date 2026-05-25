@@ -20,6 +20,7 @@ interface Body {
   notes?: string;
   days_until_due?: number;
   auto_finalize?: boolean;
+  force?: boolean;
 }
 
 serve(async (req) => {
@@ -45,7 +46,7 @@ serve(async (req) => {
     if (!roleRow) throw new Error("Admin role required");
 
     const body: Body = await req.json();
-    const { client_id, line_items, notes, days_until_due, auto_finalize } = body;
+    const { client_id, line_items, notes, days_until_due, auto_finalize, force } = body;
 
     if (!client_id) throw new Error("client_id is required");
     if (!Array.isArray(line_items) || line_items.length === 0) {
@@ -70,7 +71,7 @@ serve(async (req) => {
       .eq("id", client_id).single();
     if (clientErr || !client) throw new Error("Client not found");
     if (!client.email) throw new Error("Client has no email — add one before invoicing");
-    if (client.billing_paused_until && new Date(client.billing_paused_until) > new Date()) {
+    if (!force && client.billing_paused_until && new Date(client.billing_paused_until) > new Date()) {
       throw new Error("Billing is paused for this client");
     }
 
