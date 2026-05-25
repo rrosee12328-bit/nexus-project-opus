@@ -780,6 +780,7 @@ export default function Invoices() {
                     <TableRow>
                       <TableHead>#</TableHead>
                       <TableHead>Client</TableHead>
+                      <TableHead>Type</TableHead>
                       <TableHead>Period</TableHead>
                       <TableHead className="text-right">Hours</TableHead>
                       <TableHead className="text-right">Rate</TableHead>
@@ -797,13 +798,24 @@ export default function Invoices() {
                           <p className="text-sm text-foreground">{inv.clients?.name ?? "—"}</p>
                           <p className="text-xs text-muted-foreground font-mono">{inv.clients?.client_number ?? ""}</p>
                         </TableCell>
+                        <TableCell>
+                          {inv.invoice_type === "flat" ? (
+                            <Badge variant="outline" className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30 text-xs">Flat</Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30 text-xs">Hourly</Badge>
+                          )}
+                        </TableCell>
                         <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                           {inv.period_start && inv.period_end
                             ? `${format(new Date(inv.period_start), "MMM d")} – ${format(new Date(inv.period_end), "MMM d")}`
-                            : "—"}
+                            : inv.invoice_type === "flat" ? "—" : "—"}
                         </TableCell>
-                        <TableCell className="text-right font-mono text-sm">{Number(inv.total_hours).toFixed(2)}</TableCell>
-                        <TableCell className="text-right font-mono text-sm">${Number(inv.hourly_rate).toFixed(2)}</TableCell>
+                        <TableCell className="text-right font-mono text-sm">
+                          {inv.invoice_type === "flat" ? "—" : Number(inv.total_hours).toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-sm">
+                          {inv.invoice_type === "flat" ? "—" : `$${Number(inv.hourly_rate).toFixed(2)}`}
+                        </TableCell>
                         <TableCell className="text-right font-mono text-sm">
                           ${Number(inv.amount_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                         </TableCell>
