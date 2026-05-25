@@ -764,6 +764,13 @@ export default function Invoices() {
                 </Label>
               </div>
 
+              <div className="flex items-center gap-2">
+                <Checkbox id="flat-force" checked={flatForce} onCheckedChange={(v) => setFlatForce(!!v)} />
+                <Label htmlFor="flat-force" className="text-sm font-normal cursor-pointer">
+                  Override billing pause (only needed if this client's billing is paused)
+                </Label>
+              </div>
+
               <div className="flex items-center justify-between p-4 rounded-md bg-muted/40 border">
                 <div className="text-sm">
                   <p className="text-muted-foreground">
