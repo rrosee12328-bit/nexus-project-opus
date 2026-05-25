@@ -1015,7 +1015,7 @@ function InvoicePreviewDialog({
       const { data: res, error } = await supabase.functions.invoke("send-test-hourly-invoice", {
         body: { hourly_invoice_id: invoiceId, test_email: testEmail.trim() },
       });
-      if (error) throw error;
+      if (error) throw new Error(await extractFnError(error, "Failed to send test"));
       if (res?.error) throw new Error(res.error);
       toast.success(`Test invoice sent to ${res.sent_to}`, {
         description: "The original draft is untouched.",
