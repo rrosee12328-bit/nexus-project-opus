@@ -98,6 +98,7 @@ export default function Invoices() {
   const [flatNotes, setFlatNotes] = useState("");
   const [flatDueDays, setFlatDueDays] = useState("14");
   const [flatAutoFinalize, setFlatAutoFinalize] = useState(true);
+  const [flatForce, setFlatForce] = useState(false);
   const [flatLines, setFlatLines] = useState<{ description: string; amount: string }[]>([
     { description: "", amount: "" },
   ]);
