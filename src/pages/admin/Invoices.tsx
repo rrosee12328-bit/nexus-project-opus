@@ -47,6 +47,29 @@ type Entry = {
 
 const EMPTY_ENTRIES: Entry[] = [];
 
+// Extract a useful error message from a Supabase FunctionsHttpError.
+// supabase-js stores the underlying Response in error.context, so we read its body.
+async function extractFnError(error: any, fallback: string): Promise<string> {
+  try {
+    const ctx = error?.context;
+    if (ctx && typeof ctx.json === "function") {
+      const body = await ctx.clone().json().catch(() => null);
+      if (body?.error) return String(body.error);
+    }
+    if (ctx && typeof ctx.text === "function") {
+      const txt = await ctx.clone().text().catch(() => "");
+      if (txt) {
+        try {
+          const parsed = JSON.parse(txt);
+          if (parsed?.error) return String(parsed.error);
+        } catch {}
+        return txt.slice(0, 300);
+      }
+    }
+  } catch {}
+  return error?.message || fallback;
+}
+
 type HourlyInvoice = {
   id: string;
   client_id: string;
@@ -98,6 +121,7 @@ export default function Invoices() {
   const [flatNotes, setFlatNotes] = useState("");
   const [flatDueDays, setFlatDueDays] = useState("14");
   const [flatAutoFinalize, setFlatAutoFinalize] = useState(true);
+  const [flatForce, setFlatForce] = useState(false);
   const [flatLines, setFlatLines] = useState<{ description: string; amount: string }[]>([
     { description: "", amount: "" },
   ]);
@@ -285,7 +309,7 @@ export default function Invoices() {
           auto_finalize: autoFinalize,
         },
       });
-      if (error) throw error;
+      if (error) throw new Error(await extractFnError(error, "Failed to create invoice"));
       if (data?.error) throw new Error(data.error);
       return data;
     },
@@ -313,9 +337,10 @@ export default function Invoices() {
           notes: flatNotes || undefined,
           days_until_due: Number(flatDueDays) || 14,
           auto_finalize: flatAutoFinalize,
+          force: flatForce || undefined,
         },
       });
-      if (error) throw error;
+      if (error) throw new Error(await extractFnError(error, "Failed to create invoice"));
       if (data?.error) throw new Error(data.error);
       return data;
     },
@@ -736,6 +761,13 @@ export default function Invoices() {
                 <Checkbox id="flat-auto-fin" checked={flatAutoFinalize} onCheckedChange={(v) => setFlatAutoFinalize(!!v)} />
                 <Label htmlFor="flat-auto-fin" className="text-sm font-normal cursor-pointer">
                   Finalize and email immediately (uncheck to create a draft you review first)
+                </Label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Checkbox id="flat-force" checked={flatForce} onCheckedChange={(v) => setFlatForce(!!v)} />
+                <Label htmlFor="flat-force" className="text-sm font-normal cursor-pointer">
+                  Override billing pause (only needed if this client's billing is paused)
                 </Label>
               </div>
 
