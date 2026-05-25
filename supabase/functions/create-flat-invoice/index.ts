@@ -89,35 +89,14 @@ serve(async (req) => {
 
     const amountDue = Number(cleaned.reduce((s, l) => s + l.amount, 0).toFixed(2));
 
-    // Header row first so we have an id for metadata
-    const { data: header, error: headerErr } = await admin
-      .from("hourly_invoices")
-      .insert({
-        client_id: client.id,
-        stripe_customer_id: customerId,
-        status: "draft",
-        invoice_type: "flat",
-        hourly_rate: 0,
-        total_hours: 0,
-        amount_due: amountDue,
-        currency: "usd",
-        notes: notes ?? null,
-        created_by: userId,
-      })
-      .select().single();
-    if (headerErr) throw headerErr;
-
+    // Create Stripe invoice + items FIRST so a failure here doesn't leave an orphan DB row
     const invoice = await stripe.invoices.create({
       customer: customerId!,
       collection_method: "send_invoice",
       days_until_due: days_until_due ?? 14,
       auto_advance: false,
       description: notes ?? "Services",
-      metadata: {
-        hourly_invoice_id: header.id,
-        client_id: client.id,
-        invoice_type: "flat",
-      },
+      metadata: { client_id: client.id, invoice_type: "flat" },
     });
 
     for (const li of cleaned) {
@@ -138,14 +117,33 @@ serve(async (req) => {
       finalInvoice = await stripe.invoices.retrieve(invoice.id);
     }
 
-    await admin.from("hourly_invoices").update({
+    const { data: header, error: headerErr } = await admin
+      .from("hourly_invoices")
+      .insert({
+        client_id: client.id,
+        stripe_customer_id: customerId,
+        invoice_type: "flat",
+        hourly_rate: 0,
+        total_hours: 0,
+        currency: "usd",
+        notes: notes ?? null,
+        created_by: userId,
       stripe_invoice_id: finalInvoice.id,
       invoice_number: finalInvoice.number ?? null,
       hosted_invoice_url: finalInvoice.hosted_invoice_url ?? null,
       invoice_pdf: finalInvoice.invoice_pdf ?? null,
       status: finalInvoice.status ?? "draft",
       amount_due: (finalInvoice.amount_due ?? Math.round(amountDue * 100)) / 100,
-    }).eq("id", header.id);
+      })
+      .select().single();
+    if (headerErr) throw headerErr;
+
+    // Attach the new DB id back to the Stripe invoice metadata so webhooks can link them
+    try {
+      await stripe.invoices.update(finalInvoice.id, {
+        metadata: { client_id: client.id, invoice_type: "flat", hourly_invoice_id: header.id },
+      });
+    } catch (e) { console.warn("stripe metadata update failed:", e); }
 
     return new Response(JSON.stringify({
       hourly_invoice_id: header.id,
