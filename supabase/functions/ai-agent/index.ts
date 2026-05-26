@@ -1752,6 +1752,12 @@ Deno.serve(async (req) => {
       const assistantMessage = choice.message
 
       if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
+        // Model returned nothing — retry once with a nudge before giving up
+        if (!assistantMessage.content || !assistantMessage.content.trim()) {
+          console.warn('Empty assistant message with no tool calls, retrying once')
+          aiMessages.push({ role: 'system', content: 'Your previous response was empty. Please answer the user\'s question directly using available tools if needed.' })
+          continue
+        }
         return new Response(JSON.stringify({
           content: assistantMessage.content || '',
           tool_calls_made: aiMessages.filter((m: { role: string }) => m.role === 'tool').length,
