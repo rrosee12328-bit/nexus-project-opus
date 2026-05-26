@@ -1670,7 +1670,7 @@ Deno.serve(async (req) => {
       ? 'https://ai.gateway.lovable.dev/v1/chat/completions'
       : 'https://api.openai.com/v1/chat/completions'
     const apiKey = lovableApiKey || openaiApiKey
-    const model = lovableApiKey ? 'google/gemini-2.5-flash-lite' : 'gpt-4o'
+    const model = lovableApiKey ? 'google/gemini-2.5-flash' : 'gpt-4o'
 
     if (!apiKey) {
       return new Response(JSON.stringify({ error: 'No AI API key configured' }), {
@@ -1752,6 +1752,12 @@ Deno.serve(async (req) => {
       const assistantMessage = choice.message
 
       if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
+        // Model returned nothing — retry once with a nudge before giving up
+        if (!assistantMessage.content || !assistantMessage.content.trim()) {
+          console.warn('Empty assistant message with no tool calls, retrying once')
+          aiMessages.push({ role: 'system', content: 'Your previous response was empty. Please answer the user\'s question directly using available tools if needed.' })
+          continue
+        }
         return new Response(JSON.stringify({
           content: assistantMessage.content || '',
           tool_calls_made: aiMessages.filter((m: { role: string }) => m.role === 'tool').length,
