@@ -3358,6 +3358,30 @@ export type Database = {
         Returns: number
       }
       get_client_id_for_user: { Args: { _user_id: string }; Returns: string }
+      get_intake_form_by_token: {
+        Args: { _token: string }
+        Returns: {
+          client_id: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          recipient_email: string | null
+          recipient_name: string | null
+          sent_at: string
+          status: string
+          token: string
+          updated_at: string
+          viewed_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "intake_forms"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_proposal_by_token: {
         Args: { _token: string }
         Returns: {
@@ -3415,6 +3439,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      mark_intake_viewed: { Args: { _token: string }; Returns: undefined }
       move_to_dlq: {
         Args: {
           dlq_name: string
