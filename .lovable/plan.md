@@ -1,30 +1,91 @@
-## What's actually happening
+## Business Media Intake Form
 
-The edge function ran fine — it rejected the request on purpose. From the logs:
+Send a branded intake form to prospects/clients to capture business info, inspirations, brand direction, social strategy goals, and editing/deployment timeline. Admin generates a unique link, client fills it out (no login), responses are stored and viewable in a new admin page.
 
-```
-create-flat-invoice error: Error: Billing is paused for this client
-```
+### 1. Database (one migration)
 
-The client you picked (Jeremy Ford / Jey Link App) has `billing_paused_until` set to a future date in the `clients` table, so `create-flat-invoice` refuses to create the invoice. The frontend only shows the generic "Edge Function returned a non-2xx status code" because it doesn't read the error body.
+**`intake_forms`** — one row per generated link
+- `client_id` (nullable — can send to a prospect before they're a client)
+- `recipient_name`, `recipient_email` (optional pre-fill)
+- `token` (unique, url-safe, used in public link)
+- `status` (`sent` | `viewed` | `completed`)
+- `sent_at`, `viewed_at`, `completed_at`, `expires_at` (nullable)
+- `created_by` (admin user_id)
 
-## Fix
+**`intake_responses`** — one row per submission
+- `intake_form_id` (FK)
+- `client_id` (denormalized for filtering)
+- `business_name`, `contact_name`, `email`, `phone`, `website`
+- `social_accounts` (jsonb: `[{platform, handle}]`)
+- `inspirations` (jsonb: `[{platform, handle, notes}]`)
+- `visual_style_notes` (text)
+- `company_description`, `target_demographic`, `competitors` (text)
+- `brand_voice`, `brand_guidelines`, `differentiators` (text)
+- `active_platforms`, `expansion_platforms`, `primary_goals`, `dream_deliverables` (text)
+- `turnaround_expectations`, `approval_process`, `success_kpis` (text)
+- `submitted_at`
 
-Two small changes, both UI-side. No business-logic change unless you want one.
+RLS:
+- `intake_forms`: admins/ops full access; public (anon) SELECT by token only.
+- `intake_responses`: admins/ops full access; public (anon) INSERT when a matching un-completed token exists; clients can SELECT their own.
+- GRANTs for `anon`, `authenticated`, `service_role` per policies.
 
-1. **Show the real error in the toast** in `src/pages/admin/Invoices.tsx`. When `supabase.functions.invoke` returns an error, also read `data?.error` (the edge function already returns `{ error: "..." }` with status 400) and surface that string in the toast — so next time you'd see "Billing is paused for this client" instead of the generic message. Apply the same fix to the hourly create path while we're in there.
+### 2. Public form page — `/intake/:token`
 
-2. **Add an "Override billing pause" checkbox** to the Flat invoice form (admin-only, off by default). When checked, the request sends `force: true`; `create-flat-invoice` skips the `billing_paused_until` guard in that case. Same toggle can be added to hourly later if you want.
+- Route added in `App.tsx` outside AdminLayout (no auth required).
+- Loads the token, marks `viewed_at` on first load, shows the intake form styled to match Vektiss brand (Inter font, primary blue, light/dark aware).
+- Sections mirror the PDF exactly:
+  1. Client Information
+  2. Social Media Presence (repeatable rows across 8 platforms + Other)
+  3. Inspiration (repeatable rows: platform / handle / what you love)
+  4. Visual style notes
+  5. Discovery (company, demographic, competitors)
+  6. Design (voice, guidelines, differentiators)
+  7. Direction (platforms, goals, deliverables)
+  8. Deployment (deadlines, approval, KPIs)
+- Zod validation, autosave-free single submit, success screen after post.
+- Duplicate-submit guard on already-`completed` tokens.
 
-If you'd rather just unpause Jeremy Ford's account instead of adding the override, say the word and I'll skip step 2 and instead clear `billing_paused_until` for that client.
+### 3. Admin page — `/admin/intakes`
 
-## Technical details
+New sidebar entry "Intake Forms" under Business Media area (uses `ClipboardList` icon).
 
-- `src/pages/admin/Invoices.tsx` — wrap the `createFlatInvoice` / `createHourlyInvoice` mutations to extract `error.context?.body` (Supabase v2 puts the function's JSON response there) or refetch via `error.message`, then `toast.error(parsedError)`.
-- `supabase/functions/create-flat-invoice/index.ts` — accept optional `force: boolean` in the body; only bypass the `billing_paused_until` check when `force === true` and the caller is admin (already verified above).
-- No DB migration, no change to hourly function unless you ask.
+**List view:**
+- Table of all intake forms: recipient, linked client (if any), status pill (sent/viewed/completed), sent date, completed date.
+- Buttons: "New Intake Link", "Copy Link", "Resend Email", "View Response", "Delete".
 
-## Out of scope
+**"New Intake Link" dialog:**
+- Optional client picker (searchable) or free-form recipient name/email for prospects.
+- Optional expiration date.
+- Generates token, saves row, shows copyable public URL, and offers "Send via email" (uses existing `send-transactional-email` infra with a new `intake-form-invite` template).
 
-- Auto-unpausing the client.
-- Changing how `billing_paused_until` gets set elsewhere.
+**Response detail dialog:**
+- Read-only rendering of the submitted answers grouped by section.
+- "Download PDF" button (uses existing PDF pipeline patterns).
+- If linked to a client, deep-link to that client's detail page.
+
+### 4. Email template
+
+New app email template `intake-form-invite.tsx` in `_shared/transactional-email-templates/`:
+- Subject: "Vektiss Business Media — quick intake form"
+- Button links to `https://portal.vektiss.com/intake/{token}`
+- Registered in `registry.ts`.
+
+### 5. Notifications
+
+- On submission: create in-app notification for all admins + email via existing queue ("New intake response from {name}").
+- Auto-mark linked client's `last_contact_date`.
+
+### Technical notes
+
+- Public route uses the anon Supabase client with token-scoped RLS — no service role in the browser.
+- Reuse `PdfPreview`, phase/brand tokens, and existing `Dialog`/`Card` shadcn patterns.
+- No changes to existing tables or triggers besides adding the new ones.
+- Files touched (approx):
+  - `supabase/migrations/<new>.sql`
+  - `supabase/functions/_shared/transactional-email-templates/intake-form-invite.tsx` (+ registry)
+  - `src/pages/admin/Intakes.tsx` (new)
+  - `src/pages/IntakeForm.tsx` (new public page)
+  - `src/components/admin/IntakeLinkDialog.tsx`, `IntakeResponseDialog.tsx` (new)
+  - `src/App.tsx` (routes)
+  - `src/components/AdminSidebar.tsx` (nav entry)
