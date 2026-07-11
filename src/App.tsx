@@ -15,6 +15,7 @@ import Signup from "./pages/Signup";
 import ResetPassword from "./pages/ResetPassword";
 import AssetDownload from "./pages/AssetDownload";
 import ProposalPage from "./pages/Proposal";
+import IntakeFormPage from "./pages/IntakeForm";
 
 import AdminLayout from "./layouts/AdminLayout";
 import AdminClients from "./pages/admin/Clients";
@@ -36,6 +37,7 @@ import AdminCalls from "./pages/admin/Calls";
 import AdminInvoices from "./pages/admin/Invoices";
 import AdminPdfLogs from "./pages/admin/PdfLogs";
 import AdminBusinessMedia from "./pages/admin/BusinessMedia";
+import AdminIntakes from "./pages/admin/Intakes";
 import Lever from "./pages/admin/Lever";
 import AdminSeedReview from "./pages/admin/SeedReview";
 import AdminBrain from "./pages/admin/Brain";
@@ -78,6 +80,7 @@ const App = () => (
             <Route path="/signup" element={<Signup />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/proposal/:token" element={<ProposalPage />} />
+            <Route path="/intake/:token" element={<IntakeFormPage />} />
             <Route
               path="/download/:assetId"
               element={
@@ -121,6 +124,7 @@ const App = () => (
               <Route path="invoices" element={<AdminInvoices />} />
               <Route path="pdf-logs" element={<AdminPdfLogs />} />
               <Route path="business-media" element={<AdminBusinessMedia />} />
+              <Route path="intakes" element={<AdminIntakes />} />
               <Route path="seed-review" element={<AdminSeedReview />} />
             </Route>
 

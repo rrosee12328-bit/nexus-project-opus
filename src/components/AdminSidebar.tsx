@@ -90,6 +90,7 @@ const navGroups: NavGroup[] = [
       { title: "Project Management", url: "/admin/projects", icon: FolderKanban },
       { title: "Assets", url: "/admin/assets", icon: Upload },
       { title: "Business Media", url: "/admin/business-media", icon: Video },
+      { title: "Intake Forms", url: "/admin/intakes", icon: ClipboardList },
     ],
   },
   {
