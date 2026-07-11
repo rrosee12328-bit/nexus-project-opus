@@ -70,11 +70,9 @@ export default function IntakeFormPage() {
   useEffect(() => {
     if (!token) return;
     (async () => {
-      const { data, error: e } = await supabase
-        .from("intake_forms")
-        .select("*")
-        .eq("token", token)
-        .maybeSingle();
+      const { data: rows, error: e } = await supabase
+        .rpc("get_intake_form_by_token", { _token: token });
+      const data = Array.isArray(rows) ? rows[0] : rows;
       if (e || !data) {
         setError("This intake link is invalid or has been removed.");
         setLoading(false);
@@ -94,10 +92,7 @@ export default function IntakeFormPage() {
       setContactName(data.recipient_name ?? "");
       setEmail(data.recipient_email ?? "");
       if (data.status === "sent") {
-        await supabase
-          .from("intake_forms")
-          .update({ status: "viewed", viewed_at: new Date().toISOString() })
-          .eq("id", data.id);
+        await supabase.rpc("mark_intake_viewed", { _token: token });
       }
       setLoading(false);
     })();
