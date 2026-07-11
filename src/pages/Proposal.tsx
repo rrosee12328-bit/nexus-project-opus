@@ -136,11 +136,9 @@ export default function ProposalPage() {
   useEffect(() => {
     if (!token) return;
     const load = async () => {
-      const { data, error: fetchError } = await supabase
-        .from("proposals")
-        .select("*")
-        .eq("token", token)
-        .single();
+      const { data: rows, error: fetchError } = await supabase
+        .rpc("get_proposal_by_token", { _token: token });
+      const data = Array.isArray(rows) ? rows[0] : rows;
       if (fetchError || !data) {
         setError("This proposal link is invalid or has expired.");
         setLoading(false);
