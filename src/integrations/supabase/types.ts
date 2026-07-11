@@ -1600,6 +1600,181 @@ export type Database = {
           },
         ]
       }
+      intake_forms: {
+        Row: {
+          client_id: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          recipient_email: string | null
+          recipient_name: string | null
+          sent_at: string
+          status: string
+          token: string
+          updated_at: string
+          viewed_at: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          recipient_email?: string | null
+          recipient_name?: string | null
+          sent_at?: string
+          status?: string
+          token: string
+          updated_at?: string
+          viewed_at?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          recipient_email?: string | null
+          recipient_name?: string | null
+          sent_at?: string
+          status?: string
+          token?: string
+          updated_at?: string
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_forms_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_forms_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_profitability"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
+      intake_responses: {
+        Row: {
+          active_platforms: string | null
+          approval_process: string | null
+          brand_guidelines: string | null
+          brand_voice: string | null
+          business_name: string | null
+          client_id: string | null
+          company_description: string | null
+          competitors: string | null
+          contact_name: string | null
+          created_at: string
+          differentiators: string | null
+          dream_deliverables: string | null
+          email: string | null
+          expansion_platforms: string | null
+          id: string
+          inspirations: Json
+          intake_form_id: string
+          phone: string | null
+          primary_goals: string | null
+          social_accounts: Json
+          submitted_at: string
+          success_kpis: string | null
+          target_demographic: string | null
+          turnaround_expectations: string | null
+          updated_at: string
+          visual_style_notes: string | null
+          website: string | null
+        }
+        Insert: {
+          active_platforms?: string | null
+          approval_process?: string | null
+          brand_guidelines?: string | null
+          brand_voice?: string | null
+          business_name?: string | null
+          client_id?: string | null
+          company_description?: string | null
+          competitors?: string | null
+          contact_name?: string | null
+          created_at?: string
+          differentiators?: string | null
+          dream_deliverables?: string | null
+          email?: string | null
+          expansion_platforms?: string | null
+          id?: string
+          inspirations?: Json
+          intake_form_id: string
+          phone?: string | null
+          primary_goals?: string | null
+          social_accounts?: Json
+          submitted_at?: string
+          success_kpis?: string | null
+          target_demographic?: string | null
+          turnaround_expectations?: string | null
+          updated_at?: string
+          visual_style_notes?: string | null
+          website?: string | null
+        }
+        Update: {
+          active_platforms?: string | null
+          approval_process?: string | null
+          brand_guidelines?: string | null
+          brand_voice?: string | null
+          business_name?: string | null
+          client_id?: string | null
+          company_description?: string | null
+          competitors?: string | null
+          contact_name?: string | null
+          created_at?: string
+          differentiators?: string | null
+          dream_deliverables?: string | null
+          email?: string | null
+          expansion_platforms?: string | null
+          id?: string
+          inspirations?: Json
+          intake_form_id?: string
+          phone?: string | null
+          primary_goals?: string | null
+          social_accounts?: Json
+          submitted_at?: string
+          success_kpis?: string | null
+          target_demographic?: string | null
+          turnaround_expectations?: string | null
+          updated_at?: string
+          visual_style_notes?: string | null
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_responses_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_responses_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_profitability"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "intake_responses_intake_form_id_fkey"
+            columns: ["intake_form_id"]
+            isOneToOne: false
+            referencedRelation: "intake_forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       investments: {
         Row: {
           amount: number
