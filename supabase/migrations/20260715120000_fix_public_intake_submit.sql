@@ -104,20 +104,32 @@ DROP POLICY IF EXISTS "Authenticated users manage intake responses" ON public.in
 
 DO $$
 BEGIN
-  IF to_regprocedure('public.has_role(uuid,app_role)') IS NOT NULL THEN
-    CREATE POLICY "Admins and ops manage intake forms"
+  IF EXISTS (
+    SELECT 1
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'public'
+       AND p.proname = 'has_role'
+  ) AND EXISTS (
+    SELECT 1
+      FROM pg_type t
+      JOIN pg_namespace n ON n.oid = t.typnamespace
+     WHERE n.nspname = 'public'
+       AND t.typname = 'app_role'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Admins and ops manage intake forms"
       ON public.intake_forms FOR ALL
-      USING (public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'ops'))
-      WITH CHECK (public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'ops'));
+      USING (public.has_role(auth.uid(), ''admin''::public.app_role) OR public.has_role(auth.uid(), ''ops''::public.app_role))
+      WITH CHECK (public.has_role(auth.uid(), ''admin''::public.app_role) OR public.has_role(auth.uid(), ''ops''::public.app_role))';
 
-    CREATE POLICY "Admins and ops view intake responses"
+    EXECUTE 'CREATE POLICY "Admins and ops view intake responses"
       ON public.intake_responses FOR SELECT
-      USING (public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'ops'));
+      USING (public.has_role(auth.uid(), ''admin''::public.app_role) OR public.has_role(auth.uid(), ''ops''::public.app_role))';
 
-    CREATE POLICY "Admins and ops manage intake responses"
+    EXECUTE 'CREATE POLICY "Admins and ops manage intake responses"
       ON public.intake_responses FOR ALL
-      USING (public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'ops'))
-      WITH CHECK (public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'ops'));
+      USING (public.has_role(auth.uid(), ''admin''::public.app_role) OR public.has_role(auth.uid(), ''ops''::public.app_role))
+      WITH CHECK (public.has_role(auth.uid(), ''admin''::public.app_role) OR public.has_role(auth.uid(), ''ops''::public.app_role))';
   ELSE
     CREATE POLICY "Authenticated users manage intake forms"
       ON public.intake_forms FOR ALL
