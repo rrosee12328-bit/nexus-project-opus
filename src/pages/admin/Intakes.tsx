@@ -320,23 +320,19 @@ function NewIntakeDialog({
     const chosenClient = clients?.find((c) => c.id === clientId);
     const finalName = name.trim() || chosenClient?.name || null;
     const finalEmail = email.trim() || chosenClient?.email || null;
-    const { data: user } = await supabase.auth.getUser();
     const { data, error } = await supabase
-      .from("intake_forms")
-      .insert([{
-        token,
-        form_type: formType,
-        client_id: clientId === "none" ? null : clientId,
-        recipient_name: finalName,
-        recipient_email: finalEmail,
-        created_by: user.user?.id ?? null,
-      }])
-      .select()
+      .rpc("create_intake_form", {
+        _token: token,
+        _form_type: formType,
+        _client_id: clientId === "none" ? null : clientId,
+        _recipient_name: finalName,
+        _recipient_email: finalEmail,
+      })
       .single();
     setSaving(false);
     if (error || !data) {
       console.error(error);
-      toast.error("Couldn't create the intake link.");
+      toast.error(error?.message || "Couldn't create the intake link.");
       return;
     }
     const url = `${window.location.origin}/intake/${token}`;
