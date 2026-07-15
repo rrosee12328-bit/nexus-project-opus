@@ -1608,6 +1608,7 @@ export type Database = {
           created_by: string | null
           expires_at: string | null
           id: string
+          form_type: string
           recipient_email: string | null
           recipient_name: string | null
           sent_at: string
@@ -1623,6 +1624,7 @@ export type Database = {
           created_by?: string | null
           expires_at?: string | null
           id?: string
+          form_type?: string
           recipient_email?: string | null
           recipient_name?: string | null
           sent_at?: string
@@ -1638,6 +1640,7 @@ export type Database = {
           created_by?: string | null
           expires_at?: string | null
           id?: string
+          form_type?: string
           recipient_email?: string | null
           recipient_name?: string | null
           sent_at?: string
@@ -1684,6 +1687,7 @@ export type Database = {
           intake_form_id: string
           phone: string | null
           primary_goals: string | null
+          response_payload: Json
           social_accounts: Json
           submitted_at: string
           success_kpis: string | null
@@ -1713,6 +1717,7 @@ export type Database = {
           intake_form_id: string
           phone?: string | null
           primary_goals?: string | null
+          response_payload?: Json
           social_accounts?: Json
           submitted_at?: string
           success_kpis?: string | null
@@ -1742,6 +1747,7 @@ export type Database = {
           intake_form_id?: string
           phone?: string | null
           primary_goals?: string | null
+          response_payload?: Json
           social_accounts?: Json
           submitted_at?: string
           success_kpis?: string | null
@@ -3367,6 +3373,7 @@ export type Database = {
           created_by: string | null
           expires_at: string | null
           id: string
+          form_type: string
           recipient_email: string | null
           recipient_name: string | null
           sent_at: string
@@ -3460,6 +3467,10 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      submit_intake_response: {
+        Args: { _response: Json; _token: string }
+        Returns: string
       }
     }
     Enums: {

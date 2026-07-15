@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +24,7 @@ import {
 interface IntakeFormRow {
   id: string;
   token: string;
+  form_type: "business_media" | "funding_app";
   client_id: string | null;
   recipient_name: string | null;
   recipient_email: string | null;
@@ -59,7 +60,36 @@ interface IntakeResponse {
   turnaround_expectations: string | null;
   approval_process: string | null;
   success_kpis: string | null;
+  response_payload: {
+    form_type?: string;
+    title?: string;
+    sections?: Array<{
+      title: string;
+      questions: Array<{ key: string; label: string; answer: string | null }>;
+    }>;
+  } | null;
   submitted_at: string;
+}
+
+const FORM_COPY = {
+  business_media: {
+    label: "Business Media",
+    title: "Business Media Intake Form",
+    description: "Please take a few minutes to complete our short intake form so we can craft the right strategy and editing timeline for your brand.",
+    subject: "Vektiss Business Media — quick intake form",
+    text: "please complete our intake form",
+  },
+  funding_app: {
+    label: "Funding App",
+    title: "Funding App Discovery Form",
+    description: "Please take a few minutes to complete our discovery form so we can map the funding app experience, qualification logic, and launch plan.",
+    subject: "Vektiss Funding App — discovery form",
+    text: "please complete our funding app discovery form",
+  },
+} as const;
+
+function getFormCopy(formType?: string | null) {
+  return FORM_COPY[formType === "funding_app" ? "funding_app" : "business_media"];
 }
 
 function publicUrl(token: string) {
@@ -115,19 +145,20 @@ export default function AdminIntakes() {
     }
     const url = publicUrl(row.token);
     const name = row.recipient_name || "there";
+    const copy = getFormCopy(row.form_type);
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
 <body style="font-family: Inter, Arial, sans-serif; background-color:#ffffff; padding: 40px 25px;">
-  <h1 style="font-size:24px; font-weight:bold; color:#0d0d0d; margin:0 0 20px;">Business Media Intake Form</h1>
-  <p style="font-size:14px; color:#6b6b6b; line-height:1.6; margin:0 0 20px;">Hi ${name}, thanks for working with Vektiss. Please take a few minutes to complete our short intake form so we can craft the right strategy and editing timeline for your brand.</p>
-  <a href="${url}" style="display:inline-block; background-color:hsl(213,100%,58%); color:#ffffff; font-size:14px; font-weight:600; border-radius:6px; padding:12px 24px; text-decoration:none;">Open Intake Form</a>
+  <h1 style="font-size:24px; font-weight:bold; color:#0d0d0d; margin:0 0 20px;">${copy.title}</h1>
+  <p style="font-size:14px; color:#6b6b6b; line-height:1.6; margin:0 0 20px;">Hi ${name}, thanks for working with Vektiss. ${copy.description}</p>
+  <a href="${url}" style="display:inline-block; background-color:hsl(213,100%,58%); color:#ffffff; font-size:14px; font-weight:600; border-radius:6px; padding:12px 24px; text-decoration:none;">Open Form</a>
   <p style="font-size:12px; color:#999999; margin:30px 0 0;">Or paste this link in your browser: ${url}</p>
 </body></html>`;
     const { error } = await supabase.functions.invoke("send-transactional-email", {
       body: {
         to: row.recipient_email,
-        subject: "Vektiss Business Media — quick intake form",
+        subject: copy.subject,
         html,
-        text: `Hi ${name}, please complete our intake form: ${url}`,
+        text: `Hi ${name}, ${copy.text}: ${url}`,
         label: "intake_form_invite",
       },
     });
@@ -156,7 +187,7 @@ export default function AdminIntakes() {
             <ClipboardList className="h-6 w-6 text-primary" /> Intake Forms
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Send the Business Media intake form to prospects and clients, and review their responses here.
+            Send discovery and intake forms to prospects and clients, and review their responses here.
           </p>
         </div>
         <Button onClick={() => setNewOpen(true)} className="gap-2">
@@ -177,6 +208,7 @@ export default function AdminIntakes() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Recipient</TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead>Client</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Sent</TableHead>
@@ -191,6 +223,7 @@ export default function AdminIntakes() {
                       <div className="font-medium text-sm">{r.recipient_name || "—"}</div>
                       <div className="text-xs text-muted-foreground">{r.recipient_email || ""}</div>
                     </TableCell>
+                    <TableCell className="text-sm">{getFormCopy(r.form_type).label}</TableCell>
                     <TableCell className="text-sm">{r.clients?.name || <span className="text-muted-foreground">Prospect</span>}</TableCell>
                     <TableCell>{statusBadge(r.status)}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
@@ -249,12 +282,13 @@ export default function AdminIntakes() {
 function NewIntakeDialog({
   open, onOpenChange, onCreated,
 }: { open: boolean; onOpenChange: (o: boolean) => void; onCreated: () => void }) {
+  const [formType, setFormType] = useState<"business_media" | "funding_app">("business_media");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [clientId, setClientId] = useState<string>("none");
   const [saving, setSaving] = useState(false);
   const [createdUrl, setCreatedUrl] = useState<string | null>(null);
-  const [createdRow, setCreatedRow] = useState<{ token: string; email: string | null; name: string | null } | null>(null);
+  const [createdRow, setCreatedRow] = useState<{ token: string; email: string | null; name: string | null; formType: "business_media" | "funding_app" } | null>(null);
 
   const { data: clients } = useQuery({
     queryKey: ["intake-client-picker"],
@@ -270,7 +304,7 @@ function NewIntakeDialog({
   });
 
   const reset = () => {
-    setName(""); setEmail(""); setClientId("none"); setCreatedUrl(null); setCreatedRow(null);
+    setFormType("business_media"); setName(""); setEmail(""); setClientId("none"); setCreatedUrl(null); setCreatedRow(null);
   };
 
   const create = async () => {
@@ -288,6 +322,7 @@ function NewIntakeDialog({
       .from("intake_forms")
       .insert([{
         token,
+        form_type: formType,
         client_id: clientId === "none" ? null : clientId,
         recipient_name: finalName,
         recipient_email: finalEmail,
@@ -303,26 +338,27 @@ function NewIntakeDialog({
     }
     const url = `${window.location.origin}/intake/${token}`;
     setCreatedUrl(url);
-    setCreatedRow({ token, email: finalEmail, name: finalName });
+    setCreatedRow({ token, email: finalEmail, name: finalName, formType });
     onCreated();
   };
 
   const sendEmail = async () => {
     if (!createdRow?.email || !createdUrl) return;
     const nm = createdRow.name || "there";
+    const copy = getFormCopy(createdRow.formType);
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
 <body style="font-family: Inter, Arial, sans-serif; background-color:#ffffff; padding: 40px 25px;">
-  <h1 style="font-size:24px; font-weight:bold; color:#0d0d0d; margin:0 0 20px;">Business Media Intake Form</h1>
-  <p style="font-size:14px; color:#6b6b6b; line-height:1.6; margin:0 0 20px;">Hi ${nm}, thanks for working with Vektiss. Please take a few minutes to complete our short intake form so we can craft the right strategy and editing timeline for your brand.</p>
-  <a href="${createdUrl}" style="display:inline-block; background-color:hsl(213,100%,58%); color:#ffffff; font-size:14px; font-weight:600; border-radius:6px; padding:12px 24px; text-decoration:none;">Open Intake Form</a>
+  <h1 style="font-size:24px; font-weight:bold; color:#0d0d0d; margin:0 0 20px;">${copy.title}</h1>
+  <p style="font-size:14px; color:#6b6b6b; line-height:1.6; margin:0 0 20px;">Hi ${nm}, thanks for working with Vektiss. ${copy.description}</p>
+  <a href="${createdUrl}" style="display:inline-block; background-color:hsl(213,100%,58%); color:#ffffff; font-size:14px; font-weight:600; border-radius:6px; padding:12px 24px; text-decoration:none;">Open Form</a>
   <p style="font-size:12px; color:#999999; margin:30px 0 0;">Or paste this link in your browser: ${createdUrl}</p>
 </body></html>`;
     const { error } = await supabase.functions.invoke("send-transactional-email", {
       body: {
         to: createdRow.email,
-        subject: "Vektiss Business Media — quick intake form",
+        subject: copy.subject,
         html,
-        text: `Hi ${nm}, please complete our intake form: ${createdUrl}`,
+        text: `Hi ${nm}, ${copy.text}: ${createdUrl}`,
         label: "intake_form_invite",
       },
     });
@@ -342,6 +378,16 @@ function NewIntakeDialog({
         </DialogHeader>
         {!createdUrl ? (
           <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Form Type</Label>
+              <Select value={formType} onValueChange={(v) => setFormType(v as "business_media" | "funding_app")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="business_media">Business Media</SelectItem>
+                  <SelectItem value="funding_app">Funding App</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label>Link to existing client (optional)</Label>
               <Select value={clientId} onValueChange={setClientId}>
@@ -438,6 +484,33 @@ function ViewResponseDialog({
           <p className="text-sm text-muted-foreground py-6">Loading…</p>
         ) : !response ? (
           <p className="text-sm text-muted-foreground py-6">No response submitted yet.</p>
+        ) : form?.form_type === "funding_app" && response.response_payload?.sections?.length ? (
+          <div className="space-y-6 py-2">
+            <div className="space-y-1">
+              <h4 className="text-xs uppercase font-semibold tracking-wider text-muted-foreground">Summary</h4>
+              <div>
+                {line("App name", response.business_name)}
+                {line("Contact", response.contact_name)}
+                {line("Email", response.email)}
+              </div>
+            </div>
+            {response.response_payload.sections.map((payloadSection) => (
+              <div key={payloadSection.title} className="space-y-3">
+                <h4 className="text-xs uppercase font-semibold tracking-wider text-muted-foreground">{payloadSection.title}</h4>
+                <div className="space-y-3">
+                  {payloadSection.questions
+                    .filter((q) => q.answer)
+                    .map((q) => (
+                      <div key={q.key}>
+                        <div className="text-xs text-muted-foreground">{q.label}</div>
+                        <p className="text-sm whitespace-pre-wrap">{q.answer}</p>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            ))}
+            <p className="text-xs text-muted-foreground pt-2 border-t">Submitted {format(new Date(response.submitted_at), "PPp")}</p>
+          </div>
         ) : (
           <div className="space-y-6 py-2">
             {section("Client Information", (
