@@ -115,7 +115,7 @@ export default function AdminIntakes() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("intake_forms")
-        .select("*, clients(name)")
+        .select("*")
         .order("sent_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as unknown as IntakeFormRow[];
@@ -224,7 +224,7 @@ export default function AdminIntakes() {
                       <div className="text-xs text-muted-foreground">{r.recipient_email || ""}</div>
                     </TableCell>
                     <TableCell className="text-sm">{getFormCopy(r.form_type).label}</TableCell>
-                    <TableCell className="text-sm">{r.clients?.name || <span className="text-muted-foreground">Prospect</span>}</TableCell>
+                    <TableCell className="text-sm">{r.clients?.name || (r.client_id ? <span className="text-muted-foreground">Linked client</span> : <span className="text-muted-foreground">Prospect</span>)}</TableCell>
                     <TableCell>{statusBadge(r.status)}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {format(new Date(r.sent_at), "MMM d, yyyy")}
@@ -297,7 +297,10 @@ function NewIntakeDialog({
         .from("clients")
         .select("id, name, email")
         .order("name");
-      if (error) throw error;
+      if (error) {
+        console.warn("Client picker unavailable:", error.message);
+        return [];
+      }
       return data ?? [];
     },
     enabled: open,

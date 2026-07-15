@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS public.intake_forms (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   token text NOT NULL UNIQUE,
   form_type text NOT NULL DEFAULT 'business_media',
-  client_id uuid REFERENCES public.clients(id) ON DELETE SET NULL,
+  client_id uuid,
   recipient_name text,
   recipient_email text,
   status text NOT NULL DEFAULT 'sent' CHECK (status IN ('sent','viewed','completed')),
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS public.intake_forms (
 CREATE TABLE IF NOT EXISTS public.intake_responses (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   intake_form_id uuid NOT NULL REFERENCES public.intake_forms(id) ON DELETE CASCADE,
-  client_id uuid REFERENCES public.clients(id) ON DELETE SET NULL,
+  client_id uuid,
   business_name text,
   contact_name text,
   email text,
@@ -56,6 +56,33 @@ CREATE INDEX IF NOT EXISTS idx_intake_forms_type ON public.intake_forms(form_typ
 CREATE INDEX IF NOT EXISTS idx_intake_responses_form ON public.intake_responses(intake_form_id);
 CREATE INDEX IF NOT EXISTS idx_intake_responses_client ON public.intake_responses(client_id);
 
+DO $$
+BEGIN
+  IF to_regclass('public.clients') IS NOT NULL THEN
+    IF NOT EXISTS (
+      SELECT 1
+        FROM pg_constraint
+       WHERE conname = 'intake_forms_client_id_fkey'
+         AND conrelid = 'public.intake_forms'::regclass
+    ) THEN
+      ALTER TABLE public.intake_forms
+        ADD CONSTRAINT intake_forms_client_id_fkey
+        FOREIGN KEY (client_id) REFERENCES public.clients(id) ON DELETE SET NULL;
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1
+        FROM pg_constraint
+       WHERE conname = 'intake_responses_client_id_fkey'
+         AND conrelid = 'public.intake_responses'::regclass
+    ) THEN
+      ALTER TABLE public.intake_responses
+        ADD CONSTRAINT intake_responses_client_id_fkey
+        FOREIGN KEY (client_id) REFERENCES public.clients(id) ON DELETE SET NULL;
+    END IF;
+  END IF;
+END $$;
+
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.intake_forms TO authenticated;
 GRANT ALL ON public.intake_forms TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.intake_responses TO authenticated;
@@ -67,24 +94,52 @@ ALTER TABLE public.intake_responses ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public can view intake form by token" ON public.intake_forms;
 DROP POLICY IF EXISTS "Public can mark intake as viewed" ON public.intake_forms;
 DROP POLICY IF EXISTS "Admins and ops manage intake forms" ON public.intake_forms;
-CREATE POLICY "Admins and ops manage intake forms"
-  ON public.intake_forms FOR ALL
-  USING (public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'ops'))
-  WITH CHECK (public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'ops'));
+DROP POLICY IF EXISTS "Authenticated users manage intake forms" ON public.intake_forms;
 
 DROP POLICY IF EXISTS "Admins and ops view intake responses" ON public.intake_responses;
 DROP POLICY IF EXISTS "Admins and ops manage intake responses" ON public.intake_responses;
 DROP POLICY IF EXISTS "Clients view their own intake responses" ON public.intake_responses;
-CREATE POLICY "Admins and ops view intake responses"
-  ON public.intake_responses FOR SELECT
-  USING (public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'ops'));
-CREATE POLICY "Admins and ops manage intake responses"
-  ON public.intake_responses FOR ALL
-  USING (public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'ops'))
-  WITH CHECK (public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'ops'));
-CREATE POLICY "Clients view their own intake responses"
-  ON public.intake_responses FOR SELECT
-  USING (client_id = public.get_client_id_for_user(auth.uid()));
+DROP POLICY IF EXISTS "Authenticated users view intake responses" ON public.intake_responses;
+DROP POLICY IF EXISTS "Authenticated users manage intake responses" ON public.intake_responses;
+
+DO $$
+BEGIN
+  IF to_regprocedure('public.has_role(uuid,app_role)') IS NOT NULL THEN
+    CREATE POLICY "Admins and ops manage intake forms"
+      ON public.intake_forms FOR ALL
+      USING (public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'ops'))
+      WITH CHECK (public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'ops'));
+
+    CREATE POLICY "Admins and ops view intake responses"
+      ON public.intake_responses FOR SELECT
+      USING (public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'ops'));
+
+    CREATE POLICY "Admins and ops manage intake responses"
+      ON public.intake_responses FOR ALL
+      USING (public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'ops'))
+      WITH CHECK (public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'ops'));
+  ELSE
+    CREATE POLICY "Authenticated users manage intake forms"
+      ON public.intake_forms FOR ALL
+      USING (auth.role() = 'authenticated')
+      WITH CHECK (auth.role() = 'authenticated');
+
+    CREATE POLICY "Authenticated users view intake responses"
+      ON public.intake_responses FOR SELECT
+      USING (auth.role() = 'authenticated');
+
+    CREATE POLICY "Authenticated users manage intake responses"
+      ON public.intake_responses FOR ALL
+      USING (auth.role() = 'authenticated')
+      WITH CHECK (auth.role() = 'authenticated');
+  END IF;
+
+  IF to_regprocedure('public.get_client_id_for_user(uuid)') IS NOT NULL THEN
+    CREATE POLICY "Clients view their own intake responses"
+      ON public.intake_responses FOR SELECT
+      USING (client_id = public.get_client_id_for_user(auth.uid()));
+  END IF;
+END $$;
 
 DO $$
 BEGIN
@@ -245,20 +300,21 @@ BEGIN
      SET status = 'completed', completed_at = COALESCE(completed_at, now())
    WHERE id = NEW.intake_form_id;
 
-  IF NEW.client_id IS NOT NULL AND EXISTS (
+  IF NEW.client_id IS NOT NULL AND to_regclass('public.clients') IS NOT NULL AND EXISTS (
     SELECT 1
       FROM information_schema.columns
      WHERE table_schema = 'public'
        AND table_name = 'clients'
        AND column_name = 'last_contact_date'
   ) THEN
-    UPDATE public.clients SET last_contact_date = CURRENT_DATE WHERE id = NEW.client_id;
+    EXECUTE 'UPDATE public.clients SET last_contact_date = CURRENT_DATE WHERE id = $1'
+      USING NEW.client_id;
   END IF;
 
   _who := COALESCE(NEW.business_name, NEW.contact_name, NEW.email, 'a prospect');
 
   IF to_regclass('public.notifications') IS NOT NULL AND to_regclass('public.user_roles') IS NOT NULL THEN
-    FOR _admin_id IN SELECT user_id FROM public.user_roles WHERE role = 'admin'::app_role LOOP
+    FOR _admin_id IN SELECT user_id FROM public.user_roles WHERE role::text = 'admin' LOOP
       INSERT INTO public.notifications (user_id, title, body, type, link)
       VALUES (
         _admin_id,
