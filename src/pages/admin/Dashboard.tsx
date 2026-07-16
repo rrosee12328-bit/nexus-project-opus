@@ -20,9 +20,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { motion } from "framer-motion";
-import { ExecutiveKPICards } from "@/components/dashboard/ExecutiveKPICards";
 import AICommandCenter from "@/components/AICommandCenter";
-import { AIInsightsWidget } from "@/components/dashboard/AIInsightsWidget";
 
 function formatCurrency(val: number) {
   return new Intl.NumberFormat("en-US", {
@@ -40,12 +38,16 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const PHASE_ICONS: Record<string, string> = {
-  discovery: "🔍",
-  design: "🎨",
-  development: "⚙️",
-  review: "👀",
-  launch: "🚀",
+  discovery: "DISC",
+  design: "DSGN",
+  development: "DEV",
+  review: "REV",
+  launch: "LIVE",
 };
+
+function logDashboardQueryError(label: string, error: unknown) {
+  console.warn(`Admin dashboard ${label} query failed:`, error);
+}
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -54,8 +56,11 @@ export default function AdminDashboard() {
     queryKey: ["clients"],
     queryFn: async () => {
       const { data, error } = await supabase.from("clients").select("*");
-      if (error) throw error;
-      return data;
+      if (error) {
+        logDashboardQueryError("clients", error);
+        return [];
+      }
+      return data ?? [];
     },
   });
 
@@ -63,8 +68,11 @@ export default function AdminDashboard() {
     queryKey: ["client-payments-summary"],
     queryFn: async () => {
       const { data, error } = await supabase.from("client_payments").select("amount");
-      if (error) throw error;
-      return data;
+      if (error) {
+        logDashboardQueryError("payments", error);
+        return [];
+      }
+      return data ?? [];
     },
   });
 
@@ -75,8 +83,11 @@ export default function AdminDashboard() {
         .from("projects")
         .select("*, clients(name)")
         .order("updated_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      if (error) {
+        logDashboardQueryError("projects", error);
+        return [];
+      }
+      return data ?? [];
     },
   });
 
@@ -88,8 +99,11 @@ export default function AdminDashboard() {
         .select("*, clients(name)")
         .order("created_at", { ascending: false })
         .limit(5);
-      if (error) throw error;
-      return data;
+      if (error) {
+        logDashboardQueryError("messages", error);
+        return [];
+      }
+      return data ?? [];
     },
   });
 
@@ -102,8 +116,11 @@ export default function AdminDashboard() {
         .in("status", ["todo", "in_progress"])
         .order("priority")
         .limit(5);
-      if (error) throw error;
-      return data;
+      if (error) {
+        logDashboardQueryError("tasks", error);
+        return [];
+      }
+      return data ?? [];
     },
   });
 
@@ -169,24 +186,6 @@ export default function AdminDashboard() {
           </motion.div>
         ))}
       </div>
-
-      {/* AI Insights */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.32 }}
-      >
-        <AIInsightsWidget />
-      </motion.div>
-
-      {/* Executive KPIs */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.4 }}
-      >
-        <ExecutiveKPICards />
-      </motion.div>
 
       {/* Main content grid */}
       <div className="grid gap-4 lg:grid-cols-2">

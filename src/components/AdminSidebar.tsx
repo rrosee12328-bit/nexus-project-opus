@@ -60,7 +60,8 @@ const navGroups: NavGroup[] = [
     label: "Command",
     icon: Command,
     items: [
-      { title: "Lever", url: "/admin", icon: Zap },
+      { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
+      { title: "Lever", url: "/admin/lever", icon: Zap },
       { title: "Calendar", url: "/admin/calendar", icon: Calendar },
       { title: "Assistant", url: "/admin/agent", icon: Bot },
     ],

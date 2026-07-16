@@ -38,6 +38,7 @@ import AdminInvoices from "./pages/admin/Invoices";
 import AdminPdfLogs from "./pages/admin/PdfLogs";
 import AdminBusinessMedia from "./pages/admin/BusinessMedia";
 import AdminIntakes from "./pages/admin/Intakes";
+import AdminDashboard from "./pages/admin/Dashboard";
 import Lever from "./pages/admin/Lever";
 import AdminSeedReview from "./pages/admin/SeedReview";
 import AdminBrain from "./pages/admin/Brain";
@@ -99,8 +100,8 @@ const App = () => (
                 </ProtectedRoute>
               }
             >
-              <Route index element={<Lever />} />
-              <Route path="dashboard" element={<Navigate to="/admin" replace />} />
+              <Route index element={<AdminDashboard />} />
+              <Route path="dashboard" element={<AdminDashboard />} />
               <Route path="clients" element={<AdminClients />} />
               <Route path="clients/:clientId" element={<AdminClientDetail />} />
               <Route path="projects" element={<AdminProjects />} />
