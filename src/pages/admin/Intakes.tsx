@@ -320,8 +320,7 @@ function NewIntakeDialog({
     const chosenClient = clients?.find((c) => c.id === clientId);
     const finalName = name.trim() || chosenClient?.name || null;
     const finalEmail = email.trim() || chosenClient?.email || null;
-    const { data, error } = await supabase
-      .rpc("create_intake_form", {
+    const { data, error } = await (supabase.rpc as any)("create_intake_form", {
         _token: token,
         _form_type: formType,
         _client_id: clientId === "none" ? null : clientId,
