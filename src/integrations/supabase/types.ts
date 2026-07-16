@@ -1608,7 +1608,6 @@ export type Database = {
           created_by: string | null
           expires_at: string | null
           id: string
-          form_type: string
           recipient_email: string | null
           recipient_name: string | null
           sent_at: string
@@ -1624,7 +1623,6 @@ export type Database = {
           created_by?: string | null
           expires_at?: string | null
           id?: string
-          form_type?: string
           recipient_email?: string | null
           recipient_name?: string | null
           sent_at?: string
@@ -1640,7 +1638,6 @@ export type Database = {
           created_by?: string | null
           expires_at?: string | null
           id?: string
-          form_type?: string
           recipient_email?: string | null
           recipient_name?: string | null
           sent_at?: string
@@ -1687,7 +1684,6 @@ export type Database = {
           intake_form_id: string
           phone: string | null
           primary_goals: string | null
-          response_payload: Json
           social_accounts: Json
           submitted_at: string
           success_kpis: string | null
@@ -1717,7 +1713,6 @@ export type Database = {
           intake_form_id: string
           phone?: string | null
           primary_goals?: string | null
-          response_payload?: Json
           social_accounts?: Json
           submitted_at?: string
           success_kpis?: string | null
@@ -1747,7 +1742,6 @@ export type Database = {
           intake_form_id?: string
           phone?: string | null
           primary_goals?: string | null
-          response_payload?: Json
           social_accounts?: Json
           submitted_at?: string
           success_kpis?: string | null
@@ -3364,37 +3358,6 @@ export type Database = {
         Returns: number
       }
       get_client_id_for_user: { Args: { _user_id: string }; Returns: string }
-      create_intake_form: {
-        Args: {
-          _client_id?: string | null
-          _form_type?: string
-          _recipient_email?: string | null
-          _recipient_name?: string | null
-          _token: string
-        }
-        Returns: {
-          client_id: string | null
-          completed_at: string | null
-          created_at: string
-          created_by: string | null
-          expires_at: string | null
-          id: string
-          form_type: string
-          recipient_email: string | null
-          recipient_name: string | null
-          sent_at: string
-          status: string
-          token: string
-          updated_at: string
-          viewed_at: string | null
-        }[]
-        SetofOptions: {
-          from: "*"
-          to: "intake_forms"
-          isOneToOne: false
-          isSetofReturn: true
-        }
-      }
       get_intake_form_by_token: {
         Args: { _token: string }
         Returns: {
@@ -3404,7 +3367,6 @@ export type Database = {
           created_by: string | null
           expires_at: string | null
           id: string
-          form_type: string
           recipient_email: string | null
           recipient_name: string | null
           sent_at: string
@@ -3498,10 +3460,6 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
-      }
-      submit_intake_response: {
-        Args: { _response: Json; _token: string }
-        Returns: string
       }
     }
     Enums: {
