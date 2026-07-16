@@ -164,11 +164,11 @@ export default function IntakeFormPage() {
         setLoading(false);
         return;
       }
-      setForm(data as IntakeForm);
+      setForm(data as unknown as IntakeForm);
       setContactName(data.recipient_name ?? "");
       setEmail(data.recipient_email ?? "");
       if (data.status === "sent") {
-        await supabase.rpc("mark_intake_viewed", { _token: token });
+        await (supabase.rpc as any)("mark_intake_viewed", { _token: token });
       }
       setLoading(false);
     })();
@@ -211,7 +211,7 @@ export default function IntakeFormPage() {
           section.questions.map((q) => [q.key, q.answer])
         )
       );
-      const { error: e } = await supabase.rpc("submit_intake_response", {
+      const { error: e } = await (supabase.rpc as any)("submit_intake_response", {
         _token: token!,
         _response: {
           business_name: appName,
@@ -248,7 +248,7 @@ export default function IntakeFormPage() {
     const cleanInspirations = inspirations.filter(
       (s) => s.platform.trim() || s.handle.trim() || s.notes.trim()
     );
-    const { error: e } = await supabase.rpc("submit_intake_response", {
+    const { error: e } = await (supabase.rpc as any)("submit_intake_response", {
       _token: token!,
       _response: {
         business_name: businessName.trim(),
