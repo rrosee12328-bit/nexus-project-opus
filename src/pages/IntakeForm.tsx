@@ -13,7 +13,7 @@ import { CheckCircle2, Loader2, Plus, Trash2 } from "lucide-react";
 interface IntakeForm {
   id: string;
   token: string;
-  form_type: "business_media" | "funding_app";
+  form_type: "business_media" | "funding_app" | "meta_ad_account";
   status: string;
   recipient_name: string | null;
   recipient_email: string | null;
@@ -100,6 +100,64 @@ const FUNDING_APP_SECTIONS = [
   },
 ] as const;
 
+const META_AD_ACCOUNT_SECTIONS = [
+  {
+    title: "Business Details",
+    questions: [
+      { key: "legal_business_name", label: "Legal name of business", required: true, input: "short" },
+      { key: "business_display_name", label: "Business display name or DBA", input: "short" },
+      { key: "country", label: "Country", required: true, input: "short" },
+      { key: "street_address", label: "Street address", required: true, input: "short" },
+      { key: "street_address_2", label: "Street address 2", input: "short" },
+      { key: "city", label: "City", required: true, input: "short" },
+      { key: "state_region", label: "State/province/region", required: true, input: "short" },
+      { key: "postal_code", label: "Zip/postal code", required: true, input: "short" },
+      { key: "business_phone", label: "Business phone number", required: true, input: "short" },
+      { key: "business_website", label: "Business website", required: true, input: "short" },
+      { key: "tax_id_ein", label: "Tax ID (EIN)", input: "short" },
+    ],
+  },
+  {
+    title: "Meta Business Assets",
+    questions: [
+      { key: "meta_business_manager_name", label: "Current Meta Business Manager / business portfolio name", input: "short" },
+      { key: "meta_business_manager_id", label: "Meta Business Manager ID, if you know it", input: "short" },
+      { key: "facebook_page_url", label: "Facebook Page URL", input: "short" },
+      { key: "instagram_account", label: "Instagram account handle or URL", input: "short" },
+      { key: "existing_ad_account_id", label: "Existing Meta Ad Account ID, if there is one", input: "short" },
+      { key: "pixel_dataset_id", label: "Pixel / Dataset ID, if already created", input: "short" },
+    ],
+  },
+  {
+    title: "Access & Admin",
+    questions: [
+      { key: "admin_contact_name", label: "Who should be the business/admin contact?", input: "short" },
+      { key: "admin_contact_email", label: "Admin contact email for Meta access/invites", input: "short" },
+      { key: "team_members", label: "Who else needs access, and what access should they have?" },
+      { key: "current_permissions", label: "What Meta assets can Vektiss currently access, if any?" },
+    ],
+  },
+  {
+    title: "Billing & Ads Setup",
+    questions: [
+      { key: "currency", label: "Ad account currency", input: "short" },
+      { key: "time_zone", label: "Ad account time zone", input: "short" },
+      { key: "payment_method_ready", label: "Is a payment method ready to add to the ad account?", input: "short" },
+      { key: "monthly_ad_budget", label: "Expected monthly ad budget", input: "short" },
+      { key: "primary_ad_goal", label: "Primary ad goal (leads, booked calls, purchases, awareness, etc.)" },
+    ],
+  },
+  {
+    title: "Verification & Notes",
+    questions: [
+      { key: "verification_status", label: "Has the business already completed Meta business verification?", input: "short" },
+      { key: "verification_documents", label: "What documents are available if verification is needed? (business license, utility bill, bank statement, EIN letter, etc.)" },
+      { key: "domain_status", label: "Is the website domain verified in Meta? If yes, who controls the DNS/domain login?", input: "short" },
+      { key: "special_notes", label: "Anything else Vektiss should know before setting up the ad account?" },
+    ],
+  },
+] as const;
+
 export default function IntakeFormPage() {
   const { token } = useParams<{ token: string }>();
   const [loading, setLoading] = useState(true);
@@ -142,6 +200,7 @@ export default function IntakeFormPage() {
   const [approvalProcess, setApprovalProcess] = useState("");
   const [successKpis, setSuccessKpis] = useState("");
   const [fundingAnswers, setFundingAnswers] = useState<Record<string, string>>({});
+  const [metaAnswers, setMetaAnswers] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!token) return;
@@ -189,6 +248,9 @@ export default function IntakeFormPage() {
   const updateFundingAnswer = (key: string, value: string) =>
     setFundingAnswers((prev) => ({ ...prev, [key]: value }));
 
+  const updateMetaAnswer = (key: string, value: string) =>
+    setMetaAnswers((prev) => ({ ...prev, [key]: value }));
+
   const submit = async () => {
     if (!form) return;
     if (form.form_type === "funding_app") {
@@ -224,6 +286,69 @@ export default function IntakeFormPage() {
           response_payload: {
             form_type: "funding_app",
             title: "Funding App Client Discovery Questions",
+            answers,
+            sections,
+          },
+        },
+      });
+      setSubmitting(false);
+      if (e) {
+        console.error(e);
+        toast.error("Something went wrong submitting the form. Please try again.");
+        return;
+      }
+      setDone(true);
+      return;
+    }
+
+    if (form.form_type === "meta_ad_account") {
+      const legalBusinessName = metaAnswers.legal_business_name?.trim();
+      const requiredMissing = META_AD_ACCOUNT_SECTIONS.flatMap((section) =>
+        section.questions
+          .filter((q) => q.required && !metaAnswers[q.key]?.trim())
+          .map((q) => q.label)
+      );
+      if (!legalBusinessName || requiredMissing.length > 0) {
+        toast.error(`Please fill in the required business details: ${requiredMissing.join(", ")}.`);
+        return;
+      }
+      setSubmitting(true);
+      const sections = META_AD_ACCOUNT_SECTIONS.map((section) => ({
+        title: section.title,
+        questions: section.questions.map((q) => ({
+          key: q.key,
+          label: q.label,
+          answer: metaAnswers[q.key]?.trim() || null,
+        })),
+      }));
+      const answers = Object.fromEntries(
+        sections.flatMap((section) =>
+          section.questions.map((q) => [q.key, q.answer])
+        )
+      );
+      const { error: e } = await supabase.rpc("submit_intake_response", {
+        _token: token!,
+        _response: {
+          business_name: legalBusinessName,
+          contact_name: metaAnswers.admin_contact_name?.trim() || contactName.trim() || form.recipient_name || null,
+          email: metaAnswers.admin_contact_email?.trim() || email.trim() || form.recipient_email || null,
+          phone: metaAnswers.business_phone?.trim() || null,
+          website: metaAnswers.business_website?.trim() || null,
+          company_description: [
+            metaAnswers.street_address,
+            metaAnswers.street_address_2,
+            metaAnswers.city,
+            metaAnswers.state_region,
+            metaAnswers.postal_code,
+            metaAnswers.country,
+          ].filter(Boolean).join(", ") || null,
+          brand_guidelines: metaAnswers.meta_business_manager_name?.trim() || null,
+          active_platforms: [metaAnswers.facebook_page_url, metaAnswers.instagram_account].filter(Boolean).join("\n") || null,
+          primary_goals: metaAnswers.primary_ad_goal?.trim() || null,
+          success_kpis: metaAnswers.monthly_ad_budget?.trim() || null,
+          response_payload: {
+            form_type: "meta_ad_account",
+            title: "Meta Ad Account Information",
             answers,
             sections,
           },
@@ -305,6 +430,7 @@ export default function IntakeFormPage() {
 
   if (done) {
     const isFundingApp = form?.form_type === "funding_app";
+    const isMetaAdAccount = form?.form_type === "meta_ad_account";
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
         <Card className="max-w-md w-full">
@@ -314,6 +440,8 @@ export default function IntakeFormPage() {
             <p className="text-sm text-muted-foreground">
               {isFundingApp
                 ? "Your funding app discovery answers have been submitted. The Vektiss team will review them and map the app flow, qualification logic, and launch plan."
+                : isMetaAdAccount
+                ? "Your Meta ad account information has been submitted. The Vektiss team will review the business details, assets, access, billing setup, and verification needs."
                 : "Your intake has been submitted. The Vektiss team will review your answers and craft a strategy and editing timeline tailored to your brand and goals."}
             </p>
           </CardContent>
@@ -362,6 +490,53 @@ export default function IntakeFormPage() {
                 <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting…</>
               ) : (
                 "Submit Discovery Form"
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (form?.form_type === "meta_ad_account") {
+    return (
+      <div className="min-h-screen bg-background py-8 px-4">
+        <div className="max-w-3xl mx-auto space-y-6">
+          <div className="text-center space-y-2">
+            <img src="/vektiss-logo.png" alt="Vektiss" className="h-14 mx-auto object-contain" />
+            <h1 className="text-2xl sm:text-3xl font-bold">Meta Ad Account Information</h1>
+            <p className="text-sm text-muted-foreground max-w-xl mx-auto">
+              Share the business details and Meta asset information Vektiss needs to set up or organize your ad account.
+            </p>
+          </div>
+
+          {META_AD_ACCOUNT_SECTIONS.map((section) => (
+            <Card key={section.title}>
+              <CardHeader><CardTitle className="text-base">{section.title}</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                {section.questions.map((question) => {
+                  const value = metaAnswers[question.key] ?? "";
+                  return (
+                    <div key={question.key} className="space-y-2">
+                      <Label>{question.label}{question.required ? " *" : ""}</Label>
+                      {question.input === "short" ? (
+                        <Input value={value} onChange={(e) => updateMetaAnswer(question.key, e.target.value)} />
+                      ) : (
+                        <Textarea rows={3} value={value} onChange={(e) => updateMetaAnswer(question.key, e.target.value)} />
+                      )}
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          ))}
+
+          <div className="flex justify-end pt-2 pb-8">
+            <Button size="lg" onClick={submit} disabled={submitting}>
+              {submitting ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting…</>
+              ) : (
+                "Submit Meta Setup Form"
               )}
             </Button>
           </div>

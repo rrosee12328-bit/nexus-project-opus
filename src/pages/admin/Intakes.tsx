@@ -24,7 +24,7 @@ import {
 interface IntakeFormRow {
   id: string;
   token: string;
-  form_type: "business_media" | "funding_app";
+  form_type: "business_media" | "funding_app" | "meta_ad_account";
   client_id: string | null;
   recipient_name: string | null;
   recipient_email: string | null;
@@ -86,10 +86,19 @@ const FORM_COPY = {
     subject: "Vektiss Funding App — discovery form",
     text: "please complete our funding app discovery form",
   },
+  meta_ad_account: {
+    label: "Meta Ad Account",
+    title: "Meta Ad Account Information Form",
+    description: "Please take a few minutes to complete our Meta ad account setup form so we can prepare your business details, ad assets, access, billing, and verification steps.",
+    subject: "Vektiss Meta Ads — setup information form",
+    text: "please complete our Meta ad account setup form",
+  },
 } as const;
 
 function getFormCopy(formType?: string | null) {
-  return FORM_COPY[formType === "funding_app" ? "funding_app" : "business_media"];
+  if (formType === "funding_app") return FORM_COPY.funding_app;
+  if (formType === "meta_ad_account") return FORM_COPY.meta_ad_account;
+  return FORM_COPY.business_media;
 }
 
 function publicUrl(token: string) {
@@ -282,13 +291,13 @@ export default function AdminIntakes() {
 function NewIntakeDialog({
   open, onOpenChange, onCreated,
 }: { open: boolean; onOpenChange: (o: boolean) => void; onCreated: () => void }) {
-  const [formType, setFormType] = useState<"business_media" | "funding_app">("business_media");
+  const [formType, setFormType] = useState<"business_media" | "funding_app" | "meta_ad_account">("business_media");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [clientId, setClientId] = useState<string>("none");
   const [saving, setSaving] = useState(false);
   const [createdUrl, setCreatedUrl] = useState<string | null>(null);
-  const [createdRow, setCreatedRow] = useState<{ token: string; email: string | null; name: string | null; formType: "business_media" | "funding_app" } | null>(null);
+  const [createdRow, setCreatedRow] = useState<{ token: string; email: string | null; name: string | null; formType: "business_media" | "funding_app" | "meta_ad_account" } | null>(null);
 
   const { data: clients } = useQuery({
     queryKey: ["intake-client-picker"],
@@ -378,11 +387,12 @@ function NewIntakeDialog({
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Form Type</Label>
-              <Select value={formType} onValueChange={(v) => setFormType(v as "business_media" | "funding_app")}>
+              <Select value={formType} onValueChange={(v) => setFormType(v as "business_media" | "funding_app" | "meta_ad_account")}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="business_media">Business Media</SelectItem>
                   <SelectItem value="funding_app">Funding App</SelectItem>
+                  <SelectItem value="meta_ad_account">Meta Ad Account</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -482,14 +492,16 @@ function ViewResponseDialog({
           <p className="text-sm text-muted-foreground py-6">Loading…</p>
         ) : !response ? (
           <p className="text-sm text-muted-foreground py-6">No response submitted yet.</p>
-        ) : form?.form_type === "funding_app" && response.response_payload?.sections?.length ? (
+        ) : response.response_payload?.sections?.length ? (
           <div className="space-y-6 py-2">
             <div className="space-y-1">
               <h4 className="text-xs uppercase font-semibold tracking-wider text-muted-foreground">Summary</h4>
               <div>
-                {line("App name", response.business_name)}
+                {line(form?.form_type === "funding_app" ? "App name" : "Business", response.business_name)}
                 {line("Contact", response.contact_name)}
                 {line("Email", response.email)}
+                {line("Phone", response.phone)}
+                {line("Website", response.website)}
               </div>
             </div>
             {response.response_payload.sections.map((payloadSection) => (
