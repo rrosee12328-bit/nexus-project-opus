@@ -34,6 +34,8 @@ Deno.serve(async (req) => {
     const clientId = Deno.env.get("QUICKBOOKS_CLIENT_ID");
     const clientSecret = Deno.env.get("QUICKBOOKS_CLIENT_SECRET");
     const redirectUri = Deno.env.get("QUICKBOOKS_REDIRECT_URI");
+    const proxyUrl = Deno.env.get("QUICKBOOKS_PROXY_URL")?.replace(/\/$/, "");
+    const proxyToken = Deno.env.get("QUICKBOOKS_PROXY_TOKEN");
     const fallbackRedirect = Deno.env.get("APP_BASE_URL") ?? "http://localhost:5173/admin/settings?tab=integrations";
 
     if (!supabaseUrl || !serviceRoleKey || !clientId || !clientSecret || !redirectUri) {
@@ -84,18 +86,31 @@ Deno.serve(async (req) => {
       redirect_uri: redirectUri,
     });
 
-    const tokenResponse = await fetch(INTUIT_TOKEN_URL, {
+    const tokenEndpoint = proxyUrl && proxyToken ? `${proxyUrl}/oauth/token` : INTUIT_TOKEN_URL;
+    const tokenHeaders: Record<string, string> = {
+      Accept: "application/json",
+      Authorization: `Basic ${basicAuth}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    };
+    if (proxyToken) {
+      tokenHeaders.Authorization = `Bearer ${proxyToken}`;
+      tokenHeaders["X-Upstream-Accept"] = "application/json";
+      tokenHeaders["X-Upstream-Authorization"] = `Basic ${basicAuth}`;
+      tokenHeaders["X-Upstream-Content-Type"] = "application/x-www-form-urlencoded";
+    }
+
+    const tokenResponse = await fetch(tokenEndpoint, {
       method: "POST",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Basic ${basicAuth}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
+      headers: tokenHeaders,
       body: tokenBody.toString(),
     });
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
+      console.error("QuickBooks token exchange failed", {
+        status: tokenResponse.status,
+        intuitTid: tokenResponse.headers.get("intuit_tid"),
+      });
       await supabase
         .from("quickbooks_oauth_states")
         .update({ used_at: new Date().toISOString() })
@@ -121,15 +136,28 @@ Deno.serve(async (req) => {
     let companyName: string | null = null;
 
     try {
-      const infoResponse = await fetch(
-        `${apiBase}/v3/company/${realmId}/companyinfo/${realmId}?minorversion=75`,
-        {
-          headers: {
-            Accept: "application/json",
-            Authorization: `Bearer ${tokenData.access_token}`,
-          },
-        },
-      );
+      const useProxy = stateRow.environment === "production" && proxyUrl && proxyToken;
+      const infoUrl = useProxy
+        ? `${proxyUrl}/qbo/v3/company/${realmId}/companyinfo/${realmId}?minorversion=75`
+        : `${apiBase}/v3/company/${realmId}/companyinfo/${realmId}?minorversion=75`;
+      const infoHeaders: Record<string, string> = useProxy
+        ? {
+          Authorization: `Bearer ${proxyToken}`,
+          "X-Upstream-Accept": "application/json",
+          "X-Upstream-Authorization": `Bearer ${tokenData.access_token}`,
+        }
+        : {
+          Accept: "application/json",
+          Authorization: `Bearer ${tokenData.access_token}`,
+        };
+      const infoResponse = await fetch(infoUrl, { headers: infoHeaders });
+
+      if (!infoResponse.ok) {
+        console.error("QuickBooks company info failed", {
+          status: infoResponse.status,
+          intuitTid: infoResponse.headers.get("intuit_tid"),
+        });
+      }
 
       if (infoResponse.ok) {
         const infoData = await infoResponse.json() as {
@@ -195,4 +223,3 @@ Deno.serve(async (req) => {
 });
 
 const QUICKBOOKS_SCOPE = "com.intuit.quickbooks.accounting";
-
