@@ -151,6 +151,7 @@ export default function AdminFinancials() {
         otherIncome: number;
         otherExpenses: number;
         netIncome: number;
+        monthlyRevenue: Array<{ month: number; year: number; revenue: number }>;
         refreshedAt: string;
       };
     },
@@ -254,9 +255,13 @@ export default function AdminFinancials() {
   // Monthly chart data for filtered range
   const monthlyData = filteredMonthIndices.map((i) => {
     const month = i + 1;
-    const actualRev = actualPayments
+    const portalActualRev = actualPayments
       .filter((p) => p.payment_month === month && p.payment_year === filterYear)
       .reduce((s, p) => s + Number(p.amount), 0);
+    const quickBooksActualRev = quickBooksSummary?.monthlyRevenue?.find(
+      (item) => item.month === month && item.year === filterYear,
+    )?.revenue;
+    const actualRev = quickBooksActualRev ?? portalActualRev;
     const projectedRev = projectedPayments
       .filter((p) => p.payment_month === month && p.payment_year === filterYear)
       .reduce((s, p) => s + Number(p.amount), 0);

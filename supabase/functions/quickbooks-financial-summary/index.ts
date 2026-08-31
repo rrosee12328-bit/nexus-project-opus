@@ -26,6 +26,18 @@ function reportTotal(rows: any[], group: string) {
   return numeric(row?.Summary?.ColData?.[1]?.value);
 }
 
+function monthPeriods(startDate: string, endDate: string) {
+  const periods: Array<{ month: number; year: number }> = [];
+  const cursor = new Date(`${startDate}T00:00:00Z`);
+  cursor.setUTCDate(1);
+  const end = new Date(`${endDate}T00:00:00Z`);
+  while (cursor <= end) {
+    periods.push({ month: cursor.getUTCMonth() + 1, year: cursor.getUTCFullYear() });
+    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  }
+  return periods;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -133,10 +145,6 @@ Deno.serve(async (req) => {
     }
 
     const apiBase = connection.environment === "production" ? PRODUCTION_API_BASE : SANDBOX_API_BASE;
-    const reportPath = `/v3/company/${connection.realm_id}/reports/ProfitAndLoss?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}&accounting_method=Accrual&minorversion=75`;
-    const reportUrl = proxyUrl && proxyToken
-      ? `${proxyUrl}/qbo${reportPath}`
-      : `${apiBase}${reportPath}`;
     const reportHeaders: Record<string, string> = {
       Accept: "application/json",
       Authorization: `Bearer ${accessToken}`,
@@ -147,7 +155,19 @@ Deno.serve(async (req) => {
       reportHeaders["X-Upstream-Authorization"] = `Bearer ${accessToken}`;
     }
 
-    const reportResponse = await fetch(reportUrl, { headers: reportHeaders });
+    const fetchReport = async (summarizeByMonth = false) => {
+      const summarize = summarizeByMonth ? "&summarize_column_by=Month" : "";
+      const reportPath = `/v3/company/${connection.realm_id}/reports/ProfitAndLoss?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}&accounting_method=Accrual&minorversion=75${summarize}`;
+      const reportUrl = proxyUrl && proxyToken
+        ? `${proxyUrl}/qbo${reportPath}`
+        : `${apiBase}${reportPath}`;
+      return fetch(reportUrl, { headers: reportHeaders });
+    };
+
+    const [reportResponse, monthlyReportResponse] = await Promise.all([
+      fetchReport(),
+      fetchReport(true),
+    ]);
     if (!reportResponse.ok) {
       console.error("QuickBooks P&L failed", {
         status: reportResponse.status,
@@ -167,6 +187,23 @@ Deno.serve(async (req) => {
       rows.find((item: any) => item?.group === "NetIncome")?.Summary?.ColData?.[1]?.value,
     ) || income + otherIncome - costOfGoodsSold - expenses - otherExpenses;
 
+    let monthlyRevenue: Array<{ month: number; year: number; revenue: number }> = [];
+    if (monthlyReportResponse.ok) {
+      const monthlyReport = await monthlyReportResponse.json() as any;
+      const monthlyRows = monthlyReport?.Rows?.Row ?? [];
+      const incomeColumns = monthlyRows.find((item: any) => item?.group === "Income")?.Summary?.ColData ?? [];
+      const otherIncomeColumns = monthlyRows.find((item: any) => item?.group === "OtherIncome")?.Summary?.ColData ?? [];
+      monthlyRevenue = monthPeriods(startDate, endDate).map((period, index) => ({
+        ...period,
+        revenue: numeric(incomeColumns[index + 1]?.value) + numeric(otherIncomeColumns[index + 1]?.value),
+      }));
+    } else {
+      console.error("QuickBooks monthly P&L failed", {
+        status: monthlyReportResponse.status,
+        intuitTid: monthlyReportResponse.headers.get("intuit_tid"),
+      });
+    }
+
     return json({
       connected: true,
       companyName: connection.company_name,
@@ -180,6 +217,7 @@ Deno.serve(async (req) => {
       otherIncome,
       otherExpenses,
       netIncome,
+      monthlyRevenue,
       refreshedAt: new Date().toISOString(),
     });
   } catch (error) {
