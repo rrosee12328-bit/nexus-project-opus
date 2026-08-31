@@ -151,7 +151,7 @@ export default function AdminFinancials() {
         otherIncome: number;
         otherExpenses: number;
         netIncome: number;
-        monthlyRevenue: Array<{ month: number; year: number; revenue: number }>;
+        monthlyRevenue: Array<{ month: number; year: number; revenue: number; expenses: number; netIncome: number }>;
         refreshedAt: string;
       };
     },
@@ -265,16 +265,20 @@ export default function AdminFinancials() {
     const projectedRev = projectedPayments
       .filter((p) => p.payment_month === month && p.payment_year === filterYear)
       .reduce((s, p) => s + Number(p.amount), 0);
-    const expense = (expenses ?? [])
+    const portalExpense = (expenses ?? [])
       .filter((e) => e.expense_month === month && e.expense_year === filterYear)
       .reduce((s, e) => s + Number(e.amount), 0);
+    const quickBooksMonth = quickBooksSummary?.monthlyRevenue?.find(
+      (item) => item.month === month && item.year === filterYear,
+    );
+    const expense = quickBooksMonth?.expenses ?? portalExpense;
     return {
       month: MONTHS[i],
       actualRevenue: actualRev,
       projectedRevenue: projectedRev,
       expenses: expense,
-      actualProfit: actualRev - expense,
-      totalProfit: actualRev + projectedRev - expense,
+      actualProfit: quickBooksMonth?.netIncome ?? actualRev - expense,
+      totalProfit: (quickBooksMonth?.netIncome ?? actualRev - expense) + projectedRev,
     };
   });
 
@@ -282,8 +286,9 @@ export default function AdminFinancials() {
   const filteredExpenses = (expenses ?? []).filter((e) => isInRange(e.expense_month, e.expense_year));
 
   const quickBooksRangeRevenue = quickBooksSummary?.monthlyRevenue?.reduce((sum, item) => sum + item.revenue, 0);
+  const quickBooksRangeExpenses = quickBooksSummary?.monthlyRevenue?.reduce((sum, item) => sum + item.expenses, 0);
   const ytdRevenue = quickBooksRangeRevenue ?? filteredPayments.reduce((s, p) => s + Number(p.amount), 0);
-  const ytdExpenses = filteredExpenses.reduce((s, e) => s + Number(e.amount), 0);
+  const ytdExpenses = quickBooksRangeExpenses ?? filteredExpenses.reduce((s, e) => s + Number(e.amount), 0);
   const ytdProfit = ytdRevenue - ytdExpenses;
   const activeMrr = (clients ?? [])
     .filter((c) => c.status === "active")

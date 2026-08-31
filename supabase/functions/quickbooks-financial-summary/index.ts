@@ -205,14 +205,23 @@ Deno.serve(async (req) => {
           status: response.status,
           intuitTid: response.headers.get("intuit_tid"),
         });
-        return { month: period.month, year: period.year, revenue: 0 };
+        return { month: period.month, year: period.year, revenue: 0, expenses: 0, netIncome: 0 };
       }
       const monthlyReport = await response.json() as any;
       const monthlyRows = monthlyReport?.Rows?.Row ?? [];
+      const revenue = reportTotal(monthlyRows, "Income") + reportTotal(monthlyRows, "OtherIncome");
+      const monthlyExpenses = reportTotal(monthlyRows, "COGS")
+        + reportTotal(monthlyRows, "Expenses")
+        + reportTotal(monthlyRows, "OtherExpenses");
+      const reportedNetIncome = numeric(
+        monthlyRows.find((item: any) => item?.group === "NetIncome")?.Summary?.ColData?.[1]?.value,
+      );
       return {
         month: period.month,
         year: period.year,
-        revenue: reportTotal(monthlyRows, "Income") + reportTotal(monthlyRows, "OtherIncome"),
+        revenue,
+        expenses: monthlyExpenses,
+        netIncome: reportedNetIncome || revenue - monthlyExpenses,
       };
     }));
 
