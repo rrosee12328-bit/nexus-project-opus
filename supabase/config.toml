@@ -29,3 +29,5 @@ project_id = "ogcgqbrewfzkchwqrrxj"
     verify_jwt = true
   [functions.quickbooks-oauth-callback]
     verify_jwt = false
+  [functions.quickbooks-financial-summary]
+    verify_jwt = true

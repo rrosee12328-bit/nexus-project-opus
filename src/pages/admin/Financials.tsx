@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { DollarSign, TrendingUp, TrendingDown, Download, Wallet, Plus, Pencil, Trash2, CreditCard, AlertCircle } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Download, Wallet, Plus, Pencil, Trash2, CreditCard, AlertCircle, RefreshCw, Building2 } from "lucide-react";
 import { PageHero } from "@/components/ui/page-shell";
 import { Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Line, ComposedChart, Legend } from "recharts";
 import { Badge } from "@/components/ui/badge";
@@ -130,6 +130,32 @@ export default function AdminFinancials() {
   const [editingInvestment, setEditingInvestment] = useState<any>(null);
   const [overheadOpen, setOverheadOpen] = useState(false);
   const [editingOverhead, setEditingOverhead] = useState<any>(null);
+
+  const quickBooksStartDate = `${filterYear}-${String(filterFromMonth + 1).padStart(2, "0")}-01`;
+  const quickBooksEndDate = new Date(filterYear, filterToMonth + 1, 0).toISOString().slice(0, 10);
+  const { data: quickBooksSummary, isFetching: quickBooksRefreshing, refetch: refreshQuickBooks } = useQuery({
+    queryKey: ["quickbooks-financial-summary", quickBooksStartDate, quickBooksEndDate],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("quickbooks-financial-summary", {
+        body: { startDate: quickBooksStartDate, endDate: quickBooksEndDate },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data as {
+        connected: boolean;
+        companyName: string | null;
+        environment: string;
+        income: number;
+        costOfGoodsSold: number;
+        expenses: number;
+        otherIncome: number;
+        otherExpenses: number;
+        netIncome: number;
+        refreshedAt: string;
+      };
+    },
+    retry: false,
+  });
 
   const deleteExpense = useMutation({
     mutationFn: async (id: string) => {
@@ -299,6 +325,42 @@ export default function AdminFinancials() {
         description="Revenue, expenses, profit margins, and investment tracking."
         action={<Button variant="outline" onClick={exportCSV}><Download className="mr-2 h-4 w-4" />Export CSV</Button>}
       />
+
+      <Card className="border-emerald-500/20">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-emerald-400" /> QuickBooks Profit & Loss
+                {quickBooksSummary?.connected && <Badge variant="outline" className="text-emerald-400 border-emerald-500/30">Live</Badge>}
+              </CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {quickBooksSummary?.companyName || "Connected QuickBooks company"} • Accrual basis • {rangeLabel}
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => refreshQuickBooks()} disabled={quickBooksRefreshing}>
+              <RefreshCw className={`mr-2 h-4 w-4 ${quickBooksRefreshing ? "animate-spin" : ""}`} />
+              {quickBooksRefreshing ? "Refreshing..." : "Refresh QuickBooks"}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {quickBooksSummary ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div><p className="text-xs uppercase tracking-wider text-muted-foreground">Income</p><p className="mt-1 text-xl font-bold font-mono text-emerald-400">{formatCurrency(quickBooksSummary.income + quickBooksSummary.otherIncome)}</p></div>
+              <div><p className="text-xs uppercase tracking-wider text-muted-foreground">Cost of goods sold</p><p className="mt-1 text-xl font-bold font-mono">{formatCurrency(quickBooksSummary.costOfGoodsSold)}</p></div>
+              <div><p className="text-xs uppercase tracking-wider text-muted-foreground">Expenses</p><p className="mt-1 text-xl font-bold font-mono text-destructive">{formatCurrency(quickBooksSummary.expenses + quickBooksSummary.otherExpenses)}</p></div>
+              <div><p className="text-xs uppercase tracking-wider text-muted-foreground">Net income</p><p className={`mt-1 text-xl font-bold font-mono ${quickBooksSummary.netIncome >= 0 ? "text-emerald-400" : "text-destructive"}`}>{formatCurrency(quickBooksSummary.netIncome)}</p></div>
+              <p className="text-xs text-muted-foreground sm:col-span-2 lg:col-span-4">Last refreshed {new Date(quickBooksSummary.refreshedAt).toLocaleString()}</p>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <RefreshCw className={`h-4 w-4 ${quickBooksRefreshing ? "animate-spin" : ""}`} />
+              {quickBooksRefreshing ? "Reading financial data from QuickBooks..." : "QuickBooks data is unavailable. Use Refresh QuickBooks to try again."}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Filters */}
       <motion.div
