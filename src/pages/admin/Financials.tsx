@@ -281,7 +281,8 @@ export default function AdminFinancials() {
   const filteredPayments = (payments ?? []).filter((p) => isInRange(p.payment_month, p.payment_year));
   const filteredExpenses = (expenses ?? []).filter((e) => isInRange(e.expense_month, e.expense_year));
 
-  const ytdRevenue = filteredPayments.reduce((s, p) => s + Number(p.amount), 0);
+  const quickBooksRangeRevenue = quickBooksSummary?.monthlyRevenue?.reduce((sum, item) => sum + item.revenue, 0);
+  const ytdRevenue = quickBooksRangeRevenue ?? filteredPayments.reduce((s, p) => s + Number(p.amount), 0);
   const ytdExpenses = filteredExpenses.reduce((s, e) => s + Number(e.amount), 0);
   const ytdProfit = ytdRevenue - ytdExpenses;
   const activeMrr = (clients ?? [])

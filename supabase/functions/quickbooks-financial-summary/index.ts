@@ -27,12 +27,21 @@ function reportTotal(rows: any[], group: string) {
 }
 
 function monthPeriods(startDate: string, endDate: string) {
-  const periods: Array<{ month: number; year: number }> = [];
+  const periods: Array<{ month: number; year: number; startDate: string; endDate: string }> = [];
   const cursor = new Date(`${startDate}T00:00:00Z`);
   cursor.setUTCDate(1);
   const end = new Date(`${endDate}T00:00:00Z`);
   while (cursor <= end) {
-    periods.push({ month: cursor.getUTCMonth() + 1, year: cursor.getUTCFullYear() });
+    const year = cursor.getUTCFullYear();
+    const month = cursor.getUTCMonth() + 1;
+    const monthStart = `${year}-${String(month).padStart(2, "0")}-01`;
+    const monthEnd = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
+    periods.push({
+      month,
+      year,
+      startDate: monthStart < startDate ? startDate : monthStart,
+      endDate: monthEnd > endDate ? endDate : monthEnd,
+    });
     cursor.setUTCMonth(cursor.getUTCMonth() + 1);
   }
   return periods;
@@ -155,18 +164,18 @@ Deno.serve(async (req) => {
       reportHeaders["X-Upstream-Authorization"] = `Bearer ${accessToken}`;
     }
 
-    const fetchReport = async (summarizeByMonth = false) => {
-      const summarize = summarizeByMonth ? "&summarize_column_by=Month" : "";
-      const reportPath = `/v3/company/${connection.realm_id}/reports/ProfitAndLoss?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}&accounting_method=Accrual&minorversion=75${summarize}`;
+    const fetchReport = async (periodStart = startDate, periodEnd = endDate) => {
+      const reportPath = `/v3/company/${connection.realm_id}/reports/ProfitAndLoss?start_date=${encodeURIComponent(periodStart)}&end_date=${encodeURIComponent(periodEnd)}&accounting_method=Accrual&minorversion=75`;
       const reportUrl = proxyUrl && proxyToken
         ? `${proxyUrl}/qbo${reportPath}`
         : `${apiBase}${reportPath}`;
       return fetch(reportUrl, { headers: reportHeaders });
     };
 
-    const [reportResponse, monthlyReportResponse] = await Promise.all([
+    const periods = monthPeriods(startDate, endDate);
+    const [reportResponse, monthlyResponses] = await Promise.all([
       fetchReport(),
-      fetchReport(true),
+      Promise.all(periods.map((period) => fetchReport(period.startDate, period.endDate))),
     ]);
     if (!reportResponse.ok) {
       console.error("QuickBooks P&L failed", {
@@ -187,22 +196,25 @@ Deno.serve(async (req) => {
       rows.find((item: any) => item?.group === "NetIncome")?.Summary?.ColData?.[1]?.value,
     ) || income + otherIncome - costOfGoodsSold - expenses - otherExpenses;
 
-    let monthlyRevenue: Array<{ month: number; year: number; revenue: number }> = [];
-    if (monthlyReportResponse.ok) {
-      const monthlyReport = await monthlyReportResponse.json() as any;
+    const monthlyRevenue = await Promise.all(periods.map(async (period, index) => {
+      const response = monthlyResponses[index];
+      if (!response.ok) {
+        console.error("QuickBooks monthly P&L failed", {
+          month: period.month,
+          year: period.year,
+          status: response.status,
+          intuitTid: response.headers.get("intuit_tid"),
+        });
+        return { month: period.month, year: period.year, revenue: 0 };
+      }
+      const monthlyReport = await response.json() as any;
       const monthlyRows = monthlyReport?.Rows?.Row ?? [];
-      const incomeColumns = monthlyRows.find((item: any) => item?.group === "Income")?.Summary?.ColData ?? [];
-      const otherIncomeColumns = monthlyRows.find((item: any) => item?.group === "OtherIncome")?.Summary?.ColData ?? [];
-      monthlyRevenue = monthPeriods(startDate, endDate).map((period, index) => ({
-        ...period,
-        revenue: numeric(incomeColumns[index + 1]?.value) + numeric(otherIncomeColumns[index + 1]?.value),
-      }));
-    } else {
-      console.error("QuickBooks monthly P&L failed", {
-        status: monthlyReportResponse.status,
-        intuitTid: monthlyReportResponse.headers.get("intuit_tid"),
-      });
-    }
+      return {
+        month: period.month,
+        year: period.year,
+        revenue: reportTotal(monthlyRows, "Income") + reportTotal(monthlyRows, "OtherIncome"),
+      };
+    }));
 
     return json({
       connected: true,
