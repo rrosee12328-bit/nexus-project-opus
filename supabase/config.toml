@@ -1,4 +1,4 @@
-project_id = "xtftehtsfnxsdsfmwkew"
+project_id = "ogcgqbrewfzkchwqrrxj"
 
 [functions]
   [functions.auth-email-hook]
@@ -24,4 +24,8 @@ project_id = "xtftehtsfnxsdsfmwkew"
   [functions.push-outlook-event]
     verify_jwt = false
   [functions.ms-oauth-callback]
+    verify_jwt = false
+  [functions.quickbooks-start-oauth]
+    verify_jwt = true
+  [functions.quickbooks-oauth-callback]
     verify_jwt = false

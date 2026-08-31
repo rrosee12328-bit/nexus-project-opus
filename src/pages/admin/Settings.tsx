@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { User, Lock, Bell, Save, Shield, Clock, RefreshCw, Send, Rocket, Eye, EyeOff, CheckCircle2, Mail, Users, UserPlus, RotateCw, Brain } from "lucide-react";
+import { User, Lock, Bell, Save, Shield, Clock, RefreshCw, Send, Rocket, Eye, EyeOff, CheckCircle2, Mail, Users, UserPlus, RotateCw, Brain, Link2, Building2 } from "lucide-react";
 import { OnboardingTemplatesManager } from "@/components/admin/OnboardingTemplatesManager";
 import { NotificationPreferences } from "@/components/NotificationPreferences";
 import { BusinessRulesPanel } from "@/components/admin/BusinessRulesPanel";
@@ -22,6 +23,7 @@ import { format } from "date-fns";
 export default function AdminSettings() {
   const { user, role } = useAuth();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -36,6 +38,10 @@ export default function AdminSettings() {
   const [inviteRole, setInviteRole] = useState<"admin" | "ops">("admin");
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "profile");
+
+  const redirectTarget = `${window.location.origin}/admin/settings?tab=integrations`;
+  const recommendedCallbackUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/quickbooks-oauth-callback`;
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ["admin-profile", user?.id],
@@ -65,12 +71,48 @@ export default function AdminSettings() {
     },
   });
 
+  const { data: quickbooksConnection, isLoading: quickbooksLoading } = useQuery({
+    queryKey: ["quickbooks-connection"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("quickbooks_connections")
+        .select("id, environment, realm_id, company_name, created_at, updated_at, is_active")
+        .eq("is_active", true)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
   useEffect(() => {
     if (profile) {
       setDisplayName(profile.display_name ?? "");
       setAvatarUrl(profile.avatar_url ?? "");
     }
   }, [profile]);
+
+  useEffect(() => {
+    const nextTab = searchParams.get("tab") || "profile";
+    if (nextTab !== activeTab) setActiveTab(nextTab);
+  }, [activeTab, searchParams]);
+
+  useEffect(() => {
+    const status = searchParams.get("quickbooks");
+    if (!status) return;
+    if (status === "connected") {
+      toast.success("QuickBooks connected");
+      queryClient.invalidateQueries({ queryKey: ["quickbooks-connection"] });
+    } else {
+      toast.error(`QuickBooks connection failed: ${searchParams.get("reason") || "connection failed"}`);
+    }
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("quickbooks");
+    nextParams.delete("reason");
+    nextParams.delete("detail");
+    setSearchParams(nextParams, { replace: true });
+  }, [queryClient, searchParams, setSearchParams]);
 
   const updateProfile = useMutation({
     mutationFn: async () => {
@@ -193,6 +235,24 @@ export default function AdminSettings() {
     onError: (err: Error) => toast.error("Failed to trigger reminders: " + err.message),
   });
 
+  const connectQuickBooks = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("quickbooks-start-oauth", {
+        body: { redirectTo: redirectTarget },
+      });
+      if (error) throw error;
+      return data as { url?: string; error?: string };
+    },
+    onSuccess: (data) => {
+      if (!data?.url) {
+        toast.error(data?.error || "Missing QuickBooks authorization URL");
+        return;
+      }
+      window.location.assign(data.url);
+    },
+    onError: (err: Error) => toast.error("Failed to start QuickBooks connection: " + err.message),
+  });
+
   const initials = (displayName || user?.email || "A")
     .split(" ")
     .map((w) => w[0])
@@ -236,6 +296,13 @@ export default function AdminSettings() {
     transition: { duration: 0.4, delay },
   });
 
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("tab", value);
+    setSearchParams(nextParams, { replace: true });
+  };
+
   return (
     <div className="space-y-8 max-w-3xl">
       <motion.div {...anim(0)}>
@@ -243,7 +310,7 @@ export default function AdminSettings() {
         <p className="text-muted-foreground mt-1">Manage your account, security, and preferences.</p>
       </motion.div>
 
-      <Tabs defaultValue="profile" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <motion.div {...anim(0.1)}>
           <TabsList className="w-full overflow-x-auto flex-nowrap justify-start">
             <TabsTrigger value="profile" className="gap-2 shrink-0"><User className="h-4 w-4" /> <span className="hidden sm:inline">Profile</span></TabsTrigger>
@@ -251,6 +318,7 @@ export default function AdminSettings() {
             <TabsTrigger value="notifications" className="gap-2 shrink-0"><Bell className="h-4 w-4" /> <span className="hidden sm:inline">Notifications</span></TabsTrigger>
             <TabsTrigger value="reminders" className="gap-2 shrink-0"><Clock className="h-4 w-4" /> <span className="hidden sm:inline">Reminders</span></TabsTrigger>
             <TabsTrigger value="team" className="gap-2 shrink-0"><Users className="h-4 w-4" /> <span className="hidden sm:inline">Team</span></TabsTrigger>
+            <TabsTrigger value="integrations" className="gap-2 shrink-0"><Link2 className="h-4 w-4" /> <span className="hidden sm:inline">Integrations</span></TabsTrigger>
             <TabsTrigger value="onboarding" className="gap-2 shrink-0"><Rocket className="h-4 w-4" /> <span className="hidden sm:inline">Onboarding</span></TabsTrigger>
             <TabsTrigger value="business-rules" className="gap-2 shrink-0"><Brain className="h-4 w-4" /> <span className="hidden sm:inline">Business Rules</span></TabsTrigger>
           </TabsList>
@@ -666,6 +734,91 @@ export default function AdminSettings() {
                 )}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        </TabsContent>
+
+        {/* ── Integrations Tab ── */}
+        <TabsContent value="integrations">
+          <motion.div {...anim(0.15)} className="space-y-6">
+            <Card className="hover:border-primary/20 transition-colors">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-primary" /> QuickBooks Online
+                </CardTitle>
+                <CardDescription>
+                  Connect the Vektiss portal to QuickBooks Online and return here automatically after authorization.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium">Connection status</p>
+                      <Badge variant={quickbooksConnection ? "default" : "outline"}>
+                        {quickbooksConnection ? "Connected" : "Not connected"}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {quickbooksConnection
+                        ? `${quickbooksConnection.company_name || "QuickBooks company"} • ${quickbooksConnection.environment}`
+                        : "Connect your production QuickBooks company to sync accounting data."}
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => connectQuickBooks.mutate()}
+                    disabled={connectQuickBooks.isPending}
+                    className="gap-2"
+                  >
+                    <Link2 className={`h-4 w-4 ${connectQuickBooks.isPending ? "animate-pulse" : ""}`} />
+                    {connectQuickBooks.isPending
+                      ? "Redirecting..."
+                      : quickbooksConnection
+                        ? "Reconnect QuickBooks"
+                        : "Connect QuickBooks"}
+                  </Button>
+                </div>
+
+                {quickbooksConnection && (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="rounded-lg border p-4">
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Company</p>
+                      <p className="mt-2 text-sm font-medium">{quickbooksConnection.company_name || "Unknown"}</p>
+                    </div>
+                    <div className="rounded-lg border p-4">
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Realm ID</p>
+                      <p className="mt-2 text-sm font-mono break-all">{quickbooksConnection.realm_id}</p>
+                    </div>
+                    <div className="rounded-lg border p-4">
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Environment</p>
+                      <p className="mt-2 text-sm capitalize">{quickbooksConnection.environment}</p>
+                    </div>
+                    <div className="rounded-lg border p-4">
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Last connected</p>
+                      <p className="mt-2 text-sm">{format(new Date(quickbooksConnection.updated_at), "MMM d, yyyy h:mm a")}</p>
+                    </div>
+                  </div>
+                )}
+
+                <Separator />
+
+                <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Intuit redirect URI</p>
+                    <p className="mt-1 break-all font-mono text-sm">{recommendedCallbackUrl}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Return page</p>
+                    <p className="mt-1 break-all font-mono text-sm">{redirectTarget}</p>
+                  </div>
+                </div>
+
+                <p className="text-sm text-muted-foreground">
+                  Required Supabase secrets: QUICKBOOKS_CLIENT_ID, QUICKBOOKS_CLIENT_SECRET,
+                  QUICKBOOKS_REDIRECT_URI, QUICKBOOKS_ENVIRONMENT, and APP_BASE_URL.
+                </p>
+                {quickbooksLoading && <p className="text-sm text-muted-foreground">Loading connection status...</p>}
               </CardContent>
             </Card>
           </motion.div>
