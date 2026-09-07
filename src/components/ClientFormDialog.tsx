@@ -90,6 +90,10 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
     setForm((prev) => ({ ...prev, [key]: value }));
 
   const showPipeline = form.status === "lead" || form.status === "prospect";
+  const calculatedBalanceDue = Math.max(
+    (Number(form.setup_fee) || 0) - (Number(form.setup_paid) || 0),
+    0,
+  );
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -103,7 +107,7 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
         start_date: form.start_date || null,
         setup_fee: Number(form.setup_fee) || 0,
         setup_paid: Number(form.setup_paid) || 0,
-        balance_due: Number(form.balance_due) || 0,
+        balance_due: calculatedBalanceDue,
         monthly_fee: Number(form.monthly_fee) || 0,
         email: form.email?.trim() || null,
         phone: form.phone?.trim() || null,
@@ -242,7 +246,7 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
             </div>
             <div className="space-y-2">
               <Label>Balance Due</Label>
-              <Input type="number" min={0} value={form.balance_due ?? 0} onChange={(e) => set("balance_due", e.target.value)} />
+              <Input type="number" min={0} value={calculatedBalanceDue} readOnly className="bg-muted" />
             </div>
             <div className="space-y-2">
               <Label>Monthly Fee</Label>
