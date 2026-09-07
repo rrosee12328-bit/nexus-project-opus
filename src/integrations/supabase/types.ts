@@ -2558,6 +2558,7 @@ export type Database = {
           scope_description: string | null
           services_description: string | null
           setup_fee: number
+          setup_paid: number
           signed_at: string | null
           signed_name: string | null
           status: string
@@ -2595,6 +2596,7 @@ export type Database = {
           scope_description?: string | null
           services_description?: string | null
           setup_fee?: number
+          setup_paid?: number
           signed_at?: string | null
           signed_name?: string | null
           status?: string
@@ -2632,6 +2634,7 @@ export type Database = {
           scope_description?: string | null
           services_description?: string | null
           setup_fee?: number
+          setup_paid?: number
           signed_at?: string | null
           signed_name?: string | null
           status?: string

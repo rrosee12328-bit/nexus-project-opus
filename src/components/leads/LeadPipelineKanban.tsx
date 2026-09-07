@@ -369,6 +369,7 @@ export function LeadPipelineKanban({ leads, onEdit, onDelete }: LeadPipelineKanb
         clientEmail={proposalLead?.email}
         defaultMonthlyFee={proposalLead?.monthly_fee ?? 0}
         defaultSetupFee={proposalLead?.setup_fee ?? 0}
+        defaultSetupPaid={proposalLead?.setup_paid ?? 0}
       />
 
       <ConvertLeadToProposalDialog

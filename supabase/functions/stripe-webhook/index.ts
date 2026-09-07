@@ -402,12 +402,13 @@ async function handleProposalPayment(supabase: any, session: any) {
   const proposalId = session.metadata?.proposal_id;
   const clientId = session.metadata?.client_id;
   const isProjectDeposit = session.metadata?.payment_stage === "project_deposit";
+  const isMonthlySubscription = session.metadata?.payment_stage === "monthly_subscription";
 
   if (!proposalId) return;
 
   const { data: proposal } = await supabase
     .from("proposals")
-    .select("setup_fee, monthly_fee, project_total, project_name, client_email, client_name, created_by, project_final_invoice_id")
+    .select("setup_fee, setup_paid, monthly_fee, project_total, project_name, client_email, client_name, created_by, project_final_invoice_id")
     .eq("id", proposalId)
     .single();
 
@@ -452,7 +453,9 @@ async function handleProposalPayment(supabase: any, session: any) {
         payment_year: now.getFullYear(),
         notes: isProjectDeposit
           ? "Project deposit (50%) — proposal signed"
-          : "Setup fee — proposal signed & paid",
+          : isMonthlySubscription
+            ? "Monthly service subscription started — proposal signed"
+            : "Setup fee balance — proposal signed & paid",
         stripe_invoice_id: session.id,
         payment_source: "stripe",
       });
@@ -466,12 +469,16 @@ async function handleProposalPayment(supabase: any, session: any) {
   }
 
   if (clientId) {
+    const paidBeforeCheckout = Number(proposal.setup_paid) || 0;
+    const setupPaidAfterCheckout = isMonthlySubscription
+      ? paidBeforeCheckout
+      : Math.min(Number(proposal.setup_fee) || 0, paidBeforeCheckout + Number(session.amount_total || 0) / 100);
     await supabase
       .from("clients")
       .update({
         setup_fee: proposal.setup_fee,
         monthly_fee: proposal.monthly_fee,
-        setup_paid: isProjectDeposit ? session.amount_total / 100 : proposal.setup_fee,
+        setup_paid: isProjectDeposit ? session.amount_total / 100 : setupPaidAfterCheckout,
         email: proposal.client_email,
         name: proposal.client_name,
       })

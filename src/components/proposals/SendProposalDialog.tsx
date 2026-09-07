@@ -34,6 +34,7 @@ interface SendProposalDialogProps {
   clientEmail?: string | null;
   defaultMonthlyFee?: number;
   defaultSetupFee?: number;
+  defaultSetupPaid?: number;
 }
 
 const TYPE_OPTIONS: { value: ProposalType; label: string; description: string; icon: any }[] = [
@@ -44,7 +45,7 @@ const TYPE_OPTIONS: { value: ProposalType; label: string; description: string; i
 
 export function SendProposalDialog({
   open, onOpenChange, clientId, clientName, clientEmail,
-  defaultMonthlyFee = 0, defaultSetupFee = 0,
+  defaultMonthlyFee = 0, defaultSetupFee = 0, defaultSetupPaid = 0,
 }: SendProposalDialogProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -53,6 +54,7 @@ export function SendProposalDialog({
   const [projectName, setProjectName] = useState("");
   const [monthlyFee, setMonthlyFee] = useState(String(defaultMonthlyFee || ""));
   const [setupFee, setSetupFee] = useState(String(defaultSetupFee || ""));
+  const [setupPaid, setSetupPaid] = useState(String(defaultSetupPaid || ""));
   const [hourlyRate, setHourlyRate] = useState("");
   const [projectTotal, setProjectTotal] = useState("");
   const [billingSchedule, setBillingSchedule] = useState("monthly");
@@ -71,6 +73,7 @@ export function SendProposalDialog({
     setProjectName("");
     setMonthlyFee(String(defaultMonthlyFee || ""));
     setSetupFee(String(defaultSetupFee || ""));
+    setSetupPaid(String(defaultSetupPaid || ""));
     setHourlyRate("");
     setProjectTotal("");
     setBillingSchedule("monthly");
@@ -106,6 +109,9 @@ export function SendProposalDialog({
     project_name: projectName.trim() || null,
     monthly_fee: proposalType === "retainer" ? (Number(monthlyFee) || 0) : 0,
     setup_fee: proposalType === "retainer" ? (Number(setupFee) || 0) : 0,
+    setup_paid: proposalType === "retainer"
+      ? Math.min(Number(setupPaid) || 0, Number(setupFee) || 0)
+      : 0,
     hourly_rate: proposalType === "hourly" ? (Number(hourlyRate) || 0) : 0,
     project_total: proposalType === "project" ? (Number(projectTotal) || 0) : 0,
     services_description: servicesDescription.trim() || null,
@@ -212,6 +218,7 @@ export function SendProposalDialog({
     clientEmail: clientEmail || "_______________",
     projectName: projectName.trim() || undefined,
     setupFee: proposalType === "retainer" ? Number(setupFee) || 0 : 0,
+    setupFeePaid: proposalType === "retainer" ? Number(setupPaid) || 0 : 0,
     monthlyFee: proposalType === "retainer" ? Number(monthlyFee) || 0 : 0,
     hourlyRate: proposalType === "hourly" ? Number(hourlyRate) || 0 : 0,
     projectTotal: proposalType === "project" ? Number(projectTotal) || 0 : 0,
@@ -231,7 +238,13 @@ export function SendProposalDialog({
     }
 
     const terms = [];
-    if (Number(setupFee) > 0) terms.push(`${fmt(Number(setupFee))} setup`);
+    const setupTotal = Number(setupFee) || 0;
+    const setupCredit = Math.min(Number(setupPaid) || 0, setupTotal);
+    if (setupTotal > 0) {
+      terms.push(setupCredit >= setupTotal
+        ? `${fmt(setupTotal)} setup (paid in full)`
+        : `${fmt(setupTotal)} setup (${fmt(setupCredit)} paid, ${fmt(setupTotal - setupCredit)} due)`);
+    }
     if (Number(monthlyFee) > 0) terms.push(`${fmt(Number(monthlyFee))} per month`);
     const split = billingSchedule === "bimonthly" && Number(monthlyFee) > 0
       ? ` The monthly fee is split into two ${fmt(Number(monthlyFee) / 2)} payments.`
@@ -252,9 +265,15 @@ export function SendProposalDialog({
           badge: "50% now + 50% draft",
         }
       : {
-          title: "Stripe checkout is ready to generate",
-          detail: "The payment link is intentionally created only after the client signs the contract. This prevents an unsigned client from paying against unfinished terms.",
-          badge: "Pending client signature",
+          title: Number(setupPaid) >= Number(setupFee) && Number(setupFee) > 0
+            ? "Setup paid; monthly card setup follows signing"
+            : "Stripe checkout is ready to generate",
+          detail: Number(setupPaid) >= Number(setupFee) && Number(setupFee) > 0
+            ? "The client will not be charged the setup fee again. After signing, Stripe will securely save the card and start the monthly subscription."
+            : "The payment link is intentionally created only after the client signs the contract. This prevents an unsigned client from paying against unfinished terms.",
+          badge: Number(setupPaid) >= Number(setupFee) && Number(setupFee) > 0
+            ? "Setup paid"
+            : "Pending client signature",
         };
 
   return (
@@ -325,11 +344,16 @@ export function SendProposalDialog({
 
                 {proposalType === "retainer" && (
                   <>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div className="space-y-1.5">
                         <Label className="text-xs">Setup Fee (USD)</Label>
                         <Input type="number" min={0} value={setupFee}
                           onChange={(e) => setSetupFee(e.target.value)} placeholder="e.g. 5800" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Setup Already Paid (USD)</Label>
+                        <Input type="number" min={0} max={Number(setupFee) || undefined} value={setupPaid}
+                          onChange={(e) => setSetupPaid(e.target.value)} placeholder="e.g. 1500" />
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-xs">Monthly Fee (USD)</Label>

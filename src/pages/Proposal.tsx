@@ -29,6 +29,7 @@ interface ProposalData {
   client_address: string | null;
   client_email: string | null;
   setup_fee: number;
+  setup_paid: number;
   monthly_fee: number;
   services_description: string | null;
   signed_at: string | null;
@@ -298,6 +299,7 @@ export default function ProposalPage() {
     clientAddress: clientAddress || "_______________",
     clientEmail: clientEmail || "_______________",
     setupFee: proposal.setup_fee,
+    setupFeePaid: proposal.setup_paid,
     monthlyFee: proposal.monthly_fee,
     servicesDescription: proposal.services_description || undefined,
     proposalType: (proposal.proposal_type as any) || "retainer",
@@ -435,6 +437,8 @@ export default function ProposalPage() {
           {/* Step 0: Proposal Overview — Document-style Preview */}
           {step === "overview" && (() => {
             const setupAmt = proposal.setup_fee;
+            const setupPaid = Math.min(proposal.setup_paid || 0, setupAmt);
+            const setupBalance = Math.max(setupAmt - setupPaid, 0);
             const monthlyAmt = proposal.monthly_fee;
             // Strip markdown bold/italic so AI-polished text reads cleanly
             const cleanText = (t: string) =>
@@ -585,9 +589,19 @@ export default function ProposalPage() {
                       <h2 className="text-sm font-bold">Investment</h2>
                       <div className="space-y-2 text-sm">
                         {ptype === "retainer" && setupAmt > 0 && (
-                          <div className="flex items-baseline justify-between border-b border-border/60 pb-2">
-                            <span className="text-muted-foreground">One-Time Setup Fee</span>
-                            <span className="font-mono font-semibold">{fmt(setupAmt)}</span>
+                          <div className="space-y-2 border-b border-border/60 pb-3">
+                            <div className="flex items-baseline justify-between">
+                              <span className="text-muted-foreground">One-Time Setup Fee</span>
+                              <span className="font-mono font-semibold">{fmt(setupAmt)}</span>
+                            </div>
+                            {setupPaid > 0 && (
+                              <div className="flex items-center justify-between text-emerald-600">
+                                <span className="text-xs font-medium">Payment received</span>
+                                <span className="text-xs font-semibold font-mono">
+                                  {fmt(setupPaid)} {setupBalance === 0 ? "- Paid in full" : `- ${fmt(setupBalance)} remaining`}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         )}
                         {ptype === "retainer" && (
@@ -646,9 +660,11 @@ export default function ProposalPage() {
                             ? "Complete the 50% deposit to begin work"
                             : ptype === "hourly"
                               ? "Confirm billing details to begin work"
-                              : setupAmt > 0
+                              : setupBalance > 0
                                 ? "Complete the setup payment to begin onboarding"
-                                : "Set up monthly billing to begin onboarding"}
+                                : setupAmt > 0
+                                  ? "Add a card for monthly billing; the setup fee is already paid"
+                                  : "Set up monthly billing to begin onboarding"}
                         </li>
                       </ol>
                     </section>
@@ -837,6 +853,9 @@ export default function ProposalPage() {
           {/* Step 4: Payment */}
           {step === "pay" && (() => {
             const hasSetup = proposal.setup_fee > 0;
+            const setupPaid = Math.min(proposal.setup_paid || 0, proposal.setup_fee);
+            const setupBalance = Math.max(proposal.setup_fee - setupPaid, 0);
+            const hasSetupBalance = setupBalance > 0;
             const hasMonthly = proposal.monthly_fee > 0;
             const isProject = proposal.proposal_type === "project" && (proposal.project_total || 0) > 0;
             const projectDeposit = (proposal.project_total || 0) / 2;
@@ -880,10 +899,22 @@ export default function ProposalPage() {
 
                     <div className="bg-muted/50 rounded-lg p-4 space-y-3">
                       {hasSetup && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground">One-Time Setup Fee</span>
-                          <span className="text-sm font-bold font-mono">{fmt(proposal.setup_fee)}</span>
-                        </div>
+                        <>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">One-Time Setup Fee</span>
+                            <span className="text-sm font-bold font-mono">{fmt(proposal.setup_fee)}</span>
+                          </div>
+                          {setupPaid > 0 && (
+                            <div className="flex items-center justify-between text-emerald-600">
+                              <span className="text-sm">Already paid</span>
+                              <span className="text-sm font-bold font-mono">{fmt(setupPaid)}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between border-t border-border/60 pt-2">
+                            <span className="text-sm font-medium">Setup balance due</span>
+                            <span className="text-sm font-bold font-mono">{fmt(setupBalance)}</span>
+                          </div>
+                        </>
                       )}
                       {hasMonthly && (
                         <div className="flex items-center justify-between">
@@ -913,7 +944,7 @@ export default function ProposalPage() {
                         </>
                       )}
 
-                      {hasMonthly && !hasSetup && isBimonthly && (
+                      {hasMonthly && !hasSetupBalance && isBimonthly && (
                         <>
                           <Separator />
                           <div className="space-y-1.5">
@@ -938,7 +969,7 @@ export default function ProposalPage() {
                           </div>
                         </>
                       )}
-                      {hasMonthly && !hasSetup && !isBimonthly && (
+                      {hasMonthly && !hasSetupBalance && !isBimonthly && (
                         <>
                           <Separator />
                           <div className="space-y-1.5">
@@ -966,14 +997,14 @@ export default function ProposalPage() {
                           Pay 50% Deposit — {fmt(projectDeposit)}
                         </Button>
                       </>
-                    ) : hasSetup ? (
+                    ) : hasSetupBalance ? (
                       <>
                         <p className="text-sm text-muted-foreground">
-                          Complete your setup payment of <strong className="text-foreground">{fmt(proposal.setup_fee)}</strong> to get started.
+                          Complete the remaining setup payment of <strong className="text-foreground">{fmt(setupBalance)}</strong> to get started.
                         </p>
                         <Button size="lg" onClick={handlePay}>
                           <CreditCard className="h-4 w-4 mr-2" />
-                          Pay {fmt(proposal.setup_fee)} — Get Started
+                          Pay {fmt(setupBalance)} — Get Started
                         </Button>
                       </>
                     ) : (

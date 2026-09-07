@@ -55,14 +55,16 @@ Deno.serve(async (req: Request) => {
 
       // Get or create Stripe customer for the client
       let customerId: string | undefined;
+      let clientSetupPaid = 0;
       if (proposal.client_id) {
         const { data: client } = await supabase
           .from("clients")
-          .select("id, name, email, stripe_customer_id, billing_paused_until")
+          .select("id, name, email, stripe_customer_id, billing_paused_until, setup_paid")
           .eq("id", proposal.client_id)
           .single();
 
         if (client) {
+          clientSetupPaid = Number(client.setup_paid) || 0;
           if (client.billing_paused_until && new Date(client.billing_paused_until) > new Date()) {
             return new Response(
               JSON.stringify({ error: "Billing is paused for this client. Contact your account manager." }),
@@ -98,13 +100,16 @@ Deno.serve(async (req: Request) => {
       const logoUrl = `${appUrl}/vektiss-logo.png`;
 
       // Determine checkout mode based on fees
-      const hasSetupFee = proposal.setup_fee > 0;
+      const setupFee = Number(proposal.setup_fee) || 0;
+      const setupPaid = Math.min(Math.max(Number(proposal.setup_paid) || clientSetupPaid, 0), setupFee);
+      const setupBalance = Math.max(setupFee - setupPaid, 0);
+      const hasSetupBalance = setupBalance > 0;
       const hasMonthlyFee = proposal.monthly_fee > 0;
       const isProject = proposal.proposal_type === "project";
       const projectTotal = Number(proposal.project_total) || 0;
       const billingSchedule = proposal.billing_schedule || "monthly";
 
-      if (!hasSetupFee && !hasMonthlyFee && !(isProject && projectTotal > 0)) {
+      if (!hasSetupBalance && !hasMonthlyFee && !(isProject && projectTotal > 0)) {
         return new Response(
           JSON.stringify({ error: "No amount to charge" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -162,7 +167,7 @@ Deno.serve(async (req: Request) => {
 
       // ── Bi-monthly billing: subscription mode so Stripe shows two-panel checkout ──
       // Checkout creates the 15th subscription; webhook creates the 30th subscription
-      if (!hasSetupFee && hasMonthlyFee && billingSchedule === "bimonthly") {
+      if (!hasSetupBalance && hasMonthlyFee && billingSchedule === "bimonthly") {
         const halfAmount = Math.round((proposal.monthly_fee / 2) * 100);
         const halfAmt = (proposal.monthly_fee / 2).toFixed(2);
 
@@ -211,6 +216,7 @@ Deno.serve(async (req: Request) => {
             proposal_token: proposal_token,
             billing_schedule: "bimonthly",
             monthly_fee: String(proposal.monthly_fee),
+            setup_paid: String(setupPaid),
           },
         });
 
@@ -226,7 +232,7 @@ Deno.serve(async (req: Request) => {
       }
 
       // If only monthly fee (no setup), create a subscription checkout
-      if (!hasSetupFee && hasMonthlyFee) {
+      if (!hasSetupBalance && hasMonthlyFee) {
         const session = await stripe.checkout.sessions.create({
           customer: customerId,
           mode: "subscription",
@@ -254,6 +260,8 @@ Deno.serve(async (req: Request) => {
             client_id: proposal.client_id || "",
             proposal_id: proposal.id,
             proposal_token: proposal_token,
+            payment_stage: "monthly_subscription",
+            setup_paid: String(setupPaid),
           },
         });
 
@@ -270,16 +278,16 @@ Deno.serve(async (req: Request) => {
 
       // Setup fee as one-time payment
       const lineItems: any[] = [];
-      if (hasSetupFee) {
+      if (hasSetupBalance) {
         lineItems.push({
           price_data: {
             currency: "usd",
             product_data: {
-              name: `Vektiss AI & Automation — Setup Fee`,
-              description: `One-time setup fee for ${proposal.client_name || "Client"}`,
+              name: `Vektiss AI & Automation — Setup Balance`,
+              description: `Remaining setup balance for ${proposal.client_name || "Client"}`,
               images: [logoUrl],
             },
-            unit_amount: Math.round(proposal.setup_fee * 100),
+            unit_amount: Math.round(setupBalance * 100),
           },
           quantity: 1,
         });
@@ -291,7 +299,7 @@ Deno.serve(async (req: Request) => {
         line_items: lineItems,
         custom_text: {
           submit: {
-            message: `One-time setup fee of $${proposal.setup_fee.toFixed(2)} for Vektiss AI & Automation services.${proposal.monthly_fee > 0 ? `\n\nAfter setup, monthly billing of $${proposal.monthly_fee.toFixed(2)}/mo begins automatically.` : ""}`,
+            message: `Remaining setup balance of $${setupBalance.toFixed(2)} for Vektiss AI & Automation services.${proposal.monthly_fee > 0 ? `\n\nMonthly service is $${proposal.monthly_fee.toFixed(2)}/mo.` : ""}`,
           },
         },
         success_url: `${appUrl}/proposal/${proposal_token}?paid=true`,
@@ -300,6 +308,8 @@ Deno.serve(async (req: Request) => {
           client_id: proposal.client_id || "",
           proposal_id: proposal.id,
           proposal_token: proposal_token,
+          payment_stage: "setup_balance",
+          setup_paid_before_checkout: String(setupPaid),
         },
         invoice_creation: { enabled: true },
       });

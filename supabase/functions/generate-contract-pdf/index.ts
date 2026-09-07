@@ -215,6 +215,7 @@ function renderSections(data: {
   projectName?: string;
   projectNumber?: string;
   setupFee: number;
+  setupFeePaid?: number;
   monthlyFee: number;
   servicesDescription?: string;
   effectiveDate: string;
@@ -242,7 +243,12 @@ function renderSections(data: {
 
 3A.3 No Ongoing Obligation — Upon completion and final payment, neither party has any further financial obligation under this Contract beyond the surviving provisions.`;
   } else {
-    feeBlock = `3A.2 One-Time Setup and Build Fee — Client shall pay a one-time setup fee of ${fmt(data.setupFee)} covering initial planning, configuration, development, integration, and deployment.
+    const setupPaid = Math.min(data.setupFeePaid || 0, data.setupFee);
+    const setupBalance = Math.max(data.setupFee - setupPaid, 0);
+    const paymentAcknowledgement = setupPaid > 0
+      ? ` Vektiss acknowledges receipt of ${fmt(setupPaid)} before execution of this Contract. Remaining setup balance: ${fmt(setupBalance)}.`
+      : "";
+    feeBlock = `3A.2 One-Time Setup and Build Fee — The agreed one-time setup fee is ${fmt(data.setupFee)}, covering initial planning, configuration, development, integration, and deployment.${paymentAcknowledgement}
 
 3A.3 Monthly Service Fee — Monthly Service Fee Amount: ${fmt(data.monthlyFee)} per month, which may include:
 - Updates to AI prompts, responses, messaging, and logic
@@ -481,6 +487,7 @@ Deno.serve(async (req) => {
       projectName: (proposal as any).project_name || undefined,
       projectNumber: (proposal as any).project_number || undefined,
       setupFee: Number(proposal.setup_fee) || 0,
+      setupFeePaid: Number(proposal.setup_paid) || 0,
       monthlyFee: Number(proposal.monthly_fee) || 0,
       servicesDescription: proposal.services_description || undefined,
       effectiveDate: new Date(proposal.signed_at || new Date()).toLocaleDateString("en-US", {

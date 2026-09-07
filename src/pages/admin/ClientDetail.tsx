@@ -810,6 +810,7 @@ export default function ClientDetail() {
           clientEmail={client.email}
           defaultMonthlyFee={client.monthly_fee ?? 0}
           defaultSetupFee={client.setup_fee ?? 0}
+          defaultSetupPaid={client.setup_paid ?? 0}
         />
       )}
 
