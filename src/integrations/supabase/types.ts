@@ -2531,6 +2531,7 @@ export type Database = {
       }
       proposals: {
         Row: {
+          billing_start_date: string | null
           billing_schedule: string
           client_address: string | null
           client_email: string | null
@@ -2569,6 +2570,7 @@ export type Database = {
           view_count: number
         }
         Insert: {
+          billing_start_date?: string | null
           billing_schedule?: string
           client_address?: string | null
           client_email?: string | null
@@ -2607,6 +2609,7 @@ export type Database = {
           view_count?: number
         }
         Update: {
+          billing_start_date?: string | null
           billing_schedule?: string
           client_address?: string | null
           client_email?: string | null
@@ -3388,6 +3391,7 @@ export type Database = {
       get_proposal_by_token: {
         Args: { _token: string }
         Returns: {
+          billing_start_date: string | null
           billing_schedule: string
           client_address: string | null
           client_email: string | null

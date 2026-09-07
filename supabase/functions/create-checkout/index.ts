@@ -233,6 +233,23 @@ Deno.serve(async (req: Request) => {
 
       // If only monthly fee (no setup), create a subscription checkout
       if (!hasSetupBalance && hasMonthlyFee) {
+        const nowSeconds = Math.floor(Date.now() / 1000);
+        const configuredBillingStart = proposal.billing_start_date
+          ? new Date(`${proposal.billing_start_date}T12:00:00Z`)
+          : null;
+        const billingAnchor = configuredBillingStart && !Number.isNaN(configuredBillingStart.getTime())
+          ? Math.floor(configuredBillingStart.getTime() / 1000)
+          : null;
+        const hasFutureBillingAnchor = billingAnchor !== null && billingAnchor > nowSeconds;
+        const firstChargeLabel = hasFutureBillingAnchor
+          ? configuredBillingStart!.toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+              timeZone: "UTC",
+            })
+          : "today";
+
         const session = await stripe.checkout.sessions.create({
           customer: customerId,
           mode: "subscription",
@@ -249,9 +266,22 @@ Deno.serve(async (req: Request) => {
             },
             quantity: 1,
           }],
+          subscription_data: {
+            ...(hasFutureBillingAnchor
+              ? {
+                  billing_cycle_anchor: billingAnchor!,
+                  proration_behavior: "none" as const,
+                }
+              : {}),
+            metadata: {
+              client_id: proposal.client_id || "",
+              proposal_id: proposal.id,
+              billing_start_date: proposal.billing_start_date || "",
+            },
+          },
           custom_text: {
             submit: {
-              message: `You are subscribing to Vektiss AI & Automation services at $${proposal.monthly_fee.toFixed(2)}/month. This will renew automatically each month until canceled.`,
+              message: `You are subscribing to Vektiss AI & Automation services at $${proposal.monthly_fee.toFixed(2)}/month. Your first charge will be ${firstChargeLabel}, then the subscription will renew automatically each month until canceled.`,
             },
           },
           success_url: `${appUrl}/proposal/${proposal_token}?paid=true`,
@@ -262,6 +292,7 @@ Deno.serve(async (req: Request) => {
             proposal_token: proposal_token,
             payment_stage: "monthly_subscription",
             setup_paid: String(setupPaid),
+            billing_start_date: proposal.billing_start_date || "",
           },
         });
 

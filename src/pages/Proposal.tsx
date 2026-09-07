@@ -44,6 +44,7 @@ interface ProposalData {
   project_name?: string | null;
   project_number?: string | null;
   billing_schedule?: string | null;
+  billing_start_date?: string | null;
   cost_analysis_url?: string | null;
 }
 
@@ -870,6 +871,12 @@ export default function ProposalPage() {
             let next30 = new Date(y, m, 30);
             if (next30 <= now) next30 = new Date(y, m + 1, 30);
             const dateFmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+            const configuredBillingStart = proposal.billing_start_date
+              ? new Date(`${proposal.billing_start_date}T12:00:00Z`)
+              : null;
+            const firstBillingDate = configuredBillingStart && configuredBillingStart > now
+              ? configuredBillingStart
+              : now;
 
             return (
               <Card className="flex-1">
@@ -1012,7 +1019,11 @@ export default function ProposalPage() {
                         <p className="text-sm text-muted-foreground">
                           You'll be redirected to our secure payment provider to save your card. Your first charge of{" "}
                           <strong className="text-foreground">{fmt(isBimonthly ? halfAmount : proposal.monthly_fee)}</strong> will be{" "}
-                          <strong className="text-foreground">today ({dateFmt(new Date())})</strong>, and you'll be charged the same amount on this day each month going forward unless cancelled.
+                          {configuredBillingStart && configuredBillingStart > now ? (
+                            <strong className="text-foreground">on {dateFmt(firstBillingDate)}</strong>
+                          ) : (
+                            <strong className="text-foreground">today ({dateFmt(firstBillingDate)})</strong>
+                          )}, and you'll be charged on the same day each month going forward unless cancelled.
                         </p>
                         <Button size="lg" onClick={handlePay}>
                           <CreditCard className="h-4 w-4 mr-2" />
