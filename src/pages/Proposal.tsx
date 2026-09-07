@@ -409,10 +409,22 @@ export default function ProposalPage() {
                 <span className="font-semibold font-mono">{fmt(proposal.setup_fee)}</span>
               </div>
             )}
-            <div>
-              <span className="text-muted-foreground">Monthly:</span>{" "}
-              <span className="font-semibold font-mono">{fmt(proposal.monthly_fee)}/mo</span>
-            </div>
+            {proposal.proposal_type === "project" ? (
+              <div>
+                <span className="text-muted-foreground">Project Total:</span>{" "}
+                <span className="font-semibold font-mono">{fmt(proposal.project_total || 0)}</span>
+              </div>
+            ) : proposal.proposal_type === "hourly" ? (
+              <div>
+                <span className="text-muted-foreground">Hourly:</span>{" "}
+                <span className="font-semibold font-mono">{fmt(proposal.hourly_rate || 0)}/hr</span>
+              </div>
+            ) : (
+              <div>
+                <span className="text-muted-foreground">Monthly:</span>{" "}
+                <span className="font-semibold font-mono">{fmt(proposal.monthly_fee)}/mo</span>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -629,7 +641,15 @@ export default function ProposalPage() {
                         <li>Provide your contact details</li>
                         <li>Review &amp; sign the mutual Non-Disclosure Agreement</li>
                         <li>Review &amp; sign the AI &amp; Automation Services Contract</li>
-                        <li>{setupAmt > 0 ? "Complete the setup payment to begin onboarding" : "Set up monthly billing to begin onboarding"}</li>
+                        <li>
+                          {ptype === "project"
+                            ? "Complete the 50% deposit to begin work"
+                            : ptype === "hourly"
+                              ? "Confirm billing details to begin work"
+                              : setupAmt > 0
+                                ? "Complete the setup payment to begin onboarding"
+                                : "Set up monthly billing to begin onboarding"}
+                        </li>
                       </ol>
                     </section>
 
