@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logActivity } from "@/lib/activityLogger";
@@ -45,31 +45,46 @@ interface ClientFormDialogProps {
   client?: Client | null;
 }
 
+type ClientFormState = Partial<ClientInsert> & {
+  pipeline_stage?: string;
+  follow_up_start?: string;
+  follow_up_end?: string;
+  last_contact_date?: string;
+  lead_source?: string;
+  profitability_sheet_url?: string;
+};
+
+const getInitialForm = (client?: Client | null): ClientFormState => ({
+  name: client?.name ?? "",
+  client_number: client?.client_number ?? "",
+  type: client?.type ?? "",
+  status: client?.status ?? "lead",
+  start_date: client?.start_date ?? "",
+  setup_fee: client?.setup_fee ?? 0,
+  setup_paid: client?.setup_paid ?? 0,
+  balance_due: client?.balance_due ?? 0,
+  monthly_fee: client?.monthly_fee ?? 0,
+  email: client?.email ?? "",
+  phone: client?.phone ?? "",
+  notes: client?.notes ?? "",
+  pipeline_stage: client?.pipeline_stage ?? "new",
+  follow_up_start: client?.follow_up_start ?? "",
+  follow_up_end: client?.follow_up_end ?? "",
+  last_contact_date: client?.last_contact_date ?? "",
+  lead_source: client?.lead_source ?? "",
+  profitability_sheet_url: client?.profitability_sheet_url ?? "",
+});
+
 export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialogProps) {
   const isEdit = !!client;
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [form, setForm] = useState<Partial<ClientInsert> & { pipeline_stage?: string; follow_up_start?: string; follow_up_end?: string; last_contact_date?: string; lead_source?: string; profitability_sheet_url?: string }>({
-    name: client?.name ?? "",
-    client_number: (client as any)?.client_number ?? "",
-    type: client?.type ?? "",
-    status: client?.status ?? "lead",
-    start_date: client?.start_date ?? "",
-    setup_fee: client?.setup_fee ?? 0,
-    setup_paid: client?.setup_paid ?? 0,
-    balance_due: client?.balance_due ?? 0,
-    monthly_fee: client?.monthly_fee ?? 0,
-    email: client?.email ?? "",
-    phone: client?.phone ?? "",
-    notes: client?.notes ?? "",
-    pipeline_stage: (client as any)?.pipeline_stage ?? "new",
-    follow_up_start: (client as any)?.follow_up_start ?? "",
-    follow_up_end: (client as any)?.follow_up_end ?? "",
-    last_contact_date: (client as any)?.last_contact_date ?? "",
-    lead_source: (client as any)?.lead_source ?? "",
-    profitability_sheet_url: (client as any)?.profitability_sheet_url ?? "",
-  });
+  const [form, setForm] = useState<ClientFormState>(() => getInitialForm(client));
+
+  useEffect(() => {
+    if (open) setForm(getInitialForm(client));
+  }, [open, client]);
 
   const set = (key: string, value: string | number) =>
     setForm((prev) => ({ ...prev, [key]: value }));
