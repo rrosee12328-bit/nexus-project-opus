@@ -100,12 +100,63 @@ Deno.serve(async (req: Request) => {
       // Determine checkout mode based on fees
       const hasSetupFee = proposal.setup_fee > 0;
       const hasMonthlyFee = proposal.monthly_fee > 0;
+      const isProject = proposal.proposal_type === "project";
+      const projectTotal = Number(proposal.project_total) || 0;
       const billingSchedule = proposal.billing_schedule || "monthly";
 
-      if (!hasSetupFee && !hasMonthlyFee) {
+      if (!hasSetupFee && !hasMonthlyFee && !(isProject && projectTotal > 0)) {
         return new Response(
           JSON.stringify({ error: "No amount to charge" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      // Fixed projects collect a 50% deposit now. The webhook creates the
+      // remaining 50% as an unsent Stripe draft after the deposit succeeds.
+      if (isProject && projectTotal > 0) {
+        const depositAmount = Math.round((projectTotal / 2) * 100);
+        const balanceAmount = projectTotal - depositAmount / 100;
+        const projectLabel = proposal.project_name || proposal.client_name || "Client project";
+        const session = await stripe.checkout.sessions.create({
+          customer: customerId,
+          mode: "payment",
+          line_items: [{
+            price_data: {
+              currency: "usd",
+              product_data: {
+                name: `Vektiss — ${projectLabel} Deposit`,
+                description: `First 50% payment for ${projectLabel}. Remaining balance: $${balanceAmount.toFixed(2)}.`,
+                images: [logoUrl],
+              },
+              unit_amount: depositAmount,
+            },
+            quantity: 1,
+          }],
+          custom_text: {
+            submit: {
+              message: `This payment covers the first 50% project deposit. The remaining $${balanceAmount.toFixed(2)} will be invoiced separately when the project is ready for delivery.`,
+            },
+          },
+          success_url: `${appUrl}/proposal/${proposal_token}?paid=true`,
+          cancel_url: `${appUrl}/proposal/${proposal_token}?canceled=true`,
+          metadata: {
+            client_id: proposal.client_id || "",
+            proposal_id: proposal.id,
+            proposal_token,
+            payment_stage: "project_deposit",
+            project_total: String(projectTotal),
+          },
+          invoice_creation: { enabled: true },
+        });
+
+        await supabase
+          .from("proposals")
+          .update({ stripe_checkout_session_id: session.id })
+          .eq("id", proposal.id);
+
+        return new Response(
+          JSON.stringify({ url: session.url }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
 

@@ -818,6 +818,8 @@ export default function ProposalPage() {
           {step === "pay" && (() => {
             const hasSetup = proposal.setup_fee > 0;
             const hasMonthly = proposal.monthly_fee > 0;
+            const isProject = proposal.proposal_type === "project" && (proposal.project_total || 0) > 0;
+            const projectDeposit = (proposal.project_total || 0) / 2;
             const isBimonthly = (proposal.billing_schedule || "monthly").toLowerCase() === "bimonthly";
             const halfAmount = proposal.monthly_fee / 2;
             // Determine next 15th & 30th for display
@@ -869,6 +871,27 @@ export default function ProposalPage() {
                           <span className="text-sm font-bold font-mono">{fmt(proposal.monthly_fee)}/mo</span>
                         </div>
                       )}
+                      {isProject && (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Project Total</span>
+                            <span className="text-sm font-bold font-mono">{fmt(proposal.project_total || 0)}</span>
+                          </div>
+                          <Separator />
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="bg-background rounded p-2 text-center">
+                              <p className="text-[10px] text-muted-foreground">Due Now</p>
+                              <p className="text-xs font-semibold">{fmt(projectDeposit)}</p>
+                              <p className="text-[10px] text-primary font-medium">50% deposit</p>
+                            </div>
+                            <div className="bg-background rounded p-2 text-center">
+                              <p className="text-[10px] text-muted-foreground">Due at Delivery</p>
+                              <p className="text-xs font-semibold">{fmt((proposal.project_total || 0) - projectDeposit)}</p>
+                              <p className="text-[10px] text-muted-foreground">Drafted after deposit</p>
+                            </div>
+                          </div>
+                        </>
+                      )}
 
                       {hasMonthly && !hasSetup && isBimonthly && (
                         <>
@@ -913,7 +936,17 @@ export default function ProposalPage() {
 
                   {/* CTA */}
                   <div className="flex flex-col items-center text-center space-y-3">
-                    {hasSetup ? (
+                    {isProject ? (
+                      <>
+                        <p className="text-sm text-muted-foreground">
+                          Pay the first 50% deposit now. The remaining balance will be prepared as a draft invoice and will not be sent automatically.
+                        </p>
+                        <Button size="lg" onClick={handlePay}>
+                          <CreditCard className="h-4 w-4 mr-2" />
+                          Pay 50% Deposit — {fmt(projectDeposit)}
+                        </Button>
+                      </>
+                    ) : hasSetup ? (
                       <>
                         <p className="text-sm text-muted-foreground">
                           Complete your setup payment of <strong className="text-foreground">{fmt(proposal.setup_fee)}</strong> to get started.
@@ -954,7 +987,9 @@ export default function ProposalPage() {
                 </div>
                 <h2 className="text-xl font-bold">All Set!</h2>
                 <p className="text-sm text-muted-foreground max-w-md">
-                  Your NDA and contract are signed, and payment has been received. You'll receive an email with your portal access shortly.
+                  {proposal.proposal_type === "project"
+                    ? "Your NDA and contract are signed, and your 50% project deposit has been received. The final balance will be sent when the project is ready for delivery."
+                    : "Your NDA and contract are signed, and payment has been received. You'll receive an email with your portal access shortly."}
                 </p>
               </CardContent>
             </Card>

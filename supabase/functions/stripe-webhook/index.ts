@@ -401,16 +401,34 @@ async function handleSubscription(supabase: any, subscription: any) {
 async function handleProposalPayment(supabase: any, session: any) {
   const proposalId = session.metadata?.proposal_id;
   const clientId = session.metadata?.client_id;
+  const isProjectDeposit = session.metadata?.payment_stage === "project_deposit";
 
   if (!proposalId) return;
 
+  const { data: proposal } = await supabase
+    .from("proposals")
+    .select("setup_fee, monthly_fee, project_total, project_name, client_email, client_name, created_by, project_final_invoice_id")
+    .eq("id", proposalId)
+    .single();
+
+  if (!proposal) {
+    console.error("Proposal missing while recording payment:", proposalId);
+    return;
+  }
+
   const { error: updateErr } = await supabase
     .from("proposals")
-    .update({
-      status: "paid",
-      paid_at: new Date().toISOString(),
-      stripe_checkout_session_id: session.id,
-    })
+    .update(isProjectDeposit
+      ? {
+          status: "signed",
+          project_deposit_paid_at: new Date().toISOString(),
+          stripe_checkout_session_id: session.id,
+        }
+      : {
+          status: "paid",
+          paid_at: new Date().toISOString(),
+          stripe_checkout_session_id: session.id,
+        })
     .eq("id", proposalId);
 
   if (updateErr) {
@@ -432,7 +450,9 @@ async function handleProposalPayment(supabase: any, session: any) {
         amount: session.amount_total / 100,
         payment_month: now.getMonth() + 1,
         payment_year: now.getFullYear(),
-        notes: "Setup fee — proposal signed & paid",
+        notes: isProjectDeposit
+          ? "Project deposit (50%) — proposal signed"
+          : "Setup fee — proposal signed & paid",
         stripe_invoice_id: session.id,
         payment_source: "stripe",
       });
@@ -446,23 +466,72 @@ async function handleProposalPayment(supabase: any, session: any) {
   }
 
   if (clientId) {
-    const { data: proposal } = await supabase
-      .from("proposals")
-      .select("setup_fee, monthly_fee, client_email, client_name")
-      .eq("id", proposalId)
-      .single();
+    await supabase
+      .from("clients")
+      .update({
+        setup_fee: proposal.setup_fee,
+        monthly_fee: proposal.monthly_fee,
+        setup_paid: isProjectDeposit ? session.amount_total / 100 : proposal.setup_fee,
+        email: proposal.client_email,
+        name: proposal.client_name,
+      })
+      .eq("id", clientId);
+  }
 
-    if (proposal) {
+  if (isProjectDeposit && clientId && session.customer && !proposal.project_final_invoice_id) {
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY not configured");
+
+    const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
+    const projectTotal = Number(proposal.project_total) || Number(session.metadata?.project_total) || 0;
+    const depositPaid = Number(session.amount_total || 0) / 100;
+    const balanceDue = Number((projectTotal - depositPaid).toFixed(2));
+    const projectLabel = proposal.project_name || `${proposal.client_name || "Client"} project`;
+
+    if (balanceDue > 0) {
+      const draft = await stripe.invoices.create({
+        customer: session.customer,
+        collection_method: "send_invoice",
+        days_until_due: 14,
+        auto_advance: false,
+        description: `Final 50% balance for ${projectLabel}`,
+        metadata: {
+          client_id: clientId,
+          proposal_id: proposalId,
+          invoice_type: "flat",
+          payment_stage: "project_final_balance",
+        },
+      }, { idempotencyKey: `proposal-${proposalId}-final-invoice` });
+
+      await stripe.invoiceItems.create({
+        customer: session.customer,
+        invoice: draft.id,
+        currency: "usd",
+        amount: Math.round(balanceDue * 100),
+        description: `Final 50% project balance — ${projectLabel}`,
+      }, { idempotencyKey: `proposal-${proposalId}-final-item` });
+
+      const { error: draftErr } = await supabase.from("hourly_invoices").upsert({
+        client_id: clientId,
+        stripe_customer_id: session.customer,
+        invoice_type: "flat",
+        hourly_rate: 0,
+        total_hours: 0,
+        currency: "usd",
+        notes: `Final 50% project balance — ${projectLabel}`,
+        created_by: proposal.created_by,
+        stripe_invoice_id: draft.id,
+        status: "draft",
+        amount_due: balanceDue,
+        proposal_id: proposalId,
+      }, { onConflict: "stripe_invoice_id" });
+
+      if (draftErr) throw draftErr;
+
       await supabase
-        .from("clients")
-        .update({
-          setup_fee: proposal.setup_fee,
-          monthly_fee: proposal.monthly_fee,
-          setup_paid: proposal.setup_fee,
-          email: proposal.client_email,
-          name: proposal.client_name,
-        })
-        .eq("id", clientId);
+        .from("proposals")
+        .update({ project_final_invoice_id: draft.id })
+        .eq("id", proposalId);
     }
   }
 }

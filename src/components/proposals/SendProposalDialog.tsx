@@ -244,9 +244,9 @@ export function SendProposalDialog({
       }
     : proposalType === "project"
       ? {
-          title: "Project deposit checkout needs configuration",
-          detail: "The proposal states that 50% is due upfront, but the current Stripe function does not yet create a project-deposit Checkout session.",
-          badge: "Not configured",
+          title: "50% project deposit is ready",
+          detail: "After the client signs, Stripe Checkout collects the first 50%. Once paid, the remaining 50% is created automatically as an unsent draft invoice for you to review later.",
+          badge: "50% now + 50% draft",
         }
       : {
           title: "Stripe checkout is ready to generate",
