@@ -245,6 +245,7 @@ export function renderContract(data: {
   setupFee: number;
   setupFeePaid?: number;
   monthlyFee: number;
+  billingStartDate?: string;
   servicesDescription?: string;
   effectiveDate?: string;
   proposalType?: ProposalType;
@@ -284,9 +285,12 @@ export function renderContract(data: {
     const paymentAcknowledgement = setupPaid > 0
       ? ` Vektiss acknowledges receipt of **${fmt(setupPaid)}** before execution of this Contract. **Remaining setup balance: ${fmt(setupBalance)}.**`
       : "";
+    const billingStart = data.billingStartDate
+      ? new Date(`${data.billingStartDate}T12:00:00`).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+      : null;
     feeBlock = `**3A.2 One‑Time Setup and Build Fee** — The agreed one‑time setup fee is **${fmt(data.setupFee)}**, covering initial planning, configuration, development, integration, and deployment.${paymentAcknowledgement}
 
-**3A.3 Monthly Service Fee** — Monthly Service Fee Amount: **${fmt(data.monthlyFee)}** per month, which may include:
+**3A.3 Monthly Service Fee** — Monthly Service Fee Amount: **${fmt(data.monthlyFee)}** per month${billingStart ? `, with the first recurring payment scheduled for **${billingStart}**` : ""}, which may include:
 • Updates to AI prompts, responses, messaging, and logic
 • Technical troubleshooting and issue resolution
 • Monitoring system stability and performance

@@ -33,6 +33,7 @@ import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
 import { createProposalToken } from "@/lib/proposalToken";
 import ConvertToClientDialog from "@/components/admin/ConvertToClientDialog";
+import { formatBillingStartDate, isStripeBillingStartDateValid } from "@/lib/billingDates";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   draft: { label: "Draft", color: "bg-muted text-muted-foreground border-border" },
@@ -75,6 +76,7 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
   const [deliverables, setDeliverables] = useState("");
   const [timeline, setTimeline] = useState("");
   const [billingSchedule, setBillingSchedule] = useState("monthly");
+  const [billingStartDate, setBillingStartDate] = useState("");
   const [servicesDescription, setServicesDescription] = useState("");
   const [polishedDescription, setPolishedDescription] = useState("");
   const [polishing, setPolishing] = useState(false);
@@ -89,7 +91,7 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
     setClientName(""); setClientEmail(""); setCompanyName("");
     setProposalType("retainer");
     setProjectName("");
-    setMonthlyFee(""); setSetupFee(""); setBillingSchedule("monthly");
+    setMonthlyFee(""); setSetupFee(""); setBillingSchedule("monthly"); setBillingStartDate("");
     setHourlyRate(""); setProjectTotal("");
     setScopeDescription(""); setDeliverables(""); setTimeline("");
     setServicesDescription(""); setPolishedDescription("");
@@ -153,6 +155,9 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
         timeline: timeline.trim() || null,
         services_description: finalDescription,
         billing_schedule: billingSchedule,
+        billing_start_date: proposalType === "retainer" && billingSchedule === "monthly"
+          ? billingStartDate || null
+          : null,
         status: "draft",
         created_by: user.id,
       } as any).select("token").single();
@@ -195,6 +200,9 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
           timeline: timeline.trim() || null,
           services_description: finalDescription,
           billing_schedule: billingSchedule,
+          billing_start_date: proposalType === "retainer" && billingSchedule === "monthly"
+            ? billingStartDate || null
+            : null,
           status: "signed",
           signed_at: new Date().toISOString(),
           signed_name: `${adminName} (Admin Generated)`,
@@ -369,6 +377,18 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
                   <p className="text-xs text-muted-foreground">Two payments of ${(Number(monthlyFee) / 2).toFixed(2)} each</p>
                 )}
                 </div>
+                {billingSchedule === "monthly" && Number(monthlyFee) > 0 && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">First Monthly Payment Date *</Label>
+                    <Input type="date" value={billingStartDate} onChange={(e) => setBillingStartDate(e.target.value)} />
+                    <p className="text-[11px] text-muted-foreground">
+                      Choose today for an immediate charge, or a future date at least 48 hours away. Stripe saves the card without charging early.
+                    </p>
+                    {billingStartDate && !isStripeBillingStartDateValid(billingStartDate) && (
+                      <p className="text-[11px] font-medium text-destructive">Choose today or a date at least 48 hours from now.</p>
+                    )}
+                  </div>
+                )}
                 </>
               )}
 
@@ -424,7 +444,7 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
             <DialogFooter className="flex-col sm:flex-row gap-2">
               <Button variant="outline" onClick={() => onOpenChange(false)} className="sm:mr-auto">Cancel</Button>
               <Button variant="outline" onClick={handleGenerateNow}
-                disabled={generating || polishing || creating || !clientName.trim()}>
+                disabled={generating || polishing || creating || !clientName.trim() || (proposalType === "retainer" && Number(monthlyFee) > 0 && billingSchedule === "monthly" && !isStripeBillingStartDateValid(billingStartDate))}>
                 {generating ? (
                   <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Generating...</>
                 ) : (
@@ -432,7 +452,7 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
                 )}
               </Button>
               <Button onClick={handlePolishAndPreview}
-                disabled={polishing || generating || !clientName.trim()}>
+                disabled={polishing || generating || !clientName.trim() || (proposalType === "retainer" && Number(monthlyFee) > 0 && billingSchedule === "monthly" && !isStripeBillingStartDateValid(billingStartDate))}>
                 {polishing ? (
                   <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Polishing...</>
                 ) : (
@@ -488,6 +508,9 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
                       <div>
                         <p className="text-xs text-muted-foreground">Monthly Service Fee</p>
                         <p className="text-lg font-bold font-mono">{fmtCurrency(monthlyFee)}/mo</p>
+                        {formatBillingStartDate(billingStartDate) && (
+                          <p className="text-xs font-medium text-primary">Starts {formatBillingStartDate(billingStartDate)}</p>
+                        )}
                         {billingSchedule === "bimonthly" && (
                           <p className="text-xs text-muted-foreground">Billed bi-monthly (15th & 30th)</p>
                         )}
@@ -537,6 +560,11 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
                   {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
                 </Button>
               </div>
+              <Button variant="outline" className="w-full" asChild>
+                <a href={`${proposalUrl}?preview=1`} target="_blank" rel="noopener noreferrer">
+                  <Eye className="h-4 w-4 mr-2" /> Preview Full Client Flow Safely
+                </a>
+              </Button>
               {clientEmail.trim() && (
                 <Button variant="default" className="w-full" onClick={handleSendEmail} disabled={sendingEmail}>
                   <Mail className="h-4 w-4 mr-2" />
@@ -770,7 +798,7 @@ export default function AdminProposals() {
                               <TooltipContent>Email proposal link</TooltipContent>
                             </Tooltip>
                             <Button variant="ghost" size="icon" asChild>
-                              <a href={`/proposal/${p.token}`} target="_blank" rel="noopener noreferrer">
+                              <a href={`/proposal/${p.token}?preview=1`} target="_blank" rel="noopener noreferrer">
                                 <ExternalLink className="h-4 w-4" />
                               </a>
                             </Button>

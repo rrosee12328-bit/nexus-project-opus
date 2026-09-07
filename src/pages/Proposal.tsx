@@ -19,6 +19,7 @@ import {
   Lock,
 } from "lucide-react";
 import { toast } from "sonner";
+import { formatBillingStartDate } from "@/lib/billingDates";
 
 interface ProposalData {
   id: string;
@@ -100,20 +101,30 @@ export default function ProposalPage() {
 
   // Detect if the current viewer is an admin (only admins see internal links)
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminCheckComplete, setAdminCheckComplete] = useState(false);
   const [costAnalysisInput, setCostAnalysisInput] = useState("");
   const [savingCostUrl, setSavingCostUrl] = useState(false);
   useEffect(() => {
     let active = true;
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) { if (active) setIsAdmin(false); return; }
+      if (!session?.user) {
+        if (active) {
+          setIsAdmin(false);
+          setAdminCheckComplete(true);
+        }
+        return;
+      }
       const { data } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", session.user.id)
         .eq("role", "admin")
         .maybeSingle();
-      if (active) setIsAdmin(!!data);
+      if (active) {
+        setIsAdmin(!!data);
+        setAdminCheckComplete(true);
+      }
     })();
     return () => { active = false; };
   }, []);
@@ -154,13 +165,15 @@ export default function ProposalPage() {
       setClientEmail(p.client_email || "");
       setCostAnalysisInput(p.cost_analysis_url || "");
 
-      if (p.paid_at || searchParams.get("paid") === "true") setStep("done");
+      if (searchParams.get("preview") === "1") setStep("overview");
+      else if (p.paid_at || searchParams.get("paid") === "true") setStep("done");
       else if (p.signed_at) setStep("pay");
       else setStep("overview");
 
       setLoading(false);
 
       try {
+        if (searchParams.get("preview") === "1") return;
         const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
         await fetch(
           `https://${projectId}.supabase.co/functions/v1/track-proposal-view`,
@@ -207,6 +220,13 @@ export default function ProposalPage() {
       return;
     }
     if (!proposal) return;
+    if (isPreviewMode) {
+      const signedName = contractSignature.value;
+      setProposal((p) => p ? { ...p, signed_at: new Date().toISOString(), signed_name: signedName } : p);
+      setStep("pay");
+      toast.info("Preview only: no signature was saved or emailed.");
+      return;
+    }
     setSigning(true);
     try {
       const signedName = contractSignature.value;
@@ -234,6 +254,10 @@ export default function ProposalPage() {
 
   const handlePay = async () => {
     if (!proposal) return;
+    if (isPreviewMode) {
+      toast.info("Stripe is disabled in safe preview mode.");
+      return;
+    }
     try {
       const { data, error: payError } = await supabase.functions.invoke("create-checkout", {
         body: { proposal_token: proposal.token },
@@ -302,6 +326,7 @@ export default function ProposalPage() {
     setupFee: proposal.setup_fee,
     setupFeePaid: proposal.setup_paid,
     monthlyFee: proposal.monthly_fee,
+    billingStartDate: proposal.billing_start_date || undefined,
     servicesDescription: proposal.services_description || undefined,
     proposalType: (proposal.proposal_type as any) || "retainer",
     hourlyRate: proposal.hourly_rate || 0,
@@ -318,6 +343,7 @@ export default function ProposalPage() {
 
   const stepCfg = STEP_CONFIG[step];
   const progress = (stepCfg.num / stepCfg.total) * 100;
+  const isPreviewMode = searchParams.get("preview") === "1" || isAdmin;
 
   const renderDocumentView = (
     sections: { title: string; content: string }[],
@@ -435,6 +461,14 @@ export default function ProposalPage() {
       {/* Main content */}
       <main className="flex-1 flex flex-col">
         <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-4 sm:py-6 flex-1 flex flex-col">
+          {isPreviewMode && (
+            <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+              <p className="font-semibold text-foreground">Safe Admin Preview</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                You can walk through every screen, but signatures, emails, and Stripe checkout are disabled. The client link remains untouched.
+              </p>
+            </div>
+          )}
           {/* Step 0: Proposal Overview — Document-style Preview */}
           {step === "overview" && (() => {
             const setupAmt = proposal.setup_fee;
@@ -615,6 +649,12 @@ export default function ProposalPage() {
                               <span className="text-muted-foreground">Billing Schedule</span>
                               <span className="font-medium text-foreground">{billingLabel}</span>
                             </div>
+                            {proposal.billing_start_date && (
+                              <div className="flex items-baseline justify-between border-t border-border/60 pt-2">
+                                <span className="text-muted-foreground">First Monthly Payment</span>
+                                <span className="font-medium text-foreground">{formatBillingStartDate(proposal.billing_start_date)}</span>
+                              </div>
+                            )}
                             {billing === "bimonthly" && monthlyAmt > 0 && (
                               <p className="text-xs text-muted-foreground pt-1">
                                 Two payments of {fmt(monthlyAmt / 2)} each — on the 15th and 30th of every month.
@@ -838,11 +878,11 @@ export default function ProposalPage() {
                         Date: {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
                       </p>
                     </div>
-                    <Button onClick={handleSign} disabled={!contractSignature || signing} size="lg">
+                    <Button onClick={handleSign} disabled={!contractSignature || signing || !adminCheckComplete} size="lg">
                       {signing ? (
                         <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Signing...</>
                       ) : (
-                        <><FileSignature className="h-4 w-4 mr-2" /> Sign & Continue</>
+                        <><FileSignature className="h-4 w-4 mr-2" /> {isPreviewMode ? "Preview Payment Step" : "Sign & Continue"}</>
                       )}
                     </Button>
                   </div>
@@ -871,12 +911,10 @@ export default function ProposalPage() {
             let next30 = new Date(y, m, 30);
             if (next30 <= now) next30 = new Date(y, m + 1, 30);
             const dateFmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-            const configuredBillingStart = proposal.billing_start_date
-              ? new Date(`${proposal.billing_start_date}T12:00:00Z`)
-              : null;
-            const firstBillingDate = configuredBillingStart && configuredBillingStart > now
-              ? configuredBillingStart
-              : now;
+            const billingStartLabel = formatBillingStartDate(proposal.billing_start_date);
+            const localToday = new Date();
+            const todayValue = `${localToday.getFullYear()}-${String(localToday.getMonth() + 1).padStart(2, "0")}-${String(localToday.getDate()).padStart(2, "0")}`;
+            const billingStartsLater = Boolean(proposal.billing_start_date && proposal.billing_start_date > todayValue);
 
             return (
               <Card className="flex-1">
@@ -886,9 +924,9 @@ export default function ProposalPage() {
                     <div className="h-14 w-14 rounded-full bg-emerald-500/20 flex items-center justify-center">
                       <CheckCircle2 className="h-7 w-7 text-emerald-500" />
                     </div>
-                    <h2 className="text-xl font-bold">Contract Signed!</h2>
+                    <h2 className="text-xl font-bold">{isPreviewMode ? "Signature Step Previewed" : "Contract Signed!"}</h2>
                     <p className="text-sm text-muted-foreground">
-                      Signed by <strong>{proposal.signed_name || contractSignature?.value || clientName}</strong> on{" "}
+                      {isPreviewMode ? "Previewed" : "Signed"} by <strong>{proposal.signed_name || contractSignature?.value || clientName}</strong> on{" "}
                       {new Date(proposal.signed_at || Date.now()).toLocaleDateString("en-US", {
                         year: "numeric", month: "long", day: "numeric",
                       })}
@@ -924,10 +962,18 @@ export default function ProposalPage() {
                         </>
                       )}
                       {hasMonthly && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground">Monthly Service Fee</span>
-                          <span className="text-sm font-bold font-mono">{fmt(proposal.monthly_fee)}/mo</span>
-                        </div>
+                        <>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Monthly Service Fee</span>
+                            <span className="text-sm font-bold font-mono">{fmt(proposal.monthly_fee)}/mo</span>
+                          </div>
+                          {billingStartLabel && (
+                            <div className="flex items-center justify-between border-t border-border/60 pt-2">
+                              <span className="text-sm text-muted-foreground">First Monthly Payment</span>
+                              <span className="text-sm font-semibold">{billingStartLabel}</span>
+                            </div>
+                          )}
+                        </>
                       )}
                       {isProject && (
                         <>
@@ -999,9 +1045,9 @@ export default function ProposalPage() {
                         <p className="text-sm text-muted-foreground">
                           Pay the first 50% deposit now. The remaining balance will be prepared as a draft invoice and will not be sent automatically.
                         </p>
-                        <Button size="lg" onClick={handlePay}>
+                        <Button size="lg" onClick={handlePay} disabled={isPreviewMode}>
                           <CreditCard className="h-4 w-4 mr-2" />
-                          Pay 50% Deposit — {fmt(projectDeposit)}
+                          {isPreviewMode ? "Stripe Disabled in Preview" : `Pay 50% Deposit — ${fmt(projectDeposit)}`}
                         </Button>
                       </>
                     ) : hasSetupBalance ? (
@@ -1009,9 +1055,9 @@ export default function ProposalPage() {
                         <p className="text-sm text-muted-foreground">
                           Complete the remaining setup payment of <strong className="text-foreground">{fmt(setupBalance)}</strong> to get started.
                         </p>
-                        <Button size="lg" onClick={handlePay}>
+                        <Button size="lg" onClick={handlePay} disabled={isPreviewMode}>
                           <CreditCard className="h-4 w-4 mr-2" />
-                          Pay {fmt(setupBalance)} — Get Started
+                          {isPreviewMode ? "Stripe Disabled in Preview" : `Pay ${fmt(setupBalance)} — Get Started`}
                         </Button>
                       </>
                     ) : (
@@ -1019,15 +1065,13 @@ export default function ProposalPage() {
                         <p className="text-sm text-muted-foreground">
                           You'll be redirected to our secure payment provider to save your card. Your first charge of{" "}
                           <strong className="text-foreground">{fmt(isBimonthly ? halfAmount : proposal.monthly_fee)}</strong> will be{" "}
-                          {configuredBillingStart && configuredBillingStart > now ? (
-                            <strong className="text-foreground">on {dateFmt(firstBillingDate)}</strong>
-                          ) : (
-                            <strong className="text-foreground">today ({dateFmt(firstBillingDate)})</strong>
-                          )}, and you'll be charged on the same day each month going forward unless cancelled.
+                          <strong className="text-foreground">
+                            {billingStartLabel ? `${billingStartsLater ? "on" : "today,"} ${billingStartLabel}` : `today (${dateFmt(new Date())})`}
+                          </strong>, and you'll be charged the same amount on this day each month going forward unless cancelled.
                         </p>
-                        <Button size="lg" onClick={handlePay}>
+                        <Button size="lg" onClick={handlePay} disabled={isPreviewMode}>
                           <CreditCard className="h-4 w-4 mr-2" />
-                          Set Up Payment — {fmt(proposal.monthly_fee)}/mo
+                          {isPreviewMode ? "Stripe Disabled in Preview" : `Set Up Payment — ${fmt(proposal.monthly_fee)}/mo`}
                         </Button>
                       </>
                     )}

@@ -18,13 +18,14 @@ import {
 } from "@/components/ui/dialog";
 import {
   FileSignature, DollarSign, Send, Copy, Check, Clock, Briefcase, Repeat,
-  Sparkles, Loader2, Download, Eye, ArrowLeft, CreditCard, ShieldCheck,
+  Sparkles, Loader2, Download, Eye, ArrowLeft, CreditCard, ShieldCheck, ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { renderContract, type ProposalType } from "@/lib/contractTemplate";
 import { createProposalToken } from "@/lib/proposalToken";
+import { formatBillingStartDate, isStripeBillingStartDateValid } from "@/lib/billingDates";
 
 interface SendProposalDialogProps {
   open: boolean;
@@ -58,6 +59,7 @@ export function SendProposalDialog({
   const [hourlyRate, setHourlyRate] = useState("");
   const [projectTotal, setProjectTotal] = useState("");
   const [billingSchedule, setBillingSchedule] = useState("monthly");
+  const [billingStartDate, setBillingStartDate] = useState("");
   const [scopeDescription, setScopeDescription] = useState("");
   const [deliverables, setDeliverables] = useState("");
   const [timeline, setTimeline] = useState("");
@@ -77,6 +79,7 @@ export function SendProposalDialog({
     setHourlyRate("");
     setProjectTotal("");
     setBillingSchedule("monthly");
+    setBillingStartDate("");
     setScopeDescription("");
     setDeliverables("");
     setTimeline("");
@@ -97,7 +100,9 @@ export function SendProposalDialog({
   const isValid = (() => {
     if (proposalType === "hourly") return Number(hourlyRate) > 0;
     if (proposalType === "project") return Number(projectTotal) > 0;
-    return Number(setupFee) > 0 || Number(monthlyFee) > 0;
+    const hasMonthlyFee = Number(monthlyFee) > 0;
+    return (Number(setupFee) > 0 || hasMonthlyFee)
+      && (!hasMonthlyFee || billingSchedule !== "monthly" || isStripeBillingStartDateValid(billingStartDate));
   })();
 
   // Build the proposal row payload
@@ -119,6 +124,9 @@ export function SendProposalDialog({
     deliverables: deliverables.trim() || null,
     timeline: timeline.trim() || null,
     billing_schedule: billingSchedule,
+    billing_start_date: proposalType === "retainer" && billingSchedule === "monthly"
+      ? billingStartDate || null
+      : null,
     status,
     cost_analysis_url: costAnalysisUrl.trim() || null,
     created_by: user!.id,
@@ -220,6 +228,7 @@ export function SendProposalDialog({
     setupFee: proposalType === "retainer" ? Number(setupFee) || 0 : 0,
     setupFeePaid: proposalType === "retainer" ? Number(setupPaid) || 0 : 0,
     monthlyFee: proposalType === "retainer" ? Number(monthlyFee) || 0 : 0,
+    billingStartDate: proposalType === "retainer" ? billingStartDate || undefined : undefined,
     hourlyRate: proposalType === "hourly" ? Number(hourlyRate) || 0 : 0,
     projectTotal: proposalType === "project" ? Number(projectTotal) || 0 : 0,
     proposalType,
@@ -245,7 +254,10 @@ export function SendProposalDialog({
         ? `${fmt(setupTotal)} setup (paid in full)`
         : `${fmt(setupTotal)} setup (${fmt(setupCredit)} paid, ${fmt(setupTotal - setupCredit)} due)`);
     }
-    if (Number(monthlyFee) > 0) terms.push(`${fmt(Number(monthlyFee))} per month`);
+    if (Number(monthlyFee) > 0) {
+      const formattedStart = formatBillingStartDate(billingStartDate);
+      terms.push(`${fmt(Number(monthlyFee))} per month${formattedStart ? ` starting ${formattedStart}` : ""}`);
+    }
     const split = billingSchedule === "bimonthly" && Number(monthlyFee) > 0
       ? ` The monthly fee is split into two ${fmt(Number(monthlyFee) / 2)} payments.`
       : "";
@@ -361,6 +373,7 @@ export function SendProposalDialog({
                           onChange={(e) => setMonthlyFee(e.target.value)} placeholder="e.g. 2500" />
                       </div>
                     </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label className="text-xs">Billing Schedule</Label>
                       <Select value={billingSchedule} onValueChange={setBillingSchedule}>
@@ -375,6 +388,23 @@ export function SendProposalDialog({
                           Two payments of ${(Number(monthlyFee) / 2).toFixed(2)} each
                         </p>
                       )}
+                    </div>
+                    {billingSchedule === "monthly" && Number(monthlyFee) > 0 && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">First Monthly Payment Date *</Label>
+                        <Input
+                          type="date"
+                          value={billingStartDate}
+                          onChange={(e) => setBillingStartDate(e.target.value)}
+                        />
+                        <p className="text-[11px] text-muted-foreground">
+                          Choose today for an immediate charge, or a future date at least 48 hours away. Stripe saves the card now without charging early.
+                        </p>
+                        {billingStartDate && !isStripeBillingStartDateValid(billingStartDate) && (
+                          <p className="text-[11px] font-medium text-destructive">Choose today or a date at least 48 hours from now.</p>
+                        )}
+                      </div>
+                    )}
                     </div>
                   </>
                 )}
@@ -569,6 +599,11 @@ export function SendProposalDialog({
                   <div className="rounded-lg bg-muted/50 p-4 space-y-2">
                     <div className="flex items-center gap-2"><CreditCard className="h-4 w-4 text-primary" /><p className="text-sm font-semibold">Checkout summary</p></div>
                     <p className="text-sm text-muted-foreground">{paymentSummary}</p>
+                    {formatBillingStartDate(billingStartDate) && (
+                      <p className="text-sm font-medium text-foreground">
+                        First monthly charge: {formatBillingStartDate(billingStartDate)}
+                      </p>
+                    )}
                     <p className="text-xs text-muted-foreground">After signing, the client clicks the secure payment button and Stripe generates their Checkout session.</p>
                   </div>
                   <div className="flex items-center justify-between rounded-lg border border-dashed p-3 text-sm">
@@ -604,6 +639,14 @@ export function SendProposalDialog({
                   {copied ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
                 </Button>
               </div>
+              <Button variant="outline" className="w-full" asChild>
+                <a href={`${proposalUrl}?preview=1`} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-4 w-4 mr-2" /> Preview Full Client Flow Safely
+                </a>
+              </Button>
+              <p className="text-[11px] text-muted-foreground">
+                Safe preview never records a signature, sends email, or opens a live Stripe checkout.
+              </p>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => onOpenChange(false)}>Done</Button>

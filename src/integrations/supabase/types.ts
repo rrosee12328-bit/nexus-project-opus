@@ -2533,6 +2533,7 @@ export type Database = {
         Row: {
           billing_start_date: string | null
           billing_schedule: string
+          billing_start_date: string | null
           client_address: string | null
           client_email: string | null
           client_id: string | null
@@ -2572,6 +2573,7 @@ export type Database = {
         Insert: {
           billing_start_date?: string | null
           billing_schedule?: string
+          billing_start_date?: string | null
           client_address?: string | null
           client_email?: string | null
           client_id?: string | null
@@ -2611,6 +2613,7 @@ export type Database = {
         Update: {
           billing_start_date?: string | null
           billing_schedule?: string
+          billing_start_date?: string | null
           client_address?: string | null
           client_email?: string | null
           client_id?: string | null
