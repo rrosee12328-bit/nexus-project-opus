@@ -49,12 +49,12 @@ export function ConvertLeadDialog({ open, onOpenChange, lead }: ConvertLeadDialo
     mutationFn: async () => {
       if (!lead) throw new Error("No lead selected");
 
-      // 1. Update client: status → onboarding, clear pipeline fields
+      // Keep the won stage so the converted client remains in pipeline history.
       const { error: updateError } = await supabase
         .from("clients")
         .update({
           status: "onboarding",
-          pipeline_stage: null,
+          pipeline_stage: "won",
           monthly_fee: Number(monthlyFee) || lead.monthly_fee || 0,
           setup_fee: Number(setupFee) || lead.setup_fee || 0,
           balance_due: Number(setupFee) || lead.setup_fee || 0,
