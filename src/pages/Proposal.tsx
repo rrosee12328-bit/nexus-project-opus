@@ -36,6 +36,7 @@ interface ProposalData {
   signed_at: string | null;
   signed_name: string | null;
   paid_at: string | null;
+  project_deposit_paid_at?: string | null;
   proposal_type?: string | null;
   hourly_rate?: number | null;
   project_total?: number | null;
@@ -166,7 +167,7 @@ export default function ProposalPage() {
       setCostAnalysisInput(p.cost_analysis_url || "");
 
       if (searchParams.get("preview") === "1") setStep("overview");
-      else if (p.paid_at || searchParams.get("paid") === "true") setStep("done");
+      else if (p.paid_at || p.project_deposit_paid_at || searchParams.get("paid") === "true") setStep("done");
       else if (p.signed_at) setStep("pay");
       else setStep("overview");
 
@@ -235,6 +236,7 @@ export default function ProposalPage() {
         body: {
           token: proposal.token,
           signed_name: signedName,
+          nda_signed_name: ndaSignature?.value || clientName.trim(),
           client_name: clientName.trim(),
           company_name: companyName.trim(),
           client_address: clientAddress.trim(),

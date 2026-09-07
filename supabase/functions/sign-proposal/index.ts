@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { token, signed_name, client_name, company_name, client_address, client_email, signature_data } =
+    const { token, signed_name, nda_signed_name, client_name, company_name, client_address, client_email, signature_data } =
       await req.json();
 
     if (!token || !signed_name?.trim()) {
@@ -49,11 +49,14 @@ Deno.serve(async (req) => {
     }
 
     // Update proposal with signature and client details
+    const signedAt = new Date().toISOString();
     const { error: updateError } = await supabaseAdmin
       .from("proposals")
       .update({
         signed_name: signed_name.trim(),
-        signed_at: new Date().toISOString(),
+        signed_at: signedAt,
+        nda_signed_name: nda_signed_name?.trim() || signed_name.trim(),
+        nda_signed_at: signedAt,
         client_name: client_name?.trim() || proposal.client_name,
         company_name: company_name?.trim() || proposal.company_name,
         client_address: client_address?.trim() || proposal.client_address,
@@ -80,7 +83,7 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     try {
-      await fetch(`${supabaseUrl}/functions/v1/generate-contract-pdf`, {
+      const pdfResponse = await fetch(`${supabaseUrl}/functions/v1/generate-contract-pdf`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -88,6 +91,9 @@ Deno.serve(async (req) => {
         },
         body: JSON.stringify({ proposal_id: proposal.id }),
       });
+      if (!pdfResponse.ok) {
+        console.error("PDF generation returned an error:", await pdfResponse.text());
+      }
     } catch (pdfErr) {
       console.error("PDF generation call failed (non-blocking):", pdfErr);
     }

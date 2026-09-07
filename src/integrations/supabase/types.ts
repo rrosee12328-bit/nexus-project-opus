@@ -2531,7 +2531,6 @@ export type Database = {
       }
       proposals: {
         Row: {
-          billing_start_date: string | null
           billing_schedule: string
           billing_start_date: string | null
           client_address: string | null
@@ -2551,7 +2550,10 @@ export type Database = {
           last_viewed_at: string | null
           lead_id: string | null
           monthly_fee: number
+          nda_signed_at: string | null
+          nda_signed_name: string | null
           paid_at: string | null
+          project_deposit_paid_at: string | null
           project_name: string | null
           project_number: string | null
           project_total: number | null
@@ -2571,7 +2573,6 @@ export type Database = {
           view_count: number
         }
         Insert: {
-          billing_start_date?: string | null
           billing_schedule?: string
           billing_start_date?: string | null
           client_address?: string | null
@@ -2591,7 +2592,10 @@ export type Database = {
           last_viewed_at?: string | null
           lead_id?: string | null
           monthly_fee?: number
+          nda_signed_at?: string | null
+          nda_signed_name?: string | null
           paid_at?: string | null
+          project_deposit_paid_at?: string | null
           project_name?: string | null
           project_number?: string | null
           project_total?: number | null
@@ -2611,7 +2615,6 @@ export type Database = {
           view_count?: number
         }
         Update: {
-          billing_start_date?: string | null
           billing_schedule?: string
           billing_start_date?: string | null
           client_address?: string | null
@@ -2631,7 +2634,10 @@ export type Database = {
           last_viewed_at?: string | null
           lead_id?: string | null
           monthly_fee?: number
+          nda_signed_at?: string | null
+          nda_signed_name?: string | null
           paid_at?: string | null
+          project_deposit_paid_at?: string | null
           project_name?: string | null
           project_number?: string | null
           project_total?: number | null

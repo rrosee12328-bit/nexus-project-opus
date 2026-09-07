@@ -110,15 +110,21 @@ serve(async (req: Request) => {
         break;
       }
 
-      case "checkout.session.completed": {
+      case "checkout.session.completed":
+      case "checkout.session.async_payment_succeeded": {
         const session = event.data.object;
         // Link stripe customer to client if metadata includes client_id
         if (session.customer && session.metadata?.client_id) {
-          await supabase
+          const { error: linkError } = await supabase
             .from("clients")
             .update({ stripe_customer_id: session.customer })
             .eq("id", session.metadata.client_id);
+          if (linkError) throw linkError;
         }
+
+        // Delayed payment methods emit checkout.session.completed before funds
+        // settle. Wait for async_payment_succeeded before applying payment data.
+        if (session.mode === "payment" && session.payment_status !== "paid") break;
 
         // Handle bi-monthly checkout: checkout created the 15th sub, now create the 30th sub
         if (session.metadata?.billing_schedule === "bimonthly") {
@@ -127,6 +133,16 @@ serve(async (req: Request) => {
         // Handle proposal-based payment checkout completion
         else if (session.metadata?.proposal_id) {
           await handleProposalPayment(supabase, session);
+        }
+
+        // Invoice events can arrive before Checkout links the Stripe customer to
+        // the client. Re-read the completed Checkout invoice after linking it.
+        if (session.invoice) {
+          const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+          if (!stripeKey) throw new Error("STRIPE_SECRET_KEY not configured");
+          const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
+          const invoice = await stripe.invoices.retrieve(session.invoice);
+          await handleInvoice(supabase, invoice);
         }
         break;
       }
@@ -400,89 +416,148 @@ async function handleSubscription(supabase: any, subscription: any) {
 
 async function handleProposalPayment(supabase: any, session: any) {
   const proposalId = session.metadata?.proposal_id;
-  const clientId = session.metadata?.client_id;
   const isProjectDeposit = session.metadata?.payment_stage === "project_deposit";
   const isMonthlySubscription = session.metadata?.payment_stage === "monthly_subscription";
 
   if (!proposalId) return;
 
-  const { data: proposal } = await supabase
+  const { data: proposal, error: proposalError } = await supabase
     .from("proposals")
-    .select("setup_fee, setup_paid, monthly_fee, project_total, project_name, client_email, client_name, created_by, project_final_invoice_id")
+    .select("client_id, converted_to_client_id, setup_fee, setup_paid, monthly_fee, project_total, project_name, client_email, client_name, created_by, project_final_invoice_id, contract_pdf_path")
     .eq("id", proposalId)
     .single();
 
-  if (!proposal) {
-    console.error("Proposal missing while recording payment:", proposalId);
-    return;
+  if (proposalError || !proposal) throw proposalError || new Error(`Proposal ${proposalId} not found`);
+
+  let clientId = session.metadata?.client_id || proposal.converted_to_client_id || proposal.client_id;
+  if (!clientId) {
+    const { data: convertedId, error: conversionError } = await supabase
+      .rpc("convert_proposal_to_client", { p_proposal_id: proposalId });
+    if (conversionError) throw conversionError;
+    clientId = convertedId;
   }
+
+  const paidAt = session.created
+    ? new Date(session.created * 1000).toISOString()
+    : new Date().toISOString();
 
   const { error: updateErr } = await supabase
     .from("proposals")
     .update(isProjectDeposit
       ? {
           status: "signed",
-          project_deposit_paid_at: new Date().toISOString(),
+          project_deposit_paid_at: paidAt,
           stripe_checkout_session_id: session.id,
+          converted_to_client_id: clientId,
         }
       : {
           status: "paid",
-          paid_at: new Date().toISOString(),
+          paid_at: paidAt,
           stripe_checkout_session_id: session.id,
+          converted_to_client_id: clientId,
         })
     .eq("id", proposalId);
 
-  if (updateErr) {
-    console.error("Failed to update proposal paid status:", updateErr);
-  }
+  if (updateErr) throw updateErr;
 
+  let newlyRecordedPayment = 0;
   if (clientId && session.amount_total > 0) {
-    const now = new Date();
+    const paidDate = new Date(paidAt);
+    const paymentReference = session.invoice || session.payment_intent || session.id;
 
     const { data: existing } = await supabase
       .from("client_payments")
       .select("id")
-      .eq("stripe_invoice_id", session.id)
+      .eq("stripe_invoice_id", paymentReference)
       .maybeSingle();
 
     if (!existing) {
       const { error: payErr } = await supabase.from("client_payments").insert({
         client_id: clientId,
         amount: session.amount_total / 100,
-        payment_month: now.getMonth() + 1,
-        payment_year: now.getFullYear(),
+        payment_month: paidDate.getMonth() + 1,
+        payment_year: paidDate.getFullYear(),
         notes: isProjectDeposit
           ? "Project deposit (50%) — proposal signed"
           : isMonthlySubscription
             ? "Monthly service subscription started — proposal signed"
             : "Setup fee balance — proposal signed & paid",
-        stripe_invoice_id: session.id,
+        stripe_invoice_id: paymentReference,
         payment_source: "stripe",
       });
 
-      if (payErr) {
-        console.error("Failed to insert proposal payment:", payErr);
-      } else {
-        console.log(`Proposal payment recorded for client ${clientId}, triggering onboarding flow`);
-      }
+      if (payErr) throw payErr;
+      newlyRecordedPayment = Number(session.amount_total) / 100;
+      console.log(`Proposal payment recorded for client ${clientId}, triggering onboarding flow`);
     }
   }
 
   if (clientId) {
-    const paidBeforeCheckout = Number(proposal.setup_paid) || 0;
+    const { data: client, error: clientError } = await supabase
+      .from("clients")
+      .select("setup_fee, setup_paid, monthly_fee, user_id")
+      .eq("id", clientId)
+      .single();
+    if (clientError) throw clientError;
+
+    const setupFee = Number(proposal.setup_fee) > 0
+      ? Number(proposal.setup_fee)
+      : Number(client.setup_fee) || 0;
+    const paidBeforeCheckout = Math.max(Number(proposal.setup_paid) || 0, Number(client.setup_paid) || 0);
     const setupPaidAfterCheckout = isMonthlySubscription
       ? paidBeforeCheckout
-      : Math.min(Number(proposal.setup_fee) || 0, paidBeforeCheckout + Number(session.amount_total || 0) / 100);
-    await supabase
+      : Math.min(setupFee, paidBeforeCheckout + newlyRecordedPayment);
+    const monthlyFee = Number(proposal.monthly_fee) > 0
+      ? Number(proposal.monthly_fee)
+      : Number(client.monthly_fee) || 0;
+    const { error: clientUpdateError } = await supabase
       .from("clients")
       .update({
-        setup_fee: proposal.setup_fee,
-        monthly_fee: proposal.monthly_fee,
-        setup_paid: isProjectDeposit ? session.amount_total / 100 : setupPaidAfterCheckout,
+        status: "onboarding",
+        pipeline_stage: "won",
+        proposal_id: proposalId,
+        stripe_customer_id: session.customer || undefined,
+        setup_fee: setupFee,
+        monthly_fee: monthlyFee,
+        setup_paid: setupPaidAfterCheckout,
+        balance_due: Math.max(setupFee - setupPaidAfterCheckout, 0),
         email: proposal.client_email,
         name: proposal.client_name,
       })
       .eq("id", clientId);
+    if (clientUpdateError) throw clientUpdateError;
+
+    if (!client.user_id && proposal.client_email) {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const inviteResponse = await fetch(`${supabaseUrl}/functions/v1/invite-client`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${serviceRoleKey}`,
+        },
+        body: JSON.stringify({ client_id: clientId }),
+      });
+      if (!inviteResponse.ok) {
+        throw new Error(`Client portal invite failed: ${await inviteResponse.text()}`);
+      }
+    }
+  }
+
+  if (!proposal.contract_pdf_path) {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const pdfResponse = await fetch(`${supabaseUrl}/functions/v1/generate-contract-pdf`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${serviceRoleKey}`,
+      },
+      body: JSON.stringify({ proposal_id: proposalId }),
+    });
+    if (!pdfResponse.ok) {
+      console.error("Contract PDF retry failed:", await pdfResponse.text());
+    }
   }
 
   if (isProjectDeposit && clientId && session.customer && !proposal.project_final_invoice_id) {
@@ -518,7 +593,7 @@ async function handleProposalPayment(supabase: any, session: any) {
         description: `Final 50% project balance — ${projectLabel}`,
       }, { idempotencyKey: `proposal-${proposalId}-final-item` });
 
-      const { error: draftErr } = await supabase.from("hourly_invoices").upsert({
+      const invoiceRecord = {
         client_id: clientId,
         stripe_customer_id: session.customer,
         invoice_type: "flat",
@@ -531,7 +606,18 @@ async function handleProposalPayment(supabase: any, session: any) {
         status: "draft",
         amount_due: balanceDue,
         proposal_id: proposalId,
-      }, { onConflict: "stripe_invoice_id" });
+      };
+
+      const { data: existingInvoice, error: lookupError } = await supabase
+        .from("hourly_invoices")
+        .select("id")
+        .eq("stripe_invoice_id", draft.id)
+        .maybeSingle();
+      if (lookupError) throw lookupError;
+
+      const { error: draftErr } = existingInvoice
+        ? await supabase.from("hourly_invoices").update(invoiceRecord).eq("id", existingInvoice.id)
+        : await supabase.from("hourly_invoices").insert(invoiceRecord);
 
       if (draftErr) throw draftErr;
 

@@ -539,7 +539,7 @@ Deno.serve(async (req) => {
 
     // Also create an asset record so it shows up in the client's assets
     if (clientId) {
-      await supabaseAdmin.from("assets").insert({
+      const assetRecord = {
         client_id: clientId,
         file_name: fileName,
         file_path: storagePath,
@@ -547,10 +547,20 @@ Deno.serve(async (req) => {
         file_type: "application/pdf",
         category: "contract",
         uploaded_by: proposal.created_by,
-      });
+      };
+      const { data: existingAsset } = await supabaseAdmin
+        .from("assets")
+        .select("id")
+        .eq("file_path", storagePath)
+        .maybeSingle();
+      if (existingAsset) {
+        await supabaseAdmin.from("assets").update(assetRecord).eq("id", existingAsset.id);
+      } else {
+        await supabaseAdmin.from("assets").insert(assetRecord);
+      }
 
       // Also persist a client_contracts record so it appears in the contracts list
-      await supabaseAdmin.from("client_contracts").insert({
+      const contractRecord = {
         client_id: clientId,
         proposal_id: proposal.id,
         title: `${(proposal.proposal_type || "retainer").toString().toUpperCase()} Contract — ${proposal.client_name || "Client"}`,
@@ -561,7 +571,17 @@ Deno.serve(async (req) => {
         signed_at: proposal.signed_at,
         signed_by: proposal.signed_name,
         uploaded_by: proposal.created_by,
-      });
+      };
+      const { data: existingContract } = await supabaseAdmin
+        .from("client_contracts")
+        .select("id")
+        .eq("proposal_id", proposal.id)
+        .maybeSingle();
+      if (existingContract) {
+        await supabaseAdmin.from("client_contracts").update(contractRecord).eq("id", existingContract.id);
+      } else {
+        await supabaseAdmin.from("client_contracts").insert(contractRecord);
+      }
     }
 
     return new Response(

@@ -35,6 +35,7 @@ export default function ClientContracts() {
         .from("client_contracts")
         .select("*")
         .eq("client_id", clientId!)
+        .is("proposal_id", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
@@ -47,10 +48,9 @@ export default function ClientContracts() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("proposals")
-        .select("id, signed_name, signed_at, monthly_fee, setup_fee, contract_pdf_path, services_description, created_at")
+        .select("id, signed_name, signed_at, nda_signed_name, nda_signed_at, monthly_fee, setup_fee, contract_pdf_path, services_description, created_at")
         .eq("client_id", clientId!)
-        .eq("status", "signed")
-        .not("contract_pdf_path", "is", null)
+        .not("signed_at", "is", null)
         .order("signed_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
@@ -77,8 +77,8 @@ export default function ClientContracts() {
       {
         id: `nda-${p.id}`,
         title: "Mutual Non-Disclosure Agreement",
-        signedBy: p.signed_name,
-        signedAt: p.signed_at,
+        signedBy: p.nda_signed_name || p.signed_name,
+        signedAt: p.nda_signed_at || p.signed_at,
         monthlyFee: null,
         setupFee: null,
         filePath: null,

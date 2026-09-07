@@ -89,7 +89,7 @@ async function generateRecoveryLink(
     type: "recovery",
     email,
     options: {
-      redirectTo: "https://nexus-project-opus.lovable.app/reset-password",
+      redirectTo: "https://portal.vektiss.com/reset-password",
     },
   });
   if (error) throw error;
@@ -133,7 +133,7 @@ async function createWelcomeProject(
 
   const projectName = template?.project_name ?? "Welcome Project";
   const projectDesc = template?.project_description ?? "Your project with Vektiss.";
-  const phases = template?.phases ?? ["discovery", "design", "development", "review", "launch", "deploy"];
+  const phases = template?.phases ?? ["discovery", "design", "development", "review", "launch"];
 
   const { data: project, error: projectErr } = await supabase
     .from("projects")
@@ -205,6 +205,36 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
+
+    const bearerToken = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
+    if (!bearerToken) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (bearerToken !== serviceRoleKey) {
+      const { data: authData, error: authError } = await supabase.auth.getUser(bearerToken);
+      if (authError || !authData.user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: adminRole } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("user_id", authData.user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+      if (!adminRole) {
+        return new Response(JSON.stringify({ error: "Admin access required" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     const { client_id, resend } = await req.json();
     if (!client_id) {
