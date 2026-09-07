@@ -149,7 +149,7 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full space-y-4 sm:space-y-6">
       {/* AI Command Center */}
       <AICommandCenter pageContext={{ pageType: "dashboard", title: "Admin Dashboard" }} />
 
@@ -164,7 +164,7 @@ export default function AdminDashboard() {
       </motion.div>
 
       {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
         {stats.map((s, i) => (
           <motion.div
             key={s.label}
@@ -172,14 +172,14 @@ export default function AdminDashboard() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.1 + i * 0.07 }}
           >
-            <Card className="group hover:border-primary/20 transition-colors">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <Card className="group min-w-0 hover:border-primary/20 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2 sm:p-6 sm:pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">{s.label}</CardTitle>
                 <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
                   <s.icon className={`h-4 w-4 ${s.color}`} />
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
                 <div className="text-2xl font-bold font-mono">{s.value}</div>
               </CardContent>
             </Card>
@@ -188,24 +188,24 @@ export default function AdminDashboard() {
       </div>
 
       {/* Main content grid */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
         {/* Active Projects */}
-        <motion.div
+        <motion.div className="min-w-0"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}
         >
-        <Card className="flex flex-col">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
+        <Card className="flex min-w-0 flex-col">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 sm:p-6">
+            <CardTitle className="flex min-w-0 items-center gap-2 text-base sm:text-lg">
               <FolderKanban className="h-5 w-5 text-primary" />
               Active Projects
             </CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => navigate("/admin/projects")} className="text-muted-foreground">
-              View all <ArrowRight className="ml-1 h-4 w-4" />
+            <Button variant="ghost" size="sm" onClick={() => navigate("/admin/projects")} className="shrink-0 px-2 text-muted-foreground sm:px-3">
+              <span className="hidden sm:inline">View all</span> <ArrowRight className="h-4 w-4 sm:ml-1" />
             </Button>
           </CardHeader>
-          <CardContent className="flex-1 space-y-3">
+          <CardContent className="min-w-0 flex-1 space-y-3 p-4 pt-0 sm:p-6 sm:pt-0">
             {activeProjects.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">No active projects</p>
             ) : (
@@ -239,29 +239,29 @@ export default function AdminDashboard() {
         </motion.div>
 
         {/* Pending Tasks */}
-        <motion.div
+        <motion.div className="min-w-0"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.5 }}
         >
-        <Card className="flex flex-col">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
+        <Card className="flex min-w-0 flex-col">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 sm:p-6">
+            <CardTitle className="flex min-w-0 items-center gap-2 text-base sm:text-lg">
               <CheckCircle2 className="h-5 w-5 text-primary" />
               Pending Tasks
             </CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => navigate("/ops/tasks")} className="text-muted-foreground">
-              View all <ArrowRight className="ml-1 h-4 w-4" />
+            <Button variant="ghost" size="sm" onClick={() => navigate("/ops/tasks")} className="shrink-0 px-2 text-muted-foreground sm:px-3">
+              <span className="hidden sm:inline">View all</span> <ArrowRight className="h-4 w-4 sm:ml-1" />
             </Button>
           </CardHeader>
-          <CardContent className="flex-1 space-y-2">
+          <CardContent className="min-w-0 flex-1 space-y-2 p-4 pt-0 sm:p-6 sm:pt-0">
             {(tasks ?? []).length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">All caught up!</p>
             ) : (
               (tasks ?? []).map((task) => {
                 const clientName = (task.clients as { name: string } | null)?.name;
                 return (
-                  <div key={task.id} className="flex items-center gap-3 rounded-lg border border-border p-3">
+                  <div key={task.id} className="flex min-w-0 items-start gap-2.5 rounded-lg border border-border p-3 sm:items-center sm:gap-3">
                     <div className={`h-2 w-2 rounded-full shrink-0 ${
                       task.priority === "urgent" ? "bg-destructive" :
                       task.priority === "high" ? "bg-warning" :
@@ -269,16 +269,16 @@ export default function AdminDashboard() {
                     }`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{task.title}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
+                      <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
                         {clientName && (
-                          <span className="text-xs text-muted-foreground">{clientName}</span>
+                          <span className="max-w-full truncate text-xs text-muted-foreground">{clientName}</span>
                         )}
                         <Badge variant="outline" className={`text-[10px] ${PRIORITY_COLORS[task.priority]}`}>
                           {task.priority}
                         </Badge>
                       </div>
                     </div>
-                    <Badge variant="outline" className="text-[10px] shrink-0">
+                    <Badge variant="outline" className="hidden shrink-0 text-[10px] sm:inline-flex">
                       {task.status === "in_progress" ? "In Progress" : "To Do"}
                     </Badge>
                   </div>
@@ -290,22 +290,22 @@ export default function AdminDashboard() {
         </motion.div>
 
         {/* Recent Messages */}
-        <motion.div
+        <motion.div className="min-w-0"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.6 }}
         >
-        <Card className="flex flex-col">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
+        <Card className="flex min-w-0 flex-col">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 sm:p-6">
+            <CardTitle className="flex min-w-0 items-center gap-2 text-base sm:text-lg">
               <MessageSquare className="h-5 w-5 text-primary" />
               Recent Messages
             </CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => navigate("/admin/messages")} className="text-muted-foreground">
-              View all <ArrowRight className="ml-1 h-4 w-4" />
+            <Button variant="ghost" size="sm" onClick={() => navigate("/admin/messages")} className="shrink-0 px-2 text-muted-foreground sm:px-3">
+              <span className="hidden sm:inline">View all</span> <ArrowRight className="h-4 w-4 sm:ml-1" />
             </Button>
           </CardHeader>
-          <CardContent className="flex-1 space-y-2">
+          <CardContent className="min-w-0 flex-1 space-y-2 p-4 pt-0 sm:p-6 sm:pt-0">
             {(recentMessages ?? []).length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">No messages yet</p>
             ) : (
@@ -338,7 +338,7 @@ export default function AdminDashboard() {
         </motion.div>
 
         {/* Quick Actions & Alerts */}
-        <motion.div
+        <motion.div className="min-w-0"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.7 }}

@@ -156,7 +156,7 @@ export function GlobalSearch() {
         variant="outline"
         size="sm"
         onClick={() => setOpen(true)}
-        className="gap-2 text-muted-foreground hover:text-foreground h-8 px-3 w-full max-w-[240px]"
+        className="h-9 w-9 shrink-0 gap-2 px-0 text-muted-foreground hover:text-foreground sm:h-8 sm:w-full sm:max-w-[240px] sm:px-3"
       >
         <Search className="h-3.5 w-3.5" />
         <span className="text-sm hidden sm:inline">Search…</span>

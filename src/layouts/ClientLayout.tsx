@@ -94,15 +94,15 @@ export default function ClientLayout() {
 
   const currentTitle = location.pathname === "/portal" ? "Ask Vektiss" : primaryItems.concat(workspaceItems).find((item) => location.pathname.startsWith(item.url))?.title || "Client portal";
 
-  return <div className="min-h-screen bg-background md:flex">
+  return <div className="min-h-screen min-w-0 max-w-full bg-background md:flex">
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-sidebar-border bg-sidebar md:flex">{navigation}</aside>
     {mobileNavOpen && <div className="fixed inset-0 z-50 md:hidden"><button className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={() => setMobileNavOpen(false)} aria-label="Close navigation" /><aside className="relative flex h-full w-[min(86vw,19rem)] flex-col border-r border-sidebar-border bg-sidebar shadow-2xl"><Button variant="ghost" size="icon" className="absolute right-3 top-5 z-10 h-9 w-9" onClick={() => setMobileNavOpen(false)}><X className="h-4 w-4" /></Button>{navigation}</aside></div>}
     <div className="min-w-0 flex-1 md:pl-64">
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border/70 bg-background/85 px-4 backdrop-blur-xl md:px-6">
-        <div className="flex items-center gap-2"><Button variant="ghost" size="icon" className="md:hidden" onClick={() => setMobileNavOpen(true)}><Menu className="h-5 w-5" /></Button><div><p className="text-sm font-medium">{currentTitle}</p><p className="hidden text-[10px] text-muted-foreground sm:block">Projects, meetings, agreements, and billing in one place</p></div></div>
+      <header className="sticky top-0 z-30 flex h-14 min-w-0 items-center justify-between border-b border-border/70 bg-background/85 px-2.5 backdrop-blur-xl sm:px-4 md:px-6">
+        <div className="flex min-w-0 items-center gap-1.5 sm:gap-2"><Button variant="ghost" size="icon" className="shrink-0 md:hidden" onClick={() => setMobileNavOpen(true)}><Menu className="h-5 w-5" /></Button><div className="min-w-0"><p className="truncate text-sm font-medium">{currentTitle}</p><p className="hidden text-[10px] text-muted-foreground sm:block">Projects, meetings, agreements, and billing in one place</p></div></div>
         <div className="flex items-center gap-1"><ThemeToggle /><NotificationBell /></div>
       </header>
-      <main className={location.pathname === "/portal" ? "min-h-[calc(100vh-3.5rem)]" : "px-4 py-6 md:px-8 md:py-8"}><div className={location.pathname === "/portal" ? "h-full" : "mx-auto max-w-6xl"}><Outlet /></div></main>
+      <main data-portal-page className={location.pathname === "/portal" ? "min-h-[calc(100dvh-3.5rem)] min-w-0" : "min-w-0 px-3 py-4 sm:px-4 sm:py-6 md:px-8 md:py-8"}><div className={location.pathname === "/portal" ? "h-full min-w-0" : "mx-auto min-w-0 max-w-6xl"}><Outlet /></div></main>
     </div>
   </div>;
 }

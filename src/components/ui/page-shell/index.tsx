@@ -6,7 +6,7 @@ export { SectionLabel } from "./SectionLabel";
 export { EditorialGrid, GridCol } from "./EditorialGrid";
 
 export const PageShell = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <div className={`container mx-auto px-4 sm:px-6 max-w-7xl py-8 space-y-10 ${className}`}>
+  <div data-portal-page className={`container mx-auto min-w-0 max-w-7xl px-3 py-5 sm:px-6 sm:py-8 space-y-6 sm:space-y-10 ${className}`}>
     {children}
   </div>
 );
