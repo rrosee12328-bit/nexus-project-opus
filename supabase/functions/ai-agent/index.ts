@@ -16,7 +16,7 @@ const TOOL_RISK: Record<string, RiskLevel> = {
   query_recent_activity: 'low', query_client_notes: 'low',
   query_calls: 'low',
   query_my_projects: 'low', query_my_payments: 'low', query_my_assets: 'low',
-  query_my_calls: 'low',
+  query_my_calls: 'low', query_my_contracts: 'low', query_my_activity: 'low',
   query_approval_requests: 'low', query_project_phases: 'low',
   query_team_members: 'low', query_calendar_events: 'low',
   query_messages: 'low', query_onboarding_steps: 'low',
@@ -813,6 +813,26 @@ const CLIENT_ONLY_TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'query_my_contracts',
+      description: 'Get the client\'s own proposal, contract, NDA signature, and payment completion status.',
+      parameters: { type: 'object', properties: {}, required: [], additionalProperties: false },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'query_my_activity',
+      description: 'Get the latest verified updates from projects, meetings, approvals, contracts, and billing integrations.',
+      parameters: {
+        type: 'object',
+        properties: { limit: { type: 'number', description: 'Max updates to return (default 10, max 25).' } },
+        required: [], additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'send_message_to_team',
       description: 'Send a message to your Vektiss team. Confirm before executing.',
       parameters: {
@@ -930,6 +950,8 @@ After every action, report what changed, what was skipped, and what failed.
 ## What you can do
 - Look up their project status, phase, progress, payments, uploaded assets, and pending approvals.
 - Summarize what was discussed on their own meetings with Vektiss using query_my_calls.
+- Verify whether their contract and NDA are signed using query_my_contracts.
+- Explain recent cross-system changes using query_my_activity. Prefer this tool for "what's new" or "what changed" questions.
 - Send messages to their Vektiss team (always confirm content first).
 
 ## STRICT BOUNDARIES — never violate these
@@ -1490,6 +1512,27 @@ async function executeTool(
         count: data?.length ?? 0,
         note: 'Only meetings where the client was present. Internal Vektiss strategy calls are excluded.',
       }
+    }
+    case 'query_my_contracts': {
+      if (!context.clientId) return { error: 'No client profile found for your account.' }
+      const { data, error } = await supabase.from('proposals')
+        .select('id, proposal_number, project_name, services_description, status, signed_name, signed_at, nda_signed_name, nda_signed_at, paid_at, project_deposit_paid_at, setup_fee, setup_paid, monthly_fee, billing_start_date, updated_at')
+        .eq('client_id', context.clientId)
+        .order('updated_at', { ascending: false })
+        .limit(10)
+      if (error) return { error: error.message }
+      return { agreements: data ?? [], count: data?.length ?? 0 }
+    }
+    case 'query_my_activity': {
+      if (!context.clientId) return { error: 'No client profile found for your account.' }
+      const limit = Math.min(Number(args.limit) || 10, 25)
+      const { data, error } = await supabase.from('client_activity_feed')
+        .select('source, event_type, title, summary, occurred_at')
+        .eq('client_id', context.clientId)
+        .order('occurred_at', { ascending: false })
+        .limit(limit)
+      if (error) return { error: error.message }
+      return { activity: data ?? [], count: data?.length ?? 0 }
     }
     case 'send_message_to_team': {
       if (!context.clientId) return { error: 'No client profile found for your account.' }

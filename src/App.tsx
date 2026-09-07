@@ -59,7 +59,6 @@ import ClientAssets from "./pages/client/Assets";
 import ClientMessages from "./pages/client/Messages";
 import ClientBilling from "./pages/client/Billing";
 import ClientSettings from "./pages/client/Settings";
-import ClientAgent from "./pages/client/Agent";
 import ClientApprovals from "./pages/client/Approvals";
 import ClientContracts from "./pages/client/Contracts";
 import ClientCalls from "./pages/client/Calls";
@@ -173,7 +172,7 @@ const App = () => (
               <Route path="payments" element={<Navigate to="/portal/billing" replace />} />
               <Route path="approvals" element={<ClientApprovals />} />
               <Route path="contracts" element={<ClientContracts />} />
-              <Route path="agent" element={<ClientAgent />} />
+              <Route path="agent" element={<Navigate to="/portal" replace />} />
               <Route path="calls" element={<ClientCalls />} />
               <Route path="settings" element={<ClientSettings />} />
             </Route>

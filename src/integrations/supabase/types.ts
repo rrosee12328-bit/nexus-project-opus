@@ -1066,6 +1066,53 @@ export type Database = {
           },
         ]
       }
+      client_activity_feed: {
+        Row: {
+          client_id: string
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json
+          occurred_at: string
+          source: string
+          source_record_id: string
+          summary: string | null
+          title: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json
+          occurred_at?: string
+          source: string
+          source_record_id: string
+          summary?: string | null
+          title: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json
+          occurred_at?: string
+          source?: string
+          source_record_id?: string
+          summary?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_activity_feed_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           aspirations: string | null

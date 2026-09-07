@@ -65,6 +65,8 @@ interface AIAgentChatProps {
   };
   /** When provided, the prompt is prefilled into the input on mount and auto-sent once. */
   initialPrompt?: string;
+  /** Uses the portal shell for navigation instead of rendering a second sidebar. */
+  embedded?: boolean;
 }
 
 /* ── Copyable code block ── */
@@ -98,6 +100,7 @@ export default function AIAgentChat({
   suggestions = [],
   sessionContext,
   initialPrompt,
+  embedded = false,
 }: AIAgentChatProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -573,19 +576,19 @@ export default function AIAgentChat({
 
   /* ── Render ── */
   return (
-    <div className="relative mx-auto flex h-[calc(100dvh-theme(spacing.12)-theme(spacing.12))] max-w-6xl min-h-0 gap-0 md:h-[calc(100vh-theme(spacing.12)-theme(spacing.12))] md:gap-0">
+    <div className={`relative mx-auto flex min-h-0 max-w-6xl gap-0 ${embedded ? "h-[calc(100dvh-3.5rem)]" : "h-[calc(100dvh-theme(spacing.12)-theme(spacing.12))] md:h-[calc(100vh-theme(spacing.12)-theme(spacing.12))]"}`}>
       {/* Mobile sidebar toggle */}
       <Button
         variant="ghost"
         size="icon"
-        className="absolute top-0 left-0 z-20 md:hidden h-9 w-9"
+        className={`absolute top-0 left-0 z-20 h-9 w-9 ${embedded ? "hidden" : "md:hidden"}`}
         onClick={() => setSidebarOpen(!sidebarOpen)}
       >
         {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
       </Button>
 
       {/* Sidebar */}
-      <div
+      {!embedded && <div
         className={`${
           sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         } absolute md:relative z-10 md:z-auto inset-y-0 left-0 w-72 min-h-0 flex-shrink-0 flex flex-col bg-card md:bg-card/50 border-r border-border/50 transition-transform duration-200`}
@@ -646,10 +649,10 @@ export default function AIAgentChat({
             )}
           </div>
         </ScrollArea>
-      </div>
+      </div>}
 
       {/* Backdrop on mobile */}
-      {sidebarOpen && (
+      {!embedded && sidebarOpen && (
         <div
           className="fixed inset-0 bg-background/60 backdrop-blur-sm z-[9] md:hidden"
           onClick={() => setSidebarOpen(false)}
@@ -660,7 +663,7 @@ export default function AIAgentChat({
       <div className="flex-1 min-w-0 min-h-0 flex flex-col">
         {/* Header — minimalist, ChatGPT-style */}
         <div className="flex items-center gap-2 px-3 md:px-4 py-2.5 border-b border-border/30 sticky top-0 bg-background/85 backdrop-blur-md z-[5]">
-          <div className="w-9 md:hidden shrink-0" />
+          {!embedded && <div className="w-9 md:hidden shrink-0" />}
           <h1 className="flex-1 text-sm font-semibold text-foreground leading-tight truncate text-center md:text-left">{title}</h1>
           <Button
             variant="ghost"
