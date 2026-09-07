@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -16,10 +18,12 @@ import {
 } from "@/components/ui/dialog";
 import {
   FileSignature, DollarSign, Send, Copy, Check, Clock, Briefcase, Repeat,
-  Sparkles, Loader2, Download,
+  Sparkles, Loader2, Download, Eye, ArrowLeft, CreditCard, ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
-import type { ProposalType } from "@/lib/contractTemplate";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { renderContract, type ProposalType } from "@/lib/contractTemplate";
 
 interface SendProposalDialogProps {
   open: boolean;
@@ -59,6 +63,7 @@ export function SendProposalDialog({
   const [costAnalysisUrl, setCostAnalysisUrl] = useState("");
   const [copied, setCopied] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [showReview, setShowReview] = useState(false);
 
   const reset = () => {
     setProposalType("retainer");
@@ -76,6 +81,7 @@ export function SendProposalDialog({
     setCostAnalysisUrl("");
     setCopied(false);
     setGenerating(false);
+    setShowReview(false);
   };
 
   const handleOpen = (isOpen: boolean) => {
@@ -127,8 +133,8 @@ export function SendProposalDialog({
       const url = `${window.location.origin}/proposal/${token}`;
       setProposalUrl(url);
       queryClient.invalidateQueries({ queryKey: ["proposals"] });
-      toast.success("Proposal created — share the link with your client.");
-      logActivity("created_proposal", "proposal", clientId, `Sent ${proposalType} proposal to "${clientName}"`);
+      toast.success("Proposal link created. Nothing is emailed automatically.");
+      logActivity("created_proposal", "proposal", clientId, `Created ${proposalType} proposal for "${clientName}"`);
     },
     onError: (err: Error) => toast.error(err.message || "Failed to create proposal"),
   });
@@ -189,9 +195,68 @@ export function SendProposalDialog({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const fmt = (value: number) =>
+    value.toLocaleString("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 0,
+    });
+
+  const contractPreview = renderContract({
+    clientName: clientName || "_______________",
+    companyName: "_______________",
+    clientAddress: "_______________",
+    clientEmail: clientEmail || "_______________",
+    projectName: projectName.trim() || undefined,
+    setupFee: proposalType === "retainer" ? Number(setupFee) || 0 : 0,
+    monthlyFee: proposalType === "retainer" ? Number(monthlyFee) || 0 : 0,
+    hourlyRate: proposalType === "hourly" ? Number(hourlyRate) || 0 : 0,
+    projectTotal: proposalType === "project" ? Number(projectTotal) || 0 : 0,
+    proposalType,
+    servicesDescription: servicesDescription.trim() || undefined,
+    scopeDescription: scopeDescription.trim() || undefined,
+    deliverables: deliverables.trim() || undefined,
+    timeline: timeline.trim() || undefined,
+  });
+
+  const paymentSummary = (() => {
+    if (proposalType === "hourly") {
+      return `${fmt(Number(hourlyRate) || 0)} per hour; time is invoiced as worked.`;
+    }
+    if (proposalType === "project") {
+      return `${fmt(Number(projectTotal) || 0)} total; 50% due upfront and 50% on delivery.`;
+    }
+
+    const terms = [];
+    if (Number(setupFee) > 0) terms.push(`${fmt(Number(setupFee))} setup`);
+    if (Number(monthlyFee) > 0) terms.push(`${fmt(Number(monthlyFee))} per month`);
+    const split = billingSchedule === "bimonthly" && Number(monthlyFee) > 0
+      ? ` The monthly fee is split into two ${fmt(Number(monthlyFee) / 2)} payments.`
+      : "";
+    return `${terms.join(" plus ")}.${split}`;
+  })();
+
+  const checkoutStatus = proposalType === "hourly"
+    ? {
+        title: "No immediate Stripe checkout",
+        detail: "Hourly work is tracked and invoiced after it is performed, so this proposal does not create a payment link.",
+        badge: "Invoiced after work",
+      }
+    : proposalType === "project"
+      ? {
+          title: "Project deposit checkout needs configuration",
+          detail: "The proposal states that 50% is due upfront, but the current Stripe function does not yet create a project-deposit Checkout session.",
+          badge: "Not configured",
+        }
+      : {
+          title: "Stripe checkout is ready to generate",
+          detail: "The payment link is intentionally created only after the client signs the contract. This prevents an unsigned client from paying against unfinished terms.",
+          badge: "Pending client signature",
+        };
+
   return (
     <Dialog open={open} onOpenChange={handleOpen}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className={`${showReview ? "max-w-4xl" : "max-w-2xl"} max-h-[90vh] overflow-y-auto`}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSignature className="h-5 w-5 text-primary" />
@@ -202,7 +267,7 @@ export function SendProposalDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {!proposalUrl ? (
+        {!proposalUrl && !showReview ? (
           <>
             <div className="space-y-5 py-2">
               {/* Proposal Type Selector */}
@@ -372,15 +437,134 @@ export function SendProposalDialog({
                 )}
               </Button>
               <Button
-                onClick={() => sendMutation.mutate()}
+                onClick={() => setShowReview(true)}
                 disabled={sendMutation.isPending || generating || !isValid}
               >
-                {sendMutation.isPending ? "Creating..." : (
-                  <><Send className="h-4 w-4 mr-2" /> Send for Signature</>
-                )}
+                <><Eye className="h-4 w-4 mr-2" /> Review Before Sending</>
               </Button>
             </DialogFooter>
           </>
+        ) : !proposalUrl ? (
+          <div className="space-y-4 py-2">
+            <div className="flex items-start justify-between gap-4 rounded-lg border border-primary/25 bg-primary/5 p-4">
+              <div>
+                <p className="font-semibold">Client preview</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Nothing has been sent or saved yet. Review each tab before creating the client link.
+                </p>
+              </div>
+              <Badge variant="outline" className="shrink-0 border-amber-500/40 text-amber-600">
+                Not sent
+              </Badge>
+            </div>
+
+            <Tabs defaultValue="proposal" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="proposal">Proposal</TabsTrigger>
+                <TabsTrigger value="contract">Contract</TabsTrigger>
+                <TabsTrigger value="payment">Stripe Payment</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="proposal" className="mt-3">
+                <div className="max-h-[52vh] overflow-y-auto rounded-lg border bg-card p-5 sm:p-7">
+                  <div className="space-y-6">
+                    <div className="text-center border-b pb-5">
+                      <p className="text-xs uppercase tracking-widest text-muted-foreground">Service Proposal</p>
+                      <h2 className="text-2xl font-bold mt-2">AI &amp; Automation Services</h2>
+                      {projectName.trim() && <p className="font-semibold mt-1">{projectName.trim()}</p>}
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Prepared for <strong className="text-foreground">{clientName}</strong>
+                      </p>
+                    </div>
+                    <section>
+                      <h3 className="text-sm font-bold mb-2">Project Overview</h3>
+                      <p className="text-sm text-muted-foreground whitespace-pre-line">
+                        {servicesDescription.trim() || scopeDescription.trim() || "AI & Automation services tailored to your business needs. Full details are outlined in the contract."}
+                      </p>
+                    </section>
+                    {scopeDescription.trim() && servicesDescription.trim() && (
+                      <section><h3 className="text-sm font-bold mb-2">Scope of Services</h3><p className="text-sm text-muted-foreground whitespace-pre-line">{scopeDescription}</p></section>
+                    )}
+                    {deliverables.trim() && (
+                      <section><h3 className="text-sm font-bold mb-2">Deliverables</h3><p className="text-sm text-muted-foreground whitespace-pre-line">{deliverables}</p></section>
+                    )}
+                    {timeline.trim() && (
+                      <section><h3 className="text-sm font-bold mb-2">Timeline</h3><p className="text-sm text-muted-foreground whitespace-pre-line">{timeline}</p></section>
+                    )}
+                    <section className="border-t pt-5">
+                      <h3 className="text-sm font-bold mb-2">Investment</h3>
+                      <p className="text-sm text-muted-foreground">{paymentSummary}</p>
+                    </section>
+                    <section className="border-t pt-5">
+                      <h3 className="text-sm font-bold mb-2">What the client does next</h3>
+                      <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-1">
+                        <li>Confirm contact information</li>
+                        <li>Review and sign the NDA</li>
+                        <li>Review and sign the service contract</li>
+                        <li>Continue to secure Stripe checkout</li>
+                      </ol>
+                    </section>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="contract" className="mt-3">
+                <div className="max-h-[52vh] overflow-y-auto rounded-lg border bg-card p-5 sm:p-7">
+                  <div className="text-center border-b pb-5 mb-6">
+                    <FileSignature className="h-6 w-6 text-primary mx-auto mb-2" />
+                    <h2 className="text-xl font-bold">AI &amp; Automation Services Contract</h2>
+                    <p className="text-xs text-muted-foreground mt-1">This is the contract the client will review before signing.</p>
+                  </div>
+                  <div className="space-y-6">
+                    {contractPreview.map((section) => (
+                      <section key={section.title}>
+                        <h3 className="text-sm font-bold mb-2">{section.title}</h3>
+                        <div className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground prose-p:my-2 prose-strong:text-foreground">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{section.content}</ReactMarkdown>
+                        </div>
+                      </section>
+                    ))}
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="payment" className="mt-3">
+                <div className="rounded-lg border bg-card p-5 sm:p-7 space-y-5">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-full bg-emerald-500/10 p-2"><ShieldCheck className="h-5 w-5 text-emerald-500" /></div>
+                    <div>
+                      <h3 className="font-semibold">{checkoutStatus.title}</h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {checkoutStatus.detail}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="rounded-lg bg-muted/50 p-4 space-y-2">
+                    <div className="flex items-center gap-2"><CreditCard className="h-4 w-4 text-primary" /><p className="text-sm font-semibold">Checkout summary</p></div>
+                    <p className="text-sm text-muted-foreground">{paymentSummary}</p>
+                    <p className="text-xs text-muted-foreground">After signing, the client clicks the secure payment button and Stripe generates their Checkout session.</p>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border border-dashed p-3 text-sm">
+                    <span className="text-muted-foreground">Current payment-link status</span>
+                    <Badge variant="secondary">{checkoutStatus.badge}</Badge>
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={() => setShowReview(false)} className="sm:mr-auto">
+                <ArrowLeft className="h-4 w-4 mr-2" /> Edit Proposal
+              </Button>
+              <Button onClick={() => sendMutation.mutate()} disabled={sendMutation.isPending || generating}>
+                {sendMutation.isPending ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating client link...</>
+                ) : (
+                  <><Send className="h-4 w-4 mr-2" /> Confirm &amp; Create Client Link</>
+                )}
+              </Button>
+            </DialogFooter>
+          </div>
         ) : (
           <div className="space-y-4 py-4">
             <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3">
