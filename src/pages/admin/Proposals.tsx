@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
+import { createProposalToken } from "@/lib/proposalToken";
 import ConvertToClientDialog from "@/components/admin/ConvertToClientDialog";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
@@ -137,6 +138,7 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
     try {
       const finalDescription = polishedDescription.trim() || servicesDescription.trim() || null;
       const { data, error } = await supabase.from("proposals").insert({
+        token: createProposalToken(),
         client_name: clientName.trim(),
         client_email: clientEmail.trim() || null,
         company_name: companyName.trim() || null,
@@ -155,6 +157,7 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
         created_by: user.id,
       } as any).select("token").single();
       if (error) throw error;
+      if (!data?.token) throw new Error("Proposal link could not be created");
       const url = `${window.location.origin}/proposal/${data.token}`;
       setProposalUrl(url);
       setStep("done");
@@ -177,6 +180,7 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
       const { data: proposal, error: insErr } = await supabase
         .from("proposals")
         .insert({
+          token: createProposalToken(),
           client_name: clientName.trim(),
           client_email: clientEmail.trim() || null,
           company_name: companyName.trim() || null,

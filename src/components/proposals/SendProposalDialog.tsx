@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { renderContract, type ProposalType } from "@/lib/contractTemplate";
+import { createProposalToken } from "@/lib/proposalToken";
 
 interface SendProposalDialogProps {
   open: boolean;
@@ -123,10 +124,11 @@ export function SendProposalDialog({
       if (!user) throw new Error("Not authenticated");
       const { data, error } = await supabase
         .from("proposals")
-        .insert(buildPayload("sent") as any)
+        .insert({ ...buildPayload("sent"), token: createProposalToken() } as any)
         .select("token")
         .single();
       if (error) throw error;
+      if (!data?.token) throw new Error("Proposal link could not be created");
       return data.token;
     },
     onSuccess: (token) => {
@@ -150,6 +152,7 @@ export function SendProposalDialog({
         .from("proposals")
         .insert({
           ...buildPayload("signed"),
+          token: createProposalToken(),
           signed_at: new Date().toISOString(),
           signed_name: `${adminName} (Admin Generated)`,
         } as any)

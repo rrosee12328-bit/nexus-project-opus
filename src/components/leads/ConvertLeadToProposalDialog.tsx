@@ -15,6 +15,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { createProposalToken } from "@/lib/proposalToken";
 
 const SERVICE_TYPES = [
   { value: "apps_portals_websites", label: "Apps, Portals & Websites" },
@@ -75,6 +76,7 @@ export function ConvertLeadToProposalDialog({ open, onOpenChange, lead, onConver
       const { data: proposal, error: propError } = await supabase
         .from("proposals")
         .insert({
+          token: createProposalToken(),
           client_id: lead.id,
           client_name: lead.name,
           client_email: lead.email ?? null,
