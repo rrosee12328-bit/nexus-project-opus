@@ -7,7 +7,7 @@ const corsHeaders = {
 
 const FROM_EMAIL = 'Vektiss <noreply@mail.vektiss.com>'
 const SENDER_DOMAIN = 'mail.vektiss.com'
-const PORTAL_URL = 'https://nexus-project-opus.lovable.app'
+const PORTAL_URL = 'https://portal.vektiss.com'
 
 function buildEmailHtml(title: string, body: string, ctaLabel?: string, ctaUrl?: string): string {
   let ctaBlock = ''

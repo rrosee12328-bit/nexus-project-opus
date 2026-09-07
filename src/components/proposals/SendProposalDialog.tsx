@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getAppUrl } from "@/lib/appUrl";
 import { useAuth } from "@/hooks/useAuth";
 import { logActivity } from "@/lib/activityLogger";
 import { Button } from "@/components/ui/button";
@@ -146,7 +147,7 @@ export function SendProposalDialog({
       return data.token;
     },
     onSuccess: (token) => {
-      const url = `${window.location.origin}/proposal/${token}`;
+      const url = getAppUrl(`/proposal/${token}`);
       setProposalUrl(url);
       queryClient.invalidateQueries({ queryKey: ["proposals"] });
       toast.success("Proposal link created. Nothing is emailed automatically.");

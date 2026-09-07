@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getAppUrl } from "@/lib/appUrl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -102,7 +103,7 @@ function getFormCopy(formType?: string | null) {
 }
 
 function publicUrl(token: string) {
-  return `${window.location.origin}/intake/${token}`;
+  return getAppUrl(`/intake/${token}`);
 }
 
 function randomToken() {
@@ -343,7 +344,7 @@ function NewIntakeDialog({
       toast.error(error?.message || "Couldn't create the intake link.");
       return;
     }
-    const url = `${window.location.origin}/intake/${token}`;
+    const url = getAppUrl(`/intake/${token}`);
     setCreatedUrl(url);
     setCreatedRow({ token, email: finalEmail, name: finalName, formType });
     onCreated();

@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const PORTAL_URL = "https://nexus-project-opus.lovable.app";
+const PORTAL_URL = "https://portal.vektiss.com";
 const FROM_EMAIL = "Vektiss <noreply@mail.vektiss.com>";
 const SENDER_DOMAIN = "mail.vektiss.com";
 

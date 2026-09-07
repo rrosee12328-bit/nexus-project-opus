@@ -116,7 +116,7 @@ serve(async (req: Request) => {
     const session = await stripe.billingPortal.sessions.create({
       customer: clientRecord.stripe_customer_id,
       return_url:
-        return_url || "https://nexus-project-opus.lovable.app/portal/billing",
+        return_url || "https://portal.vektiss.com/portal/billing",
     });
 
     return new Response(JSON.stringify({ url: session.url }), {

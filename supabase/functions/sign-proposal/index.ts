@@ -159,7 +159,7 @@ Deno.serve(async (req) => {
             <strong>Setup Fee:</strong> ${proposal.setup_fee ? Number(proposal.setup_fee).toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }) : "$0"}
           </p>
         </div>
-        <a href="https://nexus-project-opus.lovable.app/admin/proposals" style="display: inline-block; background-color: hsl(213, 100%, 58%); color: #ffffff; font-size: 14px; font-weight: 600; border-radius: 6px; padding: 12px 24px; text-decoration: none;">View in Dashboard</a>
+        <a href="https://portal.vektiss.com/admin/proposals" style="display: inline-block; background-color: hsl(213, 100%, 58%); color: #ffffff; font-size: 14px; font-weight: 600; border-radius: 6px; padding: 12px 24px; text-decoration: none;">View in Dashboard</a>
         <p style="font-size: 12px; color: #999999; margin: 30px 0 0;">This is an automated notification from Vektiss.</p>
       </body></html>`;
 

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { AuthShell } from "@/components/auth/AuthShell";
+import { getAppUrl } from "@/lib/appUrl";
 
 export default function Login() {
   const { signIn, user, role, loading, signOut } = useAuth();
@@ -69,7 +70,7 @@ export default function Login() {
     if (!resetEmail.trim()) return;
     setResetSubmitting(true);
     const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: getAppUrl("/reset-password"),
     });
     setResetSubmitting(false);
     if (error) {

@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const clientId = Deno.env.get("QUICKBOOKS_CLIENT_ID");
     const redirectUri = Deno.env.get("QUICKBOOKS_REDIRECT_URI");
-    const appBaseUrl = Deno.env.get("APP_BASE_URL") ?? "http://localhost:5173";
+    const appBaseUrl = Deno.env.get("APP_BASE_URL") ?? "https://portal.vektiss.com";
     const environment = Deno.env.get("QUICKBOOKS_ENVIRONMENT") ?? "sandbox";
 
     if (!supabaseUrl || !supabaseAnonKey || !clientId || !redirectUri) {
@@ -100,4 +100,3 @@ Deno.serve(async (req) => {
     return json({ error: message }, 500);
   }
 });
-

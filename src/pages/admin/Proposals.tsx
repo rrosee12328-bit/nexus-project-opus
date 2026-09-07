@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getAppUrl } from "@/lib/appUrl";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -163,7 +164,7 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
       } as any).select("token").single();
       if (error) throw error;
       if (!data?.token) throw new Error("Proposal link could not be created");
-      const url = `${window.location.origin}/proposal/${data.token}`;
+      const url = getAppUrl(`/proposal/${data.token}`);
       setProposalUrl(url);
       setStep("done");
       onCreated();
@@ -595,7 +596,7 @@ function EmailProposalDialog({ open, onOpenChange, proposalToken, clientEmail: d
   const handleSend = async () => {
     if (!email.trim()) return;
     setSending(true);
-    const proposalUrl = `${window.location.origin}/proposal/${proposalToken}`;
+    const proposalUrl = getAppUrl(`/proposal/${proposalToken}`);
     try {
       const { error } = await supabase.functions.invoke("send-transactional-email", {
         body: {

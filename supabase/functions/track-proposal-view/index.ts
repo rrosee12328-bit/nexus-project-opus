@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
 <h1 style="font-size: 24px; font-weight: bold; color: #0d0d0d; margin: 0 0 20px;">Proposal Opened 👀</h1>
 <p style="font-size: 14px; color: #6b6b6b; line-height: 1.6; margin: 0 0 10px;">Hi ${profile?.display_name || "there"},</p>
 <p style="font-size: 14px; color: #6b6b6b; line-height: 1.6; margin: 0 0 25px;"><strong style="color: #0d0d0d;">${clientLabel}</strong> just opened the proposal you sent.</p>
-<a href="https://nexus-project-opus.lovable.app/admin/proposals" style="display: inline-block; background-color: hsl(213, 100%, 58%); color: #ffffff; font-size: 14px; font-weight: 600; border-radius: 6px; padding: 12px 24px; text-decoration: none;">View Proposals</a>
+<a href="https://portal.vektiss.com/admin/proposals" style="display: inline-block; background-color: hsl(213, 100%, 58%); color: #ffffff; font-size: 14px; font-weight: 600; border-radius: 6px; padding: 12px 24px; text-decoration: none;">View Proposals</a>
 <p style="font-size: 12px; color: #999999; margin: 30px 0 0;">This is an automated notification from Vektiss.</p></body></html>`;
 
           await supabase.rpc("enqueue_email", {

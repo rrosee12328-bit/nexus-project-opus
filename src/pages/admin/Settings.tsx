@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getAppUrl } from "@/lib/appUrl";
 import { useAuth } from "@/hooks/useAuth";
 import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -40,7 +41,7 @@ export default function AdminSettings() {
   const [linkCopied, setLinkCopied] = useState(false);
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "profile");
 
-  const redirectTarget = `${window.location.origin}/admin/settings?tab=integrations`;
+  const redirectTarget = getAppUrl("/admin/settings?tab=integrations");
   const recommendedCallbackUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/quickbooks-oauth-callback`;
 
   const { data: profile, isLoading } = useQuery({

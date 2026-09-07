@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
     const redirectUri = Deno.env.get("QUICKBOOKS_REDIRECT_URI");
     const proxyUrl = Deno.env.get("QUICKBOOKS_PROXY_URL")?.replace(/\/$/, "");
     const proxyToken = Deno.env.get("QUICKBOOKS_PROXY_TOKEN");
-    const fallbackRedirect = Deno.env.get("APP_BASE_URL") ?? "http://localhost:5173/admin/settings?tab=integrations";
+    const fallbackRedirect = Deno.env.get("APP_BASE_URL") ?? "https://portal.vektiss.com/admin/settings?tab=integrations";
 
     if (!supabaseUrl || !serviceRoleKey || !clientId || !clientSecret || !redirectUri) {
       return redirect(appendParams(fallbackRedirect, { quickbooks: "error", reason: "missing-env" }));
@@ -216,7 +216,7 @@ Deno.serve(async (req) => {
 
     return redirect(appendParams(redirectTo, { quickbooks: "connected" }));
   } catch (error) {
-    const fallbackRedirect = Deno.env.get("APP_BASE_URL") ?? "http://localhost:5173/admin/settings?tab=integrations";
+    const fallbackRedirect = Deno.env.get("APP_BASE_URL") ?? "https://portal.vektiss.com/admin/settings?tab=integrations";
     const message = error instanceof Error ? error.message.slice(0, 120) : "unexpected";
     return redirect(appendParams(fallbackRedirect, { quickbooks: "error", reason: message }));
   }
