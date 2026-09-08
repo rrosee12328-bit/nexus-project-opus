@@ -576,7 +576,7 @@ export default function AIAgentChat({
 
   /* ── Render ── */
   return (
-    <div className={`relative mx-auto flex min-h-0 max-w-6xl gap-0 ${embedded ? "h-[calc(100dvh-3.5rem)]" : "h-[calc(100dvh-theme(spacing.12)-theme(spacing.12))] md:h-[calc(100vh-theme(spacing.12)-theme(spacing.12))]"}`}>
+    <div className={`relative mx-auto flex min-h-0 max-w-6xl gap-0 ${embedded ? "h-full" : "h-[calc(100dvh-theme(spacing.12)-theme(spacing.12))] md:h-[calc(100vh-theme(spacing.12)-theme(spacing.12))]"}`}>
       {/* Mobile sidebar toggle */}
       <Button
         variant="ghost"
