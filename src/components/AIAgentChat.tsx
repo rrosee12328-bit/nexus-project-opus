@@ -20,6 +20,20 @@ type MsgAttachment = { name: string; type: string; dataUrl: string };
 type Msg = { role: "user" | "assistant"; content: string; attachments?: MsgAttachment[] };
 type Conversation = { id: string; title: string; updated_at: string };
 
+async function getFunctionErrorMessage(error: unknown, fallback: string) {
+  if (!(error instanceof Error)) return fallback;
+  const context = (error as Error & { context?: Response }).context;
+  if (context && typeof context.clone === "function") {
+    try {
+      const payload = await context.clone().json() as { error?: string };
+      if (payload.error) return payload.error;
+    } catch {
+      // The function may return an empty or non-JSON error response.
+    }
+  }
+  return error.message || fallback;
+}
+
 const IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
 const TEXT_EXTENSIONS = ["txt", "md", "csv", "json", "xml", "html", "css", "js", "ts", "tsx", "jsx", "py", "sql", "yaml", "yml", "toml", "log", "sh"];
 
@@ -382,7 +396,7 @@ export default function AIAgentChat({
       const resp = await supabase.functions.invoke("ai-agent", {
         body: { messages: apiMessages, sessionContext },
       });
-      if (resp.error) throw new Error(resp.error.message || "Failed to get response");
+      if (resp.error) throw resp.error;
       const data = resp.data;
       if (data?.error) {
         if (data.error.includes("Rate limit")) toast.error("Rate limit exceeded. Please wait.");
@@ -399,7 +413,7 @@ export default function AIAgentChat({
       saveMessages(convoId, finalMessages, finalMessages.length === 2);
     } catch (err) {
       console.error("Agent error:", err);
-      toast.error("Failed to get a response. Please try again.");
+      toast.error(await getFunctionErrorMessage(err, "Failed to get a response. Please try again."));
       saveMessages(convoId, newMessages);
     } finally {
       setIsLoading(false);
@@ -421,7 +435,7 @@ export default function AIAgentChat({
       const resp = await supabase.functions.invoke("ai-agent", {
         body: { messages: trimmed.map((m) => ({ role: m.role, content: m.content })), sessionContext },
       });
-      if (resp.error) throw new Error(resp.error.message);
+      if (resp.error) throw resp.error;
       const data = resp.data;
       if (data?.error) { toast.error(data.error); return; }
       const finalMessages: Msg[] = [
@@ -430,8 +444,8 @@ export default function AIAgentChat({
       ];
       setMessages(finalMessages);
       saveMessages(convoId, finalMessages);
-    } catch {
-      toast.error("Retry failed. Please try again.");
+    } catch (err) {
+      toast.error(await getFunctionErrorMessage(err, "Retry failed. Please try again."));
     } finally {
       setIsLoading(false);
     }

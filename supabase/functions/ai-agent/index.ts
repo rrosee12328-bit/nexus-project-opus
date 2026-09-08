@@ -1647,22 +1647,35 @@ Deno.serve(async (req) => {
     const userId = claimsData.claims.sub as string
     const adminClient = createClient(supabaseUrl, serviceKey)
 
-    const { data: roleData } = await adminClient.from('user_roles').select('role').eq('user_id', userId).single()
-    if (!roleData) {
+    const { data: roleRows, error: roleError } = await adminClient
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+    if (roleError || !roleRows?.length) {
       return new Response(JSON.stringify({ error: 'No role found for user' }), {
         status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
-    const userRole = roleData.role as string
+    const rolePriority = ['admin', 'ops', 'client']
+    const userRole = rolePriority.find((role) => roleRows.some((row) => row.role === role)) || 'client'
 
     let clientId: string | undefined
     if (userRole === 'client') {
-      const { data } = await adminClient.from('clients').select('id').eq('user_id', userId).single()
+      const { data } = await adminClient.from('clients').select('id').eq('user_id', userId).maybeSingle()
       clientId = data?.id
     }
 
     const body = await req.json()
     const { messages, sessionContext } = body
+
+    if (userRole === 'client' && !clientId) {
+      return new Response(JSON.stringify({
+        error: 'Your login is active, but it has not been connected to a client workspace yet. Please ask the Vektiss team to link your account.',
+        code: 'CLIENT_WORKSPACE_NOT_LINKED',
+      }), {
+        status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
     const tools = getToolsForRole(userRole)
     const systemPrompt = getSystemPrompt(userRole, sessionContext)

@@ -7,13 +7,13 @@ export default function ClientAgent() {
 
   return (
     <AIAgentChat
-      title="Vektiss Assistant"
-      subtitle="Check your project status, payment history, assets, or send a message to the team."
+      title="Ask Vektiss"
+      subtitle="Ask about your project, recent meetings, agreements, billing, files, or what happens next."
       suggestions={[
-        "What's the status of my project?",
-        "Show my payment history",
-        "What assets have been uploaded?",
-        "Are there any deliverables waiting for my approval?",
+        "What needs my attention today?",
+        "What's the latest update on my project?",
+        "What did we decide in our last meeting?",
+        "Are my agreement and billing up to date?",
       ]}
       sessionContext={state ? {
         page: state.page,
