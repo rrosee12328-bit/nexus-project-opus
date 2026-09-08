@@ -31,3 +31,7 @@ project_id = "ogcgqbrewfzkchwqrrxj"
     verify_jwt = false
   [functions.quickbooks-financial-summary]
     verify_jwt = true
+  [functions.transcribe-onboarding-response]
+    verify_jwt = false
+  [functions.onboarding-interview]
+    verify_jwt = false

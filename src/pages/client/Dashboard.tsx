@@ -1,12 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { ArrowRight, BellRing, CheckCircle2, CreditCard, FileSignature, FolderKanban, MessageSquare, Phone, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import AIAgentChat from "@/components/AIAgentChat";
-import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
-import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
+import { ClientOnboardingExperience } from "@/components/onboarding/ClientOnboardingExperience";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -39,7 +38,6 @@ const formatCurrency = (cents: number) => new Intl.NumberFormat("en-US", {
 export default function ClientDashboard() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [wizardDismissed, setWizardDismissed] = useState(false);
 
   const { data: clientId } = useQuery({
     queryKey: ["my-client-id", user?.id],
@@ -67,6 +65,16 @@ export default function ClientDashboard() {
       const { data, error } = await supabase.from("client_onboarding_steps").select("id, completed_at").order("sort_order");
       if (error) throw error;
       return data ?? [];
+    },
+    enabled: !!clientId,
+  });
+
+  const { data: clientStatus, isLoading: clientStatusLoading } = useQuery({
+    queryKey: ["client-onboarding-status", clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("clients").select("status").eq("id", clientId!).single();
+      if (error) throw error;
+      return data.status;
     },
     enabled: !!clientId,
   });
@@ -123,9 +131,7 @@ export default function ClientDashboard() {
   }, [clientId, queryClient, user?.id]);
 
   const displayName = profile?.display_name || user?.email?.split("@")[0] || "there";
-  const onboardingComplete = onboardingSteps.length === 0 || onboardingSteps.every((step) => !!step.completed_at);
-  const accountIsNew = user?.created_at ? Date.now() - new Date(user.created_at).getTime() < 7 * 86400000 : false;
-  const showWizard = !wizardDismissed && accountIsNew && localStorage.getItem(`wizard_completed_${user?.id}`) !== "true";
+  const onboardingComplete = clientStatus !== "onboarding" && (onboardingSteps.length === 0 || onboardingSteps.every((step) => !!step.completed_at));
   const attentionItems = [
     briefing?.pendingApprovals ? {
       label: `${briefing.pendingApprovals} approval${briefing.pendingApprovals === 1 ? "" : "s"} waiting`,
@@ -147,20 +153,11 @@ export default function ClientDashboard() {
     } : null,
   ].filter(Boolean) as Array<{ label: string; detail: string; route: string; icon: typeof CheckCircle2 }>;
 
-  if (!onboardingLoading && !onboardingComplete) {
-    return <div className="relative min-h-[calc(100vh-3.5rem)] overflow-hidden bg-grid px-4 py-8 md:px-10">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-hero-glow" />
-      <AnimatePresence>{showWizard && <OnboardingWizard onComplete={() => setWizardDismissed(true)} displayName={displayName} />}</AnimatePresence>
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="relative mx-auto max-w-3xl space-y-7">
-        <div className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20"><Sparkles className="h-6 w-6 text-primary" /></div>
-          <p className="kicker">Your Vektiss workspace</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Let&apos;s get you fully connected, {displayName}.</h1>
-          <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-muted-foreground">Complete these setup steps once. Your project assistant will then become your home for questions, updates, meeting notes, and next steps.</p>
-        </div>
-        <OnboardingChecklist />
-      </motion.div>
-    </div>;
+  if (!onboardingLoading && !clientStatusLoading && !onboardingComplete) {
+    return <ClientOnboardingExperience onComplete={() => {
+      queryClient.invalidateQueries({ queryKey: ["onboarding-steps"] });
+      queryClient.invalidateQueries({ queryKey: ["client-onboarding-status", clientId] });
+    }} />;
   }
 
   return <div className="grid h-[calc(100dvh-3.5rem)] min-h-0 bg-grid xl:grid-cols-[minmax(0,1fr)_19rem]">

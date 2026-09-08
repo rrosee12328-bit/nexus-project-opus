@@ -48,6 +48,13 @@ interface OnboardingStep {
   category?: string;
 }
 
+interface OnboardingQuestion {
+  key: string;
+  prompt: string;
+  required: boolean;
+  max_duration_seconds: number;
+}
+
 interface TemplateRow {
   id: string;
   client_type: string;
@@ -55,6 +62,7 @@ interface TemplateRow {
   project_description: string;
   phases: string[];
   onboarding_steps: OnboardingStep[];
+  onboarding_questions: OnboardingQuestion[];
   is_default: boolean;
   created_at: string;
   updated_at: string;
@@ -80,6 +88,7 @@ export function OnboardingTemplatesManager() {
   const [formDesc, setFormDesc] = useState("");
   const [formPhases, setFormPhases] = useState<string[]>([]);
   const [formSteps, setFormSteps] = useState<OnboardingStep[]>([]);
+  const [formQuestions, setFormQuestions] = useState<OnboardingQuestion[]>([]);
 
   const { data: templates, isLoading } = useQuery({
     queryKey: ["onboarding-templates"],
@@ -102,6 +111,7 @@ export function OnboardingTemplatesManager() {
     setFormDesc(template.project_description);
     setFormPhases([...template.phases]);
     setFormSteps([...(template.onboarding_steps as OnboardingStep[])]);
+    setFormQuestions([...(template.onboarding_questions || [])]);
   };
 
   const openNew = () => {
@@ -112,6 +122,7 @@ export function OnboardingTemplatesManager() {
     setFormDesc("");
     setFormPhases([...ALL_PHASE_KEYS]);
     setFormSteps([...DEFAULT_STEPS]);
+    setFormQuestions([]);
   };
 
   const closeDialog = () => {
@@ -149,6 +160,17 @@ export function OnboardingTemplatesManager() {
     setFormSteps((prev) => prev.filter((_, i) => i !== index).map((s, i) => ({ ...s, sort_order: i })));
   };
 
+  const addQuestion = () => setFormQuestions((items) => [...items, {
+    key: `service_question_${Date.now()}`,
+    prompt: "",
+    required: true,
+    max_duration_seconds: 180,
+  }]);
+
+  const updateQuestion = (index: number, updates: Partial<OnboardingQuestion>) => {
+    setFormQuestions((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, ...updates } : item));
+  };
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!formType.trim()) throw new Error("Client type is required");
@@ -169,6 +191,10 @@ export function OnboardingTemplatesManager() {
         project_description: formDesc.trim(),
         phases: orderedPhases,
         onboarding_steps: JSON.parse(JSON.stringify(stepsJson)),
+        onboarding_questions: JSON.parse(JSON.stringify(formQuestions.filter((question) => question.prompt.trim()).map((question, index) => ({
+          ...question,
+          key: question.key || `service_question_${index + 1}`,
+        })))),
       };
 
       if (editing) {
@@ -265,7 +291,7 @@ export function OnboardingTemplatesManager() {
                         ))}
                       </div>
                       <p className="text-[11px] text-muted-foreground">
-                        {(t.onboarding_steps as OnboardingStep[]).length} checklist steps
+                        {(t.onboarding_steps as OnboardingStep[]).length} checklist steps · {(t.onboarding_questions || []).length} service questions
                       </p>
                     </div>
                     <div className="flex gap-1 shrink-0">
@@ -367,6 +393,17 @@ export function OnboardingTemplatesManager() {
                   </div>
                 ))}
               </div>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between"><div><Label>Service-Specific Interview Questions</Label><p className="mt-1 text-[11px] text-muted-foreground">These appear after the shared core questions.</p></div><Button variant="outline" size="sm" onClick={addQuestion} className="h-7 gap-1 text-xs"><Plus className="h-3 w-3" />Add Question</Button></div>
+              {formQuestions.map((question, index) => <div key={question.key} className="rounded-lg border border-border p-3">
+                <div className="flex gap-2"><Textarea value={question.prompt} onChange={(event) => updateQuestion(index, { prompt: event.target.value })} placeholder="Ask a question specific to this service..." rows={2} className="text-sm" /><Button variant="ghost" size="icon" className="shrink-0 text-destructive" onClick={() => setFormQuestions((items) => items.filter((_, itemIndex) => itemIndex !== index))}><X className="h-4 w-4" /></Button></div>
+                <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground"><input type="checkbox" checked={question.required} onChange={(event) => updateQuestion(index, { required: event.target.checked })} />Required</label>
+              </div>)}
+              {formQuestions.length === 0 && <p className="rounded-lg border border-dashed border-border p-3 text-center text-xs text-muted-foreground">This template currently uses only the shared core interview.</p>}
             </div>
 
             <Separator />

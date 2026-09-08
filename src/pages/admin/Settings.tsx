@@ -16,6 +16,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { User, Lock, Bell, Save, Shield, Clock, RefreshCw, Send, Rocket, Eye, EyeOff, CheckCircle2, Mail, Users, UserPlus, RotateCw, Brain, Link2, Building2 } from "lucide-react";
 import { OnboardingTemplatesManager } from "@/components/admin/OnboardingTemplatesManager";
+import { OnboardingExperienceSettings } from "@/components/admin/OnboardingExperienceSettings";
+import { OnboardingSessionsReview } from "@/components/admin/OnboardingSessionsReview";
 import { NotificationPreferences } from "@/components/NotificationPreferences";
 import { BusinessRulesPanel } from "@/components/admin/BusinessRulesPanel";
 import { motion } from "framer-motion";
@@ -836,7 +838,9 @@ export default function AdminSettings() {
                 <CardDescription>Manage default onboarding steps for new clients.</CardDescription>
               </CardHeader>
               <CardContent>
+                <OnboardingExperienceSettings />
                 <OnboardingTemplatesManager />
+                <OnboardingSessionsReview />
               </CardContent>
             </Card>
           </motion.div>

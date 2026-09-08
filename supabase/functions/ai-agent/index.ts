@@ -17,6 +17,7 @@ const TOOL_RISK: Record<string, RiskLevel> = {
   query_calls: 'low',
   query_my_projects: 'low', query_my_payments: 'low', query_my_assets: 'low',
   query_my_calls: 'low', query_my_contracts: 'low', query_my_activity: 'low',
+  query_my_onboarding_brief: 'low',
   query_approval_requests: 'low', query_project_phases: 'low',
   query_team_members: 'low', query_calendar_events: 'low',
   query_messages: 'low', query_onboarding_steps: 'low',
@@ -833,6 +834,14 @@ const CLIENT_ONLY_TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'query_my_onboarding_brief',
+      description: 'Get the client-approved onboarding brief. Use this to answer questions about the client\'s stated goals, audience, preferences, brand voice, and approval process.',
+      parameters: { type: 'object', properties: {}, required: [], additionalProperties: false },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'send_message_to_team',
       description: 'Send a message to your Vektiss team. Confirm before executing.',
       parameters: {
@@ -952,6 +961,7 @@ After every action, report what changed, what was skipped, and what failed.
 - Summarize what was discussed on their own meetings with Vektiss using query_my_calls.
 - Verify whether their contract and NDA are signed using query_my_contracts.
 - Explain recent cross-system changes using query_my_activity. Prefer this tool for "what's new" or "what changed" questions.
+- Use query_my_onboarding_brief for the client's own approved goals, audience, brand voice, preferences, and onboarding decisions.
 - Send messages to their Vektiss team (always confirm content first).
 
 ## STRICT BOUNDARIES — never violate these
@@ -1539,6 +1549,18 @@ async function executeTool(
         .limit(limit)
       if (error) return { error: error.message }
       return { activity: data ?? [], count: data?.length ?? 0 }
+    }
+    case 'query_my_onboarding_brief': {
+      if (!context.clientId) return { error: 'No client profile found for your account.' }
+      const { data, error } = await supabase.from('onboarding_sessions')
+        .select('approved_summary, completed_at')
+        .eq('client_id', context.clientId)
+        .eq('status', 'completed')
+        .maybeSingle()
+      if (error) return { error: error.message }
+      return data?.approved_summary
+        ? { approved_brief: data.approved_summary, approved_at: data.completed_at }
+        : { approved_brief: null, note: 'The client has not approved an onboarding brief yet.' }
     }
     case 'send_message_to_team': {
       if (!context.clientId) return { error: 'No client profile found for your account.' }
