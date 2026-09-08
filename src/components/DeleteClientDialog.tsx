@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Deletion spans legacy and newly migrated tables. */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -86,9 +87,20 @@ export function DeleteClientDialog({ open, onOpenChange, clientId, clientName }:
       const taskIds = (tasks ?? []).map((t) => t.id);
       const taskAttachmentPaths = await collectStoragePaths("task_attachments", "task_id", taskIds);
 
+      const { data: actionSubmissions } = await supabase
+        .from("client_action_items" as any)
+        .select("submission_file_path")
+        .eq("client_id", clientId);
+      const actionSubmissionPaths = (actionSubmissions ?? [])
+        .map((row: any) => row.submission_file_path)
+        .filter(Boolean) as string[];
+
       // 2. Delete storage blobs
       const allPaths = [...assetPaths, ...projectAttachmentPaths, ...taskAttachmentPaths];
       await deleteBlobs(allPaths);
+      if (actionSubmissionPaths.length) {
+        await supabase.storage.from("client-action-submissions").remove(actionSubmissionPaths);
+      }
 
       // Also clean up any files under the client folder in storage
       const { data: clientFolder } = await supabase.storage.from("client-assets").list(clientId);

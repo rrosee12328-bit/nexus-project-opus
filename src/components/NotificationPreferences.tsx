@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Notification types are generated after the migration is deployed. */
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Mail, Save, MessageSquare, ListTodo, DollarSign, FolderKanban, Newspaper } from "lucide-react";
+import { Bell, Mail, Save, MessageSquare, ListTodo, DollarSign, FolderKanban, Newspaper, CheckSquare2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Preferences {
@@ -20,6 +21,8 @@ interface Preferences {
   email_payments: boolean;
   email_projects: boolean;
   email_digest: boolean;
+  in_app_actions: boolean;
+  email_actions: boolean;
 }
 
 const DEFAULT_PREFS: Preferences = {
@@ -32,6 +35,8 @@ const DEFAULT_PREFS: Preferences = {
   email_payments: true,
   email_projects: true,
   email_digest: false,
+  in_app_actions: true,
+  email_actions: true,
 };
 
 const CATEGORIES = [
@@ -39,6 +44,7 @@ const CATEGORIES = [
   { key: "tasks", label: "Tasks", desc: "Task assignments and updates", icon: ListTodo },
   { key: "payments", label: "Payments", desc: "Payment confirmations and reminders", icon: DollarSign },
   { key: "projects", label: "Projects", desc: "Project status and phase changes", icon: FolderKanban },
+  { key: "actions", label: "Actions", desc: "Requested items, submissions, and client calls", icon: CheckSquare2 },
 ] as const;
 
 export function NotificationPreferences() {
@@ -51,7 +57,7 @@ export function NotificationPreferences() {
     queryKey: ["notification-preferences", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("notification_preferences")
         .select("*")
         .eq("user_id", user.id)
@@ -74,6 +80,8 @@ export function NotificationPreferences() {
         email_payments: savedPrefs.email_payments,
         email_projects: savedPrefs.email_projects,
         email_digest: savedPrefs.email_digest,
+        in_app_actions: savedPrefs.in_app_actions ?? true,
+        email_actions: savedPrefs.email_actions ?? true,
       });
     }
   }, [savedPrefs]);
@@ -82,13 +90,13 @@ export function NotificationPreferences() {
     mutationFn: async () => {
       if (!user?.id) return;
       if (savedPrefs) {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from("notification_preferences")
           .update(prefs)
           .eq("user_id", user.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from("notification_preferences")
           .insert({ ...prefs, user_id: user.id });
         if (error) throw error;

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Bot, CreditCard, FileCheck, FileSignature, FolderKanban, LogOut, Menu, MessageSquare, Phone, Settings, Upload, X } from "lucide-react";
+import { Bot, CheckSquare2, CreditCard, FileCheck, FileSignature, FolderKanban, LogOut, Menu, MessageSquare, Phone, Settings, Upload, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { NavLink } from "@/components/NavLink";
@@ -57,6 +57,18 @@ export default function ClientLayout() {
     refetchInterval: 30000,
   });
 
+  const { data: pendingActionCount = 0 } = useQuery({
+    queryKey: ["client-action-count", clientId],
+    queryFn: async () => {
+      const { count, error } = await supabase.from("client_action_items" as never)
+        .select("id", { count: "exact", head: true }).eq("status", "pending");
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!clientId,
+    refetchInterval: 30000,
+  });
+
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="h-9 w-9 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>;
   if (!user) return <Navigate to="/login" replace />;
 
@@ -69,6 +81,7 @@ export default function ClientLayout() {
     { title: "Billing", url: "/portal/billing", icon: CreditCard, badge: 0 },
   ];
   const workspaceItems = [
+    { title: "Actions", url: "/portal/actions", icon: CheckSquare2, badge: pendingActionCount },
     { title: "Approvals", url: "/portal/approvals", icon: FileCheck, badge: pendingApprovalCount },
     { title: "Messages", url: "/portal/messages", icon: MessageSquare, badge: unreadCount },
     { title: "Meeting notes", url: "/portal/calls", icon: Phone, badge: 0 },

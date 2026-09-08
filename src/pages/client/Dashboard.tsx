@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { motion } from "framer-motion";
-import { ArrowRight, BellRing, CheckCircle2, CreditCard, FileSignature, FolderKanban, MessageSquare, Phone, Sparkles } from "lucide-react";
+import { ArrowRight, BellRing, CheckCircle2, CheckSquare2, CreditCard, FileSignature, FolderKanban, MessageSquare, Phone, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import AIAgentChat from "@/components/AIAgentChat";
 import { ClientOnboardingExperience } from "@/components/onboarding/ClientOnboardingExperience";
@@ -17,6 +17,7 @@ const sourceIcons = {
   proposal: FileSignature,
   project: FolderKanban,
   approval: CheckCircle2,
+  client_action: CheckSquare2,
 } as const;
 
 const sourceRoutes: Record<string, string> = {
@@ -27,6 +28,7 @@ const sourceRoutes: Record<string, string> = {
   proposal: "/portal/contracts",
   project: "/portal/projects",
   approval: "/portal/approvals",
+  client_action: "/portal/actions",
 };
 
 const formatCurrency = (cents: number) => new Intl.NumberFormat("en-US", {
@@ -97,19 +99,21 @@ export default function ClientDashboard() {
   const { data: briefing } = useQuery({
     queryKey: ["client-briefing", clientId, user?.id],
     queryFn: async () => {
-      const [approvals, messages, invoices, projects] = await Promise.all([
+      const [approvals, messages, invoices, projects, actions] = await Promise.all([
         supabase.from("approval_requests").select("id, title", { count: "exact" }).eq("client_id", clientId!).eq("status", "pending"),
         supabase.from("messages").select("id", { count: "exact", head: true }).eq("client_id", clientId!).neq("sender_id", user!.id).is("read_at", null),
         supabase.from("stripe_invoices").select("amount_due, amount_paid, status").eq("client_id", clientId!).in("status", ["open", "past_due"]),
         supabase.from("projects").select("id, name, current_phase, progress, progress_percentage, target_date").eq("client_id", clientId!).in("status", ["not_started", "in_progress"]).order("updated_at", { ascending: false }).limit(1),
+        supabase.from("client_action_items" as never).select("id", { count: "exact", head: true }).eq("status", "pending"),
       ]);
-      const error = approvals.error || messages.error || invoices.error || projects.error;
+      const error = approvals.error || messages.error || invoices.error || projects.error || actions.error;
       if (error) throw error;
       return {
         pendingApprovals: approvals.count ?? approvals.data?.length ?? 0,
         unreadMessages: messages.count ?? 0,
         outstandingBalance: (invoices.data ?? []).reduce((sum, invoice) => sum + Math.max(0, invoice.amount_due - invoice.amount_paid), 0),
         activeProject: projects.data?.[0] ?? null,
+        pendingActions: actions.count ?? 0,
       };
     },
     enabled: !!clientId && !!user?.id,
@@ -126,6 +130,10 @@ export default function ClientDashboard() {
       .on("postgres_changes", { event: "*", schema: "public", table: "messages", filter: `client_id=eq.${clientId}` }, () => {
         queryClient.invalidateQueries({ queryKey: ["client-briefing", clientId, user?.id] });
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "client_action_items", filter: `client_id=eq.${clientId}` }, () => {
+        queryClient.invalidateQueries({ queryKey: ["client-briefing", clientId, user?.id] });
+        queryClient.invalidateQueries({ queryKey: ["client-action-count", clientId] });
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [clientId, queryClient, user?.id]);
@@ -133,6 +141,12 @@ export default function ClientDashboard() {
   const displayName = profile?.display_name || user?.email?.split("@")[0] || "there";
   const onboardingComplete = clientStatus !== "onboarding" && (onboardingSteps.length === 0 || onboardingSteps.every((step) => !!step.completed_at));
   const attentionItems = [
+    briefing?.pendingActions ? {
+      label: `${briefing.pendingActions} action${briefing.pendingActions === 1 ? "" : "s"} waiting`,
+      detail: "Send your update",
+      route: "/portal/actions",
+      icon: CheckSquare2,
+    } : null,
     briefing?.pendingApprovals ? {
       label: `${briefing.pendingApprovals} approval${briefing.pendingApprovals === 1 ? "" : "s"} waiting`,
       detail: "Review and respond",

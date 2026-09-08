@@ -17,6 +17,7 @@ const TABLES = [
   "assets",
   "tasks",
   "calendar_events",
+  "client_action_items",
   "call_intelligence",
   "calls",
   "client_contracts",

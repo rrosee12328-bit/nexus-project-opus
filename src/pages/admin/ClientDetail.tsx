@@ -40,6 +40,7 @@ import ClientCallsTab from "@/components/admin/ClientCallsTab";
 import { AspirationsCard } from "@/components/admin/AspirationsCard";
 import { AITaskReviewCard } from "@/components/admin/AITaskReviewCard";
 import { StatusRecapCard } from "@/components/admin/StatusRecapCard";
+import { ClientActionsManager } from "@/components/admin/ClientActionsManager";
 
 type NoteType = "meeting" | "document" | "action_item" | "note";
 
@@ -470,6 +471,12 @@ export default function ClientDetail() {
           </motion.div>
         );
       })()}
+
+      {client && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.29 }}>
+          <ClientActionsManager clientId={client.id} />
+        </motion.div>
+      )}
 
       {/* Call Intelligence */}
       {client && (

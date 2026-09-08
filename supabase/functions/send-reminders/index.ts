@@ -1,4 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Edge queries span generated and newly migrated tables. */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { CALL_REMINDER_OFFSETS, centralDailyWindow, isCallReminderDue } from "../_shared/reminder-schedule.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,8 +9,24 @@ const corsHeaders = {
 };
 
 const PORTAL_URL = "https://portal.vektiss.com";
-const FROM_EMAIL = "Vektiss <noreply@mail.vektiss.com>";
-const SENDER_DOMAIN = "mail.vektiss.com";
+const FROM_EMAIL = "Vektiss <client@vektiss.com>";
+const SENDER_DOMAIN = "vektiss.com";
+
+function escapeHtml(value: unknown): string {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;",
+  })[character]!);
+}
+
+function parseJwtClaims(token: string): Record<string, unknown> | null {
+  try {
+    const payload = token.split(".")[1]?.replaceAll("-", "+").replaceAll("_", "/");
+    if (!payload) return null;
+    return JSON.parse(atob(payload.padEnd(Math.ceil(payload.length / 4) * 4, "=")));
+  } catch {
+    return null;
+  }
+}
 
 /* ── Branded email shell ── */
 function wrapEmail(content: string): string {
@@ -65,9 +83,21 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const requestBody = await req.json().catch(() => ({}));
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
+    const token = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "";
+    const claims = parseJwtClaims(token);
+    if (claims?.role !== "service_role") {
+      const { data: { user } } = await supabase.auth.getUser(token);
+      const { data: allowedRole } = user ? await supabase.from("user_roles").select("user_id")
+        .eq("user_id", user.id).in("role", ["admin", "ops"]).maybeSingle() : { data: null };
+      if (!allowedRole) return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const runLegacyReminders = requestBody?.source !== "client-action-reminders";
 
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     let totalEnqueued = 0;
@@ -96,6 +126,12 @@ Deno.serve(async (req) => {
         .eq("reference_id", refId)
         .gte("sent_at", cutoff)
         .limit(1);
+      return (data?.length ?? 0) > 0;
+    }
+
+    async function wasEverSent(type: string, refId: string): Promise<boolean> {
+      const { data } = await supabase.from("reminder_log").select("id")
+        .eq("reminder_type", type).eq("reference_id", refId).limit(1);
       return (data?.length ?? 0) > 0;
     }
 
@@ -139,6 +175,14 @@ Deno.serve(async (req) => {
       return p[key] !== false;
     }
 
+    function isInAppEnabled(userId: string | null, category: string): boolean {
+      if (!userId) return false;
+      const p = prefsMap[userId];
+      if (!p) return true;
+      return p[`in_app_${category}`] !== false;
+    }
+
+    if (runLegacyReminders) {
     // ── 1. UNREAD MESSAGES (weekdays only) ──
     if (isWeekday) {
     const { data: unreadClients } = await supabase
@@ -560,6 +604,101 @@ Deno.serve(async (req) => {
       );
     }
     } // end Monday guard for weekly digest
+
+    } // end legacy reminder catalog
+
+    // ── CLIENT ACTION DAILY SUMMARY (9:00-9:09 AM America/Chicago) ──
+    const { date: chicagoDate, active: inDailyWindow } = centralDailyWindow(now);
+
+    const { data: pendingActions } = await supabase.from("client_action_items")
+      .select("id, client_id, title, instructions, due_at, clients(name, email, user_id)")
+      .eq("status", "pending").not("reminders_enabled_at", "is", null).lte("reminders_enabled_at", now.toISOString());
+
+    const actionsByClient = new Map<string, any[]>();
+    for (const action of pendingActions ?? []) {
+      const group = actionsByClient.get(action.client_id) ?? [];
+      group.push(action);
+      actionsByClient.set(action.client_id, group);
+
+      if (action.due_at && new Date(action.due_at) < now && !await wasEverSent("client_action_overdue_staff", action.id)) {
+        const client = Array.isArray(action.clients) ? action.clients[0] : action.clients;
+        const { data: staffRoles } = await supabase.from("user_roles").select("user_id").in("role", ["admin", "ops"]);
+        for (const staff of staffRoles ?? []) {
+          await supabase.from("notifications").insert({
+            user_id: staff.user_id,
+            title: "Client action overdue",
+            body: `${client?.name || "Client"}: ${action.title}`,
+            type: "client_action",
+            link: `/admin/clients/${action.client_id}`,
+          });
+        }
+        await supabase.from("reminder_log").insert({
+          reminder_type: "client_action_overdue_staff", reference_id: action.id,
+          recipient_email: "internal-notification", recipient_user_id: null,
+        });
+      }
+    }
+
+    if (inDailyWindow) {
+      for (const [clientId, actions] of actionsByClient) {
+        const client = Array.isArray(actions[0].clients) ? actions[0].clients[0] : actions[0].clients;
+        if (!client?.email || !isEmailEnabled(client.user_id, "actions")) continue;
+        const refId = `${clientId}_${chicagoDate}`;
+        if (await wasEverSent("client_action_digest", refId)) continue;
+        const rows = actions.map((action) => {
+          const overdue = action.due_at && new Date(action.due_at) < now;
+          const due = action.due_at ? new Intl.DateTimeFormat("en-US", {
+            timeZone: "America/Chicago", month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+          }).format(new Date(action.due_at)) : null;
+          return `<li style="margin-bottom:12px"><strong>${escapeHtml(action.title)}</strong>${due ? `<br/><span style="color:${overdue ? "#dc2626" : "#666"}">${overdue ? "Overdue" : "Due"}: ${escapeHtml(due)} CT</span>` : ""}</li>`;
+        }).join("");
+        const html = wrapEmail(`
+          <h2 style="margin:0 0 12px;font-size:20px;color:#0d0d0d">Your Vektiss action summary</h2>
+          <p style="margin:0 0 18px;font-size:14px;color:#555;line-height:1.6">Hi ${escapeHtml(client.name || "there")}, these items are waiting for your update. Submitting an item pauses its reminders while our team reviews it.</p>
+          <ul style="margin:0 0 22px;padding-left:20px;font-size:14px;color:#222">${rows}</ul>
+          <a href="${PORTAL_URL}/portal/actions" style="display:inline-block;background:#2684ff;color:#fff;border-radius:8px;padding:12px 24px;text-decoration:none;font-weight:600">Open my actions</a>
+        `);
+        await logAndEnqueue("client_action_digest", refId, client.email, client.user_id,
+          `Vektiss: ${actions.length} action${actions.length === 1 ? "" : "s"} waiting for you`, html,
+          `You have ${actions.length} action${actions.length === 1 ? "" : "s"} waiting in your Vektiss portal.`);
+      }
+    }
+
+    // ── CLIENT CALL REMINDERS (24 hours, 2 hours, and 15 minutes) ──
+    const callWindowEnd = new Date(now.getTime() + (24 * 60 + 6) * 60 * 1000).toISOString();
+    const { data: upcomingCalls } = await supabase.from("calendar_events")
+      .select("id, title, external_starts_at, event_timezone, join_url, reschedule_url, cancel_url, client_id, clients(name, email, user_id)")
+      .not("client_id", "is", null).not("client_reminders_enabled_at", "is", null).is("cancelled_at", null)
+      .gt("external_starts_at", now.toISOString()).lte("external_starts_at", callWindowEnd);
+    for (const call of upcomingCalls ?? []) {
+      const startsAt = new Date(call.external_starts_at);
+      const minutesUntil = (startsAt.getTime() - now.getTime()) / 60000;
+      const client = Array.isArray(call.clients) ? call.clients[0] : call.clients;
+      if (!client?.email || !isEmailEnabled(client.user_id, "actions")) continue;
+      for (const offset of CALL_REMINDER_OFFSETS) {
+        if (!isCallReminderDue(minutesUntil, offset.minutes)) continue;
+        const refId = `${call.id}_${offset.minutes}`;
+        if (await wasEverSent("client_call_reminder", refId)) continue;
+        const timeZone = call.event_timezone || "America/Chicago";
+        const displayTime = new Intl.DateTimeFormat("en-US", {
+          timeZone, weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short",
+        }).format(startsAt);
+        const links = [
+          call.join_url ? `<a href="${escapeHtml(call.join_url)}" style="display:inline-block;background:#2684ff;color:#fff;border-radius:8px;padding:12px 24px;text-decoration:none;font-weight:600">Join call</a>` : "",
+          `<a href="${PORTAL_URL}/portal/actions" style="display:inline-block;margin-left:8px;color:#2684ff;text-decoration:none;font-weight:600">Open portal</a>`,
+          call.reschedule_url ? `<p style="margin-top:18px;font-size:12px"><a href="${escapeHtml(call.reschedule_url)}">Reschedule</a>${call.cancel_url ? ` &nbsp;·&nbsp; <a href="${escapeHtml(call.cancel_url)}">Cancel</a>` : ""}</p>` : "",
+        ].join("");
+        const safeTitle = escapeHtml(call.title || "Vektiss client call");
+        const html = wrapEmail(`<h2 style="margin:0 0 12px;font-size:20px;color:#0d0d0d">Your call is in ${offset.label}</h2><p style="font-size:14px;color:#555;line-height:1.7"><strong>${safeTitle}</strong><br/>${escapeHtml(displayTime)}</p><div style="margin-top:22px">${links}</div>`);
+        await logAndEnqueue("client_call_reminder", refId, client.email, client.user_id,
+          `Reminder: ${call.title} is in ${offset.label}`, html,
+          `${call.title} is in ${offset.label}, at ${displayTime}. Open ${PORTAL_URL}/portal/actions for details.`);
+        if (isInAppEnabled(client.user_id, "actions")) await supabase.from("notifications").insert({
+          user_id: client.user_id, title: `Call in ${offset.label}`, body: call.title,
+          type: "client_call", link: "/portal/actions",
+        });
+      }
+    }
 
     return new Response(
       JSON.stringify({ ok: true, reminders_enqueued: totalEnqueued }),
