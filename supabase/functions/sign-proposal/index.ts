@@ -127,8 +127,8 @@ Deno.serve(async (req) => {
           queue_name: "transactional_emails",
           payload: {
             to: finalClientEmail,
-            from: "Vektiss <noreply@mail.vektiss.com>",
-            sender_domain: "mail.vektiss.com",
+            from: "Vektiss <client@vektiss.com>",
+            sender_domain: "vektiss.com",
             subject: "Your Vektiss Contract and NDA Have Been Signed",
             html: clientHtml,
             text: `Hi ${finalClientName}, your AI & Automation Services Contract and NDA with Vektiss LLC were signed by ${signed_name.trim()} on ${signDate}.`,
@@ -168,8 +168,8 @@ Deno.serve(async (req) => {
         queue_name: "transactional_emails",
         payload: {
           to: "info@vektiss.com",
-          from: "Vektiss <noreply@mail.vektiss.com>",
-          sender_domain: "mail.vektiss.com",
+          from: "Vektiss <client@vektiss.com>",
+          sender_domain: "vektiss.com",
           subject: `Contract and NDA Signed: ${finalClientName} — ${(company_name?.trim() || proposal.company_name || "")}`,
           html: adminHtml,
           text: `Contract and NDA signed by ${signed_name.trim()} (${finalClientName}) on ${signDate}. Monthly: ${monthlyFee}/mo.`,

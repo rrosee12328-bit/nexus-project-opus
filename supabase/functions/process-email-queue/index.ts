@@ -6,6 +6,7 @@ const DEFAULT_BATCH_SIZE = 10
 const DEFAULT_SEND_DELAY_MS = 200
 const DEFAULT_AUTH_TTL_MINUTES = 15
 const DEFAULT_TRANSACTIONAL_TTL_MINUTES = 60
+const TRANSACTIONAL_FROM = 'Vektiss <client@vektiss.com>'
 
 // --- Resend helper -----------------------------------------------------------
 
@@ -14,7 +15,8 @@ async function sendViaResend(
   resendApiKey: string
 ): Promise<void> {
   const body = {
-    from: payload.from as string,
+    // Enforce one verified sender instead of trusting legacy queue payloads.
+    from: TRANSACTIONAL_FROM,
     to: [payload.to as string],
     subject: payload.subject as string,
     html: payload.html as string,
