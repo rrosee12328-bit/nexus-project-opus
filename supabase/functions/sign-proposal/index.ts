@@ -108,9 +108,9 @@ Deno.serve(async (req) => {
 
     if (finalClientEmail) {
       const clientHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family: Inter, Arial, sans-serif; background-color: #ffffff; padding: 40px 25px;">
-        <h1 style="font-size: 24px; font-weight: bold; color: #0d0d0d; margin: 0 0 20px;">Contract Signed Successfully</h1>
+        <h1 style="font-size: 24px; font-weight: bold; color: #0d0d0d; margin: 0 0 20px;">Contract and NDA Signed Successfully</h1>
         <p style="font-size: 14px; color: #6b6b6b; line-height: 1.6; margin: 0 0 10px;">Hi ${finalClientName.replace(/</g, "&lt;")},</p>
-        <p style="font-size: 14px; color: #6b6b6b; line-height: 1.6; margin: 0 0 25px;">Your AI & Automation Services Contract with Vektiss LLC has been signed successfully.</p>
+        <p style="font-size: 14px; color: #6b6b6b; line-height: 1.6; margin: 0 0 25px;">Your AI & Automation Services Contract and NDA with Vektiss LLC have been signed successfully.</p>
         <div style="background-color: #f5f5f5; border-left: 4px solid hsl(213, 100%, 58%); padding: 16px; border-radius: 6px; margin: 0 0 25px;">
           <p style="font-size: 14px; color: #333; line-height: 1.8; margin: 0;">
             <strong>Signed by:</strong> ${signed_name.trim().replace(/</g, "&lt;")}<br/>
@@ -123,21 +123,22 @@ Deno.serve(async (req) => {
       </body></html>`;
 
       try {
-        await supabaseAdmin.rpc("enqueue_email", {
+        const { error: clientEmailError } = await supabaseAdmin.rpc("enqueue_email", {
           queue_name: "transactional_emails",
           payload: {
             to: finalClientEmail,
             from: "Vektiss <noreply@mail.vektiss.com>",
             sender_domain: "mail.vektiss.com",
-            subject: "Your Contract with Vektiss LLC Has Been Signed",
+            subject: "Your Vektiss Contract and NDA Have Been Signed",
             html: clientHtml,
-            text: `Hi ${finalClientName}, your AI & Automation Services Contract with Vektiss LLC has been signed by ${signed_name.trim()} on ${signDate}.`,
+            text: `Hi ${finalClientName}, your AI & Automation Services Contract and NDA with Vektiss LLC were signed by ${signed_name.trim()} on ${signDate}.`,
             purpose: "transactional",
             label: "contract_signed_client",
             message_id: crypto.randomUUID(),
             queued_at: new Date().toISOString(),
           },
         });
+        if (clientEmailError) throw clientEmailError;
       } catch (emailErr) {
         console.error("Client email enqueue failed (non-blocking):", emailErr);
       }
@@ -146,8 +147,8 @@ Deno.serve(async (req) => {
     // Send email notification to Vektiss
     try {
       const adminHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family: Inter, Arial, sans-serif; background-color: #ffffff; padding: 40px 25px;">
-        <h1 style="font-size: 24px; font-weight: bold; color: #0d0d0d; margin: 0 0 20px;">New Contract Signed</h1>
-        <p style="font-size: 14px; color: #6b6b6b; line-height: 1.6; margin: 0 0 25px;">A new contract has been signed. Here are the details:</p>
+        <h1 style="font-size: 24px; font-weight: bold; color: #0d0d0d; margin: 0 0 20px;">Contract and NDA Signed</h1>
+        <p style="font-size: 14px; color: #6b6b6b; line-height: 1.6; margin: 0 0 25px;">A client completed both the contract and NDA. Here are the details:</p>
         <div style="background-color: #f5f5f5; border-left: 4px solid hsl(213, 100%, 58%); padding: 16px; border-radius: 6px; margin: 0 0 25px;">
           <p style="font-size: 14px; color: #333; line-height: 1.8; margin: 0;">
             <strong>Client:</strong> ${finalClientName.replace(/</g, "&lt;")}<br/>
@@ -163,23 +164,71 @@ Deno.serve(async (req) => {
         <p style="font-size: 12px; color: #999999; margin: 30px 0 0;">This is an automated notification from Vektiss.</p>
       </body></html>`;
 
-      await supabaseAdmin.rpc("enqueue_email", {
+      const { error: adminEmailError } = await supabaseAdmin.rpc("enqueue_email", {
         queue_name: "transactional_emails",
         payload: {
           to: "info@vektiss.com",
           from: "Vektiss <noreply@mail.vektiss.com>",
           sender_domain: "mail.vektiss.com",
-          subject: `Contract Signed: ${finalClientName} — ${(company_name?.trim() || proposal.company_name || "")}`,
+          subject: `Contract and NDA Signed: ${finalClientName} — ${(company_name?.trim() || proposal.company_name || "")}`,
           html: adminHtml,
-          text: `New contract signed by ${signed_name.trim()} (${finalClientName}) on ${signDate}. Monthly: ${monthlyFee}/mo.`,
+          text: `Contract and NDA signed by ${signed_name.trim()} (${finalClientName}) on ${signDate}. Monthly: ${monthlyFee}/mo.`,
           purpose: "transactional",
           label: "contract_signed_admin",
           message_id: crypto.randomUUID(),
           queued_at: new Date().toISOString(),
         },
       });
+      if (adminEmailError) throw adminEmailError;
     } catch (emailErr) {
       console.error("Admin email enqueue failed (non-blocking):", emailErr);
+    }
+
+    // Notify staff in the portal even if email delivery is temporarily unavailable.
+    try {
+      const { data: staff, error: staffError } = await supabaseAdmin
+        .from("user_roles")
+        .select("user_id")
+        .in("role", ["admin", "ops"]);
+      if (staffError) throw staffError;
+
+      const notifications = (staff || []).map(({ user_id }: { user_id: string }) => ({
+        user_id,
+        title: "Contract and NDA signed",
+        body: `${finalClientName} completed the contract and NDA on ${signDate}.`,
+        type: "proposal",
+        link: "/admin/proposals",
+      }));
+      if (notifications.length > 0) {
+        const { error: notificationError } = await supabaseAdmin
+          .from("notifications")
+          .insert(notifications);
+        if (notificationError) throw notificationError;
+      }
+    } catch (notificationErr) {
+      console.error("Staff notification failed (non-blocking):", notificationErr);
+    }
+
+    // The queue's database wake-up needs a Vault credential that may not be
+    // configured. Edge Functions already have the protected service key, so a
+    // signing request can safely wake the worker after both messages are queued.
+    try {
+      const workerSecret = Deno.env.get("EMAIL_QUEUE_WORKER_SECRET");
+      const queueResponse = await fetch(`${supabaseUrl}/functions/v1/process-email-queue`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(workerSecret
+            ? { "X-Email-Worker-Secret": workerSecret }
+            : { "Authorization": `Bearer ${serviceRoleKey}` }),
+        },
+        body: "{}",
+      });
+      if (!queueResponse.ok) {
+        console.error("Email queue wake returned an error:", await queueResponse.text());
+      }
+    } catch (queueErr) {
+      console.error("Email queue wake failed (non-blocking):", queueErr);
     }
 
     return new Response(

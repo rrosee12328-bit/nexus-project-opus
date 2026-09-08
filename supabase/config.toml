@@ -4,7 +4,9 @@ project_id = "ogcgqbrewfzkchwqrrxj"
   [functions.auth-email-hook]
     verify_jwt = false
   [functions.process-email-queue]
-    verify_jwt = true
+    # The function validates the service_role claim itself. Disabling the legacy
+    # gateway check lets pg_net use the current project credential from Vault.
+    verify_jwt = false
   [functions.send-transactional-email]
     verify_jwt = false
   [functions.send-reminders]

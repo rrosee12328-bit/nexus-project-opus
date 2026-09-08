@@ -115,10 +115,11 @@ async function moveToDlq(
 Deno.serve(async (req) => {
   const apiKey = Deno.env.get('LOVABLE_API_KEY')
   const resendApiKey = Deno.env.get('RESEND_API_KEY')
+  const workerSecret = Deno.env.get('EMAIL_QUEUE_WORKER_SECRET')
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
-  if (!apiKey || !supabaseUrl || !supabaseServiceKey) {
+  if (!supabaseUrl || !supabaseServiceKey) {
     console.error('Missing required environment variables')
     return new Response(
       JSON.stringify({ error: 'Server configuration error' }),
@@ -131,16 +132,15 @@ Deno.serve(async (req) => {
   }
 
   const authHeader = req.headers.get('Authorization')
-  if (!authHeader?.startsWith('Bearer ')) {
-    return new Response(
-      JSON.stringify({ error: 'Unauthorized' }),
-      { status: 401, headers: { 'Content-Type': 'application/json' } }
-    )
-  }
-
-  const token = authHeader.slice('Bearer '.length).trim()
-  const claims = parseJwtClaims(token)
-  if (claims?.role !== 'service_role') {
+  const token = authHeader?.startsWith('Bearer ')
+    ? authHeader.slice('Bearer '.length).trim()
+    : ''
+  const claims = token ? parseJwtClaims(token) : null
+  const suppliedWorkerSecret = req.headers.get('x-email-worker-secret')
+  const hasWorkerSecret = Boolean(
+    workerSecret && suppliedWorkerSecret && suppliedWorkerSecret === workerSecret
+  )
+  if (!hasWorkerSecret && claims?.role !== 'service_role') {
     return new Response(
       JSON.stringify({ error: 'Forbidden' }),
       { status: 403, headers: { 'Content-Type': 'application/json' } }
@@ -274,6 +274,9 @@ Deno.serve(async (req) => {
       try {
         // Route: auth emails → Lovable API, transactional emails → Resend
         if (queue === 'auth_emails') {
+          if (!apiKey) {
+            throw new Error('LOVABLE_API_KEY is not configured')
+          }
           const emailPayload: Record<string, unknown> = {
             to: payload.to,
             from: payload.from,
