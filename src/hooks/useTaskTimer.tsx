@@ -48,6 +48,28 @@ export function TaskTimerProvider({ children }: { children: ReactNode }) {
   const storageKey = user?.id ? `vektiss:task-timer:${user.id}` : null;
 
   useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel(`ops-task-sync:${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "tasks" },
+        () => {
+          void queryClient.invalidateQueries({ queryKey: ["tasks"] });
+          void queryClient.invalidateQueries({ queryKey: ["ops-tasks"] });
+          void queryClient.invalidateQueries({ queryKey: ["ops-timer-tasks"] });
+          void queryClient.invalidateQueries({ queryKey: ["timesheet-tasks"] });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [queryClient, user?.id]);
+
+  useEffect(() => {
     if (!storageKey) {
       setActiveTimer(null);
       return;
