@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import AICommandCenter from "@/components/AICommandCenter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,13 +25,13 @@ import { toast } from "sonner";
 import {
   Plus, Search, ListChecks, CheckSquare, Clock, AlertTriangle,
   TrendingUp, Pencil, Trash2, Filter, Calendar, ArrowUpDown, GripVertical,
-  Play, Square, Timer, Users, Building2,
+  Play, Square, Users, Building2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import TaskDetailDialog from "@/components/tasks/TaskDetailDialog";
 import type { Database } from "@/integrations/supabase/types";
-import { useAuth } from "@/hooks/useAuth";
+import { formatTaskTimer, useTaskTimer } from "@/hooks/useTaskTimer";
 
 type Task = Database["public"]["Tables"]["tasks"]["Row"];
 type TaskStatus = Database["public"]["Enums"]["task_status"];
@@ -80,91 +80,8 @@ const emptyForm: TaskForm = {
   assigned_to: "",
 };
 
-type StoredTaskTimer = { taskId: string; startedAt: string };
-
-function useTaskTimer(userId?: string) {
-  const [activeTimer, setActiveTimer] = useState<StoredTaskTimer | null>(null);
-  const [elapsed, setElapsed] = useState(0);
-
-  const storageKey = userId ? `vektiss:task-timer:${userId}` : null;
-
-  useEffect(() => {
-    if (!storageKey) return;
-    try {
-      const stored = window.localStorage.getItem(storageKey);
-      const parsed = stored ? JSON.parse(stored) as StoredTaskTimer : null;
-      setActiveTimer(
-        parsed?.taskId && parsed?.startedAt && !Number.isNaN(Date.parse(parsed.startedAt)) ? parsed : null,
-      );
-    } catch {
-      window.localStorage.removeItem(storageKey);
-    }
-  }, [storageKey]);
-
-  useEffect(() => {
-    if (!activeTimer) {
-      setElapsed(0);
-      return;
-    }
-
-    const updateElapsed = () => {
-      setElapsed(Math.max(0, Math.floor((Date.now() - Date.parse(activeTimer.startedAt)) / 1000)));
-    };
-    updateElapsed();
-    const interval = window.setInterval(updateElapsed, 1000);
-    return () => window.clearInterval(interval);
-  }, [activeTimer]);
-
-  const start = useCallback((taskId: string) => {
-    if (!storageKey) return;
-    const next = { taskId, startedAt: new Date().toISOString() };
-    window.localStorage.setItem(storageKey, JSON.stringify(next));
-    setActiveTimer(next);
-  }, [storageKey]);
-
-  const restore = useCallback((taskId: string, startTime: Date) => {
-    if (!storageKey) return;
-    const restored = { taskId, startedAt: startTime.toISOString() };
-    window.localStorage.setItem(storageKey, JSON.stringify(restored));
-    setActiveTimer(restored);
-  }, [storageKey]);
-
-  const stop = useCallback(() => {
-    const endTime = new Date();
-    const startTime = activeTimer ? new Date(activeTimer.startedAt) : null;
-    const result = {
-      taskId: activeTimer?.taskId ?? null,
-      startTime,
-      endTime,
-      elapsed: startTime ? Math.max(0, Math.floor((endTime.getTime() - startTime.getTime()) / 1000)) : 0,
-    };
-    if (storageKey) window.localStorage.removeItem(storageKey);
-    setActiveTimer(null);
-    setElapsed(0);
-    return result;
-  }, [activeTimer, storageKey]);
-
-  return { activeTaskId: activeTimer?.taskId ?? null, elapsed, start, stop, restore };
-}
-
-function formatTimer(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
-
-function formatLocalDate(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
 export default function OpsTasks() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
 
   // UI state
   const [search, setSearch] = useState("");
@@ -186,7 +103,7 @@ export default function OpsTasks() {
   const [selectedTask, setSelectedTask] = useState<Task & { clients: { name: string } | null } | null>(null);
 
   // Timer
-  const timer = useTaskTimer(user?.id);
+  const timer = useTaskTimer();
 
   // Data fetching
   const { data: tasks = [], isLoading } = useQuery({
@@ -370,34 +287,6 @@ export default function OpsTasks() {
     onError: () => toast.error("Bulk delete failed"),
   });
 
-  // Timer mutation - save time entry
-  const saveTimerMutation = useMutation({
-    mutationFn: async (entry: { task: Task; startTime: Date; endTime: Date; hours: number }) => {
-      const { error } = await supabase.from("time_entries").insert({
-        user_id: user!.id,
-        start_time: entry.startTime.toTimeString().slice(0, 5),
-        end_time: entry.endTime.toTimeString().slice(0, 5),
-        hours: entry.hours,
-        description: entry.task.title,
-        category: entry.task.client_id ? "client_work" : "other",
-        task_id: entry.task.id,
-        client_id: entry.task.client_id,
-        project_id: entry.task.project_id,
-        entry_date: formatLocalDate(entry.startTime),
-        day_of_week: entry.startTime.toLocaleDateString("en-US", { weekday: "long" }),
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Time entry saved to timesheet");
-      queryClient.invalidateQueries({ queryKey: ["time-entries"] });
-    },
-    onError: (_error, entry) => {
-      timer.restore(entry.task.id, entry.startTime);
-      toast.error("Time could not be saved. Your timer was restored so you can try again.");
-    },
-  });
-
   // Helpers
   const openCreate = () => {
     setEditId(null);
@@ -427,28 +316,11 @@ export default function OpsTasks() {
   };
 
   const handleTimerToggle = (task: Task) => {
-    if (timer.activeTaskId === task.id) {
-      // Stop timer and save entry
-      const result = timer.stop();
-      if (result.startTime && result.elapsed > 10) {
-        const hours = Math.round((result.elapsed / 3600) * 100) / 100;
-        saveTimerMutation.mutate({
-          task,
-          startTime: result.startTime,
-          endTime: result.endTime,
-          hours: Math.max(hours, 0.01),
-        });
-      } else {
-        toast.info("Timer too short — not logged");
-      }
-    } else {
-      if (timer.activeTaskId) {
-        toast.error("Stop the current timer before starting another task");
-        return;
-      }
-      timer.start(task.id);
-      toast.info(`Timer started for "${task.title}"`);
+    if (timer.activeTimer?.id === task.id) {
+      void timer.stop();
+      return;
     }
+    timer.start(task);
   };
 
   // Selection helpers
@@ -519,7 +391,6 @@ export default function OpsTasks() {
   // Get unique clients and assignees from tasks for filters
   const taskClients = Array.from(new Set(tasks.map((t) => t.client_id).filter(Boolean))) as string[];
   const taskAssignees = Array.from(new Set(tasks.map((t) => t.assigned_to).filter(Boolean))) as string[];
-  const activeTask = tasks.find((task) => task.id === timer.activeTaskId);
   const availableProjects = projects.filter((project) => !form.client_id || project.client_id === form.client_id);
 
   return (
@@ -537,14 +408,6 @@ export default function OpsTasks() {
           <p className="text-muted-foreground">Manage priorities, assignments, and track progress.</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Active timer indicator */}
-          {timer.activeTaskId && (
-            <div className="flex max-w-[50vw] items-center gap-2 rounded-lg border border-primary/20 bg-primary/10 px-3 py-1.5">
-              <Timer className="h-4 w-4 text-primary" />
-              <span className="hidden max-w-48 truncate text-sm font-medium sm:inline">{activeTask?.title ?? "Active task"}</span>
-              <span className="text-sm font-mono font-medium text-primary">{formatTimer(timer.elapsed)}</span>
-            </div>
-          )}
           <Button onClick={openCreate} className="gap-2">
             <Plus className="h-4 w-4" /> New Task
           </Button>
@@ -785,7 +648,7 @@ export default function OpsTasks() {
                           const clientName = (task.clients as { name: string } | null)?.name;
                           const projectName = (task.projects as { name: string } | null)?.name;
                           const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== "done";
-                          const isTimerActive = timer.activeTaskId === task.id;
+                          const isTimerActive = timer.activeTimer?.id === task.id;
 
                           return (
                             <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={!isDragEnabled}>
@@ -827,7 +690,7 @@ export default function OpsTasks() {
                                       </div>
                                       {isTimerActive && (
                                         <span className="text-xs font-mono text-primary font-medium animate-pulse">
-                                          {formatTimer(timer.elapsed)}
+                                          {formatTaskTimer(timer.elapsed)}
                                         </span>
                                       )}
                                     </div>
