@@ -40,8 +40,7 @@ BEGIN
 END;
 $$;
 
-DROP TRIGGER IF EXISTS sync_task_work_scope ON public.tasks;
-CREATE TRIGGER sync_task_work_scope
+CREATE OR REPLACE TRIGGER sync_task_work_scope
   BEFORE INSERT OR UPDATE OF client_id, project_id ON public.tasks
   FOR EACH ROW EXECUTE FUNCTION public.sync_task_work_scope();
 
@@ -97,7 +96,6 @@ BEGIN
 END;
 $$;
 
-DROP TRIGGER IF EXISTS sync_time_entry_work_scope ON public.time_entries;
-CREATE TRIGGER sync_time_entry_work_scope
+CREATE OR REPLACE TRIGGER sync_time_entry_work_scope
   BEFORE INSERT OR UPDATE OF client_id, project_id, task_id ON public.time_entries
   FOR EACH ROW EXECUTE FUNCTION public.sync_time_entry_work_scope();
