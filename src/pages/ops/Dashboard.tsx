@@ -64,10 +64,15 @@ export default function OpsDashboard() {
   const { data: tasks } = useQuery({
     queryKey: ["tasks"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("tasks").select("*, clients(name)").order("sort_order");
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("*, clients(name)")
+        .is("archived_at", null)
+        .order("sort_order");
       if (error) throw error;
       return data as TaskWithClient[];
     },
+    refetchInterval: 15_000,
   });
 
   const { data: teamMembers = [] } = useQuery({
@@ -78,7 +83,7 @@ export default function OpsDashboard() {
         .select("user_id, role, profiles!inner(display_name)")
         .in("role", ["admin", "ops"]);
       if (error) throw error;
-      return (data ?? []).map((r: any) => ({
+      return (data ?? []).map((r) => ({
         id: r.user_id,
         name: r.profiles?.display_name ?? r.user_id.slice(0, 8),
         role: r.role,
@@ -90,19 +95,29 @@ export default function OpsDashboard() {
     mutationFn: async () => {
       if (!newTitle.trim()) throw new Error("Title required");
       const colTasks = tasksByStatus(addColumn!);
-      const maxOrder = colTasks.length > 0 ? Math.max(...colTasks.map(t => t.sort_order)) + 1 : 0;
-      const { error } = await supabase.from("tasks").insert({
-        title: newTitle.trim(),
-        description: newDescription.trim() || null,
-        status: addColumn!,
-        priority: newPriority,
-        assigned_to: newAssignedTo || null,
-        sort_order: maxOrder,
-      });
+      const firstOrder = colTasks.length > 0 ? Math.min(...colTasks.map((task) => task.sort_order)) - 1 : 0;
+      const { data, error } = await supabase
+        .from("tasks")
+        .insert({
+          title: newTitle.trim(),
+          description: newDescription.trim() || null,
+          status: addColumn!,
+          priority: newPriority,
+          assigned_to: newAssignedTo || null,
+          sort_order: firstOrder,
+        })
+        .select("*, clients(name)")
+        .single();
       if (error) throw error;
+      return data as TaskWithClient;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    onSuccess: (createdTask) => {
+      queryClient.setQueryData<TaskWithClient[]>(["tasks"], (current = []) => [
+        createdTask,
+        ...current.filter((task) => task.id !== createdTask.id),
+      ]);
+      void queryClient.invalidateQueries({ queryKey: ["ops-tasks"] });
+      toast({ title: "Task created", description: `"${createdTask.title}" is now at the top of ${columns.find(c => c.key === createdTask.status)?.label}.` });
       logActivity("created_task", "task", null, `Created task: "${newTitle.trim()}" in ${columns.find(c => c.key === addColumn)?.label}`);
       setAddColumn(null);
       setNewTitle("");
@@ -262,14 +277,14 @@ export default function OpsDashboard() {
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        supabase.from("tasks").update({ daily_focus: !(task as any).daily_focus } as any).eq("id", task.id).then(() => {
+                                        supabase.from("tasks").update({ daily_focus: !task.daily_focus }).eq("id", task.id).then(() => {
                                           queryClient.invalidateQueries({ queryKey: ["tasks"] });
                                         });
                                       }}
                                       className="p-0.5 rounded hover:bg-accent transition-colors shrink-0"
-                                      title={(task as any).daily_focus ? "Remove from today's focus" : "Add to today's focus"}
+                                      title={task.daily_focus ? "Remove from today's focus" : "Add to today's focus"}
                                     >
-                                      <Star className={`h-3.5 w-3.5 ${(task as any).daily_focus ? "text-primary fill-primary" : "text-muted-foreground/30 hover:text-muted-foreground/60"}`} />
+                                      <Star className={`h-3.5 w-3.5 ${task.daily_focus ? "text-primary fill-primary" : "text-muted-foreground/30 hover:text-muted-foreground/60"}`} />
                                     </button>
                                   </div>
                                   {task.description && (

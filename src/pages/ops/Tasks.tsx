@@ -36,6 +36,10 @@ import { formatTaskTimer, useTaskTimer } from "@/hooks/useTaskTimer";
 type Task = Database["public"]["Tables"]["tasks"]["Row"];
 type TaskStatus = Database["public"]["Enums"]["task_status"];
 type TaskPriority = Database["public"]["Enums"]["task_priority"];
+type TaskWithRelations = Task & {
+  clients: { name: string } | null;
+  projects: { name: string } | null;
+};
 
 const STATUS_CONFIG: Record<TaskStatus, { label: string; icon: typeof CheckSquare; color: string }> = {
   todo: { label: "To Do", icon: CheckSquare, color: "bg-muted text-muted-foreground" },
@@ -115,8 +119,9 @@ export default function OpsTasks() {
         .is("archived_at", null)
         .order("sort_order");
       if (error) throw error;
-      return data;
+      return data as TaskWithRelations[];
     },
+    refetchInterval: 15_000,
   });
 
   const { data: clients = [] } = useQuery({
@@ -174,18 +179,29 @@ export default function OpsTasks() {
         project_id: form.project_id || null,
         assigned_to: form.assigned_to || null,
       };
-      if (editId) {
-        const { error } = await supabase.from("tasks").update(payload).eq("id", editId);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("tasks").insert(payload);
-        if (error) throw error;
-      }
+      const firstOrder = tasks.length > 0 ? Math.min(...tasks.map((task) => task.sort_order)) - 1 : 0;
+      const query = editId
+        ? supabase.from("tasks").update(payload).eq("id", editId)
+        : supabase.from("tasks").insert({ ...payload, sort_order: firstOrder });
+      const { data, error } = await query.select("*, clients(name), projects(name)").single();
+      if (error) throw error;
+      return data as TaskWithRelations;
     },
-    onSuccess: () => {
+    onSuccess: (savedTask) => {
       toast.success(editId ? "Task updated" : "Task created");
-      queryClient.invalidateQueries({ queryKey: ["ops-tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.setQueryData<TaskWithRelations[]>(["ops-tasks"], (current = []) => [
+        savedTask,
+        ...current.filter((task) => task.id !== savedTask.id),
+      ]);
+      void queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      if (!editId) {
+        setSearch("");
+        setFilterStatus("all");
+        setFilterPriority("all");
+        setFilterClient("all");
+        setFilterAssignee("all");
+        setSortField("manual");
+      }
       logActivity(
         editId ? "updated_task" : "created_task",
         "task",
