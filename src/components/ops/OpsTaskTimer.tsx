@@ -33,7 +33,7 @@ export function OpsTaskTimer() {
     },
   });
 
-  const { data: tasks = [] } = useQuery({
+  const { data: tasks = [], error: tasksError, isFetching: isFetchingTasks, refetch: refetchTasks } = useQuery({
     queryKey: ["ops-timer-tasks"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -45,7 +45,14 @@ export function OpsTaskTimer() {
       if (error) throw error;
       return data;
     },
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: "always",
   });
+
+  const openTimerDialog = () => {
+    setOpen(true);
+    void refetchTasks();
+  };
 
   const availableProjects = useMemo(
     () => projects.filter((project) => !clientId || project.client_id === clientId),
@@ -91,7 +98,7 @@ export function OpsTaskTimer() {
 
   return (
     <>
-      <Button variant="outline" size="sm" className="h-9 gap-1.5 px-2.5" onClick={() => setOpen(true)}>
+      <Button variant="outline" size="sm" className="h-9 gap-1.5 px-2.5" onClick={openTimerDialog}>
         <Play className="h-3.5 w-3.5 fill-current text-primary" />
         <span className="hidden sm:inline">Start Timer</span>
         <Clock3 className="h-4 w-4 sm:hidden" />
@@ -141,7 +148,13 @@ export function OpsTaskTimer() {
                   {availableTasks.map((task) => <SelectItem key={task.id} value={task.id}>{task.title}</SelectItem>)}
                 </SelectContent>
               </Select>
-              {availableTasks.length === 0 && (
+              {isFetchingTasks && availableTasks.length === 0 && (
+                <p className="text-xs text-muted-foreground">Refreshing open tasks...</p>
+              )}
+              {!isFetchingTasks && tasksError && (
+                <p className="text-xs text-destructive">Tasks could not be loaded. Close this window and try again.</p>
+              )}
+              {!isFetchingTasks && !tasksError && availableTasks.length === 0 && (
                 <p className="text-xs text-muted-foreground">No open tasks match this client and project.</p>
               )}
             </div>

@@ -194,6 +194,7 @@ export default function OpsTasks() {
         ...current.filter((task) => task.id !== savedTask.id),
       ]);
       void queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      void queryClient.invalidateQueries({ queryKey: ["ops-timer-tasks"] });
       if (!editId) {
         setSearch("");
         setFilterStatus("all");

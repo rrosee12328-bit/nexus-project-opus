@@ -117,6 +117,7 @@ export default function OpsDashboard() {
         ...current.filter((task) => task.id !== createdTask.id),
       ]);
       void queryClient.invalidateQueries({ queryKey: ["ops-tasks"] });
+      void queryClient.invalidateQueries({ queryKey: ["ops-timer-tasks"] });
       toast({ title: "Task created", description: `"${createdTask.title}" is now at the top of ${columns.find(c => c.key === createdTask.status)?.label}.` });
       logActivity("created_task", "task", null, `Created task: "${newTitle.trim()}" in ${columns.find(c => c.key === addColumn)?.label}`);
       setAddColumn(null);
