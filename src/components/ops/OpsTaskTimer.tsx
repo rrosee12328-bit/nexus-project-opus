@@ -34,14 +34,18 @@ export function OpsTaskTimer() {
   });
 
   const { data: tasks = [], error: tasksError, isFetching: isFetchingTasks, refetch: refetchTasks } = useQuery({
-    queryKey: ["ops-timer-tasks"],
+    queryKey: ["ops-timer-tasks", clientId, projectId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("tasks")
         .select("id, title, client_id, project_id")
         .is("archived_at", null)
-        .neq("status", "done")
-        .order("title");
+        .neq("status", "done");
+
+      if (projectId) query = query.eq("project_id", projectId);
+      else if (clientId) query = query.eq("client_id", clientId);
+
+      const { data, error } = await query.order("title");
       if (error) throw error;
       return data;
     },
