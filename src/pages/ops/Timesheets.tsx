@@ -18,6 +18,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Plus, ChevronLeft, ChevronRight, Pencil, Trash2, Clock, BarChart3 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TimesheetDashboard from "./TimesheetDashboard";
+import type { Database } from "@/integrations/supabase/types";
 
 const CATEGORIES = [
   { value: "client_work", label: "Client Work" },
@@ -67,6 +68,12 @@ type TimeEntry = {
   description: string;
   category: string;
   time_code_id?: string | null;
+  client_id: string | null;
+  project_id: string | null;
+  task_id: string | null;
+  clients?: { name: string } | null;
+  projects?: { name: string } | null;
+  tasks?: { title: string } | null;
 };
 
 type FormData = {
@@ -76,6 +83,9 @@ type FormData = {
   description: string;
   category: string;
   time_code_id: string;
+  client_id: string;
+  project_id: string;
+  task_id: string;
 };
 
 function calcHours(start: string, end: string): number {
@@ -93,6 +103,11 @@ function formatTime12(time24: string): string {
   return `${h12}:${m} ${ampm}`;
 }
 
+function normalizeCategory(category: string): Database["public"]["Enums"]["time_entry_category"] {
+  const match = CATEGORIES.find((item) => item.value === category);
+  return match?.value ?? "client_work";
+}
+
 export default function Timesheets() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -107,6 +122,9 @@ export default function Timesheets() {
     description: "",
     category: "other",
     time_code_id: "",
+    client_id: "",
+    project_id: "",
+    task_id: "",
   });
 
   const currentWeekStart = startOfWeek(addWeeks(new Date(), weekOffset), { weekStartsOn: 1 });
@@ -118,7 +136,7 @@ export default function Timesheets() {
     queryKey: ["time-tracking-codes"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("time_tracking_codes" as any)
+        .from("time_tracking_codes")
         .select("id, code, category, phase, label, is_billable")
         .eq("is_active", true)
         .order("code", { ascending: true });
@@ -151,13 +169,44 @@ export default function Timesheets() {
     },
   });
 
+  const { data: clients = [] } = useQuery({
+    queryKey: ["timesheet-clients"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("clients").select("id, name").order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: projects = [] } = useQuery({
+    queryKey: ["timesheet-projects"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("projects").select("id, name, client_id").order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: tasks = [] } = useQuery({
+    queryKey: ["timesheet-tasks"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("id, title, client_id, project_id")
+        .is("archived_at", null)
+        .order("title");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Fetch time entries for the selected week
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ["time-entries", format(currentWeekStart, "yyyy-MM-dd"), selectedUserId],
     queryFn: async () => {
       let query = supabase
         .from("time_entries")
-        .select("*")
+        .select("*, clients(name), projects(name), tasks(title)")
         .gte("entry_date", format(currentWeekStart, "yyyy-MM-dd"))
         .lte("entry_date", format(currentWeekEnd, "yyyy-MM-dd"))
         .order("entry_date", { ascending: true })
@@ -178,7 +227,7 @@ export default function Timesheets() {
   const addMutation = useMutation({
     mutationFn: async (data: FormData) => {
       const dayIndex = parseISO(data.entry_date).getDay();
-      const payload: any = {
+      const payload: Database["public"]["Tables"]["time_entries"]["Insert"] = {
         user_id: user!.id,
         entry_date: data.entry_date,
         day_of_week: DAY_NAMES[dayIndex],
@@ -186,8 +235,11 @@ export default function Timesheets() {
         end_time: data.end_time,
         hours: calcHours(data.start_time, data.end_time),
         description: data.description,
-        category: data.category as any,
+        category: normalizeCategory(data.category),
         time_code_id: data.time_code_id || null,
+        client_id: data.client_id || null,
+        project_id: data.project_id || null,
+        task_id: data.task_id || null,
       };
       const { error } = await supabase.from("time_entries").insert(payload);
       if (error) throw error;
@@ -197,21 +249,24 @@ export default function Timesheets() {
       toast.success("Time entry added");
       setDialogOpen(false);
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: FormData }) => {
       const dayIndex = parseISO(data.entry_date).getDay();
-      const payload: any = {
+      const payload: Database["public"]["Tables"]["time_entries"]["Update"] = {
         entry_date: data.entry_date,
         day_of_week: DAY_NAMES[dayIndex],
         start_time: data.start_time,
         end_time: data.end_time,
         hours: calcHours(data.start_time, data.end_time),
         description: data.description,
-        category: data.category as any,
+        category: normalizeCategory(data.category),
         time_code_id: data.time_code_id || null,
+        client_id: data.client_id || null,
+        project_id: data.project_id || null,
+        task_id: data.task_id || null,
       };
       const { error } = await supabase.from("time_entries").update(payload).eq("id", id);
       if (error) throw error;
@@ -222,7 +277,7 @@ export default function Timesheets() {
       setDialogOpen(false);
       setEditingEntry(null);
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const deleteMutation = useMutation({
@@ -234,7 +289,7 @@ export default function Timesheets() {
       queryClient.invalidateQueries({ queryKey: ["time-entries"] });
       toast.success("Entry deleted");
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   // Group entries by date
@@ -258,6 +313,9 @@ export default function Timesheets() {
       description: "",
       category: "other",
       time_code_id: "",
+      client_id: "",
+      project_id: "",
+      task_id: "",
     });
     setDialogOpen(true);
   };
@@ -271,6 +329,9 @@ export default function Timesheets() {
       description: entry.description,
       category: entry.category,
       time_code_id: entry.time_code_id || "",
+      client_id: entry.client_id || "",
+      project_id: entry.project_id || "",
+      task_id: entry.task_id || "",
     });
     setDialogOpen(true);
   };
@@ -319,6 +380,13 @@ export default function Timesheets() {
     });
     return groups;
   }, [timeCodes]);
+
+  const availableProjects = projects.filter((project) => !form.client_id || project.client_id === form.client_id);
+  const availableTasks = tasks.filter((task) => {
+    if (form.project_id) return task.project_id === form.project_id;
+    if (form.client_id) return task.client_id === form.client_id;
+    return true;
+  });
 
   return (
     <div className="space-y-6">
@@ -434,6 +502,11 @@ export default function Timesheets() {
                             <TableCell className="text-right font-mono text-sm">{Number(entry.hours).toFixed(2)}</TableCell>
                             <TableCell className="text-sm max-w-[400px]">
                               <span className="line-clamp-2">{entry.description}</span>
+                              {(entry.clients?.name || entry.projects?.name || entry.tasks?.title) && (
+                                <span className="mt-1 block text-xs text-muted-foreground">
+                                  {[entry.clients?.name, entry.projects?.name, entry.tasks?.title].filter(Boolean).join(" / ")}
+                                </span>
+                              )}
                             </TableCell>
                             <TableCell>
                               <Badge variant="outline" className={codeColor}>
@@ -510,6 +583,68 @@ export default function Timesheets() {
                 Duration: <span className="font-semibold text-foreground">{calcHours(form.start_time, form.end_time).toFixed(2)} hrs</span>
               </p>
             )}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <Label>Client</Label>
+                <Select value={form.client_id || "none"} onValueChange={(v) => {
+                  const clientId = v === "none" ? "" : v;
+                  const selectedProject = projects.find((project) => project.id === form.project_id);
+                  const selectedTask = tasks.find((task) => task.id === form.task_id);
+                  setForm({
+                    ...form,
+                    client_id: clientId,
+                    project_id: selectedProject?.client_id === clientId ? form.project_id : "",
+                    task_id: selectedTask?.client_id === clientId ? form.task_id : "",
+                  });
+                }}>
+                  <SelectTrigger><SelectValue placeholder="No client" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No client</SelectItem>
+                    {clients.map((client) => <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Project</Label>
+                <Select value={form.project_id || "none"} onValueChange={(v) => {
+                  const projectId = v === "none" ? "" : v;
+                  const project = projects.find((item) => item.id === projectId);
+                  const selectedTask = tasks.find((task) => task.id === form.task_id);
+                  setForm({
+                    ...form,
+                    project_id: projectId,
+                    client_id: project?.client_id ?? form.client_id,
+                    task_id: selectedTask?.project_id === projectId ? form.task_id : "",
+                  });
+                }}>
+                  <SelectTrigger><SelectValue placeholder="No project" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No project</SelectItem>
+                    {availableProjects.map((project) => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label>Linked Task</Label>
+              <Select value={form.task_id || "none"} onValueChange={(v) => {
+                const taskId = v === "none" ? "" : v;
+                const task = tasks.find((item) => item.id === taskId);
+                setForm({
+                  ...form,
+                  task_id: taskId,
+                  client_id: task?.client_id ?? form.client_id,
+                  project_id: task?.project_id ?? form.project_id,
+                  description: task && !form.description.trim() ? task.title : form.description,
+                });
+              }}>
+                <SelectTrigger><SelectValue placeholder="No linked task" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No linked task</SelectItem>
+                  {availableTasks.map((task) => <SelectItem key={task.id} value={task.id}>{task.title}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div>
               <Label>Task / Description</Label>
               <Textarea

@@ -3044,6 +3044,7 @@ export type Database = {
           id: string
           needs_review: boolean
           priority: Database["public"]["Enums"]["task_priority"]
+          project_id: string | null
           recurring_key: string | null
           reviewed_at: string | null
           reviewed_by: string | null
@@ -3066,6 +3067,7 @@ export type Database = {
           id?: string
           needs_review?: boolean
           priority?: Database["public"]["Enums"]["task_priority"]
+          project_id?: string | null
           recurring_key?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -3088,6 +3090,7 @@ export type Database = {
           id?: string
           needs_review?: boolean
           priority?: Database["public"]["Enums"]["task_priority"]
+          project_id?: string | null
           recurring_key?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -3114,6 +3117,13 @@ export type Database = {
             referencedColumns: ["client_id"]
           },
           {
+            foreignKeyName: "tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tasks_source_call_id_fkey"
             columns: ["source_call_id"]
             isOneToOne: false
@@ -3135,6 +3145,8 @@ export type Database = {
           id: string
           project_id: string | null
           start_time: string
+          task_id: string | null
+          time_code_id: string | null
           updated_at: string
           user_id: string
         }
@@ -3150,6 +3162,8 @@ export type Database = {
           id?: string
           project_id?: string | null
           start_time: string
+          task_id?: string | null
+          time_code_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -3165,6 +3179,8 @@ export type Database = {
           id?: string
           project_id?: string | null
           start_time?: string
+          task_id?: string | null
+          time_code_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -3188,6 +3204,20 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_time_code_id_fkey"
+            columns: ["time_code_id"]
+            isOneToOne: false
+            referencedRelation: "time_tracking_codes"
             referencedColumns: ["id"]
           },
         ]

@@ -11,12 +11,14 @@ import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface TimesheetRow {
   id: string;
+  client_id: string | null;
   project_id: string | null;
   time_code_id: string | null;
   hours: number;
-  date: string;
+  entry_date: string;
   description: string | null;
-  billable: boolean;
+  category: string;
+  clients?: { id: string; name: string; client_number: string | null } | null;
   projects?: {
     id: string;
     name: string;
@@ -57,18 +59,19 @@ export default function TimesheetDashboard() {
     queryKey: ["timesheet_dashboard", start, end],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("timesheets" as any)
+        .from("time_entries")
         .select(`
-          id, project_id, time_code_id, hours, date, description, billable,
+          id, client_id, project_id, time_code_id, hours, entry_date, description, category,
+          clients ( id, name, client_number ),
           projects (
             id, name, project_number, client_id,
             clients ( id, name, client_number )
           ),
           time_tracking_codes ( id, code, label, is_billable )
         `)
-        .gte("date", start)
-        .lte("date", end)
-        .order("date", { ascending: false });
+        .gte("entry_date", start)
+        .lte("entry_date", end)
+        .order("entry_date", { ascending: false });
       if (error) throw error;
       return (data ?? []) as unknown as TimesheetRow[];
     },
@@ -76,7 +79,7 @@ export default function TimesheetDashboard() {
 
   const totalHours = rows.reduce((s, r) => s + Number(r.hours ?? 0), 0);
   const billableHours = rows
-    .filter((r) => r.billable || r.time_tracking_codes?.is_billable)
+    .filter((r) => r.time_tracking_codes?.is_billable ?? r.category === "client_work")
     .reduce((s, r) => s + Number(r.hours ?? 0), 0);
   const nonBillableHours = totalHours - billableHours;
   const billableRevenue = billableHours * BILLABLE_RATE;
@@ -84,7 +87,7 @@ export default function TimesheetDashboard() {
 
   const clientMap = new Map<string, { client_id: string; client_name: string; client_number: string; total_hours: number; billable_hours: number; non_billable_hours: number }>();
   rows.forEach((r) => {
-    const client = r.projects?.clients;
+    const client = r.clients ?? r.projects?.clients;
     if (!client) return;
     const key = client.id;
     if (!clientMap.has(key)) {
@@ -100,7 +103,7 @@ export default function TimesheetDashboard() {
     const entry = clientMap.get(key)!;
     const hrs = Number(r.hours ?? 0);
     entry.total_hours += hrs;
-    if (r.billable || r.time_tracking_codes?.is_billable) entry.billable_hours += hrs;
+    if (r.time_tracking_codes?.is_billable ?? r.category === "client_work") entry.billable_hours += hrs;
     else entry.non_billable_hours += hrs;
   });
   const clientSummaries = Array.from(clientMap.values()).sort((a, b) => b.total_hours - a.total_hours);
@@ -304,12 +307,12 @@ export default function TimesheetDashboard() {
               </TableHeader>
               <TableBody>
                 {rows.slice(0, 50).map((r) => {
-                  const client = r.projects?.clients;
-                  const isBillable = r.billable || r.time_tracking_codes?.is_billable;
+                  const client = r.clients ?? r.projects?.clients;
+                  const isBillable = r.time_tracking_codes?.is_billable ?? r.category === "client_work";
                   return (
                     <TableRow key={r.id}>
                       <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                        {r.date ? format(new Date(r.date), "MMM d, yyyy") : "—"}
+                        {r.entry_date ? format(new Date(`${r.entry_date}T00:00:00`), "MMM d, yyyy") : "—"}
                       </TableCell>
                       <TableCell>
                         {client ? (

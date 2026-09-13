@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import AICommandCenter from "@/components/AICommandCenter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -65,6 +65,7 @@ type TaskForm = {
   priority: TaskPriority;
   due_date: string;
   client_id: string;
+  project_id: string;
   assigned_to: string;
 };
 
@@ -75,51 +76,75 @@ const emptyForm: TaskForm = {
   priority: "medium",
   due_date: "",
   client_id: "",
+  project_id: "",
   assigned_to: "",
 };
 
-// Timer hook
-function useTaskTimer() {
-  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+type StoredTaskTimer = { taskId: string; startedAt: string };
+
+function useTaskTimer(userId?: string) {
+  const [activeTimer, setActiveTimer] = useState<StoredTaskTimer | null>(null);
   const [elapsed, setElapsed] = useState(0);
-  const startTimeRef = useRef<Date | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const start = useCallback((taskId: string) => {
-    // Stop any existing timer
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    setActiveTaskId(taskId);
-    setElapsed(0);
-    startTimeRef.current = new Date();
-    intervalRef.current = setInterval(() => {
-      if (startTimeRef.current) {
-        setElapsed(Math.floor((Date.now() - startTimeRef.current.getTime()) / 1000));
-      }
-    }, 1000);
-  }, []);
-
-  const stop = useCallback(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    const result = {
-      taskId: activeTaskId,
-      startTime: startTimeRef.current,
-      endTime: new Date(),
-      elapsed,
-    };
-    setActiveTaskId(null);
-    setElapsed(0);
-    startTimeRef.current = null;
-    intervalRef.current = null;
-    return result;
-  }, [activeTaskId, elapsed]);
+  const storageKey = userId ? `vektiss:task-timer:${userId}` : null;
 
   useEffect(() => {
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, []);
+    if (!storageKey) return;
+    try {
+      const stored = window.localStorage.getItem(storageKey);
+      const parsed = stored ? JSON.parse(stored) as StoredTaskTimer : null;
+      setActiveTimer(
+        parsed?.taskId && parsed?.startedAt && !Number.isNaN(Date.parse(parsed.startedAt)) ? parsed : null,
+      );
+    } catch {
+      window.localStorage.removeItem(storageKey);
+    }
+  }, [storageKey]);
 
-  return { activeTaskId, elapsed, start, stop };
+  useEffect(() => {
+    if (!activeTimer) {
+      setElapsed(0);
+      return;
+    }
+
+    const updateElapsed = () => {
+      setElapsed(Math.max(0, Math.floor((Date.now() - Date.parse(activeTimer.startedAt)) / 1000)));
+    };
+    updateElapsed();
+    const interval = window.setInterval(updateElapsed, 1000);
+    return () => window.clearInterval(interval);
+  }, [activeTimer]);
+
+  const start = useCallback((taskId: string) => {
+    if (!storageKey) return;
+    const next = { taskId, startedAt: new Date().toISOString() };
+    window.localStorage.setItem(storageKey, JSON.stringify(next));
+    setActiveTimer(next);
+  }, [storageKey]);
+
+  const restore = useCallback((taskId: string, startTime: Date) => {
+    if (!storageKey) return;
+    const restored = { taskId, startedAt: startTime.toISOString() };
+    window.localStorage.setItem(storageKey, JSON.stringify(restored));
+    setActiveTimer(restored);
+  }, [storageKey]);
+
+  const stop = useCallback(() => {
+    const endTime = new Date();
+    const startTime = activeTimer ? new Date(activeTimer.startedAt) : null;
+    const result = {
+      taskId: activeTimer?.taskId ?? null,
+      startTime,
+      endTime,
+      elapsed: startTime ? Math.max(0, Math.floor((endTime.getTime() - startTime.getTime()) / 1000)) : 0,
+    };
+    if (storageKey) window.localStorage.removeItem(storageKey);
+    setActiveTimer(null);
+    setElapsed(0);
+    return result;
+  }, [activeTimer, storageKey]);
+
+  return { activeTaskId: activeTimer?.taskId ?? null, elapsed, start, stop, restore };
 }
 
 function formatTimer(seconds: number): string {
@@ -128,6 +153,13 @@ function formatTimer(seconds: number): string {
   const s = seconds % 60;
   if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export default function OpsTasks() {
@@ -154,7 +186,7 @@ export default function OpsTasks() {
   const [selectedTask, setSelectedTask] = useState<Task & { clients: { name: string } | null } | null>(null);
 
   // Timer
-  const timer = useTaskTimer();
+  const timer = useTaskTimer(user?.id);
 
   // Data fetching
   const { data: tasks = [], isLoading } = useQuery({
@@ -162,7 +194,7 @@ export default function OpsTasks() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tasks")
-        .select("*, clients(name)")
+        .select("*, clients(name), projects(name)")
         .is("archived_at", null)
         .order("sort_order");
       if (error) throw error;
@@ -183,6 +215,18 @@ export default function OpsTasks() {
     },
   });
 
+  const { data: projects = [] } = useQuery({
+    queryKey: ["ops-task-projects"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("projects")
+        .select("id, name, client_id")
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const { data: teamMembers = [] } = useQuery({
     queryKey: ["team-members"],
     queryFn: async () => {
@@ -191,7 +235,7 @@ export default function OpsTasks() {
         .select("user_id, role, profiles!inner(display_name)")
         .in("role", ["admin", "ops"]);
       if (error) throw error;
-      return (data ?? []).map((r: any) => ({
+      return (data ?? []).map((r) => ({
         id: r.user_id,
         name: r.profiles?.display_name ?? r.user_id.slice(0, 8),
         role: r.role,
@@ -210,6 +254,7 @@ export default function OpsTasks() {
         priority: form.priority,
         due_date: form.due_date || null,
         client_id: form.client_id || null,
+        project_id: form.project_id || null,
         assigned_to: form.assigned_to || null,
       };
       if (editId) {
@@ -327,15 +372,18 @@ export default function OpsTasks() {
 
   // Timer mutation - save time entry
   const saveTimerMutation = useMutation({
-    mutationFn: async (entry: { taskId: string; startTime: Date; endTime: Date; hours: number; description: string }) => {
+    mutationFn: async (entry: { task: Task; startTime: Date; endTime: Date; hours: number }) => {
       const { error } = await supabase.from("time_entries").insert({
         user_id: user!.id,
         start_time: entry.startTime.toTimeString().slice(0, 5),
         end_time: entry.endTime.toTimeString().slice(0, 5),
         hours: entry.hours,
-        description: entry.description,
-        category: "client_work",
-        entry_date: entry.startTime.toISOString().split("T")[0],
+        description: entry.task.title,
+        category: entry.task.client_id ? "client_work" : "other",
+        task_id: entry.task.id,
+        client_id: entry.task.client_id,
+        project_id: entry.task.project_id,
+        entry_date: formatLocalDate(entry.startTime),
         day_of_week: entry.startTime.toLocaleDateString("en-US", { weekday: "long" }),
       });
       if (error) throw error;
@@ -344,7 +392,10 @@ export default function OpsTasks() {
       toast.success("Time entry saved to timesheet");
       queryClient.invalidateQueries({ queryKey: ["time-entries"] });
     },
-    onError: () => toast.error("Failed to save time entry"),
+    onError: (_error, entry) => {
+      timer.restore(entry.task.id, entry.startTime);
+      toast.error("Time could not be saved. Your timer was restored so you can try again.");
+    },
   });
 
   // Helpers
@@ -363,6 +414,7 @@ export default function OpsTasks() {
       priority: task.priority,
       due_date: task.due_date ?? "",
       client_id: task.client_id ?? "",
+      project_id: task.project_id ?? "",
       assigned_to: task.assigned_to ?? "",
     });
     setFormOpen(true);
@@ -381,16 +433,19 @@ export default function OpsTasks() {
       if (result.startTime && result.elapsed > 10) {
         const hours = Math.round((result.elapsed / 3600) * 100) / 100;
         saveTimerMutation.mutate({
-          taskId: task.id,
+          task,
           startTime: result.startTime,
           endTime: result.endTime,
           hours: Math.max(hours, 0.01),
-          description: task.title,
         });
       } else {
         toast.info("Timer too short — not logged");
       }
     } else {
+      if (timer.activeTaskId) {
+        toast.error("Stop the current timer before starting another task");
+        return;
+      }
       timer.start(task.id);
       toast.info(`Timer started for "${task.title}"`);
     }
@@ -464,6 +519,8 @@ export default function OpsTasks() {
   // Get unique clients and assignees from tasks for filters
   const taskClients = Array.from(new Set(tasks.map((t) => t.client_id).filter(Boolean))) as string[];
   const taskAssignees = Array.from(new Set(tasks.map((t) => t.assigned_to).filter(Boolean))) as string[];
+  const activeTask = tasks.find((task) => task.id === timer.activeTaskId);
+  const availableProjects = projects.filter((project) => !form.client_id || project.client_id === form.client_id);
 
   return (
     <div className="space-y-6">
@@ -482,8 +539,9 @@ export default function OpsTasks() {
         <div className="flex items-center gap-2">
           {/* Active timer indicator */}
           {timer.activeTaskId && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 animate-pulse">
+            <div className="flex max-w-[50vw] items-center gap-2 rounded-lg border border-primary/20 bg-primary/10 px-3 py-1.5">
               <Timer className="h-4 w-4 text-primary" />
+              <span className="hidden max-w-48 truncate text-sm font-medium sm:inline">{activeTask?.title ?? "Active task"}</span>
               <span className="text-sm font-mono font-medium text-primary">{formatTimer(timer.elapsed)}</span>
             </div>
           )}
@@ -725,6 +783,7 @@ export default function OpsTasks() {
                           const statusCfg = STATUS_CONFIG[task.status];
                           const priorityCfg = PRIORITY_CONFIG[task.priority];
                           const clientName = (task.clients as { name: string } | null)?.name;
+                          const projectName = (task.projects as { name: string } | null)?.name;
                           const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== "done";
                           const isTimerActive = timer.activeTaskId === task.id;
 
@@ -739,7 +798,7 @@ export default function OpsTasks() {
                                   } ${isOverdue ? "border-l-2 border-l-destructive" : ""} ${
                                     isTimerActive ? "bg-primary/5 border-l-2 border-l-primary" : ""
                                   } ${selected.has(task.id) ? "bg-primary/10" : ""}`}
-                                  onClick={() => setSelectedTask(task as any)}
+                                  onClick={() => setSelectedTask(task)}
                                 >
                                   <TableCell className="w-10 px-2" onClick={(e) => e.stopPropagation()}>
                                     <Checkbox
@@ -761,6 +820,9 @@ export default function OpsTasks() {
                                         <p className={`font-medium text-sm ${task.status === "done" ? "line-through text-muted-foreground" : ""}`}>{task.title}</p>
                                         {task.description && (
                                           <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.description}</p>
+                                        )}
+                                        {projectName && (
+                                          <p className="mt-0.5 text-xs font-medium text-primary/80">{projectName}</p>
                                         )}
                                       </div>
                                       {isTimerActive && (
@@ -808,11 +870,10 @@ export default function OpsTasks() {
                                   </TableCell>
                                   <TableCell className="text-right">
                                     <div className="flex gap-1 justify-end items-center">
-                                      {/* Timer button - always visible */}
                                       <Button
                                         variant={isTimerActive ? "default" : "ghost"}
                                         size="icon"
-                                        className={`h-7 w-7 ${isTimerActive ? "bg-primary text-primary-foreground" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
+                                        className={`h-8 w-8 ${isTimerActive ? "bg-primary text-primary-foreground" : "text-primary"}`}
                                         onClick={(e) => { e.stopPropagation(); handleTimerToggle(task); }}
                                         title={isTimerActive ? "Stop timer" : "Start timer"}
                                       >
@@ -889,10 +950,18 @@ export default function OpsTasks() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Client</Label>
-                <Select value={form.client_id || "none"} onValueChange={(v) => setForm({ ...form, client_id: v === "none" ? "" : v })}>
+                <Select value={form.client_id || "none"} onValueChange={(v) => {
+                  const clientId = v === "none" ? "" : v;
+                  const selectedProject = projects.find((project) => project.id === form.project_id);
+                  setForm({
+                    ...form,
+                    client_id: clientId,
+                    project_id: selectedProject?.client_id === clientId ? form.project_id : "",
+                  });
+                }}>
                   <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
@@ -902,6 +971,25 @@ export default function OpsTasks() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label>Project</Label>
+                <Select value={form.project_id || "none"} onValueChange={(v) => {
+                  const projectId = v === "none" ? "" : v;
+                  const project = projects.find((item) => item.id === projectId);
+                  setForm({ ...form, project_id: projectId, client_id: project?.client_id ?? form.client_id });
+                }}>
+                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {availableProjects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Assign To</Label>
                 <Select value={form.assigned_to || "none"} onValueChange={(v) => setForm({ ...form, assigned_to: v === "none" ? "" : v })}>
@@ -914,15 +1002,14 @@ export default function OpsTasks() {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Due Date</Label>
-              <Input
-                type="date"
-                value={form.due_date}
-                onChange={(e) => setForm({ ...form, due_date: e.target.value })}
-              />
+              <div className="space-y-2">
+                <Label>Due Date</Label>
+                <Input
+                  type="date"
+                  value={form.due_date}
+                  onChange={(e) => setForm({ ...form, due_date: e.target.value })}
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
