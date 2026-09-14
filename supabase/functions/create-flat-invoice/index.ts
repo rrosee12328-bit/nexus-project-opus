@@ -2,6 +2,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { ensureStripeCustomer } from "../_shared/stripe-customer.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -77,15 +78,7 @@ serve(async (req) => {
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" as any });
 
-    // Ensure Stripe customer
-    let customerId = client.stripe_customer_id;
-    if (!customerId) {
-      const existing = await stripe.customers.list({ email: client.email, limit: 1 });
-      customerId = existing.data[0]?.id ?? (await stripe.customers.create({
-        email: client.email, name: client.name, metadata: { client_id: client.id },
-      })).id;
-      await admin.from("clients").update({ stripe_customer_id: customerId }).eq("id", client.id);
-    }
+    const customerId = await ensureStripeCustomer(stripe, admin, client);
 
     const amountDue = Number(cleaned.reduce((s, l) => s + l.amount, 0).toFixed(2));
 
