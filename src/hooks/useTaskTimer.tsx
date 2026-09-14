@@ -9,9 +9,13 @@ export type TaskTimerTarget = {
   title: string;
   client_id: string | null;
   project_id: string | null;
+  targetType?: "task" | "call";
 };
 
-type StoredTaskTimer = TaskTimerTarget & { startedAt: string };
+type StoredTaskTimer = TaskTimerTarget & {
+  startedAt: string;
+  targetType: "task" | "call";
+};
 
 type TaskTimerContextValue = {
   activeTimer: StoredTaskTimer | null;
@@ -80,7 +84,7 @@ export function TaskTimerProvider({ children }: { children: ReactNode }) {
       const parsed = stored ? JSON.parse(stored) as StoredTaskTimer : null;
       setActiveTimer(
         parsed?.id && parsed?.title && parsed?.startedAt && !Number.isNaN(Date.parse(parsed.startedAt))
-          ? parsed
+          ? { ...parsed, targetType: parsed.targetType === "call" ? "call" : "task" }
           : null,
       );
     } catch {
@@ -110,7 +114,11 @@ export function TaskTimerProvider({ children }: { children: ReactNode }) {
       return false;
     }
 
-    const next = { ...task, startedAt: new Date().toISOString() };
+    const next: StoredTaskTimer = {
+      ...task,
+      targetType: task.targetType === "call" ? "call" : "task",
+      startedAt: new Date().toISOString(),
+    };
     window.localStorage.setItem(storageKey, JSON.stringify(next));
     setActiveTimer(next);
     toast.success(`Timer started for "${task.title}"`);
@@ -133,25 +141,28 @@ export function TaskTimerProvider({ children }: { children: ReactNode }) {
 
     setIsSaving(true);
     try {
-      const { data: currentTask, error: taskError } = await supabase
-        .from("tasks")
-        .select("id, title, client_id, project_id")
-        .eq("id", activeTimer.id)
-        .maybeSingle();
-      if (taskError) throw taskError;
+      let target: TaskTimerTarget = activeTimer;
+      if (activeTimer.targetType === "task") {
+        const { data: currentTask, error: taskError } = await supabase
+          .from("tasks")
+          .select("id, title, client_id, project_id")
+          .eq("id", activeTimer.id)
+          .maybeSingle();
+        if (taskError) throw taskError;
+        target = currentTask ?? activeTimer;
+      }
 
-      const task = currentTask ?? activeTimer;
       const hours = Math.max(Math.round((elapsedSeconds / 3600) * 100) / 100, 0.01);
       const { error } = await supabase.from("time_entries").insert({
         user_id: user.id,
         start_time: startTime.toTimeString().slice(0, 5),
         end_time: endTime.toTimeString().slice(0, 5),
         hours,
-        description: task.title,
-        category: task.client_id ? "client_work" : "other",
-        task_id: task.id,
-        client_id: task.client_id,
-        project_id: task.project_id,
+        description: target.title,
+        category: activeTimer.targetType === "call" ? "meeting" : target.client_id ? "client_work" : "other",
+        task_id: activeTimer.targetType === "call" ? null : target.id,
+        client_id: target.client_id,
+        project_id: target.project_id,
         entry_date: formatLocalDate(startTime),
         day_of_week: startTime.toLocaleDateString("en-US", { weekday: "long" }),
       });

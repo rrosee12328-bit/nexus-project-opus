@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Clock3, Play, Square } from "lucide-react";
+import { Clock3, ListTodo, PhoneCall, Play, Square } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -14,6 +14,7 @@ export function OpsTaskTimer() {
   const [clientId, setClientId] = useState("");
   const [projectId, setProjectId] = useState("");
   const [taskId, setTaskId] = useState("");
+  const [timerType, setTimerType] = useState<"task" | "call">("task");
 
   const { data: clients = [] } = useQuery({
     queryKey: ["ops-timer-clients"],
@@ -80,6 +81,25 @@ export function OpsTaskTimer() {
     }
   };
 
+  const startClientCall = () => {
+    const client = clients.find((item) => item.id === clientId);
+    if (!client) return;
+    const project = projects.find((item) => item.id === projectId);
+    const title = project
+      ? `Client Call - ${client.name} / ${project.name}`
+      : `Client Call - ${client.name}`;
+
+    if (timer.start({
+      id: `call:${Date.now()}`,
+      title,
+      client_id: client.id,
+      project_id: project?.id ?? null,
+      targetType: "call",
+    })) {
+      setOpen(false);
+    }
+  };
+
   if (timer.activeTimer) {
     return (
       <div className="flex min-w-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 p-1 pl-2">
@@ -111,11 +131,34 @@ export function OpsTaskTimer() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Start Task Timer</DialogTitle>
+            <DialogTitle>Start Timer</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
+              <Button
+                type="button"
+                size="sm"
+                variant={timerType === "task" ? "secondary" : "ghost"}
+                className="gap-2"
+                onClick={() => setTimerType("task")}
+              >
+                <ListTodo className="h-4 w-4" /> Task
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={timerType === "call" ? "secondary" : "ghost"}
+                className="gap-2"
+                onClick={() => {
+                  setTimerType("call");
+                  setTaskId("");
+                }}
+              >
+                <PhoneCall className="h-4 w-4" /> Client Call
+              </Button>
+            </div>
             <div className="space-y-2">
-              <Label>Client</Label>
+              <Label>Client{timerType === "call" ? " *" : ""}</Label>
               <Select value={clientId || "all"} onValueChange={(value) => {
                 const nextClientId = value === "all" ? "" : value;
                 setClientId(nextClientId);
@@ -144,29 +187,40 @@ export function OpsTaskTimer() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Task *</Label>
-              <Select value={taskId} onValueChange={setTaskId}>
-                <SelectTrigger><SelectValue placeholder="Choose the task you are starting" /></SelectTrigger>
-                <SelectContent>
-                  {availableTasks.map((task) => <SelectItem key={task.id} value={task.id}>{task.title}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              {isFetchingTasks && availableTasks.length === 0 && (
-                <p className="text-xs text-muted-foreground">Refreshing open tasks...</p>
-              )}
-              {!isFetchingTasks && tasksError && (
-                <p className="text-xs text-destructive">Tasks could not be loaded. Close this window and try again.</p>
-              )}
-              {!isFetchingTasks && !tasksError && availableTasks.length === 0 && (
-                <p className="text-xs text-muted-foreground">No open tasks match this client and project.</p>
-              )}
-            </div>
+            {timerType === "task" ? (
+              <div className="space-y-2">
+                <Label>Task *</Label>
+                <Select value={taskId} onValueChange={setTaskId}>
+                  <SelectTrigger><SelectValue placeholder="Choose the task you are starting" /></SelectTrigger>
+                  <SelectContent>
+                    {availableTasks.map((task) => <SelectItem key={task.id} value={task.id}>{task.title}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {isFetchingTasks && availableTasks.length === 0 && (
+                  <p className="text-xs text-muted-foreground">Refreshing open tasks...</p>
+                )}
+                {!isFetchingTasks && tasksError && (
+                  <p className="text-xs text-destructive">Tasks could not be loaded. Close this window and try again.</p>
+                )}
+                {!isFetchingTasks && !tasksError && availableTasks.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No open tasks match this client and project.</p>
+                )}
+              </div>
+            ) : (
+              <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                No task is required. The call will be saved to Timesheets as a meeting for this client.
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={startSelectedTask} disabled={!taskId} className="gap-2">
-              <Play className="h-4 w-4 fill-current" /> Start Timer
+            <Button
+              onClick={timerType === "call" ? startClientCall : startSelectedTask}
+              disabled={timerType === "call" ? !clientId : !taskId}
+              className="gap-2"
+            >
+              {timerType === "call" ? <PhoneCall className="h-4 w-4" /> : <Play className="h-4 w-4 fill-current" />}
+              {timerType === "call" ? "Start Call Timer" : "Start Timer"}
             </Button>
           </DialogFooter>
         </DialogContent>
