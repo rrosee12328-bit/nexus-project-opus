@@ -398,11 +398,13 @@ export default function AdminCalls() {
       const updated = results.filter((r: any) => !r.error && (r.updated?.length ?? 0) > 0).length;
       const errored = results.filter((r: any) => r.error).length;
       const inserted = (data as any)?.inserted ?? 0;
+      const timeEntries = results.filter((r: any) => r.time_entry_id).length;
       toast.success(
-        `${inserted ? `Imported ${inserted} new · ` : ""}Synced ${updated} call${updated === 1 ? "" : "s"}${errored ? ` (${errored} failed)` : ""}`,
+        `${inserted ? `Imported ${inserted} new · ` : ""}Synced ${updated} call${updated === 1 ? "" : "s"}${timeEntries ? ` · Logged ${timeEntries} meeting time entr${timeEntries === 1 ? "y" : "ies"}` : ""}${errored ? ` (${errored} failed)` : ""}`,
         { id: toastId },
       );
       queryClient.invalidateQueries({ queryKey: ["call-intelligence"] });
+      queryClient.invalidateQueries({ queryKey: ["time-entries"] });
     } catch (e: any) {
       toast.error(e.message || "Fathom sync failed", { id: toastId });
     }

@@ -208,6 +208,32 @@ function pickDurationMinutes(meeting: any): number | null {
   return Math.round(ms / 60000);
 }
 
+function getCentralTimeParts(iso: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(iso));
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  return {
+    date: `${value("year")}-${value("month")}-${value("day")}`,
+    day: value("weekday"),
+    time: `${value("hour")}:${value("minute")}:${value("second")}`,
+  };
+}
+
+function timeToMinutes(time: string): number {
+  const [hours, minutes] = time.split(":").map(Number);
+  return (hours * 60) + minutes;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -226,35 +252,47 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const userClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
     const token = authHeader.replace("Bearer ", "");
-    const { data: claims, error: authErr } = await userClient.auth.getClaims(token);
-    if (authErr || !claims?.claims?.sub) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const isScheduledRequest = token === serviceRoleKey;
+    let userId = Deno.env.get("FATHOM_TIME_TRACKING_USER_ID") ?? "";
+
+    if (!isScheduledRequest) {
+      const userClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } },
+      );
+      const { data: claims, error: authErr } = await userClient.auth.getClaims(token);
+      if (authErr || !claims?.claims?.sub) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      userId = claims.claims.sub;
+    } else if (!userId) {
+      return new Response(JSON.stringify({ error: "FATHOM_TIME_TRACKING_USER_ID not configured" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const userId = claims.claims.sub;
 
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Authorize: admin or ops
-    const { data: roles } = await admin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
-    const isPrivileged = (roles ?? []).some((r: any) => r.role === "admin" || r.role === "ops");
-    if (!isPrivileged) {
-      return new Response(JSON.stringify({ error: "Forbidden" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (!isScheduledRequest) {
+      // Authorize interactive requests: admin or ops.
+      const { data: roles } = await admin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId);
+      const isPrivileged = (roles ?? []).some((r: any) => r.role === "admin" || r.role === "ops");
+      if (!isPrivileged) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     const body = await req.json().catch(() => ({}));
@@ -348,14 +386,16 @@ Deno.serve(async (req: Request) => {
     // Load all clients for invitee → client matching
     const { data: allClients } = await admin
       .from("clients")
-      .select("id, email");
+      .select("id, name, email");
     const clientsByEmail = new Map<string, string>();
     const clientsByDomain = new Map<string, string>();
+    const clientNamesById = new Map<string, string>();
     const GENERIC_DOMAINS = new Set([
       "gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "icloud.com",
       "proton.me", "protonmail.com", "live.com", "aol.com", "msn.com",
     ]);
     for (const c of allClients ?? []) {
+      clientNamesById.set(c.id, c.name);
       const email = (c.email ?? "").toLowerCase().trim();
       if (!email) continue;
       clientsByEmail.set(email, c.id);
@@ -365,22 +405,49 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    const { data: meetingCode } = await admin
+      .from("time_tracking_codes")
+      .select("id")
+      .eq("code", "TC-206")
+      .eq("is_active", true)
+      .maybeSingle();
+
     // Discovery: insert call_intelligence rows for Fathom meetings we don't have yet.
     let inserted = 0;
+    const newlyInsertedCallIds = new Set<string>();
     if (discoverAfter && allListed.length > 0) {
       const ids = allListed
         .map((m: any) => (m?.recording_id != null ? String(m.recording_id) : null))
         .filter((x): x is string => !!x);
-      const existing = new Set<string>();
+      const existing = new Map<string, string>();
       if (ids.length > 0) {
-        const { data: have } = await admin
-          .from("call_intelligence")
-          .select("fathom_meeting_id")
-          .in("fathom_meeting_id", ids);
-        for (const r of have ?? []) {
-          if (r.fathom_meeting_id) existing.add(String(r.fathom_meeting_id));
+        // Keep the batches small enough for PostgREST URL limits. In addition to
+        // discovering missing calls, bulk sync must refresh recent existing calls:
+        // Fathom summaries can finish processing after the first import.
+        for (let i = 0; i < ids.length; i += 200) {
+          const { data: have, error: haveErr } = await admin
+            .from("call_intelligence")
+            .select("id, fathom_meeting_id")
+            .in("fathom_meeting_id", ids.slice(i, i + 200));
+          if (haveErr) throw haveErr;
+          for (const r of have ?? []) {
+            if (r.fathom_meeting_id) existing.set(String(r.fathom_meeting_id), r.id);
+          }
         }
       }
+
+      // The old implementation only refreshed rows with a missing URL,
+      // transcript, or client. That permanently skipped fully populated rows
+      // whose Fathom summary was still stale. Include every linked meeting in
+      // the lookback window, while avoiding duplicate work for incomplete rows.
+      const targetMeetingIds = new Set(targets.map((t) => t.meeting_id));
+      for (const [meetingId, callId] of existing) {
+        if (!targetMeetingIds.has(meetingId)) {
+          targets.push({ id: callId, meeting_id: meetingId });
+          targetMeetingIds.add(meetingId);
+        }
+      }
+
       for (const m of allListed) {
         const mid = m?.recording_id != null ? String(m.recording_id) : null;
         if (!mid || existing.has(mid)) continue;
@@ -405,6 +472,7 @@ Deno.serve(async (req: Request) => {
           .maybeSingle();
         if (insErr || !ins) continue;
         inserted++;
+        newlyInsertedCallIds.add(ins.id);
         targets.push({ id: ins.id, meeting_id: mid });
       }
     }
@@ -443,12 +511,20 @@ Deno.serve(async (req: Request) => {
         // Look up existing row to decide whether to overwrite the editable summary
         const { data: existing } = await admin
           .from("call_intelligence")
-          .select("client_id, summary_edited")
+          .select("client_id, project_id, summary_edited")
           .eq("id", t.id)
           .maybeSingle();
-        if (!existing?.client_id) {
-          update.client_id = matchClientId(meeting, clientsByEmail, clientsByDomain);
-        }
+        const matchedClientId = existing?.client_id
+          ?? matchClientId(meeting, clientsByEmail, clientsByDomain);
+        if (!existing?.client_id) update.client_id = matchedClientId;
+
+        const startIso = meeting?.recording_start_time ?? meeting?.scheduled_start_time ?? null;
+        const endIso = meeting?.recording_end_time ?? meeting?.scheduled_end_time ?? null;
+        const durationMinutes = pickDurationMinutes(meeting);
+        update.call_date = pickCallDate(meeting);
+        update.call_start_time = startIso;
+        update.call_end_time = endIso;
+        update.duration_minutes = durationMinutes;
         // Only overwrite the displayed summary if an admin hasn't manually edited it
         if (summaryMd && !existing?.summary_edited) {
           update.summary = summaryMd;
@@ -462,7 +538,79 @@ Deno.serve(async (req: Request) => {
           if (updErr) throw updErr;
         }
 
-        results.push({ call_id: t.id, meeting_id: t.meeting_id, updated: Object.keys(update), share_url });
+        let timeEntryId: string | null = null;
+        // Bulk discovery logs only newly imported calls. An explicit single-call
+        // sync can safely add an older call without backfilling all history.
+        const shouldLogTime = !sync_all_missing || newlyInsertedCallIds.has(t.id);
+        if (shouldLogTime && startIso && endIso && durationMinutes && durationMinutes > 0) {
+          const start = getCentralTimeParts(startIso);
+          const end = getCentralTimeParts(endIso);
+          const clientName = clientNamesById.get(matchedClientId) ?? "Vektiss";
+          const meetingTitle = meeting?.title ?? meeting?.meeting_title ?? null;
+          const timePayload = {
+              source_call_id: t.id,
+              user_id: userId,
+              entry_date: start.date,
+              day_of_week: start.day,
+              start_time: start.time,
+              end_time: end.time,
+              hours: Math.max(0.01, Math.round((durationMinutes / 60) * 100) / 100),
+              description: meetingTitle
+                ? `Zoom call with ${clientName}: ${meetingTitle}`
+                : `Zoom call with ${clientName}`,
+              category: "meeting",
+              client_id: matchedClientId,
+              project_id: existing?.project_id ?? null,
+              task_id: null,
+              time_code_id: meetingCode?.id ?? null,
+            };
+
+          // A manually started call timer may already cover this meeting. Link
+          // that row when its start/end are within 20 minutes rather than adding
+          // a second entry for the same work.
+          const { data: sameDayMeetings, error: existingTimeErr } = await admin
+            .from("time_entries")
+            .select("id, source_call_id, start_time, end_time")
+            .eq("user_id", userId)
+            .eq("client_id", matchedClientId)
+            .eq("entry_date", start.date)
+            .eq("category", "meeting");
+          if (existingTimeErr) throw existingTimeErr;
+          const matchingTime = (sameDayMeetings ?? []).find((entry: any) =>
+            entry.source_call_id === t.id
+            || (!entry.source_call_id
+              && Math.abs(timeToMinutes(entry.start_time) - timeToMinutes(start.time)) <= 20)
+          );
+
+          if (matchingTime) {
+            const { data: linkedEntry, error: linkErr } = await admin
+              .from("time_entries")
+              .update({
+                ...timePayload,
+              })
+              .eq("id", matchingTime.id)
+              .select("id")
+              .single();
+            if (linkErr) throw linkErr;
+            timeEntryId = linkedEntry.id;
+          } else {
+            const { data: timeEntry, error: timeErr } = await admin
+              .from("time_entries")
+              .upsert(timePayload, { onConflict: "source_call_id" })
+              .select("id")
+              .single();
+            if (timeErr) throw timeErr;
+            timeEntryId = timeEntry.id;
+          }
+        }
+
+        results.push({
+          call_id: t.id,
+          meeting_id: t.meeting_id,
+          updated: Object.keys(update),
+          share_url,
+          time_entry_id: timeEntryId,
+        });
       } catch (e: any) {
         results.push({ call_id: t.id, meeting_id: t.meeting_id, error: e?.message ?? String(e) });
       }

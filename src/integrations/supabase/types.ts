@@ -3144,6 +3144,7 @@ export type Database = {
           hours: number
           id: string
           project_id: string | null
+          source_call_id: string | null
           start_time: string
           task_id: string | null
           time_code_id: string | null
@@ -3161,6 +3162,7 @@ export type Database = {
           hours?: number
           id?: string
           project_id?: string | null
+          source_call_id?: string | null
           start_time: string
           task_id?: string | null
           time_code_id?: string | null
@@ -3178,6 +3180,7 @@ export type Database = {
           hours?: number
           id?: string
           project_id?: string | null
+          source_call_id?: string | null
           start_time?: string
           task_id?: string | null
           time_code_id?: string | null
@@ -3204,6 +3207,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_source_call_id_fkey"
+            columns: ["source_call_id"]
+            isOneToOne: false
+            referencedRelation: "call_intelligence"
             referencedColumns: ["id"]
           },
           {
