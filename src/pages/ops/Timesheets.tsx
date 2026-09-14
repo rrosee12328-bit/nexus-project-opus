@@ -187,17 +187,22 @@ export default function Timesheets() {
     },
   });
 
-  const { data: tasks = [] } = useQuery({
-    queryKey: ["timesheet-tasks"],
+  const { data: tasks = [], error: tasksError, isFetching: isFetchingTasks } = useQuery({
+    queryKey: ["timesheet-tasks", form.client_id, form.project_id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("tasks")
         .select("id, title, client_id, project_id")
-        .is("archived_at", null)
-        .order("title");
+        .is("archived_at", null);
+
+      if (form.project_id) query = query.eq("project_id", form.project_id);
+      else if (form.client_id) query = query.eq("client_id", form.client_id);
+
+      const { data, error } = await query.order("title");
       if (error) throw error;
       return data;
     },
+    refetchOnWindowFocus: "always",
   });
 
   // Fetch time entries for the selected week
@@ -644,6 +649,12 @@ export default function Timesheets() {
                   {availableTasks.map((task) => <SelectItem key={task.id} value={task.id}>{task.title}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {isFetchingTasks && availableTasks.length === 0 && (
+                <p className="mt-1 text-xs text-muted-foreground">Loading tasks for this project...</p>
+              )}
+              {!isFetchingTasks && tasksError && (
+                <p className="mt-1 text-xs text-destructive">Tasks could not be loaded. Close this window and try again.</p>
+              )}
             </div>
             <div>
               <Label>Task / Description</Label>
