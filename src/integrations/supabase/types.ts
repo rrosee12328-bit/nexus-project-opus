@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.4"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -1063,53 +1063,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_client_profitability"
             referencedColumns: ["client_id"]
-          },
-        ]
-      }
-      client_activity_feed: {
-        Row: {
-          client_id: string
-          created_at: string
-          event_type: string
-          id: string
-          metadata: Json
-          occurred_at: string
-          source: string
-          source_record_id: string
-          summary: string | null
-          title: string
-        }
-        Insert: {
-          client_id: string
-          created_at?: string
-          event_type: string
-          id?: string
-          metadata?: Json
-          occurred_at?: string
-          source: string
-          source_record_id: string
-          summary?: string | null
-          title: string
-        }
-        Update: {
-          client_id?: string
-          created_at?: string
-          event_type?: string
-          id?: string
-          metadata?: Json
-          occurred_at?: string
-          source?: string
-          source_record_id?: string
-          summary?: string | null
-          title?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "client_activity_feed_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -2579,7 +2532,6 @@ export type Database = {
       proposals: {
         Row: {
           billing_schedule: string
-          billing_start_date: string | null
           client_address: string | null
           client_email: string | null
           client_id: string | null
@@ -2597,10 +2549,7 @@ export type Database = {
           last_viewed_at: string | null
           lead_id: string | null
           monthly_fee: number
-          nda_signed_at: string | null
-          nda_signed_name: string | null
           paid_at: string | null
-          project_deposit_paid_at: string | null
           project_name: string | null
           project_number: string | null
           project_total: number | null
@@ -2609,7 +2558,6 @@ export type Database = {
           scope_description: string | null
           services_description: string | null
           setup_fee: number
-          setup_paid: number
           signed_at: string | null
           signed_name: string | null
           status: string
@@ -2621,7 +2569,6 @@ export type Database = {
         }
         Insert: {
           billing_schedule?: string
-          billing_start_date?: string | null
           client_address?: string | null
           client_email?: string | null
           client_id?: string | null
@@ -2639,10 +2586,7 @@ export type Database = {
           last_viewed_at?: string | null
           lead_id?: string | null
           monthly_fee?: number
-          nda_signed_at?: string | null
-          nda_signed_name?: string | null
           paid_at?: string | null
-          project_deposit_paid_at?: string | null
           project_name?: string | null
           project_number?: string | null
           project_total?: number | null
@@ -2651,7 +2595,6 @@ export type Database = {
           scope_description?: string | null
           services_description?: string | null
           setup_fee?: number
-          setup_paid?: number
           signed_at?: string | null
           signed_name?: string | null
           status?: string
@@ -2663,7 +2606,6 @@ export type Database = {
         }
         Update: {
           billing_schedule?: string
-          billing_start_date?: string | null
           client_address?: string | null
           client_email?: string | null
           client_id?: string | null
@@ -2681,10 +2623,7 @@ export type Database = {
           last_viewed_at?: string | null
           lead_id?: string | null
           monthly_fee?: number
-          nda_signed_at?: string | null
-          nda_signed_name?: string | null
           paid_at?: string | null
-          project_deposit_paid_at?: string | null
           project_name?: string | null
           project_number?: string | null
           project_total?: number | null
@@ -2693,7 +2632,6 @@ export type Database = {
           scope_description?: string | null
           services_description?: string | null
           setup_fee?: number
-          setup_paid?: number
           signed_at?: string | null
           signed_name?: string | null
           status?: string
@@ -3044,7 +2982,6 @@ export type Database = {
           id: string
           needs_review: boolean
           priority: Database["public"]["Enums"]["task_priority"]
-          project_id: string | null
           recurring_key: string | null
           reviewed_at: string | null
           reviewed_by: string | null
@@ -3067,7 +3004,6 @@ export type Database = {
           id?: string
           needs_review?: boolean
           priority?: Database["public"]["Enums"]["task_priority"]
-          project_id?: string | null
           recurring_key?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -3090,7 +3026,6 @@ export type Database = {
           id?: string
           needs_review?: boolean
           priority?: Database["public"]["Enums"]["task_priority"]
-          project_id?: string | null
           recurring_key?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -3117,13 +3052,6 @@ export type Database = {
             referencedColumns: ["client_id"]
           },
           {
-            foreignKeyName: "tasks_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "tasks_source_call_id_fkey"
             columns: ["source_call_id"]
             isOneToOne: false
@@ -3144,10 +3072,7 @@ export type Database = {
           hours: number
           id: string
           project_id: string | null
-          source_call_id: string | null
           start_time: string
-          task_id: string | null
-          time_code_id: string | null
           updated_at: string
           user_id: string
         }
@@ -3162,10 +3087,7 @@ export type Database = {
           hours?: number
           id?: string
           project_id?: string | null
-          source_call_id?: string | null
           start_time: string
-          task_id?: string | null
-          time_code_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -3180,10 +3102,7 @@ export type Database = {
           hours?: number
           id?: string
           project_id?: string | null
-          source_call_id?: string | null
           start_time?: string
-          task_id?: string | null
-          time_code_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -3207,27 +3126,6 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "time_entries_source_call_id_fkey"
-            columns: ["source_call_id"]
-            isOneToOne: false
-            referencedRelation: "call_intelligence"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "time_entries_task_id_fkey"
-            columns: ["task_id"]
-            isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "time_entries_time_code_id_fkey"
-            columns: ["time_code_id"]
-            isOneToOne: false
-            referencedRelation: "time_tracking_codes"
             referencedColumns: ["id"]
           },
         ]
@@ -3487,7 +3385,6 @@ export type Database = {
       get_proposal_by_token: {
         Args: { _token: string }
         Returns: {
-          billing_start_date: string | null
           billing_schedule: string
           client_address: string | null
           client_email: string | null
@@ -3609,12 +3506,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3638,11 +3535,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3663,11 +3560,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3688,11 +3585,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3705,11 +3602,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
