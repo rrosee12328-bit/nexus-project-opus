@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { MeetingTranscript } from "@/components/admin/MeetingTranscript";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, parseISO } from "date-fns";
@@ -689,6 +690,7 @@ export default function AdminCalls() {
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-1">
+                        <MeetingTranscript transcript={call.transcript} />
                         <Button size="icon" variant="ghost" className="h-7 w-7" title="Download PDF" onClick={() => handleDownloadPdf(call)}>
                           <Download className="h-3.5 w-3.5" />
                         </Button>

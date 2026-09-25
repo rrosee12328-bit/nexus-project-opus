@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { MeetingTranscript } from "@/components/admin/MeetingTranscript";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -182,6 +183,7 @@ export default function ClientCallsTab({ clientId }: { clientId: string }) {
                         {getBriefSummary(call.summary, 180)}
                       </p>
                     )}
+                    <div className="mt-2"><MeetingTranscript transcript={call.transcript} /></div>
                     {fathomUrl && (
                       <a
                         href={fathomUrl}
