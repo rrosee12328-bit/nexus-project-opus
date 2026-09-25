@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { fetchTeamMembers } from "@/lib/teamMembers";
 import AICommandCenter from "@/components/AICommandCenter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -151,18 +152,7 @@ export default function OpsTasks() {
 
   const { data: teamMembers = [] } = useQuery({
     queryKey: ["team-members"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("user_id, role, profiles!inner(display_name)")
-        .in("role", ["admin", "ops"]);
-      if (error) throw error;
-      return (data ?? []).map((r) => ({
-        id: r.user_id,
-        name: r.profiles?.display_name ?? r.user_id.slice(0, 8),
-        role: r.role,
-      }));
-    },
+    queryFn: fetchTeamMembers,
   });
 
   // Mutations

@@ -37,6 +37,7 @@ interface SendProposalDialogProps {
   defaultMonthlyFee?: number;
   defaultSetupFee?: number;
   defaultSetupPaid?: number;
+  defaultProjectName?: string;
 }
 
 const TYPE_OPTIONS: { value: ProposalType; label: string; description: string; icon: any }[] = [
@@ -48,12 +49,13 @@ const TYPE_OPTIONS: { value: ProposalType; label: string; description: string; i
 export function SendProposalDialog({
   open, onOpenChange, clientId, clientName, clientEmail,
   defaultMonthlyFee = 0, defaultSetupFee = 0, defaultSetupPaid = 0,
+  defaultProjectName = "",
 }: SendProposalDialogProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const [proposalType, setProposalType] = useState<ProposalType>("retainer");
-  const [projectName, setProjectName] = useState("");
+  const [projectName, setProjectName] = useState(defaultProjectName);
   const [monthlyFee, setMonthlyFee] = useState(String(defaultMonthlyFee || ""));
   const [setupFee, setSetupFee] = useState(String(defaultSetupFee || ""));
   const [setupPaid, setSetupPaid] = useState(String(defaultSetupPaid || ""));
@@ -73,7 +75,7 @@ export function SendProposalDialog({
 
   const reset = () => {
     setProposalType("retainer");
-    setProjectName("");
+    setProjectName(defaultProjectName);
     setMonthlyFee(String(defaultMonthlyFee || ""));
     setSetupFee(String(defaultSetupFee || ""));
     setSetupPaid(String(defaultSetupPaid || ""));

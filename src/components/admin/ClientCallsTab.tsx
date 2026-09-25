@@ -13,6 +13,7 @@ import { Phone, Mic, FileText, ChevronDown, ChevronUp, ExternalLink, Brain } fro
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { CallSummaryMarkdown, getBriefSummary, unwrapTranscript, extractKeyTakeaways } from "@/components/admin/CallSummaryMarkdown";
+import { PublishMeetingSummary } from "@/components/admin/PublishMeetingSummary";
 
 type CallRecord = {
   id: string;
@@ -302,6 +303,7 @@ export default function ClientCallsTab({ clientId }: { clientId: string }) {
                   </div>
                 )}
               </div>
+              <PublishMeetingSummary key={viewingCall.id} callId={viewingCall.id} clientId={clientId} callDate={viewingCall.call_date} />
               <DialogFooter>
                 <Button onClick={() => setViewingCall(null)}>Close</Button>
               </DialogFooter>

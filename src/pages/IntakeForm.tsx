@@ -305,7 +305,7 @@ export default function IntakeFormPage() {
       const legalBusinessName = metaAnswers.legal_business_name?.trim();
       const requiredMissing = META_AD_ACCOUNT_SECTIONS.flatMap((section) =>
         section.questions
-          .filter((q) => q.required && !metaAnswers[q.key]?.trim())
+          .filter((q) => "required" in q && q.required && !metaAnswers[q.key]?.trim())
           .map((q) => q.label)
       );
       if (!legalBusinessName || requiredMissing.length > 0) {

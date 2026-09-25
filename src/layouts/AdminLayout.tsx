@@ -5,6 +5,8 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AdminSidebar } from "@/components/AdminSidebar";
+import { TaskTimerProvider } from "@/hooks/useTaskTimer";
+import { OpsTaskTimer } from "@/components/ops/OpsTaskTimer";
 
 
 export default function AdminLayout() {
@@ -27,11 +29,10 @@ export default function AdminLayout() {
   }, [navigate]);
 
   return (
-    <SidebarProvider>
+    <TaskTimerProvider><SidebarProvider>
       <div className="min-h-screen min-w-0 flex w-full max-w-full bg-background relative">
         {/* Ambient backdrop */}
-        <div className="pointer-events-none fixed inset-0 z-0 bg-grid opacity-60" />
-        <div className="pointer-events-none fixed inset-x-0 top-0 h-[420px] z-0 bg-hero-glow" />
+        <div className="pointer-events-none fixed inset-x-0 top-0 h-80 z-0 bg-gradient-to-b from-primary/[0.035] to-transparent" />
         <AdminSidebar />
         <div className="flex-1 flex flex-col min-w-0 relative z-10">
           <header className="h-14 md:h-14 flex min-w-0 items-center justify-between border-b border-border/60 px-3 sm:px-4 shrink-0 sticky top-0 z-30 bg-background/70 backdrop-blur-xl pt-safe relative">
@@ -40,10 +41,11 @@ export default function AdminLayout() {
               <SidebarTrigger className="shrink-0" />
               <span className="hidden sm:flex items-center gap-2 kicker">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                Vektiss / Command Layer
+                Vektiss Workspace
               </span>
             </div>
             <div className="flex items-center gap-1 sm:gap-2">
+              <OpsTaskTimer />
               <GlobalSearch />
               <ThemeToggle />
               <NotificationBell />
@@ -54,6 +56,6 @@ export default function AdminLayout() {
           </main>
         </div>
       </div>
-    </SidebarProvider>
+    </SidebarProvider></TaskTimerProvider>
   );
 }

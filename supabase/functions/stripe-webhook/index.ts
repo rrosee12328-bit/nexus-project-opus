@@ -88,6 +88,15 @@ serve(async (req: Request) => {
   );
 
   try {
+    const { data: claimed, error: claimError } = await supabase.rpc("claim_integration_run", { _provider: "stripe", _external_id: event.id });
+    if (claimError) throw claimError;
+    if (!claimed) {
+      const { data: run } = await supabase.from("integration_runs").select("status").eq("provider", "stripe").eq("external_id", event.id).single();
+      return new Response(JSON.stringify({ received: run?.status === "completed" }), {
+        status: run?.status === "completed" ? 200 : 409,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     switch (event.type) {
       case "invoice.created":
       case "invoice.updated":
@@ -97,7 +106,11 @@ serve(async (req: Request) => {
       case "invoice.payment_failed":
       case "invoice.sent":
       case "invoice.voided": {
-        const invoice = event.data.object;
+        // Delivery order is not guaranteed; an older event must not undo a payment.
+        const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+        if (!stripeKey) throw new Error("STRIPE_SECRET_KEY not configured");
+        const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
+        const invoice = await stripe.invoices.retrieve(event.data.object.id);
         await handleInvoice(supabase, invoice);
         break;
       }
@@ -105,7 +118,10 @@ serve(async (req: Request) => {
       case "customer.subscription.created":
       case "customer.subscription.updated":
       case "customer.subscription.deleted": {
-        const subscription = event.data.object;
+        const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+        if (!stripeKey) throw new Error("STRIPE_SECRET_KEY not configured");
+        const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
+        const subscription = await stripe.subscriptions.retrieve(event.data.object.id);
         await handleSubscription(supabase, subscription);
         break;
       }
@@ -151,12 +167,15 @@ serve(async (req: Request) => {
         console.log(`Unhandled event type: ${event.type}`);
     }
 
+    const { error: finishError } = await supabase.from("integration_runs").update({ status: "completed", updated_at: new Date().toISOString() }).eq("provider", "stripe").eq("external_id", event.id);
+    if (finishError) throw finishError;
     return new Response(JSON.stringify({ received: true }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
     console.error("Webhook handler error:", err);
+    await supabase.from("integration_runs").update({ status: "failed", last_error: "Stripe update could not be applied. Retry or inspect function logs.", updated_at: new Date().toISOString() }).eq("provider", "stripe").eq("external_id", event.id);
     return new Response(JSON.stringify({ error: "Internal error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -194,22 +213,22 @@ async function handleBimonthlySetup(supabase: any, session: any) {
   const clientLabel = proposal?.client_name || "Client";
 
   // The 15th subscription was already created by checkout — now create the 30th
-  const now = new Date();
+  const now = new Date(session.created * 1000);
   let anchor30 = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 30));
-  if (anchor30.getTime() / 1000 <= Math.floor(Date.now() / 1000)) {
+  if (anchor30.getTime() <= now.getTime()) {
     anchor30 = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 30));
   }
 
   const product30 = await stripe.products.create({
     name: `Vektiss AI & Automation — ${clientLabel} (30th)`,
     metadata: { client_id: clientId || "", proposal_id: proposalId },
-  });
+  }, { idempotencyKey: `checkout-${session.id}-second-product` });
   const price30 = await stripe.prices.create({
     product: product30.id,
     unit_amount: halfAmount,
     currency: "usd",
     recurring: { interval: "month" },
-  });
+  }, { idempotencyKey: `checkout-${session.id}-second-price` });
 
   const sub2 = await stripe.subscriptions.create({
     customer: customerId,
@@ -221,7 +240,7 @@ async function handleBimonthlySetup(supabase: any, session: any) {
       proposal_id: proposalId,
       billing_half: "30th",
     },
-  });
+  }, { idempotencyKey: `checkout-${session.id}-second-subscription` });
 
   // Get the subscription ID from checkout (the 15th sub)
   const sub1Id = session.subscription || "checkout-sub";
@@ -460,67 +479,34 @@ async function handleProposalPayment(supabase: any, session: any) {
 
   if (updateErr) throw updateErr;
 
-  let newlyRecordedPayment = 0;
-  if (clientId && session.amount_total > 0) {
-    const paidDate = new Date(paidAt);
-    const paymentReference = session.invoice || session.payment_intent || session.id;
-
-    const { data: existing } = await supabase
-      .from("client_payments")
-      .select("id")
-      .eq("stripe_invoice_id", paymentReference)
-      .maybeSingle();
-
-    if (!existing) {
-      const { error: payErr } = await supabase.from("client_payments").insert({
-        client_id: clientId,
-        amount: session.amount_total / 100,
-        payment_month: paidDate.getMonth() + 1,
-        payment_year: paidDate.getFullYear(),
-        notes: isProjectDeposit
-          ? "Project deposit (50%) — proposal signed"
-          : isMonthlySubscription
-            ? "Monthly service subscription started — proposal signed"
-            : "Setup fee balance — proposal signed & paid",
-        stripe_invoice_id: paymentReference,
-        payment_source: "stripe",
-      });
-
-      if (payErr) throw payErr;
-      newlyRecordedPayment = Number(session.amount_total) / 100;
-      console.log(`Proposal payment recorded for client ${clientId}, triggering onboarding flow`);
-    }
-  }
+  const { error: receiptError } = await supabase.rpc("record_proposal_checkout", {
+    _checkout_id: session.id, _proposal_id: proposalId, _client_id: clientId,
+    _reference: session.invoice || session.payment_intent || session.id,
+    _amount: Number(session.amount_total || 0) / 100, _paid_at: paidAt,
+    _monthly: isMonthlySubscription,
+    _note: isProjectDeposit ? "Project deposit (50%)" : isMonthlySubscription ? "Monthly service subscription" : "Setup fee balance",
+  });
+  if (receiptError) throw receiptError;
 
   if (clientId) {
     const { data: client, error: clientError } = await supabase
       .from("clients")
-      .select("setup_fee, setup_paid, monthly_fee, user_id")
+      .select("setup_fee, setup_paid, monthly_fee, user_id, status")
       .eq("id", clientId)
       .single();
     if (clientError) throw clientError;
 
-    const setupFee = Number(proposal.setup_fee) > 0
-      ? Number(proposal.setup_fee)
-      : Number(client.setup_fee) || 0;
-    const paidBeforeCheckout = Math.max(Number(proposal.setup_paid) || 0, Number(client.setup_paid) || 0);
-    const setupPaidAfterCheckout = isMonthlySubscription
-      ? paidBeforeCheckout
-      : Math.min(setupFee, paidBeforeCheckout + newlyRecordedPayment);
     const monthlyFee = Number(proposal.monthly_fee) > 0
       ? Number(proposal.monthly_fee)
       : Number(client.monthly_fee) || 0;
     const { error: clientUpdateError } = await supabase
       .from("clients")
       .update({
-        status: "onboarding",
+        status: client.status === "active" ? "active" : "onboarding",
         pipeline_stage: "won",
         proposal_id: proposalId,
         stripe_customer_id: session.customer || undefined,
-        setup_fee: setupFee,
         monthly_fee: monthlyFee,
-        setup_paid: setupPaidAfterCheckout,
-        balance_due: Math.max(setupFee - setupPaidAfterCheckout, 0),
         email: proposal.client_email,
         name: proposal.client_name,
       })

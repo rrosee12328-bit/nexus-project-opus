@@ -27,10 +27,10 @@ import {
 } from "@/components/ui/sidebar";
 
 const navItems = [
-  { title: "Dashboard", url: "/ops", icon: LayoutDashboard },
-  { title: "Tasks", url: "/ops/tasks", icon: CheckSquare },
-  { title: "Timesheets", url: "/ops/timesheets", icon: Clock },
-  { title: "SOPs", url: "/ops/sops", icon: BookOpen },
+  { title: "Today", url: "/ops", icon: LayoutDashboard },
+  { title: "Work", url: "/ops/tasks", icon: CheckSquare },
+  { title: "Time", url: "/ops/timesheets", icon: Clock },
+  { title: "Guides", url: "/ops/sops", icon: BookOpen },
   { title: "Email Intelligence", url: "/ops/email-intelligence", icon: Mail },
   { title: "AI Assistant", url: "/ops/agent", icon: Bot },
   { title: "Settings", url: "/ops/settings", icon: Settings },

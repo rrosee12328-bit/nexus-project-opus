@@ -21,6 +21,7 @@ import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { motion } from "framer-motion";
 import AICommandCenter from "@/components/AICommandCenter";
+import { TodayAttention } from "@/components/admin/TodayAttention";
 
 function formatCurrency(val: number) {
   return new Intl.NumberFormat("en-US", {
@@ -67,7 +68,7 @@ export default function AdminDashboard() {
   const { data: payments } = useQuery({
     queryKey: ["client-payments-summary"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("client_payments").select("amount");
+      const { data, error } = await supabase.from("client_payments").select("amount").gte("created_at", `${new Date().getFullYear()}-01-01`).or("notes.is.null,notes.neq.Projected");
       if (error) {
         logDashboardQueryError("payments", error);
         return [];
@@ -159,9 +160,13 @@ export default function AdminDashboard() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">Overview of your agency operations.</p>
+        <h1 className="text-2xl font-bold tracking-tight">Today</h1>
+        <p className="text-muted-foreground">Keep clients moving. Focus on what needs you next.</p>
       </motion.div>
+
+      <TodayAttention />
+
+      <details className="rounded-2xl border bg-card p-4 sm:p-6"><summary className="cursor-pointer text-sm font-semibold">Business overview</summary><div className="mt-5 space-y-6">
 
       {/* Stats */}
       <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
@@ -418,6 +423,7 @@ export default function AdminDashboard() {
         </Card>
         </motion.div>
       </div>
+      </div></details>
     </div>
   );
 }

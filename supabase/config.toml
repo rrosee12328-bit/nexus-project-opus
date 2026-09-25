@@ -15,9 +15,15 @@ project_id = "ogcgqbrewfzkchwqrrxj"
     verify_jwt = false
   [functions.stripe-webhook]
     verify_jwt = false
+  [functions.retry-integration]
+    # The handler verifies the caller and requires an admin role.
+    verify_jwt = false
   [functions.calendly-webhook]
     verify_jwt = false
   [functions.create-checkout]
+    verify_jwt = false
+  [functions.sign-proposal]
+    # Public token-based signature flow validates the proposal inside the handler.
     verify_jwt = false
   [functions.stripe-portal]
     verify_jwt = false

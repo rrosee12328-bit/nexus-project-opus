@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -114,8 +115,12 @@ export default function ClientContracts() {
   return (
     <div className="space-y-6">
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Contracts</h1>
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Documents</h1>
         <p className="text-sm text-muted-foreground">View and download your signed contracts and agreements.</p>
+        <div className="mt-4 flex flex-wrap gap-3 text-sm">
+          <Link to="/portal/assets" className="rounded-lg border px-4 py-2 hover:bg-muted">Shared files</Link>
+          <Link to="/portal/calls" className="rounded-lg border px-4 py-2 hover:bg-muted">Meeting notes</Link>
+        </div>
       </motion.div>
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>

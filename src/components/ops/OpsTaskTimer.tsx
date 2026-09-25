@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatTaskTimer, useTaskTimer } from "@/hooks/useTaskTimer";
 
-export function OpsTaskTimer() {
+export function OpsTaskTimer({ defaultClientId = "", defaultProjectId = "" }: { defaultClientId?: string; defaultProjectId?: string } = {}) {
   const timer = useTaskTimer();
   const [open, setOpen] = useState(false);
   const [clientId, setClientId] = useState("");
@@ -55,6 +55,9 @@ export function OpsTaskTimer() {
   });
 
   const openTimerDialog = () => {
+    setClientId(defaultClientId);
+    setProjectId(defaultProjectId);
+    setTaskId("");
     setOpen(true);
     void refetchTasks();
   };

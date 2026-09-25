@@ -539,9 +539,12 @@ Deno.serve(async (req: Request) => {
         }
 
         let timeEntryId: string | null = null;
+        const { data: sourceEntry, error: sourceError } = await admin.from("time_entries")
+          .select("id, user_id").eq("source_call_id", t.id).maybeSingle();
+        if (sourceError) throw sourceError;
         // Bulk discovery logs only newly imported calls. An explicit single-call
         // sync can safely add an older call without backfilling all history.
-        const shouldLogTime = !sync_all_missing || newlyInsertedCallIds.has(t.id);
+        const shouldLogTime = !!sourceEntry || !sync_all_missing || newlyInsertedCallIds.has(t.id);
         if (shouldLogTime && startIso && endIso && durationMinutes && durationMinutes > 0) {
           const start = getCentralTimeParts(startIso);
           const end = getCentralTimeParts(endIso);
@@ -549,7 +552,7 @@ Deno.serve(async (req: Request) => {
           const meetingTitle = meeting?.title ?? meeting?.meeting_title ?? null;
           const timePayload = {
               source_call_id: t.id,
-              user_id: userId,
+              user_id: sourceEntry?.user_id || Deno.env.get("FATHOM_TIME_TRACKING_USER_ID") || userId,
               entry_date: start.date,
               day_of_week: start.day,
               start_time: start.time,
@@ -571,24 +574,26 @@ Deno.serve(async (req: Request) => {
           const { data: sameDayMeetings, error: existingTimeErr } = await admin
             .from("time_entries")
             .select("id, source_call_id, start_time, end_time")
-            .eq("user_id", userId)
+            .eq("user_id", timePayload.user_id)
             .eq("client_id", matchedClientId)
             .eq("entry_date", start.date)
             .eq("category", "meeting");
           if (existingTimeErr) throw existingTimeErr;
-          const matchingTime = (sameDayMeetings ?? []).find((entry: any) =>
-            entry.source_call_id === t.id
-            || (!entry.source_call_id
-              && Math.abs(timeToMinutes(entry.start_time) - timeToMinutes(start.time)) <= 20)
-          );
+          const manualMatches = (sameDayMeetings ?? []).filter((entry: any) => !entry.source_call_id
+            && Math.abs(timeToMinutes(entry.start_time) - timeToMinutes(start.time)) <= 20
+            && Math.abs(timeToMinutes(entry.end_time) - timeToMinutes(end.time)) <= 20);
+          const matchingTime = sourceEntry || (manualMatches.length === 1 ? manualMatches[0] : null);
 
           if (matchingTime) {
-            const { data: linkedEntry, error: linkErr } = await admin
+            let linkQuery = admin
               .from("time_entries")
               .update({
                 ...timePayload,
               })
-              .eq("id", matchingTime.id)
+              .eq("id", matchingTime.id);
+            // A different recording may have claimed this manual row concurrently.
+            linkQuery = sourceEntry ? linkQuery.eq("source_call_id", t.id) : linkQuery.is("source_call_id", null);
+            const { data: linkedEntry, error: linkErr } = await linkQuery
               .select("id")
               .single();
             if (linkErr) throw linkErr;
@@ -604,6 +609,8 @@ Deno.serve(async (req: Request) => {
           }
         }
 
+        const { error: ledgerError } = await admin.from("integration_runs").upsert({ provider: "fathom", external_id: t.id, client_id: matchedClientId, status: "completed", last_error: null, updated_at: new Date().toISOString() }, { onConflict: "provider,external_id" });
+        if (ledgerError) throw ledgerError;
         results.push({
           call_id: t.id,
           meeting_id: t.meeting_id,
@@ -612,6 +619,7 @@ Deno.serve(async (req: Request) => {
           time_entry_id: timeEntryId,
         });
       } catch (e: any) {
+        await admin.from("integration_runs").upsert({ provider: "fathom", external_id: t.id, status: "failed", last_error: "Meeting sync failed. Retry to refresh the recording and tracked time.", updated_at: new Date().toISOString() }, { onConflict: "provider,external_id" });
         results.push({ call_id: t.id, meeting_id: t.meeting_id, error: e?.message ?? String(e) });
       }
     }

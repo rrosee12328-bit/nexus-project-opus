@@ -148,7 +148,7 @@ export default function ProposalPage() {
   const docRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!token) return;
+    if (!token || !adminCheckComplete) return;
     const load = async () => {
       const { data: rows, error: fetchError } = await supabase
         .rpc("get_proposal_by_token", { _token: token });
@@ -166,15 +166,15 @@ export default function ProposalPage() {
       setClientEmail(p.client_email || "");
       setCostAnalysisInput(p.cost_analysis_url || "");
 
-      if (searchParams.get("preview") === "1") setStep("overview");
-      else if (p.paid_at || p.project_deposit_paid_at || searchParams.get("paid") === "true") setStep("done");
+      if (searchParams.get("preview") === "1" || isAdmin) setStep("overview");
+      else if (p.paid_at || p.project_deposit_paid_at) setStep("done");
       else if (p.signed_at) setStep("pay");
       else setStep("overview");
 
       setLoading(false);
 
       try {
-        if (searchParams.get("preview") === "1") return;
+        if (searchParams.get("preview") === "1" || isAdmin) return;
         const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
         await fetch(
           `https://${projectId}.supabase.co/functions/v1/track-proposal-view`,
@@ -183,7 +183,7 @@ export default function ProposalPage() {
       } catch (_) {}
     };
     void load();
-  }, [token]);
+  }, [token, adminCheckComplete, isAdmin, searchParams]);
 
   const handleDocScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;

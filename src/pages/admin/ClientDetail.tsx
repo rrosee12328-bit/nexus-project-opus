@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import AICommandCenter from "@/components/AICommandCenter";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { ClientWorkspaceSummary } from "@/components/admin/ClientWorkspaceSummary";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logActivity } from "@/lib/activityLogger";
@@ -102,6 +103,10 @@ export default function ClientDetail() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const workspaceTabs = ["overview", "projects", "conversations", "documents", "billing"];
+  const section = workspaceTabs.includes(searchParams.get("tab") || "") ? searchParams.get("tab")! : "overview";
+  const [proposalProject, setProposalProject] = useState("");
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -310,7 +315,7 @@ export default function ClientDetail() {
             )}
           </p>
         </div>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex flex-wrap gap-2">
           <Button onClick={handleGenerateSummary} size="sm" disabled={isGenerating}>
             {isGenerating ? (
               <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating summary...</>
@@ -318,7 +323,7 @@ export default function ClientDetail() {
               <><Sparkles className="mr-2 h-4 w-4" /> Generate Executive Summary</>
             )}
           </Button>
-          <Button onClick={() => setProposalOpen(true)} size="sm" variant="outline">
+          <Button onClick={() => { setProposalProject(""); setProposalOpen(true); }} size="sm" variant="outline">
             <FileSignature className="mr-2 h-4 w-4" /> Send Proposal
           </Button>
           <Button onClick={() => openCreate()} size="sm">
@@ -326,6 +331,16 @@ export default function ClientDetail() {
           </Button>
         </div>
       </motion.div>
+
+      <Tabs value={section} onValueChange={value => setSearchParams({ tab: value })}>
+        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 bg-muted/50 p-1">
+          {workspaceTabs.map(tab => <TabsTrigger key={tab} value={tab} className="min-h-11 flex-1 capitalize sm:flex-none">{tab}</TabsTrigger>)}
+        </TabsList>
+      </Tabs>
+      {client && <ClientWorkspaceSummary clientId={client.id} userId={client.user_id} section={section} onProposal={name => { setProposalProject(name); setProposalOpen(true); }} />}
+
+      <div hidden={section !== "overview"} className="space-y-6">
+      <details className="rounded-2xl border bg-card p-4 sm:p-6"><summary className="cursor-pointer text-sm font-semibold">Background and internal briefing</summary><div className="mt-5 space-y-6">
 
       {/* Quick stats */}
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
@@ -472,40 +487,42 @@ export default function ClientDetail() {
         );
       })()}
 
+      </div></details>
       {client && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.29 }}>
           <ClientActionsManager clientId={client.id} />
         </motion.div>
       )}
+      </div>
 
       {/* Call Intelligence */}
-      {client && (
+      {client && section === "conversations" && (
         <motion.div id="client-calls" className="scroll-mt-20" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
           <ClientCallsTab clientId={client.id} />
         </motion.div>
       )}
 
       {/* AI proposed tasks needing review */}
-      {client && (
+      {client && section === "projects" && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.31 }}>
           <AITaskReviewCard clientId={client.id} />
         </motion.div>
       )}
 
       {/* Aspirations & Sentiment */}
-      {client && (
+      {client && section === "overview" && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.32 }}>
           <AspirationsCard clientId={client.id} />
         </motion.div>
       )}
 
       {/* Contracts */}
-      {client && (
+      {client && section === "documents" && (
         <ClientContractsTab clientId={client.id} clientName={client.name} />
       )}
 
       {/* Billing */}
-      {client && (
+      {client && section === "billing" && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
           <AdminClientBilling
             clientId={client.id}
@@ -516,27 +533,27 @@ export default function ClientDetail() {
       )}
 
       {/* Phase-based billing timeline (shown when no monthly fee) */}
-      {client && ((client as any).billing_model === 'phase_based' || (client as any).billing_model === 'hybrid') && Number(client.setup_fee ?? 0) > 0 && (
+      {client && section === "billing" && ((client as any).billing_model === 'phase_based' || (client as any).billing_model === 'hybrid') && Number(client.setup_fee ?? 0) > 0 && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.355 }}>
           <PhaseBillingTimeline clientId={client.id} setupFee={Number(client.setup_fee) || 0} />
         </motion.div>
       )}
 
       {/* Charge vs Cost */}
-      {client && (
+      {client && section === "billing" && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.36 }}>
           <ChargeVsCostCard clientId={client.id} />
         </motion.div>
       )}
 
       {/* Tabs + timeline */}
-      <motion.div id="activity-records" className="scroll-mt-20" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
+      <motion.div hidden={section !== "overview" && section !== "documents"} id="activity-records" className="scroll-mt-20" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
         <Card>
           <CardHeader className="pb-3">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <CardTitle className="text-lg">Activity & Records</CardTitle>
-                <TabsList>
+                <TabsList className="h-auto flex flex-wrap">
                   <TabsTrigger value="all">All ({typeCounts.all})</TabsTrigger>
                   <TabsTrigger value="meeting">
                     <Video className="h-3.5 w-3.5 mr-1" /> Meetings
@@ -808,8 +825,9 @@ export default function ClientDetail() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {client && (
+      {client && proposalOpen && (
         <SendProposalDialog
+          key={`${client.id}-${proposalProject}`}
           open={proposalOpen}
           onOpenChange={setProposalOpen}
           clientId={client.id}
@@ -818,6 +836,7 @@ export default function ClientDetail() {
           defaultMonthlyFee={client.monthly_fee ?? 0}
           defaultSetupFee={client.setup_fee ?? 0}
           defaultSetupPaid={client.setup_paid ?? 0}
+          defaultProjectName={proposalProject}
         />
       )}
 

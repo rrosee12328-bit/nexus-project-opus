@@ -2215,6 +2215,7 @@ export type Database = {
           id: string
           is_default: boolean
           onboarding_steps: Json
+          onboarding_questions: Json
           phases: string[]
           project_description: string
           project_name: string
@@ -2226,6 +2227,7 @@ export type Database = {
           id?: string
           is_default?: boolean
           onboarding_steps?: Json
+          onboarding_questions?: Json
           phases?: string[]
           project_description?: string
           project_name: string
@@ -2237,6 +2239,7 @@ export type Database = {
           id?: string
           is_default?: boolean
           onboarding_steps?: Json
+          onboarding_questions?: Json
           phases?: string[]
           project_description?: string
           project_name?: string
@@ -3429,6 +3432,7 @@ export type Database = {
       }
     }
     Functions: {
+      submit_intake_response: { Args: { _token: string; _response: Json }; Returns: string }
       archive_done_tasks: { Args: never; Returns: undefined }
       convert_lead_to_proposal: {
         Args: { p_lead_id: string; p_proposal_id: string }

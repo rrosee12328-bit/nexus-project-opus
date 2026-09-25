@@ -1026,6 +1026,9 @@ async function executeTool(
   args: Record<string, unknown>,
   context: { role: string; userId: string; clientId?: string }
 ) {
+  if (!getToolsForRole(context.role).some(tool => tool.function.name === name)) {
+    return { error: 'This action is not available for your account.' }
+  }
   switch (name) {
     case 'query_clients': {
       let query = supabase.from('clients').select('*')
@@ -1508,8 +1511,8 @@ async function executeTool(
       if (!context.clientId) return { error: 'No client profile found for your account.' }
       const limit = Math.min(Number(args.limit) || 5, 15)
       // Hard-pinned to the authenticated client's id. Transcripts are NEVER returned to clients.
-      let query = supabase.from('call_intelligence')
-        .select('id, call_date, call_type, summary, key_decisions, sentiment, duration_minutes, summary_edited')
+      let query = supabase.from('client_meeting_summaries')
+        .select('id, call_date, summary, approved_at')
         .eq('client_id', context.clientId)
         .order('call_date', { ascending: false })
         .limit(limit)
@@ -1526,7 +1529,7 @@ async function executeTool(
       return {
         calls: data ?? [],
         count: data?.length ?? 0,
-        note: 'Only meetings where the client was present. Internal Vektiss strategy calls are excluded.',
+        note: 'These summaries have been approved for this client. Use only this published content.',
       }
     }
     case 'query_my_contracts': {
@@ -1545,6 +1548,7 @@ async function executeTool(
       const { data, error } = await supabase.from('client_activity_feed')
         .select('source, event_type, title, summary, occurred_at')
         .eq('client_id', context.clientId)
+        .not('source', 'in', '(fathom,zoom)')
         .order('occurred_at', { ascending: false })
         .limit(limit)
       if (error) return { error: error.message }

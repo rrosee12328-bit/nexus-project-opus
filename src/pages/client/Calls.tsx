@@ -35,17 +35,17 @@ export default function ClientCalls() {
     enabled: !!user?.id,
   });
 
-  const { data: calls = [], isLoading } = useQuery({
+  const { data: calls = [], isLoading, error: callsError, refetch } = useQuery({
     queryKey: ["client-calls", clientId],
     queryFn: async () => {
       if (!clientId) return [] as ClientCall[];
       const { data, error } = await supabase
-        .from("call_intelligence")
-        .select("id, call_date, call_type, summary, key_decisions, sentiment, duration_minutes")
+        .from("client_meeting_summaries" as never)
+        .select("id, call_date, summary")
         .eq("client_id", clientId)
         .order("call_date", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as ClientCall[];
+      return (data ?? []) as unknown as ClientCall[];
     },
     enabled: !!clientId,
   });
@@ -81,7 +81,7 @@ export default function ClientCalls() {
       <header className="space-y-1">
         <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Call History</h1>
         <p className="text-xs sm:text-sm text-muted-foreground">
-          A timeline of every call we've had together — what was discussed, decided, and where we go next.
+          Shared summaries from our meetings: what was discussed and where we go next.
         </p>
       </header>
 
@@ -95,7 +95,10 @@ export default function ClientCalls() {
         />
       </div>
 
-      {isLoading ? (
+      {callsError ? <Card role="alert" className="p-6">
+        <p>Meeting notes are temporarily unavailable.</p>
+        <button className="mt-3 text-primary" onClick={() => void refetch()}>Try again</button>
+      </Card> : isLoading ? (
         <div className="space-y-3">
           {[0, 1, 2].map((i) => (
             <Skeleton key={i} className="h-24 w-full" />

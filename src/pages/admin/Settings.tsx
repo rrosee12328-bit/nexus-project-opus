@@ -78,14 +78,14 @@ export default function AdminSettings() {
     queryKey: ["quickbooks-connection"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("quickbooks_connections")
+        .from("quickbooks_connections" as never)
         .select("id, environment, realm_id, company_name, created_at, updated_at, is_active")
         .eq("is_active", true)
         .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
       if (error) throw error;
-      return data;
+      return data as unknown as { id: string; environment: string; realm_id: string; company_name: string | null; updated_at: string; created_at: string; is_active: boolean } | null;
     },
   });
 

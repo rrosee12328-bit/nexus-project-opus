@@ -14,6 +14,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json();
+    if (body.preview) return new Response(JSON.stringify({ error: "Preview cannot create checkout" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const { proposal_token } = body;
 
     const supabase = createClient(

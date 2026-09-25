@@ -41,7 +41,7 @@ export default function ClientDashboard() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const { data: clientId } = useQuery({
+  const { data: clientId, isLoading: identityLoading, error: identityError } = useQuery({
     queryKey: ["my-client-id", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_client_id_for_user", { _user_id: user!.id });
@@ -62,9 +62,9 @@ export default function ClientDashboard() {
   });
 
   const { data: onboardingSteps = [], isLoading: onboardingLoading } = useQuery({
-    queryKey: ["onboarding-steps"],
+    queryKey: ["onboarding-steps", clientId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("client_onboarding_steps").select("id, completed_at").order("sort_order");
+      const { data, error } = await supabase.from("client_onboarding_steps").select("id, completed_at").eq("client_id", clientId!).order("sort_order");
       if (error) throw error;
       return data ?? [];
     },
@@ -96,15 +96,16 @@ export default function ClientDashboard() {
     enabled: !!clientId,
   });
 
-  const { data: briefing } = useQuery({
+  const { data: briefing, isLoading: briefingLoading, error: briefingError } = useQuery({
     queryKey: ["client-briefing", clientId, user?.id],
+    refetchInterval: 30_000,
     queryFn: async () => {
       const [approvals, messages, invoices, projects, actions] = await Promise.all([
         supabase.from("approval_requests").select("id, title", { count: "exact" }).eq("client_id", clientId!).eq("status", "pending"),
         supabase.from("messages").select("id", { count: "exact", head: true }).eq("client_id", clientId!).neq("sender_id", user!.id).is("read_at", null),
         supabase.from("stripe_invoices").select("amount_due, amount_paid, status").eq("client_id", clientId!).in("status", ["open", "past_due"]),
         supabase.from("projects").select("id, name, current_phase, progress, progress_percentage, target_date").eq("client_id", clientId!).in("status", ["not_started", "in_progress"]).order("updated_at", { ascending: false }).limit(1),
-        supabase.from("client_action_items" as never).select("id", { count: "exact", head: true }).eq("status", "pending"),
+        supabase.from("client_action_items" as never).select("id, title, due_at", { count: "exact" }).eq("client_id", clientId!).eq("status", "pending").order("due_at", { nullsFirst: false }).limit(1),
       ]);
       const error = approvals.error || messages.error || invoices.error || projects.error || actions.error;
       if (error) throw error;
@@ -114,6 +115,7 @@ export default function ClientDashboard() {
         outstandingBalance: (invoices.data ?? []).reduce((sum, invoice) => sum + Math.max(0, invoice.amount_due - invoice.amount_paid), 0),
         activeProject: projects.data?.[0] ?? null,
         pendingActions: actions.count ?? 0,
+        nextAction: (actions.data?.[0] ?? null) as unknown as { id: string; title: string; due_at: string | null } | null,
       };
     },
     enabled: !!clientId && !!user?.id,
@@ -142,9 +144,9 @@ export default function ClientDashboard() {
   const onboardingComplete = clientStatus !== "onboarding" && (onboardingSteps.length === 0 || onboardingSteps.every((step) => !!step.completed_at));
   const attentionItems = [
     briefing?.pendingActions ? {
-      label: `${briefing.pendingActions} action${briefing.pendingActions === 1 ? "" : "s"} waiting`,
-      detail: "Send your update",
-      route: "/portal/actions",
+      label: briefing.nextAction?.title || `${briefing.pendingActions} actions waiting`,
+      detail: briefing.nextAction?.due_at ? `Due ${new Date(briefing.nextAction.due_at).toLocaleDateString()}` : "Send your update",
+      route: briefing.nextAction ? `/portal/actions?action=${briefing.nextAction.id}` : "/portal/actions",
       icon: CheckSquare2,
     } : null,
     briefing?.pendingApprovals ? {
@@ -167,6 +169,8 @@ export default function ClientDashboard() {
     } : null,
   ].filter(Boolean) as Array<{ label: string; detail: string; route: string; icon: typeof CheckCircle2 }>;
 
+  if (identityLoading) return <p role="status" className="p-6">Loading your workspace...</p>;
+  if (identityError || !clientId) return <div className="p-6"><h1 className="text-xl font-semibold">Welcome to Vektiss</h1><p className="mt-2 text-muted-foreground">Your account needs to be connected to your client workspace. Please contact your Vektiss team.</p></div>;
   if (!onboardingLoading && !clientStatusLoading && !onboardingComplete) {
     return <ClientOnboardingExperience onComplete={() => {
       queryClient.invalidateQueries({ queryKey: ["onboarding-steps"] });
@@ -174,7 +178,7 @@ export default function ClientDashboard() {
     }} />;
   }
 
-  return <div className="grid h-[calc(100dvh-3.5rem)] min-h-0 bg-grid xl:grid-cols-[minmax(0,1fr)_19rem]">
+  return <div className="grid h-[calc(var(--portal-viewport,100dvh)-3.5rem)] min-h-0 bg-background xl:grid-cols-[minmax(0,1fr)_19rem]">
     <section className="flex min-h-0 flex-col border-r border-border/50 bg-background/80 backdrop-blur-sm">
       <div className="shrink-0 border-b border-border/50 bg-card/75 px-3 py-3 md:px-5">
         <div className="mb-2 flex items-center justify-between gap-3">
@@ -187,7 +191,9 @@ export default function ClientDashboard() {
           </Link>
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {attentionItems.length === 0 && <div className="flex min-w-52 items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
+          {briefingLoading && <p role="status" className="text-sm text-muted-foreground">Checking your next steps...</p>}
+          {briefingError && <p role="alert" className="text-sm text-muted-foreground">Your brief is temporarily unavailable. You can still open your projects and actions.</p>}
+          {!briefingLoading && !briefingError && attentionItems.length === 0 && <div className="flex min-w-52 items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
             <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
             <div><p className="text-xs font-medium">You&apos;re all caught up</p><p className="text-[10px] text-muted-foreground">No action is needed right now</p></div>
           </div>}

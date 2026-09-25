@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Client action RPC types are generated after deployment. */
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarClock, CheckCircle2, Clock3, ExternalLink, FileUp, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
@@ -57,6 +58,7 @@ export default function ClientActionsPage() {
   const [note, setNote] = useState("");
   const [url, setUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const clientId = useQuery({
     queryKey: ["my-client-id", user?.id],
@@ -73,12 +75,22 @@ export default function ClientActionsPage() {
     queryFn: async () => {
       const { data, error } = await (supabase as any).from("client_action_items")
         .select("id, client_id, project_id, title, instructions, due_at, status, source_type, submitted_at")
-        .neq("status", "cancelled").order("due_at", { ascending: true, nullsFirst: false });
+        .eq("client_id", clientId.data).neq("status", "cancelled").order("due_at", { ascending: true, nullsFirst: false });
       if (error) throw error;
       return (data || []) as ClientAction[];
     },
     enabled: !!clientId.data,
   });
+
+  useEffect(() => {
+    const id = searchParams.get("action");
+    if (!id || !actions.data) return;
+    const action = actions.data.find(item => item.id === id && item.status === "pending");
+    if (action) setSelected(action);
+    const next = new URLSearchParams(searchParams);
+    next.delete("action");
+    setSearchParams(next, { replace: true });
+  }, [actions.data, searchParams, setSearchParams]);
 
   const calls = useQuery({
     queryKey: ["my-upcoming-calls", clientId.data],

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logActivity } from "@/lib/activityLogger";
@@ -51,7 +52,9 @@ function formatDateSeparator(dateStr: string) {
 export default function AdminMessages() {
   const { user } = useAuth();
   const [message, setMessage] = useState("");
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(searchParams.get("client"));
+  useEffect(() => { if (searchParams.get("client")) setSelectedClientId(searchParams.get("client")); }, [searchParams]);
   const [searchQuery, setSearchQuery] = useState("");
   const [pendingAttachment, setPendingAttachment] = useState<{ url: string; name: string; type: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);

@@ -12,8 +12,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { token, signed_name, nda_signed_name, client_name, company_name, client_address, client_email, signature_data } =
+    const { token, signed_name, nda_signed_name, client_name, company_name, client_address, client_email, signature_data, preview } =
       await req.json();
+
+    if (preview) return new Response(JSON.stringify({ error: "Preview cannot save signatures" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     if (!token || !signed_name?.trim()) {
       return new Response(
@@ -43,14 +45,14 @@ Deno.serve(async (req) => {
 
     if (proposal.signed_at) {
       return new Response(
-        JSON.stringify({ error: "This contract has already been signed" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        JSON.stringify({ success: true, already_signed: true, signed_at: proposal.signed_at }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
     // Update proposal with signature and client details
     const signedAt = new Date().toISOString();
-    const { error: updateError } = await supabaseAdmin
+    const { data: claimedSignature, error: updateError } = await supabaseAdmin
       .from("proposals")
       .update({
         signed_name: signed_name.trim(),
@@ -63,9 +65,13 @@ Deno.serve(async (req) => {
         client_email: client_email?.trim() || proposal.client_email,
         status: "signed",
       })
-      .eq("id", proposal.id);
+      .eq("id", proposal.id)
+      .is("signed_at", null)
+      .select("id")
+      .maybeSingle();
 
     if (updateError) throw updateError;
+    if (!claimedSignature) return new Response(JSON.stringify({ success: true, already_signed: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     // Also update the client record with the filled-in email if missing
     if (proposal.client_id && client_email?.trim()) {

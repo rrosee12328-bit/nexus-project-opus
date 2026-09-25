@@ -1,288 +1,36 @@
-import {
-  LayoutDashboard,
-  Users,
-  FolderKanban,
-  MessageSquare,
-  DollarSign,
-  Settings,
-  LogOut,
-  Upload,
-  ClipboardList,
-  BarChart3,
-  Mail,
-  Bot,
-  Calendar,
-  Target,
-  FileText,
-  BookOpen,
-  Sheet,
-  Phone,
-  Brain,
-  Receipt,
-  ScrollText,
-  Video,
-  ChevronRight,
-  Command,
-  Briefcase,
-  TrendingUp,
-  Truck,
-  Cog,
-  Radio,
-  Zap,
-} from "lucide-react";
+import { CalendarDays, Users, Briefcase, TrendingUp, Wallet, Settings, LogOut, Sparkles, ChevronDown } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
-  SidebarFooter,
-  SidebarHeader,
-  useSidebar,
-} from "@/components/ui/sidebar";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { cn } from "@/lib/utils";
+import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, useSidebar } from "@/components/ui/sidebar";
 
-type NavItem = { title: string; url: string; icon: any };
-type NavGroup = { label: string; icon: any; items: NavItem[] };
-
-const navGroups: NavGroup[] = [
-  {
-    label: "Command",
-    icon: Command,
-    items: [
-      { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
-      { title: "Lever", url: "/admin/lever", icon: Zap },
-      { title: "Calendar", url: "/admin/calendar", icon: Calendar },
-      { title: "Assistant", url: "/admin/agent", icon: Bot },
-    ],
-  },
-  {
-    label: "Clients",
-    icon: Briefcase,
-    items: [
-      { title: "Client Management", url: "/admin/clients", icon: Users },
-      { title: "Client Summaries", url: "/admin/summaries", icon: BookOpen },
-      { title: "Client Tracker", url: "/admin/tracker", icon: Sheet },
-      { title: "Seed Review", url: "/admin/seed-review", icon: Sheet },
-    ],
-  },
-  {
-    label: "Sales",
-    icon: TrendingUp,
-    items: [
-      { title: "Sales Pipeline", url: "/admin/leads", icon: Target },
-      { title: "Proposals", url: "/admin/proposals", icon: FileText },
-    ],
-  },
-  {
-    label: "Delivery",
-    icon: Truck,
-    items: [
-      { title: "Project Management", url: "/admin/projects", icon: FolderKanban },
-      { title: "Assets", url: "/admin/assets", icon: Upload },
-      { title: "Business Media", url: "/admin/business-media", icon: Video },
-      { title: "Intake Forms", url: "/admin/intakes", icon: ClipboardList },
-    ],
-  },
-  {
-    label: "Communication",
-    icon: Radio,
-    items: [
-      { title: "Messages", url: "/admin/messages", icon: MessageSquare },
-      { title: "Email Dashboard", url: "/admin/emails", icon: Mail },
-      { title: "Call Intelligence", url: "/admin/calls", icon: Phone },
-    ],
-  },
-  {
-    label: "Finance",
-    icon: DollarSign,
-    items: [
-      { title: "Financial Tracking", url: "/admin/financials", icon: DollarSign },
-      { title: "Hourly Invoices", url: "/admin/invoices", icon: Receipt },
-      { title: "Reports", url: "/admin/reports", icon: BarChart3 },
-    ],
-  },
-  {
-    label: "System",
-    icon: Cog,
-    items: [
-      { title: "Ops Portal", url: "/ops", icon: ClipboardList },
-      { title: "PDF Logs", url: "/admin/pdf-logs", icon: ScrollText },
-      { title: "Settings", url: "/admin/settings", icon: Settings },
-    ],
-  },
+const groups = [
+  { label: "Today", icon: CalendarDays, items: [["Today", "/admin"], ["Calendar", "/admin/calendar"], ["Assistant", "/admin/agent"], ["Brain", "/admin/brain"]] },
+  { label: "Clients", icon: Users, items: [["All clients", "/admin/clients"], ["Messages", "/admin/messages"], ["Calls", "/admin/calls"], ["Email", "/admin/emails"], ["Summaries", "/admin/summaries"], ["Tracker", "/admin/tracker"]] },
+  { label: "Sales", icon: TrendingUp, items: [["Pipeline", "/admin/leads"], ["Proposals", "/admin/proposals"]] },
+  { label: "Work", icon: Briefcase, items: [["Projects", "/admin/projects"], ["Tasks", "/ops/tasks"], ["Time", "/ops/timesheets"], ["Files", "/admin/assets"], ["Media", "/admin/business-media"], ["Intakes", "/admin/intakes"], ["Knowledge", "/admin/lever"]] },
+  { label: "Money", icon: Wallet, items: [["Financials", "/admin/financials"], ["Invoices", "/admin/invoices"], ["Reports", "/admin/reports"]] },
 ];
 
 export function AdminSidebar() {
-  const { state, isMobile, setOpenMobile } = useSidebar();
-  const collapsed = state === "collapsed";
-  const location = useLocation();
-  const navigate = useNavigate();
+  const { isMobile, setOpenMobile, state } = useSidebar();
   const { signOut } = useAuth();
-
-  const isActive = (url: string) =>
-    url === "/admin"
-      ? location.pathname === "/admin"
-      : location.pathname.startsWith(url);
-
-  const handleNavClick = () => {
-    if (isMobile) setOpenMobile(false);
-  };
-
-  const groupHasActive = (group: NavGroup) => group.items.some((i) => isActive(i.url));
-
-  return (
-    <Sidebar collapsible="icon" className="border-r border-sidebar-border/60">
-      <SidebarHeader className="border-b border-sidebar-border/60 px-4 py-2 relative">
-        <span className="absolute bottom-0 left-0 right-0 h-px edge-line opacity-60" />
-        {!collapsed && (
-          <img src="/vektiss-logo.png" alt="Vektiss" className="h-20 object-contain" />
-        )}
-        {collapsed && (
-          <img src="/vektiss-icon.png" alt="Vektiss" className="h-12 w-12 object-contain" />
-        )}
-      </SidebarHeader>
-      {/* Brain — universal context router */}
-      <div className={cn("px-2 pt-3", collapsed && "px-1")}>
-        <button
-          type="button"
-          onClick={() => {
-            if (isMobile) setOpenMobile(false);
-            navigate("/admin/brain");
-          }}
-          title="Brain — universal context router"
-          className={cn(
-            "group relative w-full overflow-hidden rounded-lg border border-primary/40",
-            "bg-[radial-gradient(ellipse_at_top_left,hsl(var(--primary)/0.25),transparent_60%),linear-gradient(135deg,hsl(var(--primary)/0.18),hsl(var(--primary)/0.04))]",
-            "shadow-[0_0_24px_-6px_hsl(var(--primary)/0.55),inset_0_1px_0_hsl(var(--primary)/0.35)]",
-            "transition-all duration-300 hover:shadow-[0_0_36px_-4px_hsl(var(--primary)/0.85),inset_0_1px_0_hsl(var(--primary)/0.5)]",
-            "hover:border-primary/70 active:scale-[0.98]",
-            location.pathname.startsWith("/admin/brain") && "border-primary/80 ring-1 ring-primary/50",
-            collapsed ? "h-10 flex items-center justify-center" : "p-3"
-          )}
-        >
-          {/* animated scanline */}
-          <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary to-transparent opacity-80" />
-          <span className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
-          <span className="pointer-events-none absolute -inset-px rounded-lg bg-[conic-gradient(from_0deg,transparent_0deg,hsl(var(--primary)/0.35)_60deg,transparent_120deg)] opacity-0 group-hover:opacity-100 transition-opacity duration-500 animate-[spin_6s_linear_infinite]" />
-
-          {collapsed ? (
-            <Brain className="h-5 w-5 text-primary drop-shadow-[0_0_6px_hsl(var(--primary))]" />
-          ) : (
-            <div className="relative flex items-center gap-3">
-              <div className="relative flex h-9 w-9 items-center justify-center rounded-md bg-primary/15 ring-1 ring-primary/40">
-                <Brain className="h-5 w-5 text-primary drop-shadow-[0_0_6px_hsl(var(--primary))]" />
-                <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary animate-pulse shadow-[0_0_8px_hsl(var(--primary))]" />
-              </div>
-              <div className="flex-1 text-left min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-primary/80">Vektiss</span>
-                  <span className="h-px flex-1 bg-gradient-to-r from-primary/50 to-transparent" />
-                </div>
-                <div className="font-semibold text-[15px] leading-tight text-foreground">Brain</div>
-                <div className="text-[11px] text-muted-foreground leading-tight">Universal context router</div>
-              </div>
-              <kbd className="hidden md:inline shrink-0 text-[9px] px-1.5 py-0.5 rounded bg-background/60 border border-border/60 text-muted-foreground font-mono">⌘B</kbd>
-            </div>
-          )}
-        </button>
-      </div>
-      <SidebarContent>
-        {navGroups.map((group) => {
-          const activeInGroup = groupHasActive(group);
-          // When collapsed, render flat icon-only buttons (no nesting)
-          if (collapsed) {
-            return (
-              <SidebarGroup key={group.label}>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {group.items.map((item) => (
-                      <SidebarMenuItem key={item.title}>
-                        <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={item.title}>
-                          <NavLink
-                            to={item.url}
-                            end={item.url === "/admin"}
-                            className="relative hover:bg-sidebar-accent transition-colors"
-                            activeClassName="bg-sidebar-accent text-sidebar-primary"
-                            onClick={handleNavClick}
-                          >
-                            <item.icon className="h-4 w-4" />
-                          </NavLink>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </SidebarGroup>
-            );
-          }
-          return (
-            <Collapsible key={group.label} defaultOpen={activeInGroup} className="group/collapsible">
-              <SidebarGroup>
-                <SidebarGroupLabel asChild className="font-sans !text-[13px] font-semibold uppercase tracking-wider !text-foreground cursor-pointer transition-colors py-2 opacity-90 hover:opacity-100">
-                  <CollapsibleTrigger className="flex w-full items-center justify-between">
-                    <span className="flex items-center gap-2">
-                      <group.icon className="h-4 w-4" />
-                      {group.label}
-                    </span>
-                    <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
-                  </CollapsibleTrigger>
-                </SidebarGroupLabel>
-                <CollapsibleContent>
-                  <SidebarGroupContent>
-                    <SidebarMenu>
-                      {group.items.map((item) => (
-                        <SidebarMenuItem key={item.title}>
-                          <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                            <NavLink
-                              to={item.url}
-                              end={item.url === "/admin"}
-                              className="relative hover:bg-sidebar-accent transition-colors"
-                              activeClassName="bg-sidebar-accent text-sidebar-primary [&_.nav-indicator]:opacity-100"
-                              onClick={handleNavClick}
-                            >
-                              <span className="nav-indicator absolute left-0 top-1/2 -translate-y-1/2 h-4 w-px bg-primary opacity-0 shadow-[0_0_8px_hsl(var(--primary))] transition-opacity" />
-                              <item.icon className="h-4 w-4" />
-                              <span className="font-sans text-[14px] font-medium !text-foreground">{item.title}</span>
-                            </NavLink>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      ))}
-                    </SidebarMenu>
-                  </SidebarGroupContent>
-                </CollapsibleContent>
-              </SidebarGroup>
-            </Collapsible>
-          );
-        })}
-      </SidebarContent>
-      <SidebarFooter className="border-t border-sidebar-border/60 p-2 relative">
-        <span className="absolute top-0 left-0 right-0 h-px edge-line opacity-60" />
-        {!collapsed && (
-          <div className="px-2 pt-1 pb-2 flex items-center gap-2 kicker">
-            <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
-            System / Online
-          </div>
-        )}
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton onClick={signOut} className="hover:bg-sidebar-accent">
-              <LogOut className="h-4 w-4" />
-              {!collapsed && <span>Sign Out</span>}
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
-    </Sidebar>
-  );
+  const location = useLocation();
+  const close = () => { if (isMobile) setOpenMobile(false); };
+  const active = (url: string) => url === "/admin" ? location.pathname === url : location.pathname.startsWith(url);
+  return <Sidebar collapsible="icon" className="border-r border-sidebar-border/60">
+    <SidebarHeader className="h-20 justify-center border-b px-4"><NavLink to="/admin" onClick={close} className="flex items-center gap-3"><img src="/vektiss-icon.png" alt="Vektiss" className="h-8 w-8" />{state !== "collapsed" && <span className="font-semibold tracking-tight">Vektiss<span className="block text-xs font-normal text-muted-foreground">Your workspace</span></span>}</NavLink></SidebarHeader>
+    <SidebarContent className="px-2 py-4">
+      {groups.map(group => <details key={`${group.label}-${location.pathname}`} open={group.items.some(([, url]) => active(url)) || state === "collapsed"} className="group mb-2">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-lg px-3 text-sm font-medium hover:bg-sidebar-accent"><group.icon className="h-4 w-4 shrink-0" />{state !== "collapsed" && <><span className="flex-1">{group.label}</span><ChevronDown className="h-3 w-3" /></>}</summary>
+        <SidebarMenu className={state === "collapsed" ? "" : "mt-1 border-l ml-5 pl-2"}>{group.items.map(([label, url]) => <SidebarMenuItem key={url}><SidebarMenuButton asChild isActive={active(url)} tooltip={label}><NavLink end={url === "/admin"} to={url} onClick={close} className="min-h-10" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">{state === "collapsed" ? <span className="text-xs">{label.slice(0, 2)}</span> : label}</NavLink></SidebarMenuButton></SidebarMenuItem>)}</SidebarMenu>
+      </details>)}
+    </SidebarContent>
+    <SidebarFooter className="border-t p-2"><SidebarMenu>
+      <SidebarMenuItem><SidebarMenuButton asChild tooltip="Settings"><NavLink to="/admin/settings" onClick={close}><Settings className="h-4 w-4" /><span>Settings</span></NavLink></SidebarMenuButton></SidebarMenuItem>
+      <SidebarMenuItem><SidebarMenuButton asChild tooltip="Diagnostics"><NavLink to="/admin/pdf-logs" onClick={close}><Sparkles className="h-4 w-4" /><span>Diagnostics</span></NavLink></SidebarMenuButton></SidebarMenuItem>
+      <SidebarMenuItem><SidebarMenuButton asChild tooltip="Import review"><NavLink to="/admin/seed-review" onClick={close}><Briefcase className="h-4 w-4" /><span>Import review</span></NavLink></SidebarMenuButton></SidebarMenuItem>
+      <SidebarMenuItem><SidebarMenuButton onClick={signOut}><LogOut className="h-4 w-4" /><span>Sign out</span></SidebarMenuButton></SidebarMenuItem>
+    </SidebarMenu></SidebarFooter>
+  </Sidebar>;
 }

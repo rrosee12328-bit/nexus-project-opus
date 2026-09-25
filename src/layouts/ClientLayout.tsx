@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Bot, CheckSquare2, CreditCard, FileCheck, FileSignature, FolderKanban, LogOut, Menu, MessageSquare, Phone, Settings, Upload, X } from "lucide-react";
@@ -15,6 +15,13 @@ export default function ClientLayout() {
   const { user, loading, signOut } = useAuth();
   const location = useLocation();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const resize = () => document.documentElement.style.setProperty("--portal-viewport", `${viewport?.height ?? window.innerHeight}px`);
+    resize();
+    viewport?.addEventListener("resize", resize);
+    return () => { viewport?.removeEventListener("resize", resize); document.documentElement.style.removeProperty("--portal-viewport"); };
+  }, []);
 
   const { data: clientId } = useQuery({
     queryKey: ["my-client-id", user?.id],
@@ -61,7 +68,7 @@ export default function ClientLayout() {
     queryKey: ["client-action-count", clientId],
     queryFn: async () => {
       const { count, error } = await supabase.from("client_action_items" as never)
-        .select("id", { count: "exact", head: true }).eq("status", "pending");
+        .select("id", { count: "exact", head: true }).eq("client_id", clientId!).eq("status", "pending");
       if (error) throw error;
       return count ?? 0;
     },
@@ -77,7 +84,7 @@ export default function ClientLayout() {
   const primaryItems = [
     { title: "Ask Vektiss", url: "/portal", icon: Bot, badge: 0 },
     { title: "Projects", url: "/portal/projects", icon: FolderKanban, badge: 0 },
-    { title: "Contracts", url: "/portal/contracts", icon: FileSignature, badge: 0 },
+    { title: "Documents", url: "/portal/contracts", icon: FileSignature, badge: 0 },
     { title: "Billing", url: "/portal/billing", icon: CreditCard, badge: 0 },
   ];
   const workspaceItems = [
@@ -96,8 +103,10 @@ export default function ClientLayout() {
     <nav className="flex-1 overflow-y-auto px-3 py-5">
       <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/45">Your work</p>
       <div className="space-y-1">{primaryItems.map((item) => <NavLink key={item.url} to={item.url} end={item.url === "/portal"} onClick={() => setMobileNavOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"><item.icon className="h-4 w-4" /><span className="flex-1">{item.title}</span></NavLink>)}</div>
-      <p className="px-3 pb-2 pt-7 text-[10px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/45">Workspace</p>
+      <details className="mt-5" key={location.pathname} open={workspaceItems.some(item => location.pathname.startsWith(item.url)) || pendingActionCount + pendingApprovalCount + unreadCount > 0}>
+      <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-sidebar-foreground/70">Updates and resources</summary>
       <div className="space-y-1">{workspaceItems.map((item) => <NavLink key={item.url} to={item.url} onClick={() => setMobileNavOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"><item.icon className="h-4 w-4" /><span className="flex-1">{item.title}</span>{item.badge > 0 && <Badge className="h-5 min-w-5 justify-center px-1 text-[10px]">{item.badge}</Badge>}</NavLink>)}</div>
+      </details>
     </nav>
     <div className="border-t border-sidebar-border p-3">
       <NavLink to="/portal/settings" onClick={() => setMobileNavOpen(false)} className="mb-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-sidebar-foreground hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground"><Settings className="h-4 w-4" /> Settings</NavLink>
@@ -105,7 +114,7 @@ export default function ClientLayout() {
     </div>
   </>;
 
-  const currentTitle = location.pathname === "/portal" ? "Ask Vektiss" : primaryItems.concat(workspaceItems).find((item) => location.pathname.startsWith(item.url))?.title || "Client portal";
+  const currentTitle = location.pathname === "/portal" ? "Ask Vektiss" : primaryItems.concat(workspaceItems).find((item) => item.url !== "/portal" && location.pathname.startsWith(item.url))?.title || "Client portal";
 
   return <div className="min-h-screen min-w-0 max-w-full bg-background md:flex">
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-sidebar-border bg-sidebar md:flex">{navigation}</aside>
