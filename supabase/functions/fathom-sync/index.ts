@@ -254,7 +254,9 @@ Deno.serve(async (req: Request) => {
 
     const token = authHeader.replace("Bearer ", "");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const isScheduledRequest = token === serviceRoleKey;
+    // The gateway's injected service key can differ from the key held by cron.
+    const schedulerKey = Deno.env.get("FATHOM_SYNC_SECRET");
+    const isScheduledRequest = token === serviceRoleKey || (!!schedulerKey && token === schedulerKey);
     let userId = Deno.env.get("FATHOM_TIME_TRACKING_USER_ID") ?? "";
 
     if (!isScheduledRequest) {
