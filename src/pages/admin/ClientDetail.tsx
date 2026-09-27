@@ -299,15 +299,15 @@ export default function ClientDetail() {
   };
 
   return (
-    <div className="space-y-6">
-      <AICommandCenter pageContext={{ pageType: "client-detail", title: "Client Detail", entityId: clientId, entityName: client?.name }} />
+    <div className="staff-client-workspace space-y-6">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="flex items-start sm:items-center gap-3 sm:gap-4 flex-wrap">
         <Button variant="ghost" size="icon" onClick={() => navigate("/admin/clients")} className="shrink-0">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">{client?.name ?? "Client"}</h1>
+          <p className="kicker mb-2">Client workspace</p>
+          <h1 className="text-xl sm:text-3xl font-semibold tracking-tight break-words">{client?.name ?? "Client"}</h1>
           <p className="text-muted-foreground text-xs sm:text-sm">
             {client?.type ?? "No type"} · {client?.email ?? "No email"}
             {client?.status && (
@@ -333,13 +333,14 @@ export default function ClientDetail() {
       </motion.div>
 
       <Tabs value={section} onValueChange={value => setSearchParams({ tab: value })}>
-        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 bg-muted/50 p-1">
-          {workspaceTabs.map(tab => <TabsTrigger key={tab} value={tab} className="min-h-11 flex-1 capitalize sm:flex-none">{tab}</TabsTrigger>)}
+        <TabsList className="staff-workspace-tabs flex h-auto w-full justify-start gap-3 overflow-x-auto rounded-none border-b bg-transparent p-0">
+          {workspaceTabs.map(tab => <TabsTrigger key={tab} value={tab} className="min-h-12 shrink-0 capitalize">{tab}</TabsTrigger>)}
         </TabsList>
       </Tabs>
       {client && <ClientWorkspaceSummary clientId={client.id} userId={client.user_id} section={section} onProposal={name => { setProposalProject(name); setProposalOpen(true); }} />}
 
       <div hidden={section !== "overview"} className="space-y-6">
+      <details className="rounded-lg border bg-card p-4"><summary className="cursor-pointer text-sm font-medium">Ask Vektiss about this client</summary><div className="mt-4"><AICommandCenter pageContext={{ pageType: "client-detail", title: "Client Detail", entityId: clientId, entityName: client?.name }} /></div></details>
       <details className="rounded-2xl border bg-card p-4 sm:p-6"><summary className="cursor-pointer text-sm font-semibold">Background and internal briefing</summary><div className="mt-5 space-y-6">
 
       {/* Quick stats */}

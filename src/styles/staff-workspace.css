@@ -1,0 +1,42 @@
+/* Staff-only visual layer. Existing routing, permissions, data and theme choice remain intact. */
+.staff-workspace {
+  background-image: radial-gradient(ellipse at 75% 0%, hsl(var(--primary) / .08), transparent 48%),
+    linear-gradient(hsl(var(--foreground) / .018) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--foreground) / .018) 1px, transparent 1px);
+  background-size: auto, 56px 56px, 56px 56px;
+}
+.dark .staff-workspace {
+  --background: 220 19% 5%;
+  --card: 220 18% 9%;
+  --border: 218 17% 18%;
+  --muted-foreground: 215 19% 67%;
+  --sidebar-background: 220 20% 7%;
+  --sidebar-border: 218 17% 18%;
+  --sidebar-accent: 214 40% 15%;
+}
+.staff-workspace [data-portal-page] { max-width: 1580px; margin-inline: auto; padding: clamp(16px, 2.5vw, 38px); }
+.staff-workspace [data-portal-page] article,
+.staff-workspace [data-portal-page] .bg-card {
+  border-radius: 8px;
+  box-shadow: inset 0 1px hsl(var(--foreground) / .025), 0 10px 30px hsl(0 0% 0% / .035);
+}
+.dark .staff-workspace [data-portal-page] article,
+.dark .staff-workspace [data-portal-page] .bg-card {
+  background-image: linear-gradient(145deg, hsl(220 18% 12% / .6), transparent);
+}
+.staff-wordmark { display: block; position: relative; flex-shrink: 0; width: 152px; height: 43px; overflow: hidden; background: #0d1015; border-radius: 4px; }
+.staff-wordmark img { position: absolute; width: 175px; height: 175px; max-width: none; left: -11px; top: -66px; }
+.staff-workspace [data-sidebar="menu-button"][data-active="true"] {
+  background: hsl(var(--primary) / .12);
+  color: hsl(var(--primary));
+  box-shadow: inset 2px 0 hsl(var(--primary));
+}
+.staff-workspace .kicker { color: hsl(var(--primary) / .85); }
+.staff-workspace-tabs [role="tab"] { border-radius: 0; border-bottom: 2px solid transparent; background: transparent; box-shadow: none; padding-inline: 12px; }
+.staff-workspace-tabs [role="tab"][data-state="active"] { color: hsl(var(--primary)); border-bottom-color: hsl(var(--primary)); background: transparent; box-shadow: none; }
+.staff-client-workspace p { overflow-wrap: anywhere; }
+@media(max-width:639px) {
+  .staff-workspace [data-portal-page] { padding: 16px 12px; }
+  .staff-workspace-tabs { gap: 4px; }
+  .staff-workspace-tabs [role="tab"] { padding-inline: 10px; font-size: 12px; }
+}

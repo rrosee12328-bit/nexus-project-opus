@@ -7,6 +7,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { TaskTimerProvider } from "@/hooks/useTaskTimer";
 import { OpsTaskTimer } from "@/components/ops/OpsTaskTimer";
+import "@/styles/staff-workspace.css";
 
 
 export default function AdminLayout() {
@@ -30,7 +31,7 @@ export default function AdminLayout() {
 
   return (
     <TaskTimerProvider><SidebarProvider>
-      <div className="min-h-screen min-w-0 flex w-full max-w-full bg-background relative">
+      <div className="staff-workspace min-h-screen min-w-0 flex w-full max-w-full bg-background relative">
         {/* Ambient backdrop */}
         <div className="pointer-events-none fixed inset-x-0 top-0 h-80 z-0 bg-gradient-to-b from-primary/[0.035] to-transparent" />
         <AdminSidebar />

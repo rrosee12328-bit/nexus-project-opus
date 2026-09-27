@@ -19,7 +19,7 @@ export function AdminSidebar() {
   const close = () => { if (isMobile) setOpenMobile(false); };
   const active = (url: string) => url === "/admin" ? location.pathname === url : location.pathname.startsWith(url);
   return <Sidebar collapsible="icon" className="border-r border-sidebar-border/60">
-    <SidebarHeader className="h-20 justify-center border-b px-4"><NavLink to="/admin" onClick={close} className="flex items-center gap-3"><img src="/vektiss-icon.png" alt="Vektiss" className="h-8 w-8" />{state !== "collapsed" && <span className="font-semibold tracking-tight">Vektiss<span className="block text-xs font-normal text-muted-foreground">Your workspace</span></span>}</NavLink></SidebarHeader>
+    <SidebarHeader className="h-20 justify-center border-b px-4"><NavLink to="/admin" aria-label="Vektiss home" onClick={close} className="flex items-center gap-3">{state === "collapsed" ? <img src="/vektiss-icon.png" alt="Vektiss" className="h-8 w-8" /> : <span className="staff-wordmark"><img src="/vektiss-logo.png" alt="Vektiss" /></span>}</NavLink></SidebarHeader>
     <SidebarContent className="px-2 py-4">
       {groups.map(group => <details key={`${group.label}-${location.pathname}`} open={group.items.some(([, url]) => active(url)) || state === "collapsed"} className="group mb-2">
         <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-lg px-3 text-sm font-medium hover:bg-sidebar-accent"><group.icon className="h-4 w-4 shrink-0" />{state !== "collapsed" && <><span className="flex-1">{group.label}</span><ChevronDown className="h-3 w-3" /></>}</summary>

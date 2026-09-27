@@ -151,20 +151,20 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-w-0 max-w-full space-y-4 sm:space-y-6">
-      {/* AI Command Center */}
-      <AICommandCenter pageContext={{ pageType: "dashboard", title: "Admin Dashboard" }} />
-
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <h1 className="text-2xl font-bold tracking-tight">Today</h1>
-        <p className="text-muted-foreground">Keep clients moving. Focus on what needs you next.</p>
+        <p className="kicker mb-3">Vektiss / Today</p>
+        <h1 className="text-2xl sm:text-4xl font-semibold tracking-tight">A clear view of today.</h1>
+        <p className="text-muted-foreground mt-3">What needs you, what is next, and what is moving forward.</p>
       </motion.div>
 
       <TodayAttention />
+
+      <details className="staff-assistant rounded-lg border bg-card p-4"><summary className="cursor-pointer text-sm font-medium">Ask Vektiss about your workspace</summary><div className="mt-4"><AICommandCenter pageContext={{ pageType: "dashboard", title: "Admin Dashboard" }} /></div></details>
 
       <details className="rounded-2xl border bg-card p-4 sm:p-6"><summary className="cursor-pointer text-sm font-semibold">Business overview</summary><div className="mt-5 space-y-6">
 
