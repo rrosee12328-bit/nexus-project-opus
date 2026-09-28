@@ -220,6 +220,7 @@ export type Database = {
           id: string
           phase: string | null
           project_id: string
+          review_url: string | null
           responded_at: string | null
           response_note: string | null
           status: string
@@ -234,6 +235,7 @@ export type Database = {
           id?: string
           phase?: string | null
           project_id: string
+          review_url?: string | null
           responded_at?: string | null
           response_note?: string | null
           status?: string
@@ -248,6 +250,7 @@ export type Database = {
           id?: string
           phase?: string | null
           project_id?: string
+          review_url?: string | null
           responded_at?: string | null
           response_note?: string | null
           status?: string

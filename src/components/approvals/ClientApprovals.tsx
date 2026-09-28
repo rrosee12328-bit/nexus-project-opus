@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle2, XCircle, Clock, FileCheck } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, FileCheck, ExternalLink, Video } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -90,6 +90,14 @@ export function ClientApprovals() {
                         {a.description && (
                           <p className="text-sm text-muted-foreground mt-1">{a.description}</p>
                         )}
+                        {a.review_url && (
+                          <Button variant="outline" size="sm" className="mt-3" asChild>
+                            <a href={a.review_url} target="_blank" rel="noopener noreferrer">
+                              <Video className="mr-2 h-4 w-4" /> Open review video
+                              <ExternalLink className="ml-2 h-3.5 w-3.5" />
+                            </a>
+                          </Button>
+                        )}
                         {a.phase && <Badge variant="outline" className="text-[10px] mt-1">{a.phase}</Badge>}
                         <p className="text-[10px] text-muted-foreground mt-2">
                           Submitted {format(new Date(a.created_at), "MMMM d, yyyy")}
@@ -161,6 +169,13 @@ export function ClientApprovals() {
                         <Badge variant="outline" className={`text-[10px] h-4 px-1 ${cfg.color}`}>{cfg.label}</Badge>
                       </div>
                       {a.projects?.name && <p className="text-xs text-muted-foreground">Project: {a.projects.name}</p>}
+                      {a.review_url && (
+                        <Button variant="link" size="sm" className="h-auto p-0 pt-1 text-xs" asChild>
+                          <a href={a.review_url} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="mr-1 h-3.5 w-3.5" /> View reviewed video
+                          </a>
+                        </Button>
+                      )}
                       {a.response_note && <p className="text-xs italic text-muted-foreground mt-1">"{a.response_note}"</p>}
                       <p className="text-[10px] text-muted-foreground mt-1">
                         {a.responded_at && `Responded ${format(new Date(a.responded_at), "MMM d, yyyy")}`}

@@ -15,7 +15,8 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { CheckCircle2, XCircle, Clock, Plus, Send } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, Plus, Send, ExternalLink, Video } from "lucide-react";
+import { normalizeReviewUrl } from "@/lib/reviewUrl";
 
 interface ApprovalsPanelProps {
   projectId: string;
@@ -34,6 +35,7 @@ export function ApprovalsPanel({ projectId, clientId }: ApprovalsPanelProps) {
   const [formOpen, setFormOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [reviewUrl, setReviewUrl] = useState("");
   const [phase, setPhase] = useState("");
 
   const { data: approvals = [] } = useQuery({
@@ -52,11 +54,16 @@ export function ApprovalsPanel({ projectId, clientId }: ApprovalsPanelProps) {
   const submitApproval = useMutation({
     mutationFn: async () => {
       if (!title.trim()) throw new Error("Title is required");
+      const normalizedReviewUrl = normalizeReviewUrl(reviewUrl);
+      if (reviewUrl.trim() && !normalizedReviewUrl) {
+        throw new Error("Enter a complete HTTPS review link");
+      }
       const { error } = await supabase.from("approval_requests").insert({
         project_id: projectId,
         client_id: clientId,
         title: title.trim(),
         description: description.trim() || null,
+        review_url: normalizedReviewUrl,
         phase: phase || null,
         submitted_by: user!.id,
       });
@@ -68,6 +75,7 @@ export function ApprovalsPanel({ projectId, clientId }: ApprovalsPanelProps) {
       setFormOpen(false);
       setTitle("");
       setDescription("");
+      setReviewUrl("");
       setPhase("");
     },
     onError: (err: Error) => toast.error(err.message),
@@ -99,6 +107,13 @@ export function ApprovalsPanel({ projectId, clientId }: ApprovalsPanelProps) {
                     <Badge variant="outline" className={`text-[10px] h-4 px-1 ${cfg.color}`}>{cfg.label}</Badge>
                   </div>
                   {a.description && <p className="text-xs text-muted-foreground mt-0.5">{a.description}</p>}
+                  {a.review_url && (
+                    <Button variant="link" size="sm" className="h-auto p-0 pt-1 text-xs" asChild>
+                      <a href={a.review_url} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="mr-1 h-3.5 w-3.5" /> Open review video
+                      </a>
+                    </Button>
+                  )}
                   {a.phase && <span className="text-[10px] text-muted-foreground">Phase: {a.phase}</span>}
                   {a.response_note && (
                     <p className="text-xs mt-1 italic text-muted-foreground">"{a.response_note}"</p>
@@ -129,6 +144,21 @@ export function ApprovalsPanel({ projectId, clientId }: ApprovalsPanelProps) {
             <div className="space-y-2">
               <Label>Description</Label>
               <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What the client needs to review..." rows={3} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="approval-review-url">Video review link</Label>
+              <div className="relative">
+                <Video className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="approval-review-url"
+                  type="url"
+                  value={reviewUrl}
+                  onChange={(e) => setReviewUrl(e.target.value)}
+                  placeholder="https://www.dropbox.com/..."
+                  className="pl-9"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">Use a view-only Dropbox link that the client has permission to open.</p>
             </div>
             <div className="space-y-2">
               <Label>Phase</Label>
