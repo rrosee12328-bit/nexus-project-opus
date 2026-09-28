@@ -346,6 +346,10 @@ export default function Timesheets() {
       toast.error("Please add a description");
       return;
     }
+    if (calcHours(form.start_time, form.end_time) <= 0) {
+      toast.error("End time must be later than start time. Check the AM/PM selection before saving.");
+      return;
+    }
     if (editingEntry) {
       updateMutation.mutate({ id: editingEntry.id, data: form });
     } else {
