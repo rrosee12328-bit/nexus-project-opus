@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Bot, CheckSquare2, CreditCard, FileCheck, FileSignature, FolderKanban, LogOut, Menu, MessageSquare, Phone, Settings, Upload, X } from "lucide-react";
+import { Bot, CalendarDays, CheckSquare2, CreditCard, ExternalLink, FileCheck, FileSignature, FolderKanban, LogOut, Menu, MessageSquare, Phone, Settings, Upload, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { NavLink } from "@/components/NavLink";
@@ -76,6 +76,16 @@ export default function ClientLayout() {
     refetchInterval: 30000,
   });
 
+  const { data: schedulingUrl } = useQuery({
+    queryKey: ["client-scheduling-url"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_client_scheduling_url");
+      if (error) throw error;
+      return data as string | null;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="h-9 w-9 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>;
   if (!user) return <Navigate to="/login" replace />;
 
@@ -103,6 +113,7 @@ export default function ClientLayout() {
     <nav className="flex-1 overflow-y-auto px-3 py-5">
       <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/45">Your work</p>
       <div className="space-y-1">{primaryItems.map((item) => <NavLink key={item.url} to={item.url} end={item.url === "/portal"} onClick={() => setMobileNavOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"><item.icon className="h-4 w-4" /><span className="flex-1">{item.title}</span></NavLink>)}</div>
+      {schedulingUrl && <Button variant="outline" className="mt-4 h-10 w-full justify-start gap-3 rounded-xl border-primary/25 bg-primary/5 px-3 text-sm text-sidebar-foreground hover:bg-primary/10" asChild><a href={schedulingUrl} target="_blank" rel="noopener noreferrer" onClick={() => setMobileNavOpen(false)}><CalendarDays className="h-4 w-4 text-primary" /><span className="flex-1 text-left">Schedule a call</span><ExternalLink className="h-3.5 w-3.5 opacity-60" /></a></Button>}
       <details className="mt-5" key={location.pathname} open={workspaceItems.some(item => location.pathname.startsWith(item.url)) || pendingActionCount + pendingApprovalCount + unreadCount > 0}>
       <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-sidebar-foreground/70">Updates and resources</summary>
       <div className="space-y-1">{workspaceItems.map((item) => <NavLink key={item.url} to={item.url} onClick={() => setMobileNavOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"><item.icon className="h-4 w-4" /><span className="flex-1">{item.title}</span>{item.badge > 0 && <Badge className="h-5 min-w-5 justify-center px-1 text-[10px]">{item.badge}</Badge>}</NavLink>)}</div>

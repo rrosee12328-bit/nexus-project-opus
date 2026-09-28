@@ -3467,6 +3467,7 @@ export type Database = {
         Returns: number
       }
       get_client_id_for_user: { Args: { _user_id: string }; Returns: string }
+      get_client_scheduling_url: { Args: never; Returns: string | null }
       get_intake_form_by_token: {
         Args: { _token: string }
         Returns: {
