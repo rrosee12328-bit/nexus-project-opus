@@ -27,6 +27,7 @@ function matchClientId(
 // and writes them to call_intelligence. Admin/Ops only.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
+import { authorizedStaff } from "../_shared/staff-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -252,29 +253,12 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const token = authHeader.replace("Bearer ", "");
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    // The gateway's injected service key can differ from the key held by cron.
-    const schedulerKey = Deno.env.get("FATHOM_SYNC_SECRET");
-    const isScheduledRequest = token === serviceRoleKey || (!!schedulerKey && token === schedulerKey);
-    let userId = Deno.env.get("FATHOM_TIME_TRACKING_USER_ID") ?? "";
-
-    if (!isScheduledRequest) {
-      const userClient = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_ANON_KEY")!,
-        { global: { headers: { Authorization: authHeader } } },
-      );
-      const { data: claims, error: authErr } = await userClient.auth.getClaims(token);
-      if (authErr || !claims?.claims?.sub) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      userId = claims.claims.sub;
-    } else if (!userId) {
-      return new Response(JSON.stringify({ error: "FATHOM_TIME_TRACKING_USER_ID not configured" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // A real admin/ops session is required. Service and scheduler credentials
+    // cannot import meetings or trigger analysis.
+    const userId = await authorizedStaff(req);
+    if (!userId) {
+      return new Response(JSON.stringify({ error: "Admin or ops access required" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -283,22 +267,12 @@ Deno.serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    if (!isScheduledRequest) {
-      // Authorize interactive requests: admin or ops.
-      const { data: roles } = await admin
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId);
-      const isPrivileged = (roles ?? []).some((r: any) => r.role === "admin" || r.role === "ops");
-      if (!isPrivileged) {
-        return new Response(JSON.stringify({ error: "Forbidden" }), {
-          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-    }
-
     const body = await req.json().catch(() => ({}));
-    const { call_id, fathom_meeting_id, sync_all_missing, lookback_days } = body ?? {};
+    const { call_id, fathom_meeting_id, sync_all_missing, lookback_days, date_from, date_to } = body ?? {};
+    if ((date_from || date_to) && (!/^\d{4}-\d{2}-\d{2}$/.test(date_from || "") || !/^\d{4}-\d{2}-\d{2}$/.test(date_to || "") || !Number.isFinite(Date.parse(date_from)) || !Number.isFinite(Date.parse(date_to)) || date_from > date_to)) {
+      return Response.json({ error: "Choose a valid start and end date" }, { status: 400, headers: corsHeaders });
+    }
+    const through = date_to ? new Date(Date.parse(`${date_to}T00:00:00Z`) + 86400000).toISOString() : null;
 
     // Build list of (callRowId, meetingId) tuples to process
     let targets: Array<{ id: string; meeting_id: string }> = [];
@@ -308,11 +282,15 @@ Deno.serve(async (req: Request) => {
     let discoverAfter: string | null = null;
 
     if (sync_all_missing) {
+      const days = Number.isFinite(Number(lookback_days)) ? Number(lookback_days) : 60;
+      discoverAfter = date_from ? `${date_from}T00:00:00.000Z` : new Date(Date.now() - Math.max(1, Math.min(365, days)) * 86400000).toISOString();
       const { data: rows, error } = await admin
         .from("call_intelligence")
         .select("id, fathom_meeting_id, fathom_url, transcript, call_date")
         .not("fathom_meeting_id", "is", null)
         .or("fathom_url.is.null,transcript.is.null,client_id.is.null")
+        .gte("call_date", discoverAfter)
+        .lt("call_date", through || new Date().toISOString())
         .order("call_date", { ascending: false, nullsFirst: false })
         .limit(25);
       if (error) throw error;
@@ -330,10 +308,6 @@ Deno.serve(async (req: Request) => {
         earliestCallDate = d.toISOString();
       }
       // Default: look back 60 days (override via lookback_days) for new meetings.
-      const days = Number.isFinite(Number(lookback_days)) ? Number(lookback_days) : 60;
-      const lb = new Date();
-      lb.setUTCDate(lb.getUTCDate() - Math.max(1, Math.min(365, days)));
-      discoverAfter = lb.toISOString();
     } else if (call_id) {
       const { data: row, error } = await admin
         .from("call_intelligence")
@@ -373,6 +347,7 @@ Deno.serve(async (req: Request) => {
     if (discoverAfter) {
       // Discovery mode: pull every meeting in the window, then match.
       allListed = await listAllMeetings(FATHOM_API_KEY, discoverAfter);
+      if (through) allListed = allListed.filter(m => pickCallDate(m) < through!);
       meetingsMap = new Map();
       for (const m of allListed) {
         if (m?.recording_id != null) meetingsMap.set(String(m.recording_id), m);
@@ -513,7 +488,7 @@ Deno.serve(async (req: Request) => {
         // Look up existing row to decide whether to overwrite the editable summary
         const { data: existing } = await admin
           .from("call_intelligence")
-          .select("client_id, project_id, summary_edited")
+          .select("*")
           .eq("id", t.id)
           .maybeSingle();
         const matchedClientId = existing?.client_id
@@ -532,7 +507,9 @@ Deno.serve(async (req: Request) => {
           update.summary = summaryMd;
         }
 
-        if (Object.keys(update).length > 0) {
+        const analysisChanged = !!existing && ((transcript && transcript !== existing.transcript) || (summaryMd && summaryMd !== existing.summary_original));
+        const changedFields = Object.keys(update).filter(key => JSON.stringify(update[key]) !== JSON.stringify(existing?.[key]));
+        if (changedFields.length > 0) {
           const { error: updErr } = await admin
             .from("call_intelligence")
             .update(update)
@@ -616,7 +593,8 @@ Deno.serve(async (req: Request) => {
         results.push({
           call_id: t.id,
           meeting_id: t.meeting_id,
-          updated: Object.keys(update),
+          updated: changedFields,
+          needs_analysis: newlyInsertedCallIds.has(t.id) || analysisChanged || existing?.analysis_pending === true,
           share_url,
           time_entry_id: timeEntryId,
         });
@@ -626,22 +604,29 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Fire-and-forget AI analysis for every call we just touched (creates tasks,
-    // updates last_contact_date, adds a meeting note on the client profile).
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    // Analysis only runs in this explicit staff request, never a deferred queue.
     const fnBase = Deno.env.get("SUPABASE_URL")!;
-    await Promise.all(results.filter((r) => !r.error).map((r) =>
-      fetch(`${fnBase}/functions/v1/analyze-call`, {
+    for (const r of results.filter(r => !r.error && r.needs_analysis)) {
+      await admin.from("call_intelligence").update({ analysis_pending: true }).eq("id", r.call_id);
+      if (Deno.env.get("DIRECT_OPENAI_ENABLED") !== "true") {
+        r.analysis_status = "pending";
+        continue;
+      }
+      const response = await fetch(`${fnBase}/functions/v1/analyze-call`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${serviceKey}`,
+          Authorization: authHeader,
         },
         body: JSON.stringify({ call_id: r.call_id }),
-      }).catch(() => null)
-    ));
+      }).catch(() => null);
+      r.analysis_status = response?.ok ? "completed" : "pending";
+    }
 
-    return new Response(JSON.stringify({ ok: true, count: results.length, inserted, results }), {
+    const failed = results.filter(r => r.error).length;
+    const updated = results.filter(r => !r.error && r.updated?.length && !newlyInsertedCallIds.has(r.call_id)).length;
+    const unchanged = results.filter(r => !r.error && !r.updated?.length && !newlyInsertedCallIds.has(r.call_id)).length;
+    return new Response(JSON.stringify({ ok: true, count: results.length, inserted, imported: inserted, updated, unchanged, failed, results }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {

@@ -1,4 +1,4 @@
-// Analyzes a call_intelligence record with Lovable AI, then:
+// Analyzes a call_intelligence record with direct OpenAI, then:
 //  1. Stores structured ai_analysis (takeaways, sentiment, action_items, key_decisions, client_status, next_steps)
 //  2. Auto-creates follow-up tasks linked to the client (flagged ai_generated + needs_review)
 //  3. Updates clients.last_contact_date, current_sentiment, last_call_headline, aspirations
@@ -6,6 +6,8 @@
 //  5. Files project scope changes as approval_requests for admin review
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
+import { openAIChat } from "../_shared/openai.ts";
+import { authorizedStaff } from "../_shared/staff-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,51 +19,20 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization");
+    const authHeader = req.headers.get("Authorization")!;
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!lovableKey) {
-      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     const admin = createClient(supabaseUrl, serviceRoleKey);
 
     const VEKTISS_INTERNAL_CLIENT_ID = "7662c4e3-bf78-494e-b203-40a9ba06fb27";
 
-    // Resolve user (admin/ops) — allow service_role bypass for internal calls
-    let userId: string | null = null;
-    let isService = false;
-    if (authHeader?.startsWith("Bearer ")) {
-      const token = authHeader.replace("Bearer ", "");
-      if (token === serviceRoleKey) {
-        isService = true;
-      } else {
-        const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-          global: { headers: { Authorization: authHeader } },
-        });
-        const { data: claims } = await userClient.auth.getClaims(token);
-        userId = claims?.claims?.sub ?? null;
-        if (!userId) {
-          return new Response(JSON.stringify({ error: "Unauthorized" }), {
-            status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", userId);
-        const ok = (roles ?? []).some((r: any) => r.role === "admin" || r.role === "ops");
-        if (!ok) {
-          return new Response(JSON.stringify({ error: "Forbidden" }), {
-            status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-      }
-    } else {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const userId = await authorizedStaff(req);
+    if (!userId) return Response.json({ error: "Explicit staff request required" }, { status: 403, headers: corsHeaders });
+
+    const ensure = (error: any, context: string) => {
+      if (error) throw new Error(`${context}: ${error.message ?? String(error)}`);
+    };
 
     const body = await req.json().catch(() => ({}));
     const { call_id } = body ?? {};
@@ -120,17 +91,13 @@ Rules:
 - scope_changes: only items that change project scope/timeline/deliverables. Empty array if none.
 - Never use markdown bold (**) anywhere.`;
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
+    const aiRes = await openAIChat("analyze-call", {
+        response_format: { type: "json_object" },
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: `Client: ${clientName}\nCall type: ${call.call_type}\nDate: ${call.call_date}\n\n${sourceText}` },
         ],
-      }),
-    });
+    }, { cacheKey: `analysis-v1:${call.id}` });
 
     if (!aiRes.ok) {
       const t = await aiRes.text();
@@ -145,7 +112,7 @@ Rules:
     }
 
     // Persist analysis on the call
-    await admin
+    const { error: analysisUpdateError } = await admin
       .from("call_intelligence")
       .update({
         ai_analysis: analysis,
@@ -153,13 +120,15 @@ Rules:
         key_decisions: Array.isArray(analysis.key_decisions) ? analysis.key_decisions : [],
       })
       .eq("id", call.id);
+    ensure(analysisUpdateError, "Call analysis could not be saved");
 
     const created: any = { tasks: 0, note: false, contact_updated: false };
 
     if (call.client_id) {
       // Update last_contact_date
       const callDay = (call.call_date ?? new Date().toISOString()).slice(0, 10);
-      await admin.from("clients").update({ last_contact_date: callDay }).eq("id", call.client_id);
+      const { error: contactError } = await admin.from("clients").update({ last_contact_date: callDay }).eq("id", call.client_id);
+      ensure(contactError, "Client contact date could not be updated");
       created.contact_updated = true;
 
       // Auto-create tasks (skip duplicates by title for this client)
@@ -168,7 +137,7 @@ Rules:
         .from("tasks").select("title").eq("client_id", call.client_id).is("archived_at", null);
       const existingTitles = new Set((existingTasks ?? []).map((t: any) => (t.title ?? "").toLowerCase().trim()));
 
-      for (const item of items) {
+      for (const [itemIndex, item] of items.entries()) {
         if (!item?.title) continue;
         if ((item.owner ?? "vektiss") !== "vektiss") continue;
         const t = String(item.title).trim();
@@ -177,7 +146,7 @@ Rules:
         const due = new Date();
         due.setDate(due.getDate() + days);
         const priority = ["high", "medium", "low"].includes(item.priority) ? item.priority : "medium";
-        await admin.from("tasks").insert({
+        const { error: taskError } = await admin.from("tasks").upsert({
           title: t,
           description: `[From ${call.call_type} call ${callDay}] ${item.description ?? ""}`.trim(),
           status: "todo",
@@ -187,7 +156,9 @@ Rules:
           ai_generated: true,
           needs_review: true,
           source_call_id: call.id,
-        });
+          ai_source_key: `${call.id}:task:${itemIndex}`,
+        }, { onConflict: "ai_source_key", ignoreDuplicates: true });
+        ensure(taskError, "Follow-up task could not be saved");
         created.tasks++;
       }
 
@@ -213,14 +184,16 @@ Rules:
         ].filter(Boolean).join("\n");
 
         const createdBy = userId ?? "00000000-0000-0000-0000-000000000000";
-        await admin.from("client_notes").insert({
+        const { error: noteError } = await admin.from("client_notes").upsert({
           client_id: call.client_id,
           type: "meeting",
           title: noteTitle,
           content: noteContent,
           meeting_date: call.call_date,
           created_by: createdBy,
-        });
+          ai_source_key: `${call.id}:recap`,
+        }, { onConflict: "ai_source_key", ignoreDuplicates: true });
+        ensure(noteError, "Call recap could not be saved");
         created.note = true;
       }
 
@@ -241,17 +214,20 @@ Rules:
 
         // Append to goals history timeline
         const createdBy = userId ?? "00000000-0000-0000-0000-000000000000";
-        await admin.from("client_notes").insert({
+        const { error: goalsError } = await admin.from("client_notes").upsert({
           client_id: call.client_id,
           type: "goals",
           title: `Goals from call — ${callDay}`,
           content: profileUpdate.aspirations,
           meeting_date: call.call_date,
           created_by: createdBy,
-        });
+          ai_source_key: `${call.id}:goals`,
+        }, { onConflict: "ai_source_key", ignoreDuplicates: true });
+        ensure(goalsError, "Client goals could not be saved");
         created.goals_logged = true;
       }
-      await admin.from("clients").update(profileUpdate).eq("id", call.client_id);
+      const { error: profileError } = await admin.from("clients").update(profileUpdate).eq("id", call.client_id);
+      ensure(profileError, "Client briefing could not be updated");
 
       // File scope changes as approval requests for admin review
       const scopeChanges: string[] = Array.isArray(analysis.scope_changes) ? analysis.scope_changes : [];
@@ -266,16 +242,18 @@ Rules:
           .maybeSingle();
         if (activeProject?.id) {
           const submittedBy = userId ?? "00000000-0000-0000-0000-000000000000";
-          for (const change of scopeChanges) {
+          for (const [changeIndex, change] of scopeChanges.entries()) {
             if (!change || !String(change).trim()) continue;
-            await admin.from("approval_requests").insert({
+            const { error: approvalError } = await admin.from("approval_requests").upsert({
               client_id: call.client_id,
               project_id: activeProject.id,
               title: `Scope change proposed — ${callDay}`,
               description: String(change).trim(),
               status: "pending",
               submitted_by: submittedBy,
-            });
+              ai_source_key: `${call.id}:scope:${changeIndex}`,
+            }, { onConflict: "ai_source_key", ignoreDuplicates: true });
+            ensure(approvalError, "Scope proposal could not be saved");
           }
           created.scope_proposals = scopeChanges.length;
         }
@@ -296,8 +274,10 @@ Rules:
             title: `Attach assets for ${clientName}?`,
             body: `A call was just analyzed. Did you reference a Gamma deck, Dropbox folder, or other materials? Add them to the Latest Briefing so the team has full context.`,
             link,
+            ai_source_key: `${call.id}:assets:${uid}`,
           }));
-          await admin.from("notifications").insert(rows);
+          const { error: notificationError } = await admin.from("notifications").upsert(rows, { onConflict: "ai_source_key", ignoreDuplicates: true });
+          ensure(notificationError, "Asset notification could not be saved");
           created.assets_prompt = adminIds.length;
         }
       } catch (_) { /* non-fatal */ }
@@ -328,16 +308,24 @@ Rules:
           .eq("title", title)
           .maybeSingle();
         if (!existingSummary) {
-          await admin.from("company_summaries").insert({
+          const { error: companySummaryError } = await admin.from("company_summaries").upsert({
             title,
             content: summaryBody,
             summary_date: callDay,
             created_by: createdBy,
-          });
+            ai_source_key: `${call.id}:company`,
+          }, { onConflict: "ai_source_key", ignoreDuplicates: true });
+          ensure(companySummaryError, "Company summary could not be saved");
           created.company_summary = true;
         }
       } catch (_) { /* non-fatal */ }
     }
+
+    const { error: completedError } = await admin
+      .from("call_intelligence")
+      .update({ analysis_pending: false })
+      .eq("id", call.id);
+    ensure(completedError, "Analysis completion could not be recorded");
 
     return new Response(JSON.stringify({ ok: true, analysis, created }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },

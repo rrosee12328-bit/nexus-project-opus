@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { openAIChat } from "../_shared/openai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,8 +8,6 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
-const MODEL = "google/gemini-2.5-flash";
 
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } });
 
@@ -53,17 +52,12 @@ Return ONLY a JSON object: { "actions": Action[] }.`;
 
 async function classify(input: string): Promise<{ actions: Action[] }> {
   const now = new Date().toISOString();
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${LOVABLE_API_KEY}` },
-    body: JSON.stringify({
-      model: MODEL,
+  const res = await openAIChat("brain-route", {
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: SYSTEM },
         { role: "user", content: `NOW: ${now}\n\nDUMP:\n${input}` },
       ],
-    }),
   });
   if (!res.ok) {
     const t = await res.text();

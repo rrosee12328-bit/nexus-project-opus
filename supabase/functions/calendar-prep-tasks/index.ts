@@ -1,5 +1,4 @@
-// Generates prep tasks for upcoming calendar events (today/this week/this month)
-// and backfills AI analysis for any call_intelligence rows that lack it.
+// Generates prep tasks for upcoming calendar events (today/this week/this month).
 // Idempotent: dedupes prep tasks by source key in description.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
@@ -86,39 +85,13 @@ async function createPrepTasksForUpcomingEvents() {
   return { events: events.length, created };
 }
 
-async function backfillUnanalyzedCalls(limit = 25) {
-  const { data: calls } = await admin
-    .from("call_intelligence")
-    .select("id")
-    .is("ai_analysis", null)
-    .not("summary", "is", null)
-    .order("call_date", { ascending: false })
-    .limit(limit);
-
-  if (!calls?.length) return { analyzed: 0 };
-
-  let ok = 0;
-  await Promise.all(
-    calls.map(async (c) => {
-      try {
-        const r = await fetch(`${SUPABASE_URL}/functions/v1/analyze-call`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_ROLE}` },
-          body: JSON.stringify({ call_id: c.id }),
-        });
-        if (r.ok) ok++;
-      } catch (_) { /* ignore */ }
-    })
-  );
-  return { analyzed: ok, attempted: calls.length };
-}
-
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     // No auth required: gated by service-role secret in cron and admin manual triggers
     const prep = await createPrepTasksForUpcomingEvents();
-    const calls = await backfillUnanalyzedCalls();
+    // Meeting analysis is exclusively staff initiated; never backfill on a timer.
+    const calls = { analyzed: 0, manual_only: true };
     return new Response(JSON.stringify({ ok: true, prep, calls }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

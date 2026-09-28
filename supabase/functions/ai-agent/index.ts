@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { openAIChat } from '../_shared/openai.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1750,42 +1751,19 @@ Deno.serve(async (req) => {
       ...messages,
     ]
 
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY')
-    
-    // Use Lovable AI gateway (preferred) or fall back to OpenAI
-    const apiUrl = lovableApiKey
-      ? 'https://ai.gateway.lovable.dev/v1/chat/completions'
-      : 'https://api.openai.com/v1/chat/completions'
-    const apiKey = lovableApiKey || openaiApiKey
-    const model = lovableApiKey ? 'google/gemini-2.5-flash' : 'gpt-4o'
-
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'No AI API key configured' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
 
     const actionLog: { tool: string; risk: string; result: string }[] = []
     let maxIterations = 10
 
     while (maxIterations-- > 0) {
       let aiResponse: Response | null = null
-      const maxRetries = 3
+      const maxRetries = 1
       for (let attempt = 0; attempt < maxRetries; attempt++) {
-        aiResponse = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model,
+        aiResponse = await openAIChat('ai-agent', {
             messages: aiMessages,
             tools,
             tool_choice: 'auto',
             stream: false,
-          }),
         })
 
         if (aiResponse.ok) break
@@ -1808,7 +1786,7 @@ Deno.serve(async (req) => {
           })
         }
         if (status === 402) {
-          return new Response(JSON.stringify({ error: 'AI credits exhausted. Please add funds in workspace settings.' }), {
+          return new Response(JSON.stringify({ error: 'Monthly AI allowance reached. Core portal features remain available.' }), {
             status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           })
         }

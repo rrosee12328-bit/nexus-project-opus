@@ -1,4 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { openAIChat, AI_MODEL } from "../_shared/openai.ts";
+import { authorizedStaff } from "../_shared/staff-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,8 +9,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
-const MODEL = "google/gemini-2.5-flash-lite";
+const MODEL = AI_MODEL;
 
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
   auth: { persistSession: false },
@@ -113,16 +114,12 @@ async function callAI(contextText: string) {
     },
   }];
 
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
+  const res = await openAIChat("generate-client-summary", {
       model: MODEL,
       messages: [{ role: "system", content: system }, { role: "user", content: contextText }],
       tools,
       tool_choice: { type: "function", function: { name: "client_briefing" } },
-    }),
-  });
+  }, { cacheKey: "briefing-v1" });
 
   if (!res.ok) {
     const t = await res.text();
@@ -199,6 +196,7 @@ async function processOne(client_id: string, force = false): Promise<{ client_id
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (!await authorizedStaff(req)) return Response.json({ error: "Staff access required" }, { status: 403, headers: corsHeaders });
 
   try {
     const body = await req.json().catch(() => ({}));

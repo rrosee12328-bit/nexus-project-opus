@@ -1,13 +1,14 @@
 // Score each call's primary topic (linked client vs Vektiss vs Crown And Associates vs Other vs Unclear)
 // using transcript/summary text. Admin only.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
+import { openAIChat } from "../_shared/openai.ts";
+import { authorizedStaff } from "../_shared/staff-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 
 function buildSystemPrompt(clientName: string | null, isInternal: boolean) {
   if (isInternal) {
@@ -35,21 +36,13 @@ const VEKTISS_INTERNAL_CLIENT_ID = "7662c4e3-bf78-494e-b203-40a9ba06fb27";
 
 async function classify(text: string, clientName: string | null, isInternal: boolean): Promise<{ label: string; confidence: number; reason: string } | null> {
   const body = {
-    model: "google/gemini-2.5-flash",
     messages: [
       { role: "system", content: buildSystemPrompt(clientName, isInternal) },
       { role: "user", content: `TRANSCRIPT/SUMMARY:\n${(text || "").slice(0, 12000)}` },
     ],
     response_format: { type: "json_object" },
   };
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-    },
-    body: JSON.stringify(body),
-  });
+  const res = await openAIChat("score-call-attribution", body, { cacheKey: "attribution-v1" });
   if (!res.ok) {
     console.error("gateway error", res.status, await res.text());
     return null;
@@ -73,6 +66,7 @@ async function classify(text: string, clientName: string | null, isInternal: boo
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (!await authorizedStaff(req, ["admin"])) return Response.json({ error: "Admin access required" }, { status: 403, headers: corsHeaders });
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,

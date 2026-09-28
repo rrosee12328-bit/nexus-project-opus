@@ -16,7 +16,7 @@ Deno.serve(async req => {
     if (runError || !run || run.status !== "failed") return new Response(JSON.stringify({ error: "Only failed updates can be retried" }), { status: 409, headers });
     let response: Response;
     if (run.provider === "fathom") {
-      response = await fetch(`${url}/functions/v1/fathom-sync`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` }, body: JSON.stringify({ call_id: run.external_id }) });
+      response = await fetch(`${url}/functions/v1/fathom-sync`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: req.headers.get("Authorization")! }, body: JSON.stringify({ call_id: run.external_id }) });
     } else if (run.provider === "stripe") {
       const stripeResponse = await fetch(`https://api.stripe.com/v1/events/${encodeURIComponent(run.external_id)}`, { headers: { Authorization: `Bearer ${Deno.env.get("STRIPE_SECRET_KEY")}` } });
       if (!stripeResponse.ok) throw new Error("Could not retrieve the original Stripe event");

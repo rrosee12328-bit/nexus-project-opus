@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { openAIChat } from "../_shared/openai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,13 +22,6 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { data: session } = await admin.from("onboarding_sessions").select("*").eq("id", body.session_id).eq("client_id", client.id).maybeSingle();
     if (!session || session.status === "completed") return json({ error: "Onboarding session is unavailable" }, 409);
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
-    const openAiApiKey = Deno.env.get("OPENAI_API_KEY");
-    const apiKey = lovableApiKey || openAiApiKey;
-    const aiUrl = lovableApiKey
-      ? "https://ai.gateway.lovable.dev/v1/chat/completions"
-      : "https://api.openai.com/v1/chat/completions";
-    if (!apiKey) return json({ error: "AI provider is not configured" }, 500);
 
     const { data: responses } = await admin.from("onboarding_responses")
       .select("question_key, question_prompt, answer_text, transcript_text, created_at")
@@ -35,7 +29,7 @@ Deno.serve(async (req) => {
 
     if (body.action === "summarize") {
       const source = (responses || []).map((item) => `Question: ${item.question_prompt}\nAnswer: ${item.transcript_text || item.answer_text || ""}`).join("\n\n");
-      const summary = await ask(aiUrl, apiKey, `Create a concise, client-facing onboarding brief from the source answers below. Use these headings: Business Overview, Goals, Audience, Brand Voice, Success Measures, Approval Process, Assets and Access, Service-Specific Details, and Open Items. Do not invent facts, mention internal systems, or include anything not stated by the client.\n\n${source}`);
+      const summary = await ask(`Create a concise, client-facing onboarding brief from the source answers below. Use these headings: Business Overview, Goals, Audience, Brand Voice, Success Measures, Approval Process, Assets and Access, Service-Specific Details, and Open Items. Do not invent facts, mention internal systems, or include anything not stated by the client.\n\n${source}`);
       await admin.from("onboarding_sessions").update({ status: "review", approved_summary: summary, pending_follow_up: null, pending_follow_up_for_key: null }).eq("id", session.id);
       return json({ summary });
     }
@@ -50,7 +44,7 @@ Deno.serve(async (req) => {
 
     let followUp: string | null = null;
     if (followUpCount < 2) {
-      const result = await ask(aiUrl, apiKey, `You are conducting a client onboarding interview. Decide whether one concise clarification is necessary to make the answer usable. Never ask about internal pricing, competitors' confidential information, credentials, passwords, or unrelated personal data. Return only JSON in this form: {"complete":true,"follow_up":null} or {"complete":false,"follow_up":"question"}.\n\nQuestion: ${response.question_prompt}\nAnswer: ${answer}`);
+      const result = await ask(`You are conducting a client onboarding interview. Decide whether one concise clarification is necessary to make the answer usable. Never ask about internal pricing, competitors' confidential information, credentials, passwords, or unrelated personal data. Return only JSON in this form: {"complete":true,"follow_up":null} or {"complete":false,"follow_up":"question"}.\n\nQuestion: ${response.question_prompt}\nAnswer: ${answer}`);
       try {
         const parsed = JSON.parse(result.replace(/^```json\s*|\s*```$/g, ""));
         if (parsed.complete === false && typeof parsed.follow_up === "string") followUp = parsed.follow_up.trim();
@@ -76,12 +70,8 @@ Deno.serve(async (req) => {
   }
 });
 
-async function ask(aiUrl: string, apiKey: string, prompt: string) {
-  const response = await fetch(aiUrl, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "gpt-4o-mini", temperature: 0.1, messages: [{ role: "user", content: prompt }] }),
-  });
+async function ask(prompt: string) {
+  const response = await openAIChat("onboarding-interview", { temperature: 0.1, messages: [{ role: "user", content: prompt }] });
   if (!response.ok) throw new Error(`Onboarding AI failed (${response.status})`);
   const data = await response.json();
   return String(data.choices?.[0]?.message?.content || "").trim();

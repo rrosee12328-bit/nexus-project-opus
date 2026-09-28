@@ -1,4 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { openAIChat } from '../_shared/openai.ts'
+import { authorizedStaff } from '../_shared/staff-auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,6 +33,7 @@ Deno.serve(async (req) => {
   }
 
   try {
+    if (!await authorizedStaff(req)) return new Response(JSON.stringify({ error: 'Staff access required' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     const { servicesDescription, clientName, companyName, setupFee, monthlyFee, billingSchedule } = await req.json()
 
     if (!servicesDescription || typeof servicesDescription !== 'string') {
@@ -39,12 +42,6 @@ Deno.serve(async (req) => {
       })
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: 'AI not configured' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
 
     const billingLabel = billingSchedule === 'bimonthly'
       ? `$${(Number(monthlyFee) / 2).toFixed(2)} bi-monthly (15th & 30th)`
@@ -70,19 +67,11 @@ Rules:
 
 Context: Setup fee is $${setupFee || 0}, billing is ${billingLabel}.`
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
+    const aiResponse = await openAIChat('polish-proposal', {
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
-      }),
     })
 
     if (!aiResponse.ok) {

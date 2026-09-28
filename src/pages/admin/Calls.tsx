@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { MeetingTranscript } from "@/components/admin/MeetingTranscript";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -129,6 +129,12 @@ export default function AdminCalls() {
   const [filterType, setFilterType] = useState<string>("all");
   const [brainFilter, setBrainFilter] = useState<"all" | "ingested" | "missing_summary" | "missing_client" | "flagged" | "edited">("all");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const syncLock = useRef(false);
+  const [syncFrom, setSyncFrom] = useState("");
+  const [syncTo, setSyncTo] = useState("");
+  const [syncSummary, setSyncSummary] = useState("");
   const [editingCall, setEditingCall] = useState<CallRecord | null>(null);
   const [viewingCall, setViewingCall] = useState<CallRecord | null>(null);
   const [transcriptExpanded, setTranscriptExpanded] = useState(false);
@@ -390,24 +396,33 @@ export default function AdminCalls() {
     }
   };
 
-  const syncFathom = async (opts: { call_id?: string; sync_all_missing?: boolean }) => {
+  const syncFathom = async (opts: { call_id?: string; sync_all_missing?: boolean; date_from?: string; date_to?: string }) => {
+    if (syncLock.current) return;
+    syncLock.current = true;
+    setSyncing(true);
+    setSyncSummary("");
     const toastId = toast.loading(opts.sync_all_missing ? "Syncing missing calls from Fathom…" : "Syncing from Fathom…");
     try {
       const { data, error } = await supabase.functions.invoke("fathom-sync", { body: opts });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       const results = (data as any)?.results ?? [];
       const updated = results.filter((r: any) => !r.error && (r.updated?.length ?? 0) > 0).length;
       const errored = results.filter((r: any) => r.error).length;
       const inserted = (data as any)?.inserted ?? 0;
       const timeEntries = results.filter((r: any) => r.time_entry_id).length;
-      toast.success(
-        `${inserted ? `Imported ${inserted} new · ` : ""}Synced ${updated} call${updated === 1 ? "" : "s"}${timeEntries ? ` · Logged ${timeEntries} meeting time entr${timeEntries === 1 ? "y" : "ies"}` : ""}${errored ? ` (${errored} failed)` : ""}`,
-        { id: toastId },
-      );
+      const pending = results.filter((r: any) => r.analysis_status === "pending").length;
+      const summary = `${inserted} imported · ${data?.updated ?? updated} updated · ${data?.unchanged ?? 0} unchanged · ${data?.failed ?? errored} failed${pending ? ` · ${pending} analyses pending manual retry` : ""}${timeEntries ? ` · ${timeEntries} time entries linked` : ""}`;
+      setSyncSummary(summary);
+      toast.success(summary, { id: toastId });
       queryClient.invalidateQueries({ queryKey: ["call-intelligence"] });
       queryClient.invalidateQueries({ queryKey: ["time-entries"] });
     } catch (e: any) {
+      setSyncSummary(e.message || "Fathom sync failed. Retry manually when ready.");
       toast.error(e.message || "Fathom sync failed", { id: toastId });
+    } finally {
+      syncLock.current = false;
+      setSyncing(false);
     }
   };
 
@@ -448,6 +463,20 @@ export default function AdminCalls() {
 
   return (
     <div className="space-y-6 p-6">
+      <Dialog open={syncOpen} onOpenChange={setSyncOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Sync from Fathom</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Default: last 60 days. Recordings, transcripts, and meeting time import only when you start a sync.</p>
+          <p className="text-xs text-muted-foreground">For older meetings, choose both dates below. Leave both blank to use the default window. Date boundaries are UTC.</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label htmlFor="fathom-from">From</Label><Input id="fathom-from" type="date" value={syncFrom} disabled={syncing} onChange={e => setSyncFrom(e.target.value)} /></div>
+            <div><Label htmlFor="fathom-to">Through</Label><Input id="fathom-to" type="date" value={syncTo} disabled={syncing} onChange={e => setSyncTo(e.target.value)} /></div>
+          </div>
+          {syncing && <p role="status" className="text-sm">Importing recordings and transcripts, linking time, then checking analysis. Keep this window open.</p>}
+          {syncSummary && <p role="status" className="text-sm">{syncSummary}</p>}
+          <DialogFooter><Button variant="outline" onClick={() => setSyncOpen(false)}>Close</Button><Button disabled={syncing || Boolean((syncFrom || syncTo) && (!syncFrom || !syncTo || syncFrom > syncTo))} onClick={() => void syncFathom({ sync_all_missing: true, ...(syncFrom && syncTo ? { date_from: syncFrom, date_to: syncTo } : {}) })}><RefreshCw className={`mr-2 h-4 w-4 ${syncing ? "animate-spin" : ""}`} />{syncing ? "Syncing..." : "Start sync"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
       <PageHero
         kicker={<><Phone className="h-3 w-3" />Vektiss / Calls</>}
         title="Call Intelligence"
@@ -457,7 +486,7 @@ export default function AdminCalls() {
             <Button variant="outline" onClick={() => scoreAttribution({ rescore_all: true })}>
               <Target className="h-4 w-4 mr-2" /> Rescore Topics
             </Button>
-            <Button variant="outline" onClick={() => syncFathom({ sync_all_missing: true })}>
+            <Button variant="outline" disabled={syncing} onClick={() => setSyncOpen(true)}>
               <RefreshCw className="h-4 w-4 mr-2" /> Sync from Fathom
             </Button>
             <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" /> Log Call</Button>
@@ -568,7 +597,7 @@ export default function AdminCalls() {
                 {brainStats.missingClient > 0 && <>⚠ {brainStats.missingClient} call{brainStats.missingClient === 1 ? "" : "s"} not linked to a client. </>}
                 Run a Fathom sync to backfill.
               </span>
-              <Button size="sm" variant="outline" onClick={() => syncFathom({ sync_all_missing: true })}>
+              <Button size="sm" variant="outline" disabled={syncing} onClick={() => setSyncOpen(true)}>
                 <RefreshCw className="h-3 w-3 mr-1" /> Sync missing
               </Button>
             </div>

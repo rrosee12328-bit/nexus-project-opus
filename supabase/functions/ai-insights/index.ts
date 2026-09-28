@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { openAIChat } from "../_shared/openai.ts";
+import { authorizedStaff } from "../_shared/staff-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,11 +14,11 @@ const corsHeaders = {
  */
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (!await authorizedStaff(req, ["admin"])) return Response.json({ error: "Admin access required" }, { status: 403, headers: corsHeaders });
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     // Verify caller is admin
@@ -82,14 +84,7 @@ DATA SNAPSHOT (${now.toLocaleDateString()}):
 - Top overdue: ${overdueTasks.slice(0, 5).map(t => `"${t.title}" (${t.due_date})`).join(", ") || "none"}
 `;
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${lovableKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+    const aiRes = await openAIChat("ai-insights", {
         messages: [
           {
             role: "system",
@@ -103,8 +98,7 @@ Be specific with real numbers. No generic advice. Focus on what's most important
           },
           { role: "user", content: contextForAI }
         ],
-      }),
-    });
+    }, { cacheKey: "insights-v1" });
 
     if (!aiRes.ok) {
       if (aiRes.status === 429 || aiRes.status === 402) {
