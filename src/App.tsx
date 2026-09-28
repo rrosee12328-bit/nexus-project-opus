@@ -63,6 +63,7 @@ import ClientApprovals from "./pages/client/Approvals";
 import ClientContracts from "./pages/client/Contracts";
 import ClientCalls from "./pages/client/Calls";
 import ClientActions from "./pages/client/Actions";
+import ClientScheduleCall from "./pages/client/ScheduleCall";
 
 const queryClient = new QueryClient();
 
@@ -176,6 +177,7 @@ const App = () => (
               <Route path="agent" element={<Navigate to="/portal" replace />} />
               <Route path="calls" element={<ClientCalls />} />
               <Route path="actions" element={<ClientActions />} />
+              <Route path="schedule" element={<ClientScheduleCall />} />
               <Route path="settings" element={<ClientSettings />} />
             </Route>
 
