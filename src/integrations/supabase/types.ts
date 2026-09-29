@@ -1142,6 +1142,10 @@ export type Database = {
           notes: string | null
           phone: string | null
           pipeline_stage: string | null
+          portal_access_status: string
+          portal_activated_at: string | null
+          portal_invited_at: string | null
+          portal_primary_project_id: string | null
           profitability_sheet_url: string | null
           proposal_id: string | null
           setup_fee: number | null
@@ -1178,6 +1182,10 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           pipeline_stage?: string | null
+          portal_access_status?: string
+          portal_activated_at?: string | null
+          portal_invited_at?: string | null
+          portal_primary_project_id?: string | null
           profitability_sheet_url?: string | null
           proposal_id?: string | null
           setup_fee?: number | null
@@ -1214,6 +1222,10 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           pipeline_stage?: string | null
+          portal_access_status?: string
+          portal_activated_at?: string | null
+          portal_invited_at?: string | null
+          portal_primary_project_id?: string | null
           profitability_sheet_url?: string | null
           proposal_id?: string | null
           setup_fee?: number | null
@@ -2607,6 +2619,7 @@ export type Database = {
           nda_signed_name: string | null
           paid_at: string | null
           project_deposit_paid_at: string | null
+          project_id: string | null
           project_name: string | null
           project_number: string | null
           project_total: number | null
@@ -2649,6 +2662,7 @@ export type Database = {
           nda_signed_name?: string | null
           paid_at?: string | null
           project_deposit_paid_at?: string | null
+          project_id?: string | null
           project_name?: string | null
           project_number?: string | null
           project_total?: number | null
@@ -2691,6 +2705,7 @@ export type Database = {
           nda_signed_name?: string | null
           paid_at?: string | null
           project_deposit_paid_at?: string | null
+          project_id?: string | null
           project_name?: string | null
           project_number?: string | null
           project_total?: number | null
@@ -2710,6 +2725,13 @@ export type Database = {
           view_count?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "proposals_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "proposals_client_id_fkey"
             columns: ["client_id"]
@@ -3435,6 +3457,7 @@ export type Database = {
       }
     }
     Functions: {
+      activate_my_client_portal: { Args: never; Returns: string }
       submit_intake_response: { Args: { _token: string; _response: Json }; Returns: string }
       archive_done_tasks: { Args: never; Returns: undefined }
       convert_lead_to_proposal: {

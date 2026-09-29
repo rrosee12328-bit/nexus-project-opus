@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { AuthShell } from "@/components/auth/AuthShell";
 export default function ResetPassword() {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -58,8 +59,9 @@ export default function ResetPassword() {
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Password updated", description: "You can now sign in with your new password." });
-      navigate("/login", { replace: true });
+      toast({ title: "Workspace activated", description: "Your password is set and your project is ready." });
+      const next = searchParams.get("next");
+      navigate(next?.startsWith("/portal") ? next : "/portal", { replace: true });
     }
   };
 

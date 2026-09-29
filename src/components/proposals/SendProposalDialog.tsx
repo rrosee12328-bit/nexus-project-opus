@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getAppUrl } from "@/lib/appUrl";
 import { useAuth } from "@/hooks/useAuth";
@@ -55,6 +55,7 @@ export function SendProposalDialog({
   const queryClient = useQueryClient();
 
   const [proposalType, setProposalType] = useState<ProposalType>("retainer");
+  const [projectId, setProjectId] = useState("new");
   const [projectName, setProjectName] = useState(defaultProjectName);
   const [monthlyFee, setMonthlyFee] = useState(String(defaultMonthlyFee || ""));
   const [setupFee, setSetupFee] = useState(String(defaultSetupFee || ""));
@@ -73,8 +74,23 @@ export function SendProposalDialog({
   const [generating, setGenerating] = useState(false);
   const [showReview, setShowReview] = useState(false);
 
+  const { data: existingProjects = [] } = useQuery({
+    queryKey: ["proposal-client-projects", clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("projects")
+        .select("id, name, status")
+        .eq("client_id", clientId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: open && !!clientId,
+  });
+
   const reset = () => {
     setProposalType("retainer");
+    setProjectId("new");
     setProjectName(defaultProjectName);
     setMonthlyFee(String(defaultMonthlyFee || ""));
     setSetupFee(String(defaultSetupFee || ""));
@@ -101,6 +117,8 @@ export function SendProposalDialog({
 
   // Validation per type
   const isValid = (() => {
+    const hasProject = projectId !== "new" || !!projectName.trim();
+    if (!hasProject) return false;
     if (proposalType === "hourly") return Number(hourlyRate) > 0;
     if (proposalType === "project") return Number(projectTotal) > 0;
     const hasMonthlyFee = Number(monthlyFee) > 0;
@@ -111,10 +129,13 @@ export function SendProposalDialog({
   // Build the proposal row payload
   const buildPayload = (status: "sent" | "draft" | "signed") => ({
     client_id: clientId,
+    project_id: projectId === "new" ? null : projectId,
     client_name: clientName,
     client_email: clientEmail || null,
     proposal_type: proposalType,
-    project_name: projectName.trim() || null,
+    project_name: projectId === "new"
+      ? projectName.trim()
+      : existingProjects.find((project) => project.id === projectId)?.name || projectName.trim(),
     monthly_fee: proposalType === "retainer" ? (Number(monthlyFee) || 0) : 0,
     setup_fee: proposalType === "retainer" ? (Number(setupFee) || 0) : 0,
     setup_paid: proposalType === "retainer"
@@ -345,10 +366,26 @@ export function SendProposalDialog({
 
               {/* Project identity */}
               <div className="space-y-1.5">
-                <Label className="text-xs">Project Name</Label>
-                <Input value={projectName} onChange={(e) => setProjectName(e.target.value)}
-                  placeholder="e.g. AI Chatbot Implementation" />
-                <p className="text-[11px] text-muted-foreground">Project number is auto-generated.</p>
+                <Label className="text-xs">Client Workspace Project *</Label>
+                <Select value={projectId} onValueChange={(value) => {
+                  setProjectId(value);
+                  if (value !== "new") {
+                    setProjectName(existingProjects.find((project) => project.id === value)?.name || "");
+                  }
+                }}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="new">Create a new project after payment</SelectItem>
+                    {existingProjects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {projectId === "new" && (
+                  <Input value={projectName} onChange={(e) => setProjectName(e.target.value)}
+                    placeholder="e.g. AI Chatbot Implementation" />
+                )}
+                <p className="text-[11px] text-muted-foreground">Portal access is tied to this project. A generic signup link is not created.</p>
               </div>
 
               {/* Financial Terms — varies by type */}

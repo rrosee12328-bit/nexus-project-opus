@@ -34,6 +34,11 @@ export default function ClientLayout() {
     enabled: !!user?.id,
   });
 
+  useEffect(() => {
+    if (!clientId) return;
+    void supabase.rpc("activate_my_client_portal");
+  }, [clientId]);
+
   const { data: profile } = useQuery({
     queryKey: ["client-profile", user?.id],
     queryFn: async () => {

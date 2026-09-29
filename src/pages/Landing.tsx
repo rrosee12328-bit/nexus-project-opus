@@ -39,7 +39,7 @@ export default function Landing() {
           </Button>
           <Button asChild size="sm" className="shadow-glow">
             <Link to="/signup">
-              Request access <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              Client access <ArrowRight className="ml-1 h-3.5 w-3.5" />
             </Link>
           </Button>
         </div>
@@ -62,7 +62,7 @@ export default function Landing() {
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Button asChild size="lg" className="shadow-glow">
               <Link to="/signup">
-                Launch your portal <ArrowRight className="ml-2 h-4 w-4" />
+                Client access <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="bg-background/40 backdrop-blur-md">

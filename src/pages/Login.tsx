@@ -150,9 +150,9 @@ export default function Login() {
             </Button>
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">
-            Don't have an account?{" "}
+            Need portal access?{" "}
             <Link to="/signup" className="text-primary hover:underline">
-              Sign up
+              Learn how access works
             </Link>
           </p>
         </CardContent>

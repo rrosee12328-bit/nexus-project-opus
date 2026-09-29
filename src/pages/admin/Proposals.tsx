@@ -63,6 +63,7 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
   onCreated: () => void;
 }) {
   const { user } = useAuth();
+  const [clientId, setClientId] = useState("");
   const [step, setStep] = useState<DialogStep>("input");
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
@@ -87,8 +88,23 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
   const [copied, setCopied] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
 
+  const { data: clients = [] } = useQuery({
+    queryKey: ["proposal-client-options"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("clients")
+        .select("id, name, email, status")
+        .neq("status", "closed")
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+    enabled: open,
+  });
+
   const reset = () => {
     setStep("input");
+    setClientId("");
     setClientName(""); setClientEmail(""); setCompanyName("");
     setProposalType("retainer");
     setProjectName("");
@@ -136,12 +152,13 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
   };
 
   const handleCreate = async () => {
-    if (!user || !clientName.trim()) return;
+    if (!user || !clientId || !clientName.trim() || !projectName.trim()) return;
     setCreating(true);
     try {
       const finalDescription = polishedDescription.trim() || servicesDescription.trim() || null;
       const { data, error } = await supabase.from("proposals").insert({
         token: createProposalToken(),
+        client_id: clientId,
         client_name: clientName.trim(),
         client_email: clientEmail.trim() || null,
         company_name: companyName.trim() || null,
@@ -178,7 +195,7 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
   };
 
   const handleGenerateNow = async () => {
-    if (!user || !clientName.trim()) return;
+    if (!user || !clientId || !clientName.trim() || !projectName.trim()) return;
     setGenerating(true);
     try {
       const adminName = user.email?.split("@")[0] || "Vektiss Admin";
@@ -187,6 +204,7 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
         .from("proposals")
         .insert({
           token: createProposalToken(),
+          client_id: clientId,
           client_name: clientName.trim(),
           client_email: clientEmail.trim() || null,
           company_name: companyName.trim() || null,
@@ -297,22 +315,24 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
         {step === "input" && (
           <>
             <div className="space-y-4 py-2">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Client Name *</Label>
-                  <Input value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="e.g. Greg McCann" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Company Name</Label>
-                  <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="e.g. Crown & Associates" />
-                </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Client Record *</Label>
+                <Select value={clientId} onValueChange={(value) => {
+                  setClientId(value);
+                  const client = clients.find((item) => item.id === value);
+                  setClientName(client?.name || "");
+                  setClientEmail(client?.email || "");
+                  setCompanyName(client?.name || "");
+                }}>
+                  <SelectTrigger><SelectValue placeholder="Choose the client receiving this proposal" /></SelectTrigger>
+                  <SelectContent>
+                    {clients.map((client) => <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">The payment and resulting portal login will be connected to this client record.</p>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Client Email</Label>
-                <Input type="email" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} placeholder="client@example.com" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Project Name</Label>
+                <Label className="text-xs">Project Name *</Label>
                 <Input value={projectName} onChange={(e) => setProjectName(e.target.value)}
                   placeholder="e.g. AI Chatbot Implementation" />
                 <p className="text-[11px] text-muted-foreground">Project number is auto-generated.</p>
@@ -445,7 +465,7 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
             <DialogFooter className="flex-col sm:flex-row gap-2">
               <Button variant="outline" onClick={() => onOpenChange(false)} className="sm:mr-auto">Cancel</Button>
               <Button variant="outline" onClick={handleGenerateNow}
-                disabled={generating || polishing || creating || !clientName.trim() || (proposalType === "retainer" && Number(monthlyFee) > 0 && billingSchedule === "monthly" && !isStripeBillingStartDateValid(billingStartDate))}>
+                disabled={generating || polishing || creating || !clientId || !clientName.trim() || !projectName.trim() || (proposalType === "retainer" && Number(monthlyFee) > 0 && billingSchedule === "monthly" && !isStripeBillingStartDateValid(billingStartDate))}>
                 {generating ? (
                   <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Generating...</>
                 ) : (
@@ -453,7 +473,7 @@ function QuickCreateDialog({ open, onOpenChange, onCreated }: {
                 )}
               </Button>
               <Button onClick={handlePolishAndPreview}
-                disabled={polishing || generating || !clientName.trim() || (proposalType === "retainer" && Number(monthlyFee) > 0 && billingSchedule === "monthly" && !isStripeBillingStartDateValid(billingStartDate))}>
+                disabled={polishing || generating || !clientId || !clientName.trim() || !projectName.trim() || (proposalType === "retainer" && Number(monthlyFee) > 0 && billingSchedule === "monthly" && !isStripeBillingStartDateValid(billingStartDate))}>
                 {polishing ? (
                   <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Polishing...</>
                 ) : (

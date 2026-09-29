@@ -5,8 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const FROM_EMAIL = 'Vektiss <noreply@mail.vektiss.com>'
-const SENDER_DOMAIN = 'mail.vektiss.com'
+const FROM_EMAIL = 'Vektiss <client@vektiss.com>'
+const SENDER_DOMAIN = 'vektiss.com'
 const PORTAL_URL = 'https://portal.vektiss.com'
 
 function buildEmailHtml(title: string, body: string, ctaLabel?: string, ctaUrl?: string): string {

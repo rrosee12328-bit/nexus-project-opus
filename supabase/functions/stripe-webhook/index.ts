@@ -206,7 +206,7 @@ async function handleBimonthlySetup(supabase: any, session: any) {
   // Get proposal client name
   const { data: proposal } = await supabase
     .from("proposals")
-    .select("client_name, setup_fee, monthly_fee, client_email")
+    .select("id, client_name, setup_fee, monthly_fee, client_email, project_id")
     .eq("id", proposalId)
     .single();
 
@@ -280,6 +280,9 @@ async function handleBimonthlySetup(supabase: any, session: any) {
           name: proposal.client_name,
         })
         .eq("id", clientId);
+
+      const projectId = await ensureProposalProject(supabase, clientId, proposal);
+      await provisionClientWorkspace(clientId, projectId);
     }
   }
 }
@@ -442,7 +445,7 @@ async function handleProposalPayment(supabase: any, session: any) {
 
   const { data: proposal, error: proposalError } = await supabase
     .from("proposals")
-    .select("client_id, converted_to_client_id, setup_fee, setup_paid, monthly_fee, project_total, project_name, client_email, client_name, created_by, project_final_invoice_id, contract_pdf_path")
+    .select("id, client_id, converted_to_client_id, setup_fee, setup_paid, monthly_fee, project_total, project_id, project_name, client_email, client_name, created_by, project_final_invoice_id, contract_pdf_path")
     .eq("id", proposalId)
     .single();
 
@@ -513,21 +516,8 @@ async function handleProposalPayment(supabase: any, session: any) {
       .eq("id", clientId);
     if (clientUpdateError) throw clientUpdateError;
 
-    if (!client.user_id && proposal.client_email) {
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const inviteResponse = await fetch(`${supabaseUrl}/functions/v1/invite-client`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${serviceRoleKey}`,
-        },
-        body: JSON.stringify({ client_id: clientId }),
-      });
-      if (!inviteResponse.ok) {
-        throw new Error(`Client portal invite failed: ${await inviteResponse.text()}`);
-      }
-    }
+    const projectId = await ensureProposalProject(supabase, clientId, proposal);
+    await provisionClientWorkspace(clientId, projectId);
   }
 
   if (!proposal.contract_pdf_path) {
@@ -612,5 +602,28 @@ async function handleProposalPayment(supabase: any, session: any) {
         .update({ project_final_invoice_id: draft.id })
         .eq("id", proposalId);
     }
+  }
+}
+
+async function ensureProposalProject(supabase: any, clientId: string, proposal: any) {
+  const { data, error } = await supabase.rpc("ensure_proposal_project", {
+    _proposal_id: proposal.id,
+    _client_id: clientId,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
+async function provisionClientWorkspace(clientId: string, projectId: string) {
+  const response = await fetch(`${Deno.env.get("SUPABASE_URL")!}/functions/v1/invite-client`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!}`,
+    },
+    body: JSON.stringify({ client_id: clientId, project_id: projectId, source: "proposal_payment" }),
+  });
+  if (!response.ok) {
+    throw new Error(`Portal provisioning failed: ${await response.text()}`);
   }
 }

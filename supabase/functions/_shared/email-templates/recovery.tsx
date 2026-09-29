@@ -27,7 +27,8 @@ export const RecoveryEmail = ({
     <Preview>Reset your password for {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Heading style={h1}>Reset your password</Heading>
+        <Text style={brand}>VEKTISS</Text>
+        <Heading style={h1}>Reset your Vektiss password</Heading>
         <Text style={text}>
           We received a request to reset your {siteName} account password. Click
           the button below to choose a new password.
@@ -46,22 +47,23 @@ export const RecoveryEmail = ({
 
 export default RecoveryEmail
 
-const main = { backgroundColor: '#ffffff', fontFamily: "'Inter', Arial, sans-serif" }
-const container = { padding: '40px 25px' }
+const main = { backgroundColor: '#080a0d', fontFamily: "'Inter', Arial, sans-serif", padding: '32px 16px' }
+const container = { padding: '32px 28px', backgroundColor: '#111419', border: '1px solid #242a33', borderRadius: '16px' }
+const brand = { color: '#3291ff', fontSize: '12px', fontWeight: '700' as const, letterSpacing: '3px', margin: '0 0 24px' }
 const h1 = {
   fontSize: '24px',
   fontWeight: 'bold' as const,
-  color: '#0d0d0d',
+  color: '#ffffff',
   margin: '0 0 20px',
 }
 const text = {
   fontSize: '14px',
-  color: '#6b6b6b',
+  color: '#aab2bf',
   lineHeight: '1.6',
   margin: '0 0 25px',
 }
 const button = {
-  backgroundColor: 'hsl(213, 100%, 58%)',
+  backgroundColor: '#2588ff',
   color: '#ffffff',
   fontSize: '14px',
   fontWeight: '600' as const,
@@ -69,4 +71,4 @@ const button = {
   padding: '12px 24px',
   textDecoration: 'none',
 }
-const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }
+const footer = { fontSize: '12px', color: '#6f7887', margin: '30px 0 0' }

@@ -1,108 +1,44 @@
-import { useState } from "react";
-import { Link, Navigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
 import { AuthShell } from "@/components/auth/AuthShell";
+import { BriefcaseBusiness, FileSignature, ShieldCheck } from "lucide-react";
 
 export default function Signup() {
-  const { signUp, user, role, loading } = useAuth();
-  const { toast } = useToast();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    );
-  }
-
-  if (user && role) {
-    if (role === "admin") return <Navigate to="/admin" replace />;
-    if (role === "ops") return <Navigate to="/ops" replace />;
-    return <Navigate to="/" replace />;
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    const { error } = await signUp(email, password, displayName);
-    if (error) {
-      toast({ title: "Signup failed", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Check your email", description: "We sent you a confirmation link." });
-    }
-    setSubmitting(false);
-  };
-
   return (
-    <AuthShell kicker="VEKTISS / NEW OPERATOR">
+    <AuthShell kicker="VEKTISS / CLIENT ACCESS">
       <Card className="w-full max-w-md border-border/60 bg-card/70 backdrop-blur-xl shadow-glow relative overflow-hidden">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px edge-line" aria-hidden />
         <CardHeader className="text-center space-y-4">
           <img src="/vektiss-logo.png" alt="Vektiss" className="h-20 mx-auto object-contain" />
           <div className="space-y-1">
-            <p className="kicker text-[10px] text-muted-foreground">SECURE / CREATE ACCOUNT</p>
+            <p className="kicker text-[10px] text-muted-foreground">SECURE / INVITATION REQUIRED</p>
             <CardTitle className="text-2xl font-bold tracking-tight text-foreground">
-              Create Account
+              Your workspace starts with your project
             </CardTitle>
           </div>
           <CardDescription className="text-muted-foreground">
-            Join the Vektiss Portal
+            Client accounts are created from an approved proposal or a project invitation from the Vektiss team.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Display Name</Label>
-              <Input
-                id="name"
-                type="text"
-                placeholder="Your name"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-              />
+          <div className="space-y-3 text-sm">
+            <div className="flex gap-3 rounded-lg border border-border/70 p-3">
+              <FileSignature className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <p><strong>New clients:</strong> use the proposal and payment link sent by Vektiss. Your account invitation follows after the agreement is completed.</p>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
+            <div className="flex gap-3 rounded-lg border border-border/70 p-3">
+              <BriefcaseBusiness className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <p><strong>Current clients:</strong> Vektiss will connect your existing project and email you a private activation link.</p>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-              />
+            <div className="flex gap-3 rounded-lg border border-border/70 p-3 text-muted-foreground">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <p>This keeps every workspace tied to the correct client and project.</p>
             </div>
-            <Button type="submit" className="w-full" disabled={submitting}>
-              {submitting ? "Creating account..." : "Sign Up"}
-            </Button>
-          </form>
-          <p className="mt-4 text-center text-sm text-muted-foreground">
-            Already have an account?{" "}
-            <Link to="/login" className="text-primary hover:underline">
-              Sign in
-            </Link>
-          </p>
+          </div>
+          <Button asChild className="mt-5 w-full">
+            <Link to="/login">I already have an account</Link>
+          </Button>
         </CardContent>
       </Card>
     </AuthShell>

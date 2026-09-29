@@ -1371,7 +1371,7 @@ async function executeTool(
       const { data, error } = await supabase.rpc('enqueue_email', {
         queue_name: 'transactional_emails',
         payload: {
-          to: client.email, from: 'Vektiss <noreply@mail.vektiss.com>', sender_domain: 'mail.vektiss.com',
+          to: client.email, from: 'Vektiss <client@vektiss.com>', sender_domain: 'vektiss.com',
           subject: args.subject, html: args.body_html, text: args.body_text || '',
           label: 'ai_agent_email', message_id: crypto.randomUUID(), queued_at: new Date().toISOString(),
         },

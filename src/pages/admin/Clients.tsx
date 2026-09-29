@@ -8,6 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
@@ -67,6 +70,8 @@ export default function AdminClients() {
   const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
   const [invitingIds, setInvitingIds] = useState<Set<string>>(new Set());
+  const [inviteTarget, setInviteTarget] = useState<{ client: Client; resend: boolean } | null>(null);
+  const [inviteProjectId, setInviteProjectId] = useState("");
   const queryClient = useQueryClient();
 
   const toggleExpanded = (id: string) => {
@@ -82,6 +87,18 @@ export default function AdminClients() {
     queryKey: ["clients"],
     queryFn: async () => {
       const { data, error } = await supabase.from("clients").select("*").order("created_at");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: projects = [] } = useQuery({
+    queryKey: ["client-invite-projects"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("projects")
+        .select("id, client_id, name, status")
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -170,17 +187,26 @@ export default function AdminClients() {
   const openEdit = (c: Client) => { setEditClient(c); setFormOpen(true); };
   const openAdd = () => { setEditClient(null); setFormOpen(true); };
 
-  const handleSendInvite = async (client: Client, resend = false) => {
+  const openInvite = (client: Client, resend = false) => {
+    const available = projects.filter((project) => project.client_id === client.id);
+    const preferred = client.portal_primary_project_id;
+    setInviteProjectId(preferred && available.some((project) => project.id === preferred) ? preferred : available[0]?.id || "");
+    setInviteTarget({ client, resend });
+  };
+
+  const handleSendInvite = async () => {
+    if (!inviteTarget || !inviteProjectId) return;
+    const { client, resend } = inviteTarget;
     if (!client.email) return;
-    if (!resend && client.user_id) return;
     setInvitingIds((prev) => new Set(prev).add(client.id));
     try {
       const { error } = await supabase.functions.invoke("invite-client", {
-        body: { client_id: client.id, resend },
+        body: { client_id: client.id, project_id: inviteProjectId, resend },
       });
       if (error) throw error;
-      toast.success(resend ? `Invite resent to ${client.email}` : `Invite sent to ${client.email}`);
+      toast.success(resend ? `Invite resent to ${client.email}` : `Workspace invite sent to ${client.email}`);
       queryClient.invalidateQueries({ queryKey: ["clients"] });
+      setInviteTarget(null);
     } catch (err: any) {
       toast.error(err?.message || "Failed to send invite");
     } finally {
@@ -208,12 +234,12 @@ export default function AdminClients() {
             <Pencil className="mr-2 h-4 w-4" /> Edit
           </DropdownMenuItem>
           {client.email && !client.user_id && (
-            <DropdownMenuItem onClick={() => handleSendInvite(client)}>
+            <DropdownMenuItem onClick={() => openInvite(client)}>
               <Send className="mr-2 h-4 w-4" /> Send Invite
             </DropdownMenuItem>
           )}
           {client.email && client.user_id && (
-            <DropdownMenuItem onClick={() => handleSendInvite(client, true)}>
+            <DropdownMenuItem onClick={() => openInvite(client, true)}>
               <RefreshCw className="mr-2 h-4 w-4" /> Resend Invite
             </DropdownMenuItem>
           )}
@@ -312,9 +338,9 @@ export default function AdminClients() {
                         {client.status}
                       </Badge>
 
-                      {client.user_id && (
+                      {client.portal_access_status !== "not_invited" && (
                         <Badge variant="outline" className="shrink-0 bg-primary/10 text-primary border-primary/20 text-xs">
-                          Invited
+                          {client.portal_access_status === "active" ? "Portal active" : "Portal invited"}
                         </Badge>
                       )}
 
@@ -556,6 +582,39 @@ export default function AdminClients() {
       </motion.div>
 
       <ClientFormDialog open={formOpen} onOpenChange={setFormOpen} client={editClient} />
+      <Dialog open={!!inviteTarget} onOpenChange={(open) => { if (!open) setInviteTarget(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{inviteTarget?.resend ? "Resend workspace invitation" : "Activate client workspace"}</DialogTitle>
+            <DialogDescription>
+              Choose the project this client should see first. Access cannot be activated without a client and project connection.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label>Client project *</Label>
+            <Select value={inviteProjectId} onValueChange={setInviteProjectId}>
+              <SelectTrigger><SelectValue placeholder="Select a project" /></SelectTrigger>
+              <SelectContent>
+                {projects.filter((project) => project.client_id === inviteTarget?.client.id).map((project) => (
+                  <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {inviteTarget && projects.every((project) => project.client_id !== inviteTarget.client.id) && (
+              <p className="text-sm text-destructive">Create a project or send a project proposal before inviting this client.</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInviteTarget(null)}>Cancel</Button>
+            <Button
+              onClick={() => void handleSendInvite()}
+              disabled={!inviteProjectId || !!(inviteTarget && invitingIds.has(inviteTarget.client.id))}
+            >
+              {inviteTarget && invitingIds.has(inviteTarget.client.id) ? "Sending..." : "Send Vektiss invitation"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <DeleteClientDialog
         open={!!deleteTarget}
         onOpenChange={(open) => {

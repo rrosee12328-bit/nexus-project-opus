@@ -29,19 +29,20 @@ export const SignupEmail = ({
 }: SignupEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>Confirm your email for {siteName}</Preview>
+    <Preview>Confirm your email for your Vektiss workspace</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Heading style={h1}>Welcome to {siteName}</Heading>
+        <Text style={brand}>VEKTISS</Text>
+        <Heading style={h1}>Confirm your workspace email</Heading>
         <Text style={text}>
-          Thanks for signing up! Please confirm your email address (
+          Confirm that (
           <Link href={`mailto:${recipient}`} style={link}>
             {recipient}
           </Link>
-          ) to get started.
+          ) is the email connected to your Vektiss client workspace.
         </Text>
         <Button style={button} href={confirmationUrl}>
-          Verify Email
+          Confirm Email
         </Button>
         <Text style={footer}>
           If you didn't create an account, you can safely ignore this email.
@@ -53,23 +54,24 @@ export const SignupEmail = ({
 
 export default SignupEmail
 
-const main = { backgroundColor: '#ffffff', fontFamily: "'Inter', Arial, sans-serif" }
-const container = { padding: '40px 25px' }
+const main = { backgroundColor: '#080a0d', fontFamily: "'Inter', Arial, sans-serif", padding: '32px 16px' }
+const container = { padding: '32px 28px', backgroundColor: '#111419', border: '1px solid #242a33', borderRadius: '16px' }
+const brand = { color: '#3291ff', fontSize: '12px', fontWeight: '700' as const, letterSpacing: '3px', margin: '0 0 24px' }
 const h1 = {
   fontSize: '24px',
   fontWeight: 'bold' as const,
-  color: '#0d0d0d',
+  color: '#ffffff',
   margin: '0 0 20px',
 }
 const text = {
   fontSize: '14px',
-  color: '#6b6b6b',
+  color: '#aab2bf',
   lineHeight: '1.6',
   margin: '0 0 25px',
 }
-const link = { color: 'hsl(213, 100%, 58%)', textDecoration: 'underline' }
+const link = { color: '#3291ff', textDecoration: 'underline' }
 const button = {
-  backgroundColor: 'hsl(213, 100%, 58%)',
+  backgroundColor: '#2588ff',
   color: '#ffffff',
   fontSize: '14px',
   fontWeight: '600' as const,
@@ -77,4 +79,4 @@ const button = {
   padding: '12px 24px',
   textDecoration: 'none',
 }
-const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }
+const footer = { fontSize: '12px', color: '#6f7887', margin: '30px 0 0' }

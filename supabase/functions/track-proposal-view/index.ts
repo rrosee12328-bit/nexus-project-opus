@@ -101,8 +101,8 @@ Deno.serve(async (req) => {
             queue_name: "transactional_emails",
             payload: {
               to: adminEmail,
-              from: "Vektiss <noreply@mail.vektiss.com>",
-              sender_domain: "mail.vektiss.com",
+              from: "Vektiss <client@vektiss.com>",
+              sender_domain: "vektiss.com",
               subject: `Proposal opened by ${clientLabel}`,
               html,
               text: `${clientLabel} just opened the proposal you sent.`,
