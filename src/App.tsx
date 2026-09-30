@@ -51,6 +51,7 @@ import OpsTimesheets from "./pages/ops/Timesheets";
 import OpsSettings from "./pages/ops/Settings";
 import OpsAgent from "./pages/ops/Agent";
 import OpsEmailIntelligence from "./pages/ops/EmailIntelligence";
+import OpsVideoReviews from "./pages/ops/VideoReviews";
 
 import ClientLayout from "./layouts/ClientLayout";
 import ClientDashboard from "./pages/client/Dashboard";
@@ -156,6 +157,7 @@ const App = () => (
               <Route path="timesheets" element={<OpsTimesheets />} />
               <Route path="sops" element={<OpsSops />} />
               <Route path="email-intelligence" element={<OpsEmailIntelligence />} />
+              <Route path="reviews" element={<OpsVideoReviews />} />
               <Route path="agent" element={<OpsAgent />} />
               <Route path="settings" element={<OpsSettings />} />
             </Route>

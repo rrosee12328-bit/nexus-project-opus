@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   Bot,
   Mail,
+  Video,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -31,6 +32,7 @@ const navItems = [
   { title: "Work", url: "/ops/tasks", icon: CheckSquare },
   { title: "Time", url: "/ops/timesheets", icon: Clock },
   { title: "Guides", url: "/ops/sops", icon: BookOpen },
+  { title: "Video Reviews", url: "/ops/reviews", icon: Video },
   { title: "Email Intelligence", url: "/ops/email-intelligence", icon: Mail },
   { title: "AI Assistant", url: "/ops/agent", icon: Bot },
   { title: "Settings", url: "/ops/settings", icon: Settings },
