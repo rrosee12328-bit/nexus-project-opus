@@ -383,6 +383,25 @@ export default function Invoices() {
     }
   };
 
+  const resendInvoice = async (id: string, num: string | null) => {
+    if (!confirm(`Resend ${num ?? "this invoice"} to the client?\n\nStripe will email the existing invoice again. No new invoice or charge will be created.`)) return;
+    setActionBusyId(id);
+    try {
+      const { data, error } = await supabase.functions.invoke("resend-hourly-invoice", {
+        body: { hourly_invoice_id: id },
+      });
+      if (error) throw new Error(await extractFnError(error, "Failed to resend invoice"));
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Invoice ${data?.invoice_number ?? num ?? ""} resent`, {
+        description: data?.sent_to ? `Stripe emailed ${data.sent_to}.` : "Stripe accepted the resend request.",
+      });
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to resend invoice");
+    } finally {
+      setActionBusyId(null);
+    }
+  };
+
   const voidInvoice = async (id: string, num: string | null, status: string) => {
     const verb = status === "draft" ? "delete" : "void";
     if (!confirm(`Are you sure you want to ${verb} ${num ?? "this invoice"}? Linked timesheet & calendar entries will be released back to unbilled.`)) return;
@@ -883,6 +902,11 @@ export default function Invoices() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-48">
+                                {inv.status === "open" && (
+                                  <DropdownMenuItem onClick={() => resendInvoice(inv.id, inv.invoice_number)}>
+                                    <Mail className="h-3.5 w-3.5 mr-2" /> Resend invoice email
+                                  </DropdownMenuItem>
+                                )}
                                 {inv.status === "draft" && (
                                   <DropdownMenuItem onClick={() => setEditId(inv.id)}>
                                     <Pencil className="h-3.5 w-3.5 mr-2" /> Edit invoice
