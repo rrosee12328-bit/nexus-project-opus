@@ -212,6 +212,53 @@ export type Database = {
           },
         ]
       }
+      approval_request_items: {
+        Row: {
+          approval_request_id: string
+          created_at: string
+          id: string
+          position: number
+          responded_at: string | null
+          response_note: string | null
+          review_url: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          approval_request_id: string
+          created_at?: string
+          id?: string
+          position?: number
+          responded_at?: string | null
+          response_note?: string | null
+          review_url: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          approval_request_id?: string
+          created_at?: string
+          id?: string
+          position?: number
+          responded_at?: string | null
+          response_note?: string | null
+          review_url?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_request_items_approval_request_id_fkey"
+            columns: ["approval_request_id"]
+            isOneToOne: false
+            referencedRelation: "approval_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approval_requests: {
         Row: {
           client_id: string
@@ -3460,6 +3507,17 @@ export type Database = {
       activate_my_client_portal: { Args: never; Returns: string }
       submit_intake_response: { Args: { _token: string; _response: Json }; Returns: string }
       archive_done_tasks: { Args: never; Returns: undefined }
+      create_video_review_request: {
+        Args: {
+          _description: string
+          _items: Json
+          _phase: string
+          _project_id: string
+          _review_url: string
+          _title: string
+        }
+        Returns: string
+      }
       convert_lead_to_proposal: {
         Args: { p_lead_id: string; p_proposal_id: string }
         Returns: undefined
