@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const DROPBOX_SHARED_LINK_FILE_URL = "https://content.dropboxapi.com/2/sharing/get_shared_link_file";
+const DROPBOX_TOKEN_URL = "https://api.dropboxapi.com/oauth2/token";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
@@ -14,6 +15,42 @@ function json(body: unknown, status = 200) {
 function mediaType(name: string) {
   const extension = name.split(".").pop()?.toLowerCase();
   return ({ mp4: "video/mp4", m4v: "video/x-m4v", mov: "video/quicktime", webm: "video/webm", avi: "video/x-msvideo", mkv: "video/x-matroska", mpeg: "video/mpeg", mpg: "video/mpeg" } as Record<string, string>)[extension ?? ""] ?? "application/octet-stream";
+}
+
+type DropboxConnection = { id: string; access_token: string; refresh_token: string | null; access_token_expires_at: string | null };
+
+async function renewDropboxAccessToken(
+  supabase: ReturnType<typeof createClient>,
+  connection: DropboxConnection,
+) {
+  const expiresAt = connection.access_token_expires_at ? new Date(connection.access_token_expires_at).getTime() : 0;
+  const needsRenewal = !expiresAt || expiresAt - Date.now() < 2 * 60 * 1000;
+  if (!needsRenewal) return connection.access_token;
+  if (!connection.refresh_token) throw new Error("Dropbox needs to be reconnected.");
+
+  const clientId = Deno.env.get("DROPBOX_CLIENT_ID");
+  const clientSecret = Deno.env.get("DROPBOX_CLIENT_SECRET");
+  if (!clientId || !clientSecret) throw new Error("Dropbox needs to be reconnected.");
+  const response = await fetch(DROPBOX_TOKEN_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: connection.refresh_token }).toString(),
+  });
+  if (!response.ok) throw new Error("Dropbox needs to be reconnected.");
+  const tokenData = await response.json() as { access_token?: string; expires_in?: number; refresh_token?: string };
+  if (!tokenData.access_token) throw new Error("Dropbox needs to be reconnected.");
+  const nextExpiresAt = tokenData.expires_in ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString() : null;
+  const { error } = await supabase.from("dropbox_video_review_connections").update({
+    access_token: tokenData.access_token,
+    refresh_token: tokenData.refresh_token || connection.refresh_token,
+    access_token_expires_at: nextExpiresAt,
+    updated_at: new Date().toISOString(),
+  }).eq("id", connection.id);
+  if (error) throw new Error("Dropbox needs to be reconnected.");
+  return tokenData.access_token;
 }
 
 async function dropboxError(response: Response) {
@@ -49,19 +86,20 @@ Deno.serve(async (req) => {
 
     const { data: connection, error: connectionError } = await serviceClient
       .from("dropbox_video_review_connections")
-      .select("access_token")
+      .select("id, access_token, refresh_token, access_token_expires_at")
       .eq("is_active", true)
       .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
     if (connectionError || !connection) return json({ error: "Dropbox is not connected for in-portal video playback." }, 409);
+    const accessToken = await renewDropboxAccessToken(serviceClient, connection as DropboxConnection);
 
     const range = req.headers.get("range");
     const response = await fetch(DROPBOX_SHARED_LINK_FILE_URL, {
       method: "POST",
       redirect: "follow",
       headers: {
-        Authorization: `Bearer ${connection.access_token}`,
+        Authorization: `Bearer ${accessToken}`,
         "Dropbox-API-Arg": JSON.stringify({ url: playback.folder_url, path: playback.file_path }),
         ...(range ? { Range: range } : {}),
       },

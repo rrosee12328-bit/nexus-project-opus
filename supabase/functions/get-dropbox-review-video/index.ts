@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const DROPBOX_LIST_FOLDER_URL = "https://api.dropboxapi.com/2/files/list_folder";
 const DROPBOX_LIST_CONTINUE_URL = "https://api.dropboxapi.com/2/files/list_folder/continue";
+const DROPBOX_TOKEN_URL = "https://api.dropboxapi.com/oauth2/token";
 const VIDEO_EXTENSION = /\.(mp4|mov|m4v|webm|avi|mkv|mpeg|mpg)$/i;
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,6 +16,7 @@ type DropboxFile = { ".tag": "file"; name: string; path_lower?: string; path_dis
 type DropboxFolderResult = { entries: Array<DropboxFile | { ".tag": string; name?: string }>; cursor?: string; has_more?: boolean };
 type ReviewItem = { id: string; title: string; source_file_name: string | null; approval_request_id: string };
 type ReviewRequest = { id: string; client_id: string; review_url: string | null };
+type DropboxConnection = { id: string; access_token: string; refresh_token: string | null; access_token_expires_at: string | null };
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -72,6 +74,40 @@ async function isStaff(supabase: ReturnType<typeof createClient>, userId: string
   return !error && Boolean(data);
 }
 
+async function renewDropboxAccessToken(
+  supabase: ReturnType<typeof createClient>,
+  connection: DropboxConnection,
+) {
+  const expiresAt = connection.access_token_expires_at ? new Date(connection.access_token_expires_at).getTime() : 0;
+  const needsRenewal = !expiresAt || expiresAt - Date.now() < 2 * 60 * 1000;
+  if (!needsRenewal) return connection.access_token;
+  if (!connection.refresh_token) throw new Error("Dropbox needs to be reconnected.");
+
+  const clientId = Deno.env.get("DROPBOX_CLIENT_ID");
+  const clientSecret = Deno.env.get("DROPBOX_CLIENT_SECRET");
+  if (!clientId || !clientSecret) throw new Error("Dropbox needs to be reconnected.");
+  const response = await fetch(DROPBOX_TOKEN_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: connection.refresh_token }).toString(),
+  });
+  if (!response.ok) throw new Error("Dropbox needs to be reconnected.");
+  const tokenData = await response.json() as { access_token?: string; expires_in?: number; refresh_token?: string };
+  if (!tokenData.access_token) throw new Error("Dropbox needs to be reconnected.");
+  const nextExpiresAt = tokenData.expires_in ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString() : null;
+  const { error } = await supabase.from("dropbox_video_review_connections").update({
+    access_token: tokenData.access_token,
+    refresh_token: tokenData.refresh_token || connection.refresh_token,
+    access_token_expires_at: nextExpiresAt,
+    updated_at: new Date().toISOString(),
+  }).eq("id", connection.id);
+  if (error) throw new Error("Dropbox needs to be reconnected.");
+  return tokenData.access_token;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -98,14 +134,15 @@ Deno.serve(async (req) => {
     const { data: request, error: requestError } = await serviceClient.from("approval_requests").select("id, client_id, review_url").eq("id", item.approval_request_id).maybeSingle();
     if (requestError || !request) return json({ error: "That review delivery is unavailable." }, 404);
     if (!staff && (!client || request.client_id !== client.id)) return json({ error: "You are not allowed to view this video." }, 403);
-    const { data: connection, error: connectionError } = await serviceClient.from("dropbox_video_review_connections").select("access_token").eq("is_active", true).order("updated_at", { ascending: false }).limit(1).maybeSingle();
+    const { data: connection, error: connectionError } = await serviceClient.from("dropbox_video_review_connections").select("id, access_token, refresh_token, access_token_expires_at").eq("is_active", true).order("updated_at", { ascending: false }).limit(1).maybeSingle();
     if (connectionError || !connection) return json({ error: "Dropbox is not connected for in-portal video playback." }, 409);
 
     const reviewItem = item as ReviewItem;
     const reviewRequest = request as ReviewRequest;
     const folderUrl = normalizedDropboxLink(reviewRequest.review_url ?? "");
     if (!folderUrl) return json({ error: "This review does not have a valid Dropbox folder." }, 422);
-    const file = await findFolderFile(connection.access_token, folderUrl, reviewItem.source_file_name ?? reviewItem.title, reviewItem.title);
+    const accessToken = await renewDropboxAccessToken(serviceClient, connection as DropboxConnection);
+    const file = await findFolderFile(accessToken, folderUrl, reviewItem.source_file_name ?? reviewItem.title, reviewItem.title);
     if (!file) return json({ error: "This video could not be matched to a file in the Dropbox folder." }, 404);
     const filePath = file.path_lower || file.path_display || `/${file.name}`;
 
