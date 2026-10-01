@@ -14,6 +14,7 @@ const corsHeaders = {
 type ResolvePayload = { itemId?: string };
 type DropboxFile = {
   ".tag": "file";
+  id?: string;
   name: string;
   path_lower?: string;
   path_display?: string;
@@ -179,14 +180,21 @@ Deno.serve(async (req) => {
     );
     if (!file) return json({ error: "This video could not be matched to a file in the Dropbox folder." }, 404);
 
-    const path = file.path_lower ?? file.path_display;
+    // A shared-folder list can return a display path that is not resolvable
+    // through the account root. Dropbox file IDs are stable and work directly
+    // with get_temporary_link, so use them first.
+    const path = file.id || file.path_lower || file.path_display;
     if (!path) return json({ error: "Dropbox did not provide a playable path for this video." }, 422);
     const linkResponse = await fetch(DROPBOX_TEMPORARY_LINK_URL, {
       method: "POST",
       headers: { Authorization: `Bearer ${connection.access_token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ path }),
     });
-    if (!linkResponse.ok) return json({ error: await dropboxError(linkResponse) }, 422);
+    if (!linkResponse.ok) {
+      const message = await dropboxError(linkResponse.clone());
+      console.warn("Dropbox temporary-link request failed", { status: linkResponse.status, file_name: file.name, has_file_id: Boolean(file.id) });
+      return json({ error: message }, 422);
+    }
 
     const link = await linkResponse.json() as { link?: string };
     if (!link.link) return json({ error: "Dropbox did not provide a playable video link." }, 422);
