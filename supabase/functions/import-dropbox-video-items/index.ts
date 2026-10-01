@@ -131,14 +131,19 @@ Deno.serve(async (req) => {
       headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
       body: JSON.stringify({ url: folderUrl }),
     });
-    if (!metadataResponse.ok) return json({ error: await readDropboxError(metadataResponse) }, 422);
-    const metadata = await metadataResponse.json() as { ".tag"?: string; name?: string };
+    // Some valid folder URLs can be enumerated through files/list_folder while
+    // Dropbox's shared-link metadata endpoint rejects their format. Keep the
+    // metadata optimization for a direct-video link, but let the folder listing
+    // be authoritative when metadata is unavailable.
+    const metadata = metadataResponse.ok
+      ? await metadataResponse.json() as { ".tag"?: string; name?: string }
+      : null;
 
-    if (metadata[".tag"] === "file") {
+    if (metadata?.[".tag"] === "file") {
       if (!metadata.name || !VIDEO_EXTENSION.test(metadata.name)) return json({ error: "That Dropbox link is not a supported video file." }, 422);
       return json({ folderName: metadata.name, items: [{ name: metadata.name, title: titleFromFilename(metadata.name) }] });
     }
-    if (metadata[".tag"] !== "folder") return json({ error: "That Dropbox link does not point to a folder or supported video file." }, 422);
+    if (metadata && metadata[".tag"] !== "folder") return json({ error: "That Dropbox link does not point to a folder or supported video file." }, 422);
 
     const files: DropboxFile[] = [];
     let page: DropboxFolderResult | null = null;
@@ -163,7 +168,7 @@ Deno.serve(async (req) => {
       .map((file) => ({ name: file.name, title: titleFromFilename(file.name) }));
     if (!items.length) return json({ error: "No supported video files were found in that Dropbox folder." }, 422);
 
-    return json({ folderName: metadata.name ?? "Dropbox folder", items, truncated: Boolean(page?.has_more) });
+    return json({ folderName: metadata?.name ?? "Dropbox folder", items, truncated: Boolean(page?.has_more) });
   } catch {
     return json({ error: "Dropbox video titles could not be imported." }, 500);
   }
