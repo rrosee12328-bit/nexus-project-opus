@@ -53,3 +53,7 @@ project_id = "ogcgqbrewfzkchwqrrxj"
     verify_jwt = true
   [functions.get-dropbox-review-video]
     verify_jwt = true
+  [functions.stream-dropbox-review-video]
+    # Playback uses a single-item, short-lived opaque token minted only after
+    # the signed-in client review access check in get-dropbox-review-video.
+    verify_jwt = false
