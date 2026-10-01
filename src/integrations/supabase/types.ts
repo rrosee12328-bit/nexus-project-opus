@@ -224,6 +224,7 @@ export type Database = {
           status: string
           title: string
           updated_at: string
+          viewed_at: string | null
         }
         Insert: {
           approval_request_id: string
@@ -236,6 +237,7 @@ export type Database = {
           status?: string
           title: string
           updated_at?: string
+          viewed_at?: string | null
         }
         Update: {
           approval_request_id?: string
@@ -248,6 +250,7 @@ export type Database = {
           status?: string
           title?: string
           updated_at?: string
+          viewed_at?: string | null
         }
         Relationships: [
           {
