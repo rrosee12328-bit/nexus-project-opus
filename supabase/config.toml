@@ -43,3 +43,9 @@ project_id = "ogcgqbrewfzkchwqrrxj"
     verify_jwt = false
   [functions.onboarding-interview]
     verify_jwt = false
+  [functions.dropbox-start-oauth]
+    verify_jwt = true
+  [functions.dropbox-oauth-callback]
+    verify_jwt = false
+  [functions.import-dropbox-video-items]
+    verify_jwt = true

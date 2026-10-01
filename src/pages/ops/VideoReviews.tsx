@@ -6,8 +6,10 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { approvalStatusLabel } from "@/lib/approvalStatus";
+import { createDropboxImportedVideoItems } from "@/lib/dropboxVideoImport";
 import { buildVideoReviewItems, createVideoReviewDraftItem, type VideoReviewDraftItem } from "@/lib/videoReviewItems";
 import { VideoReviewItemFields } from "@/components/approvals/VideoReviewItemFields";
+import { useDropboxVideoReviewImport } from "@/hooks/useDropboxVideoReviewImport";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,6 +50,7 @@ export default function VideoReviews() {
   const [description, setDescription] = useState("");
   const [reviewUrl, setReviewUrl] = useState("");
   const [videoItems, setVideoItems] = useState<VideoReviewDraftItem[]>([createVideoReviewDraftItem()]);
+  const { connectionQuery: dropboxConnectionQuery, importMutation: importDropboxTitles } = useDropboxVideoReviewImport();
 
   const clientsQuery = useQuery({
     queryKey: ["team-video-review-clients"],
@@ -115,6 +118,31 @@ export default function VideoReviews() {
     onError: (error: Error) => toast.error(error.message || "Could not create the project"),
   });
 
+  const importDropboxFolderTitles = () => {
+    if (!reviewUrl.trim()) {
+      toast.error("Paste the Dropbox folder link before importing titles");
+      return;
+    }
+    if (!dropboxConnectionQuery.data?.connected) {
+      toast.error("Dropbox import is not connected. An admin can connect it under Settings → Integrations.");
+      return;
+    }
+
+    importDropboxTitles.mutate(reviewUrl, {
+      onSuccess: (result) => {
+        const importedItems = createDropboxImportedVideoItems(result.items);
+        if (!importedItems.length) {
+          toast.error("No video filenames could be imported from that folder");
+          return;
+        }
+        setVideoItems(importedItems);
+        toast.success(`${importedItems.length} video title${importedItems.length === 1 ? "" : "s"} imported from ${result.folderName}`);
+        if (result.truncated) toast.message("Only the first 10,000 video files were imported.");
+      },
+      onError: (error: Error) => toast.error(error.message || "Could not import Dropbox video titles"),
+    });
+  };
+
   const submitReview = useMutation({
     mutationFn: async () => {
       if (!selectedClient) throw new Error("Choose the client for this delivery");
@@ -156,7 +184,7 @@ export default function VideoReviews() {
 
           <div className="space-y-2"><Label htmlFor="review-title">Delivery name *</Label><Input id="review-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. September campaign videos" maxLength={160} /></div>
           <div className="space-y-2"><Label htmlFor="review-link">Dropbox folder or video link *</Label><Input id="review-link" type="url" value={reviewUrl} onChange={(event) => setReviewUrl(event.target.value)} placeholder="https://www.dropbox.com/..." /><p className="text-xs text-muted-foreground">This is the folder link for grouped deliveries. Each video below can optionally have a direct Dropbox link.</p></div>
-          <VideoReviewItemFields idPrefix="ops-video" items={videoItems} onChange={setVideoItems} />
+          <VideoReviewItemFields idPrefix="ops-video" items={videoItems} onChange={setVideoItems} onImportFromDropbox={importDropboxFolderTitles} importReady={Boolean(dropboxConnectionQuery.data?.connected)} importConnectionLoading={dropboxConnectionQuery.isLoading} importInProgress={importDropboxTitles.isPending} />
           <div className="space-y-2"><Label htmlFor="review-notes">Review notes</Label><Textarea id="review-notes" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="What should the client review or decide?" rows={3} maxLength={2000} /></div>
           <Button onClick={() => submitReview.mutate()} disabled={submitReview.isPending || clientsQuery.isLoading || projectsQuery.isLoading || !selectedProject}><Send className="mr-2 h-4 w-4" />{submitReview.isPending ? "Sending…" : "Send for client review"}</Button>
         </CardContent>

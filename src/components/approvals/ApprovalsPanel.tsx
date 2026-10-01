@@ -13,8 +13,10 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { CheckCircle2, Clock, ExternalLink, Eye, Lightbulb, Plus, Send, Video, XCircle } from "lucide-react";
 import { approvalStatusLabel } from "@/lib/approvalStatus";
+import { createDropboxImportedVideoItems } from "@/lib/dropboxVideoImport";
 import { buildVideoReviewItems, createVideoReviewDraftItem, type VideoReviewDraftItem } from "@/lib/videoReviewItems";
 import { VideoReviewItemFields } from "@/components/approvals/VideoReviewItemFields";
+import { useDropboxVideoReviewImport } from "@/hooks/useDropboxVideoReviewImport";
 
 type ApprovalItem = Database["public"]["Tables"]["approval_request_items"]["Row"];
 type ApprovalWithItems = Database["public"]["Tables"]["approval_requests"]["Row"] & {
@@ -41,6 +43,7 @@ export function ApprovalsPanel({ projectId, clientId }: ApprovalsPanelProps) {
   const [reviewUrl, setReviewUrl] = useState("");
   const [phase, setPhase] = useState("");
   const [videoItems, setVideoItems] = useState<VideoReviewDraftItem[]>([createVideoReviewDraftItem()]);
+  const { connectionQuery: dropboxConnectionQuery, importMutation: importDropboxTitles } = useDropboxVideoReviewImport();
 
   const { data: approvals = [] } = useQuery({
     queryKey: ["approvals", projectId],
@@ -62,6 +65,31 @@ export function ApprovalsPanel({ projectId, clientId }: ApprovalsPanelProps) {
     setReviewUrl("");
     setPhase("");
     setVideoItems([createVideoReviewDraftItem()]);
+  };
+
+  const importDropboxFolderTitles = () => {
+    if (!reviewUrl.trim()) {
+      toast.error("Paste the Dropbox folder link before importing titles");
+      return;
+    }
+    if (!dropboxConnectionQuery.data?.connected) {
+      toast.error("Dropbox import is not connected. An admin can connect it under Settings → Integrations.");
+      return;
+    }
+
+    importDropboxTitles.mutate(reviewUrl, {
+      onSuccess: (result) => {
+        const importedItems = createDropboxImportedVideoItems(result.items);
+        if (!importedItems.length) {
+          toast.error("No video filenames could be imported from that folder");
+          return;
+        }
+        setVideoItems(importedItems);
+        toast.success(`${importedItems.length} video title${importedItems.length === 1 ? "" : "s"} imported from ${result.folderName}`);
+        if (result.truncated) toast.message("Only the first 10,000 video files were imported.");
+      },
+      onError: (error: Error) => toast.error(error.message || "Could not import Dropbox video titles"),
+    });
   };
 
   const submitApproval = useMutation({
@@ -128,7 +156,7 @@ export function ApprovalsPanel({ projectId, clientId }: ApprovalsPanelProps) {
               <div className="space-y-2"><Label>Project phase</Label><Select value={phase} onValueChange={setPhase}><SelectTrigger><SelectValue placeholder="Select phase (optional)" /></SelectTrigger><SelectContent>{["discovery", "design", "development", "review", "launch", "deploy"].map((item) => <SelectItem key={item} value={item}>{item.charAt(0).toUpperCase() + item.slice(1)}</SelectItem>)}</SelectContent></Select></div>
             </div>
             <div className="space-y-2"><Label htmlFor="approval-review-url">Dropbox folder or video link *</Label><div className="relative"><Video className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input id="approval-review-url" type="url" value={reviewUrl} onChange={(event) => setReviewUrl(event.target.value)} placeholder="https://www.dropbox.com/..." className="pl-9" /></div><p className="text-xs text-muted-foreground">For a folder, this is the main link the client opens. Individual direct links can be added below.</p></div>
-            <VideoReviewItemFields idPrefix="workspace-video" items={videoItems} onChange={setVideoItems} />
+            <VideoReviewItemFields idPrefix="workspace-video" items={videoItems} onChange={setVideoItems} onImportFromDropbox={importDropboxFolderTitles} importReady={Boolean(dropboxConnectionQuery.data?.connected)} importConnectionLoading={dropboxConnectionQuery.isLoading} importInProgress={importDropboxTitles.isPending} />
             <div className="space-y-2"><Label htmlFor="approval-description">Review notes</Label><Textarea id="approval-description" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="What should the client review or decide?" rows={3} maxLength={2000} /></div>
           </div>
           <DialogFooter><Button variant="outline" onClick={closeForm}>Cancel</Button><Button onClick={() => submitApproval.mutate()} disabled={submitApproval.isPending}>{submitApproval.isPending ? "Sending…" : "Send to client"}</Button></DialogFooter>

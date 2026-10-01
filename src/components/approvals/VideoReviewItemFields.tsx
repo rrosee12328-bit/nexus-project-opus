@@ -1,4 +1,4 @@
-import { Plus, Trash2 } from "lucide-react";
+import { Download, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,9 +8,21 @@ interface VideoReviewItemFieldsProps {
   idPrefix: string;
   items: VideoReviewDraftItem[];
   onChange: (items: VideoReviewDraftItem[]) => void;
+  importReady?: boolean;
+  importConnectionLoading?: boolean;
+  importInProgress?: boolean;
+  onImportFromDropbox?: () => void;
 }
 
-export function VideoReviewItemFields({ idPrefix, items, onChange }: VideoReviewItemFieldsProps) {
+export function VideoReviewItemFields({
+  idPrefix,
+  items,
+  onChange,
+  importReady = false,
+  importConnectionLoading = false,
+  importInProgress = false,
+  onImportFromDropbox,
+}: VideoReviewItemFieldsProps) {
   const updateItem = (id: string, key: "title" | "reviewUrl", value: string) => {
     onChange(items.map((item) => item.id === id ? { ...item, [key]: value } : item));
   };
@@ -25,12 +37,18 @@ export function VideoReviewItemFields({ idPrefix, items, onChange }: VideoReview
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <Label className="text-sm font-medium">Videos for this review *</Label>
-          <p className="mt-0.5 text-xs text-muted-foreground">Name every video. Leave an item link blank to use the Dropbox folder above.</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">Import video filenames from the Dropbox folder, or name every video manually. Leave an item link blank to use the folder above.</p>
         </div>
-        <Button type="button" variant="outline" size="sm" onClick={() => onChange([...items, createVideoReviewDraftItem()])}>
-          <Plus className="mr-1 h-3.5 w-3.5" /> Add video
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {onImportFromDropbox && <Button type="button" variant="secondary" size="sm" onClick={onImportFromDropbox} disabled={!importReady || importConnectionLoading || importInProgress}>
+            <Download className={`mr-1 h-3.5 w-3.5 ${importInProgress ? "animate-pulse" : ""}`} /> {importInProgress ? "Importing…" : "Import titles"}
+          </Button>}
+          <Button type="button" variant="outline" size="sm" onClick={() => onChange([...items, createVideoReviewDraftItem()])}>
+            <Plus className="mr-1 h-3.5 w-3.5" /> Add video
+          </Button>
+        </div>
       </div>
+      {onImportFromDropbox && !importConnectionLoading && !importReady && <p className="text-xs text-amber-600 dark:text-amber-400">Dropbox import is not connected yet. An admin can connect it under Settings → Integrations.</p>}
       <div className="space-y-3">
         {items.map((item, index) => (
           <div key={item.id} className="rounded-md border border-border bg-background p-3">

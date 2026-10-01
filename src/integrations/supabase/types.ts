@@ -3556,6 +3556,15 @@ export type Database = {
       }
       get_client_id_for_user: { Args: { _user_id: string }; Returns: string }
       get_client_scheduling_url: { Args: never; Returns: string | null }
+      get_dropbox_video_review_connection: {
+        Args: never
+        Returns: {
+          account_name: string | null
+          connected: boolean
+          connected_at: string | null
+          updated_at: string | null
+        }[]
+      }
       get_intake_form_by_token: {
         Args: { _token: string }
         Returns: {

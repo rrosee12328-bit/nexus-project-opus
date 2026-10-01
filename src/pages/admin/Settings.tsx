@@ -45,6 +45,7 @@ export default function AdminSettings() {
 
   const redirectTarget = getAppUrl("/admin/settings?tab=integrations");
   const recommendedCallbackUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/quickbooks-oauth-callback`;
+  const dropboxRecommendedCallbackUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/dropbox-oauth-callback`;
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ["admin-profile", user?.id],
@@ -89,6 +90,20 @@ export default function AdminSettings() {
     },
   });
 
+  const { data: dropboxConnection, isLoading: dropboxLoading } = useQuery({
+    queryKey: ["dropbox-video-review-connection"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_dropbox_video_review_connection");
+      if (error) throw error;
+      return ((data ?? [])[0] ?? { connected: false, account_name: null, connected_at: null, updated_at: null }) as {
+        connected: boolean;
+        account_name: string | null;
+        connected_at: string | null;
+        updated_at: string | null;
+      };
+    },
+  });
+
   useEffect(() => {
     if (profile) {
       setDisplayName(profile.display_name ?? "");
@@ -114,6 +129,21 @@ export default function AdminSettings() {
     nextParams.delete("quickbooks");
     nextParams.delete("reason");
     nextParams.delete("detail");
+    setSearchParams(nextParams, { replace: true });
+  }, [queryClient, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    const status = searchParams.get("dropbox");
+    if (!status) return;
+    if (status === "connected") {
+      toast.success("Dropbox connected for video title imports");
+      queryClient.invalidateQueries({ queryKey: ["dropbox-video-review-connection"] });
+    } else {
+      toast.error(`Dropbox connection failed: ${searchParams.get("reason") || "connection failed"}`);
+    }
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("dropbox");
+    nextParams.delete("reason");
     setSearchParams(nextParams, { replace: true });
   }, [queryClient, searchParams, setSearchParams]);
 
@@ -254,6 +284,24 @@ export default function AdminSettings() {
       window.location.assign(data.url);
     },
     onError: (err: Error) => toast.error("Failed to start QuickBooks connection: " + err.message),
+  });
+
+  const connectDropbox = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("dropbox-start-oauth", {
+        body: { redirectTo: redirectTarget },
+      });
+      if (error) throw error;
+      return data as { url?: string; error?: string };
+    },
+    onSuccess: (data) => {
+      if (!data?.url) {
+        toast.error(data?.error || "Missing Dropbox authorization URL");
+        return;
+      }
+      window.location.assign(data.url);
+    },
+    onError: (err: Error) => toast.error("Failed to start Dropbox connection: " + err.message),
   });
 
   const initials = (displayName || user?.email || "A")
@@ -822,6 +870,58 @@ export default function AdminSettings() {
                   QUICKBOOKS_REDIRECT_URI, QUICKBOOKS_ENVIRONMENT, and APP_BASE_URL.
                 </p>
                 {quickbooksLoading && <p className="text-sm text-muted-foreground">Loading connection status...</p>}
+              </CardContent>
+            </Card>
+
+            <Card className="hover:border-primary/20 transition-colors">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Link2 className="h-5 w-5 text-primary" /> Dropbox video title import
+                </CardTitle>
+                <CardDescription>
+                  Connect the company Dropbox account once so Ops can import a shared folder&apos;s video filenames into client review requests.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium">Connection status</p>
+                      <Badge variant={dropboxConnection?.connected ? "default" : "outline"}>
+                        {dropboxConnection?.connected ? "Connected" : "Not connected"}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {dropboxConnection?.connected
+                        ? `${dropboxConnection.account_name || "Dropbox account"} • video filenames can be imported securely`
+                        : "Connect the Dropbox account that can open the team’s review folders."}
+                    </p>
+                  </div>
+                  <Button onClick={() => connectDropbox.mutate()} disabled={connectDropbox.isPending} className="gap-2">
+                    <Link2 className={`h-4 w-4 ${connectDropbox.isPending ? "animate-pulse" : ""}`} />
+                    {connectDropbox.isPending ? "Redirecting..." : dropboxConnection?.connected ? "Reconnect Dropbox" : "Connect Dropbox"}
+                  </Button>
+                </div>
+
+                {dropboxConnection?.connected && dropboxConnection.updated_at && (
+                  <div className="rounded-lg border p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Last connected</p>
+                    <p className="mt-2 text-sm">{format(new Date(dropboxConnection.updated_at), "MMM d, yyyy h:mm a")}</p>
+                  </div>
+                )}
+
+                <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Dropbox redirect URI</p>
+                    <p className="mt-1 break-all font-mono text-sm">{dropboxRecommendedCallbackUrl}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Register this exact URI in the Dropbox App Console before clicking Connect Dropbox.</p>
+                </div>
+
+                <p className="text-sm text-muted-foreground">
+                  Required Supabase secrets: DROPBOX_CLIENT_ID, DROPBOX_CLIENT_SECRET, DROPBOX_REDIRECT_URI, and APP_BASE_URL. Tokens remain in the protected server-side connection store and are never sent to Ops browsers.
+                </p>
+                {dropboxLoading && <p className="text-sm text-muted-foreground">Loading connection status...</p>}
               </CardContent>
             </Card>
           </motion.div>
