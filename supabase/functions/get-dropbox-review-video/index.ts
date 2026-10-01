@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const DROPBOX_LIST_FOLDER_URL = "https://api.dropboxapi.com/2/files/list_folder";
 const DROPBOX_LIST_CONTINUE_URL = "https://api.dropboxapi.com/2/files/list_folder/continue";
 const DROPBOX_TEMPORARY_LINK_URL = "https://api.dropboxapi.com/2/files/get_temporary_link";
+const DROPBOX_SHARED_LINK_METADATA_URL = "https://api.dropboxapi.com/2/sharing/get_shared_link_metadata";
 const VIDEO_EXTENSION = /\.(mp4|mov|m4v|webm|avi|mkv|mpeg|mpg)$/i;
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -128,6 +129,42 @@ Deno.serve(async (req) => {
       }
     } else {
       const directLinkError = await directLinkResponse.json().catch(() => ({})) as { error_summary?: string };
+      // A shared folder can be a separate Dropbox namespace even for its owner.
+      // Retry against that namespace before falling back to the private relay.
+      if (directLinkError.error_summary?.startsWith("path/not_found")) {
+        const metadataResponse = await fetch(DROPBOX_SHARED_LINK_METADATA_URL, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${connection.access_token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ url: folderUrl }),
+        });
+        if (metadataResponse.ok) {
+          const metadata = await metadataResponse.json() as { id?: string };
+          if (metadata.id) {
+            const namespaceLinkResponse = await fetch(DROPBOX_TEMPORARY_LINK_URL, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${connection.access_token}`,
+                "Content-Type": "application/json",
+                "Dropbox-API-Path-Root": JSON.stringify({ ".tag": "namespace_id", namespace_id: metadata.id }),
+              },
+              body: JSON.stringify({ path: filePath }),
+            });
+            if (namespaceLinkResponse.ok) {
+              const namespaceLink = await namespaceLinkResponse.json() as { link?: string };
+              if (namespaceLink.link) {
+                return json({
+                  url: namespaceLink.link,
+                  file_name: file.name,
+                  expires_at: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+                });
+              }
+            } else {
+              const namespaceError = await namespaceLinkResponse.json().catch(() => ({})) as { error_summary?: string };
+              console.info("Dropbox shared-folder namespace CDN playback unavailable", { status: namespaceLinkResponse.status, error_summary: namespaceError.error_summary ?? "unavailable", file_name: file.name });
+            }
+          }
+        }
+      }
       console.info("Dropbox CDN playback unavailable; using secure shared-link stream", {
         status: directLinkResponse.status,
         error_summary: directLinkError.error_summary ?? "unavailable",
