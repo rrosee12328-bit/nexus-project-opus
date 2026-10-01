@@ -4,6 +4,7 @@ const DROPBOX_LIST_FOLDER_URL = "https://api.dropboxapi.com/2/files/list_folder"
 const DROPBOX_LIST_CONTINUE_URL = "https://api.dropboxapi.com/2/files/list_folder/continue";
 const DROPBOX_TEMPORARY_LINK_URL = "https://api.dropboxapi.com/2/files/get_temporary_link";
 const DROPBOX_SHARED_LINK_METADATA_URL = "https://api.dropboxapi.com/2/sharing/get_shared_link_metadata";
+const DROPBOX_SHARED_FOLDER_METADATA_URL = "https://api.dropboxapi.com/2/sharing/get_folder_metadata";
 const VIDEO_EXTENSION = /\.(mp4|mov|m4v|webm|avi|mkv|mpeg|mpg)$/i;
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -140,12 +141,21 @@ Deno.serve(async (req) => {
         if (metadataResponse.ok) {
           const metadata = await metadataResponse.json() as { id?: string };
           if (metadata.id) {
+            const folderMetadataResponse = await fetch(DROPBOX_SHARED_FOLDER_METADATA_URL, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${connection.access_token}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ shared_folder_id: metadata.id }),
+            });
+            const folderMetadata = folderMetadataResponse.ok
+              ? await folderMetadataResponse.json() as { shared_folder_id?: string }
+              : {};
+            const namespaceId = folderMetadata.shared_folder_id ?? metadata.id;
             const namespaceLinkResponse = await fetch(DROPBOX_TEMPORARY_LINK_URL, {
               method: "POST",
               headers: {
                 Authorization: `Bearer ${connection.access_token}`,
                 "Content-Type": "application/json",
-                "Dropbox-API-Path-Root": JSON.stringify({ ".tag": "namespace_id", namespace_id: metadata.id }),
+                "Dropbox-API-Path-Root": JSON.stringify({ ".tag": "namespace_id", namespace_id: namespaceId }),
               },
               body: JSON.stringify({ path: filePath }),
             });
