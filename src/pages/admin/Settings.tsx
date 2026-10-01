@@ -292,7 +292,13 @@ export default function AdminSettings() {
       const { data, error } = await supabase.functions.invoke("dropbox-start-oauth", {
         body: { redirectTo: redirectTarget },
       });
-      if (error) throw error;
+      if (error) {
+        const response = error.context;
+        const errorBody = response instanceof Response
+          ? await response.clone().json().catch(() => null) as { error?: string } | null
+          : null;
+        throw new Error((data as { error?: string } | null)?.error || errorBody?.error || error.message);
+      }
       return data as { url?: string; error?: string };
     },
     onSuccess: (data) => {
@@ -898,7 +904,7 @@ export default function AdminSettings() {
                   <Link2 className="h-5 w-5 text-primary" /> Dropbox video title import
                 </CardTitle>
                 <CardDescription>
-                  Connect the company Dropbox account once so Ops can import a shared folder&apos;s video filenames into client review requests.
+                  Connect the company Dropbox account once with OAuth so video filenames and in-portal playback stay available for client review requests.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
@@ -924,8 +930,8 @@ export default function AdminSettings() {
 
                 <div className="rounded-lg border border-dashed p-4 space-y-3">
                   <div>
-                    <p className="text-sm font-medium">Connect with a Dropbox access token</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Enable <code>files.metadata.read</code>, <code>files.content.read</code>, and <code>sharing.read</code> in the Dropbox App Console, generate a new access token, then paste it here. The token is sent once to an authenticated server function and never returned to the browser.</p>
+                    <p className="text-sm font-medium">Temporary manual access token</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Use this only for short-lived testing. Dropbox access tokens expire and can interrupt client playback; choose <strong>Connect with OAuth</strong> above for a durable connection that renews automatically. The token is sent once to an authenticated server function and never returned to the browser.</p>
                   </div>
                   <div className="flex flex-col gap-2 sm:flex-row">
                     <Input type="password" value={dropboxAccessToken} onChange={(event) => setDropboxAccessToken(event.target.value)} placeholder="Dropbox access token" autoComplete="off" />
