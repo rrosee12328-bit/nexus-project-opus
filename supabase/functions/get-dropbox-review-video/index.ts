@@ -2,9 +2,6 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const DROPBOX_LIST_FOLDER_URL = "https://api.dropboxapi.com/2/files/list_folder";
 const DROPBOX_LIST_CONTINUE_URL = "https://api.dropboxapi.com/2/files/list_folder/continue";
-const DROPBOX_TEMPORARY_LINK_URL = "https://api.dropboxapi.com/2/files/get_temporary_link";
-const DROPBOX_SHARED_LINK_METADATA_URL = "https://api.dropboxapi.com/2/sharing/get_shared_link_metadata";
-const DROPBOX_SHARED_FOLDER_METADATA_URL = "https://api.dropboxapi.com/2/sharing/get_folder_metadata";
 const VIDEO_EXTENSION = /\.(mp4|mov|m4v|webm|avi|mkv|mpeg|mpg)$/i;
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,7 +11,7 @@ const corsHeaders = {
 };
 
 type ResolvePayload = { itemId?: string };
-type DropboxFile = { ".tag": "file"; id?: string; name: string; path_lower?: string; path_display?: string };
+type DropboxFile = { ".tag": "file"; name: string; path_lower?: string; path_display?: string };
 type DropboxFolderResult = { entries: Array<DropboxFile | { ".tag": string; name?: string }>; cursor?: string; has_more?: boolean };
 type ReviewItem = { id: string; title: string; source_file_name: string | null; approval_request_id: string };
 type ReviewRequest = { id: string; client_id: string; review_url: string | null };
@@ -111,76 +108,6 @@ Deno.serve(async (req) => {
     const file = await findFolderFile(connection.access_token, folderUrl, reviewItem.source_file_name ?? reviewItem.title, reviewItem.title);
     if (!file) return json({ error: "This video could not be matched to a file in the Dropbox folder." }, 404);
     const filePath = file.path_lower || file.path_display || `/${file.name}`;
-
-    // A Full Dropbox connection can mint a short-lived CDN URL. This keeps the
-    // branded Vektiss player while avoiding a server relay for every byte range.
-    const directLinkResponse = await fetch(DROPBOX_TEMPORARY_LINK_URL, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${connection.access_token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ path: file.id || filePath }),
-    });
-    if (directLinkResponse.ok) {
-      const directLink = await directLinkResponse.json() as { link?: string };
-      if (directLink.link) {
-        return json({
-          url: directLink.link,
-          file_name: file.name,
-          expires_at: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
-        });
-      }
-    } else {
-      const directLinkError = await directLinkResponse.json().catch(() => ({})) as { error_summary?: string };
-      // A shared folder can be a separate Dropbox namespace even for its owner.
-      // Retry against that namespace before falling back to the private relay.
-      if (directLinkError.error_summary?.startsWith("path/not_found")) {
-        const metadataResponse = await fetch(DROPBOX_SHARED_LINK_METADATA_URL, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${connection.access_token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ url: folderUrl }),
-        });
-        if (metadataResponse.ok) {
-          const metadata = await metadataResponse.json() as { id?: string };
-          if (metadata.id) {
-            const folderMetadataResponse = await fetch(DROPBOX_SHARED_FOLDER_METADATA_URL, {
-              method: "POST",
-              headers: { Authorization: `Bearer ${connection.access_token}`, "Content-Type": "application/json" },
-              body: JSON.stringify({ shared_folder_id: metadata.id }),
-            });
-            const folderMetadata = folderMetadataResponse.ok
-              ? await folderMetadataResponse.json() as { shared_folder_id?: string }
-              : {};
-            const namespaceId = folderMetadata.shared_folder_id ?? metadata.id;
-            const namespaceLinkResponse = await fetch(DROPBOX_TEMPORARY_LINK_URL, {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${connection.access_token}`,
-                "Content-Type": "application/json",
-                "Dropbox-API-Path-Root": JSON.stringify({ ".tag": "namespace_id", namespace_id: namespaceId }),
-              },
-              body: JSON.stringify({ path: filePath }),
-            });
-            if (namespaceLinkResponse.ok) {
-              const namespaceLink = await namespaceLinkResponse.json() as { link?: string };
-              if (namespaceLink.link) {
-                return json({
-                  url: namespaceLink.link,
-                  file_name: file.name,
-                  expires_at: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
-                });
-              }
-            } else {
-              const namespaceError = await namespaceLinkResponse.json().catch(() => ({})) as { error_summary?: string };
-              console.info("Dropbox shared-folder namespace CDN playback unavailable", { status: namespaceLinkResponse.status, error_summary: namespaceError.error_summary ?? "unavailable", file_name: file.name });
-            }
-          }
-        }
-      }
-      console.info("Dropbox CDN playback unavailable; using secure shared-link stream", {
-        status: directLinkResponse.status,
-        error_summary: directLinkError.error_summary ?? "unavailable",
-        file_name: file.name,
-      });
-    }
 
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
