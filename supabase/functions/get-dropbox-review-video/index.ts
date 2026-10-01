@@ -116,6 +116,8 @@ Deno.serve(async (req) => {
     if (tokenError) return json({ error: "Could not prepare secure video playback." }, 503);
     return json({ url: `${supabaseUrl}/functions/v1/stream-dropbox-review-video?token=${encodeURIComponent(token)}`, file_name: file.name, expires_at: expiresAt });
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : "Could not prepare this video for playback." }, 500);
+    const message = error instanceof Error ? error.message : "Could not prepare this video for playback.";
+    console.error("Dropbox review video resolver failed", { message });
+    return json({ error: message }, 500);
   }
 });

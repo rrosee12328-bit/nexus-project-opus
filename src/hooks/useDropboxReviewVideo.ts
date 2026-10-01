@@ -15,7 +15,13 @@ export function useDropboxReviewVideo(itemId: string | null) {
       const { data, error } = await supabase.functions.invoke<DropboxReviewVideo & { error?: string }>("get-dropbox-review-video", {
         body: { itemId },
       });
-      if (error) throw new Error(data?.error || error.message || "Could not load this Dropbox video");
+      if (error) {
+        const response = error.context;
+        const errorBody = response instanceof Response
+          ? await response.clone().json().catch(() => null) as { error?: string } | null
+          : null;
+        throw new Error(data?.error || errorBody?.error || error.message || "Could not load this Dropbox video");
+      }
       if (!data?.url) throw new Error(data?.error || "Dropbox did not return a playable video link");
       return data;
     },
