@@ -12,7 +12,7 @@ const corsHeaders = {
 };
 
 type ResolvePayload = { itemId?: string };
-type DropboxFile = { ".tag": "file"; name: string; path_lower?: string; path_display?: string };
+type DropboxFile = { ".tag": "file"; id?: string; name: string; path_lower?: string; path_display?: string };
 type DropboxFolderResult = { entries: Array<DropboxFile | { ".tag": string; name?: string }>; cursor?: string; has_more?: boolean };
 type ReviewItem = { id: string; title: string; source_file_name: string | null; approval_request_id: string };
 type ReviewRequest = { id: string; client_id: string; review_url: string | null };
@@ -127,7 +127,12 @@ Deno.serve(async (req) => {
         });
       }
     } else {
-      console.info("Dropbox CDN playback unavailable; using secure shared-link stream", { status: directLinkResponse.status, file_name: file.name });
+      const directLinkError = await directLinkResponse.json().catch(() => ({})) as { error_summary?: string };
+      console.info("Dropbox CDN playback unavailable; using secure shared-link stream", {
+        status: directLinkResponse.status,
+        error_summary: directLinkError.error_summary ?? "unavailable",
+        file_name: file.name,
+      });
     }
 
     const token = crypto.randomUUID();
