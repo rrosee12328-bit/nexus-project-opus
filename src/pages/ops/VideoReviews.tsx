@@ -22,7 +22,6 @@ type ReviewProject = {
   name: string;
   client_id: string;
   current_phase: string | null;
-  clients: { name: string } | null;
 };
 type ApprovalItem = Database["public"]["Tables"]["approval_request_items"]["Row"];
 type TeamReview = Database["public"]["Tables"]["approval_requests"]["Row"] & {
@@ -61,12 +60,14 @@ export default function VideoReviews() {
   const clients = clientsQuery.data ?? EMPTY_REVIEW_CLIENTS;
 
   const projectsQuery = useQuery({
-    queryKey: ["team-video-review-projects"],
+    queryKey: ["team-video-review-projects", clientId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("projects").select("id, name, client_id, current_phase, clients(name)").order("name");
+      if (!clientId) return [];
+      const { data, error } = await supabase.from("projects").select("id, name, client_id, current_phase").eq("client_id", clientId).order("name").limit(100);
       if (error) throw error;
       return (data ?? []) as unknown as ReviewProject[];
     },
+    enabled: Boolean(clientId),
   });
   const projects = projectsQuery.data ?? EMPTY_REVIEW_PROJECTS;
 
@@ -80,7 +81,7 @@ export default function VideoReviews() {
   });
 
   const selectedClient = useMemo(() => clients.find((client) => client.id === clientId) ?? null, [clientId, clients]);
-  const clientProjects = useMemo(() => projects.filter((project) => project.client_id === clientId), [clientId, projects]);
+  const clientProjects = projects;
   const selectedProject = useMemo(() => clientProjects.find((project) => project.id === projectId) ?? null, [clientProjects, projectId]);
   const noProjectsForClient = Boolean(clientId) && !projectsQuery.isLoading && clientProjects.length === 0;
 
