@@ -15,6 +15,12 @@
 - Selecting a playlist entry loads only that file in a native, in-portal video player. Playback records **Viewed** separately from approval.
 - Keep per-video approve, decline, and suggestions actions directly beneath the player, so the decision clearly belongs to the open video.
 
+### Mobile review mode
+- Treat mobile as a **video-first review surface**, not a shrunken desktop workspace: the selected video appears immediately below the delivery header instead of after the complete playlist.
+- Provide a compact two-option switcher—**Watch** and **Videos**—so clients can move between focused playback and a Dropbox-style file list without long scrolling.
+- Keep the mobile video list dense and scannable: numbered rows, clear viewed state, and no repeated pending labels that consume screen space.
+- Size portrait videos for the available phone height and center them without oversized landscape letterboxing; retain native controls and fullscreen behavior.
+
 ## Visual system
 - Continue the Vektiss dark navy/black surfaces, blue primary accents, subtle borders, and compact status badges.
 - The player frame uses a quiet dark panel, a small Vektiss review label, and no third-party chrome.

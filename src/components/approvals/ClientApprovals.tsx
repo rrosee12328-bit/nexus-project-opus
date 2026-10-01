@@ -20,6 +20,7 @@ type ClientApproval = Database["public"]["Tables"]["approval_requests"]["Row"] &
   approval_request_items: ApprovalItem[] | null;
 };
 type ResponseTarget = { kind: "request" | "item"; id: string };
+type MobileStudioView = "watch" | "videos";
 
 const STATUS_CONFIG: Record<string, { color: string; icon: typeof Clock }> = {
   pending: { color: "text-amber-500", icon: Clock },
@@ -45,6 +46,7 @@ export function ClientApprovals() {
   const [selectedResponse, setSelectedResponse] = useState<ClientApprovalResponse | null>(null);
   const [openedItemIds, setOpenedItemIds] = useState<Set<string>>(() => new Set());
   const [selectedVideoIds, setSelectedVideoIds] = useState<Record<string, string>>({});
+  const [mobileStudioViews, setMobileStudioViews] = useState<Record<string, MobileStudioView>>({});
 
   const { data: approvals = [], isLoading } = useQuery({
     queryKey: ["client-approvals", user?.id],
@@ -160,11 +162,12 @@ export function ClientApprovals() {
       : null;
     const reviewedCount = items.filter((item) => item.status !== "pending").length;
     const viewedCount = items.filter((item) => Boolean(item.viewed_at) || openedItemIds.has(item.id)).length;
+    const mobileStudioView = mobileStudioViews[approval.id] ?? "watch";
 
     return (
       <motion.div key={approval.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 * index }}>
         <Card className={status === "pending" ? "border-primary/35 shadow-[0_0_30px_rgba(37,99,235,0.08)]" : "opacity-85"}>
-          <CardContent className="space-y-4 pb-5 pt-5">
+          <CardContent className="space-y-4 px-3 pb-4 pt-4 sm:p-5">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10"><Icon className={`h-5 w-5 ${cfg.color}`} /></div>
               <div className="min-w-0 flex-1">
@@ -178,32 +181,41 @@ export function ClientApprovals() {
             </div>
 
             {activeItem ? (
-              <div className="grid gap-4 border-t border-border pt-4 lg:grid-cols-[minmax(13rem,0.72fr)_minmax(0,1.5fr)]">
-                <div className="max-h-[28rem] space-y-1.5 overflow-y-auto rounded-xl border border-border bg-muted/20 p-2" aria-label="Video playlist">
-                  <p className="px-2 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Video playlist</p>
-                  {items.map((item, itemIndex) => {
-                    const itemCfg = STATUS_CONFIG[item.status] || STATUS_CONFIG.pending;
-                    const ItemIcon = itemCfg.icon;
-                    const viewed = Boolean(item.viewed_at) || openedItemIds.has(item.id);
-                    const videoNumber = item.position > 0 ? item.position : itemIndex + 1;
-                    const selected = item.id === activeItem.id;
-                    return <button key={item.id} type="button" onClick={() => setSelectedVideoIds((current) => ({ ...current, [approval.id]: item.id }))} className={`w-full rounded-lg border p-2.5 text-left transition-colors ${selected ? "border-primary/50 bg-primary/10 shadow-sm" : "border-transparent hover:border-border hover:bg-background/70"}`} aria-pressed={selected}>
-                      <div className="flex items-start gap-2"><ItemIcon className={`mt-0.5 h-4 w-4 shrink-0 ${itemCfg.color}`} /><div className="min-w-0 flex-1"><p className="line-clamp-2 text-xs font-medium">{videoNumber}. {item.title}</p><div className="mt-1.5 flex flex-wrap gap-1"><Badge variant="secondary" className="h-4 px-1 text-[8px]">{approvalStatusLabel(item.status)}</Badge><Badge variant={viewed ? "default" : "outline"} className={`h-4 gap-0.5 px-1 text-[8px] ${viewed ? "bg-sky-600 hover:bg-sky-600" : "text-muted-foreground"}`}>{viewed && <Eye className="h-2.5 w-2.5" />}{viewed ? "Viewed" : "Not viewed"}</Badge></div></div></div>
-                    </button>;
-                  })}
+              <>
+                <div className="grid grid-cols-2 rounded-lg border border-border bg-muted/30 p-1 lg:hidden" role="tablist" aria-label="Mobile review layout">
+                  <button type="button" role="tab" aria-selected={mobileStudioView === "watch"} onClick={() => setMobileStudioViews((current) => ({ ...current, [approval.id]: "watch" }))} className={`flex min-h-10 items-center justify-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors ${mobileStudioView === "watch" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><Play className="h-3.5 w-3.5" /> Watch</button>
+                  <button type="button" role="tab" aria-selected={mobileStudioView === "videos"} onClick={() => setMobileStudioViews((current) => ({ ...current, [approval.id]: "videos" }))} className={`flex min-h-10 items-center justify-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors ${mobileStudioView === "videos" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><ListVideo className="h-3.5 w-3.5" /> Videos <span className="text-[10px] text-muted-foreground">({items.length})</span></button>
                 </div>
+                <div className="grid gap-4 border-t border-border pt-4 lg:grid-cols-[minmax(13rem,0.72fr)_minmax(0,1.5fr)]">
+                  <div className={`order-2 max-h-[28rem] space-y-1.5 overflow-y-auto rounded-xl border border-border bg-muted/20 p-2 ${mobileStudioView === "videos" ? "block" : "hidden"} lg:order-1 lg:block`} aria-label="Video playlist">
+                    <p className="px-2 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">All videos</p>
+                    {items.map((item, itemIndex) => {
+                      const itemCfg = STATUS_CONFIG[item.status] || STATUS_CONFIG.pending;
+                      const ItemIcon = itemCfg.icon;
+                      const viewed = Boolean(item.viewed_at) || openedItemIds.has(item.id);
+                      const videoNumber = item.position > 0 ? item.position : itemIndex + 1;
+                      const selected = item.id === activeItem.id;
+                      return <button key={item.id} type="button" onClick={() => {
+                        setSelectedVideoIds((current) => ({ ...current, [approval.id]: item.id }));
+                        setMobileStudioViews((current) => ({ ...current, [approval.id]: "watch" }));
+                      }} className={`w-full rounded-lg border p-2 text-left transition-colors sm:p-2.5 ${selected ? "border-primary/50 bg-primary/10 shadow-sm" : "border-transparent hover:border-border hover:bg-background/70"}`} aria-pressed={selected}>
+                        <div className="flex items-center gap-2"><ItemIcon className={`h-4 w-4 shrink-0 ${itemCfg.color}`} /><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium sm:text-xs" title={`${videoNumber}. ${item.title}`}>{videoNumber}. {item.title}</p><div className="mt-1 flex flex-wrap gap-1"><Badge variant="secondary" className="hidden h-4 px-1 text-[8px] sm:inline-flex">{approvalStatusLabel(item.status)}</Badge><Badge variant={viewed ? "default" : "outline"} className={`h-4 gap-0.5 px-1 text-[8px] ${viewed ? "bg-sky-600 hover:bg-sky-600" : "text-muted-foreground"}`}>{viewed && <Eye className="h-2.5 w-2.5" />}{viewed ? "Viewed" : "Not viewed"}</Badge></div></div></div>
+                      </button>;
+                    })}
+                  </div>
 
-                <div className="min-w-0">
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">Now reviewing</p><p className="mt-0.5 text-sm font-semibold">{activeItem.title}</p></div><Badge variant="outline" className="text-[10px]">Video {activeItem.position || items.indexOf(activeItem) + 1} of {items.length}</Badge></div>
-                  <EmbeddedDropboxVideo itemId={activeItem.id} title={activeItem.title} onPlaybackStarted={() => {
-                    const viewed = Boolean(activeItem.viewed_at) || openedItemIds.has(activeItem.id);
-                    if (!viewed && !markViewed.isPending) markViewed.mutate(activeItem.id);
-                  }} />
-                  {activeItem.viewed_at && <p className="mt-2 text-[10px] text-muted-foreground">Viewed {format(new Date(activeItem.viewed_at), "MMM d, yyyy · h:mm a")}</p>}
-                  {activeItem.response_note && <p className="mt-3 text-xs italic text-muted-foreground">“{activeItem.response_note}”</p>}
-                  {activeItem.status === "pending" ? responseControls({ kind: "item", id: activeItem.id }) : <p className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground"><CheckCircle2 className={`h-3.5 w-3.5 ${(STATUS_CONFIG[activeItem.status] || STATUS_CONFIG.pending).color}`} /> Decision recorded: {approvalStatusLabel(activeItem.status)}</p>}
+                  <div className={`order-1 min-w-0 ${mobileStudioView === "watch" ? "block" : "hidden"} lg:order-2 lg:block`}>
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">Now reviewing</p><p className="mt-0.5 text-sm font-semibold">{activeItem.title}</p></div><Badge variant="outline" className="text-[10px]">Video {activeItem.position || items.indexOf(activeItem) + 1} of {items.length}</Badge></div>
+                    <EmbeddedDropboxVideo itemId={activeItem.id} title={activeItem.title} onPlaybackStarted={() => {
+                      const viewed = Boolean(activeItem.viewed_at) || openedItemIds.has(activeItem.id);
+                      if (!viewed && !markViewed.isPending) markViewed.mutate(activeItem.id);
+                    }} />
+                    {activeItem.viewed_at && <p className="mt-2 text-[10px] text-muted-foreground">Viewed {format(new Date(activeItem.viewed_at), "MMM d, yyyy · h:mm a")}</p>}
+                    {activeItem.response_note && <p className="mt-3 text-xs italic text-muted-foreground">“{activeItem.response_note}”</p>}
+                    {activeItem.status === "pending" ? responseControls({ kind: "item", id: activeItem.id }) : <p className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground"><CheckCircle2 className={`h-3.5 w-3.5 ${(STATUS_CONFIG[activeItem.status] || STATUS_CONFIG.pending).color}`} /> Decision recorded: {approvalStatusLabel(activeItem.status)}</p>}
+                  </div>
                 </div>
-              </div>
+              </>
             ) : (
               <div className="border-t border-border pt-4">{status === "pending" ? responseControls({ kind: "request", id: approval.id }) : <>{approval.response_note && <p className="text-xs italic text-muted-foreground">“{approval.response_note}”</p>}{approval.responded_at && <p className="mt-1 text-[10px] text-muted-foreground">Responded {format(new Date(approval.responded_at), "MMMM d, yyyy")}</p>}</>}</div>
             )}
