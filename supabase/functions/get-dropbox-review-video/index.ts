@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const DROPBOX_LIST_FOLDER_URL = "https://api.dropboxapi.com/2/files/list_folder";
 const DROPBOX_LIST_CONTINUE_URL = "https://api.dropboxapi.com/2/files/list_folder/continue";
 const DROPBOX_TEMPORARY_LINK_URL = "https://api.dropboxapi.com/2/files/get_temporary_link";
+const DROPBOX_SHARED_LINK_FILE_URL = "https://content.dropboxapi.com/2/sharing/get_shared_link_file";
 const VIDEO_EXTENSION = /\.(mp4|mov|m4v|webm|avi|mkv|mpeg|mpg)$/i;
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -118,6 +119,30 @@ async function findFolderFile(accessToken: string, folderUrl: string, sourceFile
     ?? null;
 }
 
+async function sharedLinkDownloadUrl(accessToken: string, folderUrl: string, file: DropboxFile) {
+  const filePath = file.path_lower || file.path_display || `/${file.name}`;
+  const response = await fetch(DROPBOX_SHARED_LINK_FILE_URL, {
+    method: "POST",
+    redirect: "manual",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Dropbox-API-Arg": JSON.stringify({ url: folderUrl, path: filePath }),
+    },
+  });
+
+  const location = response.headers.get("location");
+  if (response.status >= 300 && response.status < 400 && location) {
+    const url = new URL(location);
+    const host = url.hostname.toLowerCase();
+    if (url.protocol === "https:" && (host === "dropbox.com" || host.endsWith(".dropbox.com") || host === "dropboxusercontent.com" || host.endsWith(".dropboxusercontent.com"))) {
+      return location;
+    }
+  }
+
+  if (!response.ok) throw new Error(await dropboxError(response));
+  throw new Error("Dropbox did not provide a secure download URL for this shared-folder video.");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -190,16 +215,24 @@ Deno.serve(async (req) => {
       headers: { Authorization: `Bearer ${connection.access_token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ path }),
     });
-    if (!linkResponse.ok) {
-      const message = await dropboxError(linkResponse.clone());
-      console.warn("Dropbox temporary-link request failed", { status: linkResponse.status, file_name: file.name, has_file_id: Boolean(file.id) });
-      return json({ error: message }, 422);
+    let videoUrl: string;
+    if (linkResponse.ok) {
+      const link = await linkResponse.json() as { link?: string };
+      if (!link.link) return json({ error: "Dropbox did not provide a playable video link." }, 422);
+      videoUrl = link.link;
+    } else {
+      // File IDs from a public shared folder can be listed without being resolvable
+      // through the account root. The shared-link content endpoint is the Dropbox
+      // route designed to return a short-lived download URL for that case.
+      console.warn("Dropbox temporary-link request failed; using shared-link fallback", { status: linkResponse.status, file_name: file.name, has_file_id: Boolean(file.id) });
+      try {
+        videoUrl = await sharedLinkDownloadUrl(connection.access_token, folderUrl, file);
+      } catch (error) {
+        return json({ error: error instanceof Error ? error.message : "Dropbox could not load this video." }, 422);
+      }
     }
-
-    const link = await linkResponse.json() as { link?: string };
-    if (!link.link) return json({ error: "Dropbox did not provide a playable video link." }, 422);
     return json({
-      url: link.link,
+      url: videoUrl,
       file_name: file.name,
       expires_at: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
     });
