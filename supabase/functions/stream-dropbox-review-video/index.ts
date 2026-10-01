@@ -132,7 +132,8 @@ Deno.serve(async (req) => {
     if (!response.ok || !response.body) return json({ error: await dropboxError(response) }, response.status >= 400 ? response.status : 502);
 
     const headers = new Headers(corsHeaders);
-    headers.set("Content-Type", response.headers.get("content-type") || mediaType(file.name));
+    const upstreamContentType = response.headers.get("content-type");
+    headers.set("Content-Type", !upstreamContentType || upstreamContentType === "application/octet-stream" ? mediaType(file.name) : upstreamContentType);
     headers.set("Accept-Ranges", response.headers.get("accept-ranges") || "bytes");
     for (const header of ["content-length", "content-range"]) {
       const value = response.headers.get(header);
