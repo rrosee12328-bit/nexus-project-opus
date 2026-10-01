@@ -95,7 +95,15 @@ export function ApprovalsPanel({ projectId, clientId }: ApprovalsPanelProps) {
   const submitApproval = useMutation({
     mutationFn: async () => {
       if (!title.trim()) throw new Error("A review delivery name is required");
-      const prepared = buildVideoReviewItems(reviewUrl, videoItems);
+      const isUntitledFolderDelivery = videoItems.length === 1
+        && !videoItems[0].title.trim()
+        && !videoItems[0].reviewUrl.trim();
+      const itemsForSubmission = isUntitledFolderDelivery
+        ? createDropboxImportedVideoItems((await importDropboxTitles.mutateAsync(reviewUrl)).items)
+        : videoItems;
+      if (!itemsForSubmission.length) throw new Error("No video filenames could be imported from that Dropbox folder");
+      if (isUntitledFolderDelivery) setVideoItems(itemsForSubmission);
+      const prepared = buildVideoReviewItems(reviewUrl, itemsForSubmission);
       const { error } = await supabase.rpc("create_video_review_request", {
         _project_id: projectId,
         _title: title.trim(),
@@ -105,9 +113,12 @@ export function ApprovalsPanel({ projectId, clientId }: ApprovalsPanelProps) {
         _items: prepared.items,
       });
       if (error) throw error;
+      return { itemCount: prepared.items.length, imported: isUntitledFolderDelivery };
     },
-    onSuccess: () => {
-      toast.success(videoItems.length === 1 ? "Video sent for client review" : `${videoItems.length} videos sent for client review`);
+    onSuccess: (result) => {
+      toast.success(result.imported
+        ? `${result.itemCount} video titles imported and sent for client review`
+        : result.itemCount === 1 ? "Video sent for client review" : `${result.itemCount} videos sent for client review`);
       void queryClient.invalidateQueries({ queryKey: ["approvals", projectId] });
       closeForm();
     },

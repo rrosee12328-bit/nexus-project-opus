@@ -148,7 +148,15 @@ export default function VideoReviews() {
       if (!selectedClient) throw new Error("Choose the client for this delivery");
       if (!selectedProject) throw new Error("Choose or create a project for this delivery");
       if (!title.trim()) throw new Error("A review delivery name is required");
-      const prepared = buildVideoReviewItems(reviewUrl, videoItems);
+      const isUntitledFolderDelivery = videoItems.length === 1
+        && !videoItems[0].title.trim()
+        && !videoItems[0].reviewUrl.trim();
+      const itemsForSubmission = isUntitledFolderDelivery
+        ? createDropboxImportedVideoItems((await importDropboxTitles.mutateAsync(reviewUrl)).items)
+        : videoItems;
+      if (!itemsForSubmission.length) throw new Error("No video filenames could be imported from that Dropbox folder");
+      if (isUntitledFolderDelivery) setVideoItems(itemsForSubmission);
+      const prepared = buildVideoReviewItems(reviewUrl, itemsForSubmission);
       const { error } = await supabase.rpc("create_video_review_request", {
         _project_id: selectedProject.id,
         _title: title.trim(),
@@ -158,9 +166,12 @@ export default function VideoReviews() {
         _items: prepared.items,
       });
       if (error) throw error;
+      return { itemCount: prepared.items.length, imported: isUntitledFolderDelivery };
     },
-    onSuccess: () => {
-      toast.success(videoItems.length === 1 ? "Video sent to the client for review" : `${videoItems.length} videos sent to the client for review`);
+    onSuccess: (result) => {
+      toast.success(result.imported
+        ? `${result.itemCount} video titles imported and sent to the client for review`
+        : result.itemCount === 1 ? "Video sent to the client for review" : `${result.itemCount} videos sent to the client for review`);
       resetForm();
       void queryClient.invalidateQueries({ queryKey: ["team-video-reviews"] });
       void queryClient.invalidateQueries({ queryKey: ["team-video-review-projects"] });
