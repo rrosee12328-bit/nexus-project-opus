@@ -104,6 +104,10 @@ export function ApprovalsPanel({ projectId, clientId }: ApprovalsPanelProps) {
       if (!itemsForSubmission.length) throw new Error("No video filenames could be imported from that Dropbox folder");
       if (isUntitledFolderDelivery) setVideoItems(itemsForSubmission);
       const prepared = buildVideoReviewItems(reviewUrl, itemsForSubmission);
+      const { error: inviteError } = await supabase.functions.invoke("invite-client", {
+        body: { client_id: clientId, project_id: projectId },
+      });
+      if (inviteError) throw new Error(`Could not prepare client portal access: ${inviteError.message}`);
       const { error } = await supabase.rpc("create_video_review_request", {
         _project_id: projectId,
         _title: title.trim(),

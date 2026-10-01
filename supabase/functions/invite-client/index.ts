@@ -41,8 +41,8 @@ async function requireAdminOrService(req: Request, supabase: ReturnType<typeof c
   if (token === serviceKey) return;
   const { data, error } = await supabase.auth.getUser(token);
   if (error || !data.user) throw new Error("Unauthorized");
-  const { data: role } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id).eq("role", "admin").maybeSingle();
-  if (!role) throw new Error("Only administrators can activate client access");
+  const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id).in("role", ["admin", "ops"]);
+  if (!roles?.length) throw new Error("Only administrators or operations staff can activate client access");
 }
 
 async function findUser(supabase: ReturnType<typeof createClient>, email: string) {
