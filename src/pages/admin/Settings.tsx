@@ -41,6 +41,7 @@ export default function AdminSettings() {
   const [inviteRole, setInviteRole] = useState<"admin" | "ops">("admin");
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [dropboxAccessToken, setDropboxAccessToken] = useState("");
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "profile");
 
   const redirectTarget = getAppUrl("/admin/settings?tab=integrations");
@@ -302,6 +303,24 @@ export default function AdminSettings() {
       window.location.assign(data.url);
     },
     onError: (err: Error) => toast.error("Failed to start Dropbox connection: " + err.message),
+  });
+
+  const connectDropboxAccessToken = useMutation({
+    mutationFn: async () => {
+      if (!dropboxAccessToken.trim()) throw new Error("Enter a Dropbox access token");
+      const { data, error } = await supabase.functions.invoke("configure-dropbox-video-review-token", {
+        body: { accessToken: dropboxAccessToken.trim() },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data as { accountName?: string | null };
+    },
+    onSuccess: (data) => {
+      setDropboxAccessToken("");
+      queryClient.invalidateQueries({ queryKey: ["dropbox-video-review-connection"] });
+      toast.success(`Dropbox connected${data?.accountName ? ` as ${data.accountName}` : ""}`);
+    },
+    onError: (err: Error) => toast.error("Failed to connect Dropbox: " + err.message),
   });
 
   const initials = (displayName || user?.email || "A")
@@ -899,8 +918,21 @@ export default function AdminSettings() {
                   </div>
                   <Button onClick={() => connectDropbox.mutate()} disabled={connectDropbox.isPending} className="gap-2">
                     <Link2 className={`h-4 w-4 ${connectDropbox.isPending ? "animate-pulse" : ""}`} />
-                    {connectDropbox.isPending ? "Redirecting..." : dropboxConnection?.connected ? "Reconnect Dropbox" : "Connect Dropbox"}
+                    {connectDropbox.isPending ? "Redirecting..." : dropboxConnection?.connected ? "Reconnect with OAuth" : "Connect with OAuth"}
                   </Button>
+                </div>
+
+                <div className="rounded-lg border border-dashed p-4 space-y-3">
+                  <div>
+                    <p className="text-sm font-medium">Connect with a Dropbox access token</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Enable <code>files.metadata.read</code> and <code>sharing.read</code> in the Dropbox App Console, generate a new access token, then paste it here. The token is sent once to an authenticated server function and never returned to the browser.</p>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Input type="password" value={dropboxAccessToken} onChange={(event) => setDropboxAccessToken(event.target.value)} placeholder="Dropbox access token" autoComplete="off" />
+                    <Button type="button" variant="secondary" className="shrink-0" onClick={() => connectDropboxAccessToken.mutate()} disabled={connectDropboxAccessToken.isPending || !dropboxAccessToken.trim()}>
+                      {connectDropboxAccessToken.isPending ? "Validating..." : "Save token"}
+                    </Button>
+                  </div>
                 </div>
 
                 {dropboxConnection?.connected && dropboxConnection.updated_at && (
@@ -919,7 +951,7 @@ export default function AdminSettings() {
                 </div>
 
                 <p className="text-sm text-muted-foreground">
-                  Required Supabase secrets: DROPBOX_CLIENT_ID, DROPBOX_CLIENT_SECRET, DROPBOX_REDIRECT_URI, and APP_BASE_URL. Tokens remain in the protected server-side connection store and are never sent to Ops browsers.
+                  To use the Connect Dropbox OAuth flow, configure DROPBOX_CLIENT_ID, DROPBOX_CLIENT_SECRET, DROPBOX_REDIRECT_URI, and APP_BASE_URL as Supabase secrets. Any connected token remains in the protected server-side connection store and is never sent to Ops browsers.
                 </p>
                 {dropboxLoading && <p className="text-sm text-muted-foreground">Loading connection status...</p>}
               </CardContent>

@@ -73,8 +73,8 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const clientId = Deno.env.get("DROPBOX_CLIENT_ID");
     const clientSecret = Deno.env.get("DROPBOX_CLIENT_SECRET");
-    if (!supabaseUrl || !anonKey || !serviceRoleKey || !clientId || !clientSecret) {
-      return json({ error: "Dropbox import has not been configured yet." }, 503);
+    if (!supabaseUrl || !anonKey || !serviceRoleKey) {
+      return json({ error: "Dropbox import service is unavailable." }, 503);
     }
 
     const auth = req.headers.get("Authorization") ?? "";
@@ -100,7 +100,10 @@ Deno.serve(async (req) => {
 
     let accessToken = connection.access_token;
     const expiresAt = connection.access_token_expires_at ? new Date(connection.access_token_expires_at).getTime() : 0;
-    if (!expiresAt || expiresAt < Date.now() + 60_000) {
+    if (expiresAt && expiresAt < Date.now() + 60_000) {
+      if (!clientId || !clientSecret) {
+        return json({ error: "Dropbox needs to be reconnected by an admin before files can be imported." }, 409);
+      }
       const refreshResponse = await fetch(DROPBOX_TOKEN_URL, {
         method: "POST",
         headers: {
