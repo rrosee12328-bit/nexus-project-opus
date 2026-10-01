@@ -35,7 +35,7 @@ export function EmbeddedDropboxVideo({ itemId, title, onPlaybackStarted }: Embed
           <source src={video.url} />
           Your browser does not support embedded video playback.
         </video>
-        {isBuffering && <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/70 p-6 text-center text-white"><LoaderCircle className="h-5 w-5 animate-spin text-primary" /><p className="text-sm font-medium">Securely buffering video…</p><p className="max-w-sm text-xs text-slate-300">Large Dropbox videos can take a few seconds to start. Your review will remain here in Vektiss.</p></div>}
+        {isBuffering && <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center p-3" aria-live="polite"><div className="flex items-center gap-2 rounded-full border border-white/15 bg-slate-950/85 px-3 py-1.5 text-xs text-white shadow-lg backdrop-blur"><LoaderCircle className="h-3.5 w-3.5 shrink-0 animate-spin text-primary" /><span className="font-medium">Loading video…</span><span className="hidden text-slate-300 sm:inline">Securely streaming from Dropbox</span></div></div>}
       </div>
     </div>
   );
