@@ -7,11 +7,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle2, Clock, ExternalLink, Eye, FileCheck, Lightbulb, Video, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, Eye, FileCheck, Lightbulb, ListVideo, Play, Video, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { approvalResponseActionLabel, approvalResponseNeedsNote, approvalStatusLabel, type ClientApprovalResponse } from "@/lib/approvalStatus";
+import { EmbeddedDropboxVideo } from "@/components/approvals/EmbeddedDropboxVideo";
 
 type ApprovalItem = Database["public"]["Tables"]["approval_request_items"]["Row"];
 type ClientApproval = Database["public"]["Tables"]["approval_requests"]["Row"] & {
@@ -43,6 +44,7 @@ export function ClientApprovals() {
   const [responseNote, setResponseNote] = useState("");
   const [selectedResponse, setSelectedResponse] = useState<ClientApprovalResponse | null>(null);
   const [openedItemIds, setOpenedItemIds] = useState<Set<string>>(() => new Set());
+  const [selectedVideoIds, setSelectedVideoIds] = useState<Record<string, string>>({});
 
   const { data: approvals = [], isLoading } = useQuery({
     queryKey: ["client-approvals", user?.id],
@@ -90,7 +92,7 @@ export function ClientApprovals() {
         next.delete(itemId);
         return next;
       });
-      toast.error(error.message || "Could not save that this video was opened");
+      toast.error(error.message || "Could not save that this video was viewed");
     },
   });
 
@@ -119,12 +121,12 @@ export function ClientApprovals() {
 
   const responseControls = (target: ResponseTarget) => {
     if (!isActive(target)) {
-      return <Button size="sm" className="mt-2" onClick={() => beginResponse(target)}><FileCheck className="mr-1 h-3.5 w-3.5" /> Review & respond</Button>;
+      return <Button size="sm" className="mt-4" onClick={() => beginResponse(target)}><FileCheck className="mr-1 h-3.5 w-3.5" /> Review & respond</Button>;
     }
     const requiresNote = selectedResponse ? approvalResponseNeedsNote(selectedResponse) : false;
     const inputId = `feedback-${target.kind}-${target.id}`;
     return (
-      <div className="mt-3 space-y-3 border-t border-border pt-3">
+      <div className="mt-4 space-y-3 border-t border-border pt-4">
         <div className="space-y-2">
           <label className="text-sm font-medium" htmlFor={inputId}>{requiresNote ? "Your feedback *" : "Optional note"}</label>
           <Textarea id={inputId} value={responseNote} onChange={(event) => setResponseNote(event.target.value)} placeholder={selectedResponse === "rejected" ? "Tell us what needs to change…" : selectedResponse === "suggestions" ? "Share your ideas or specific edits…" : "Add a note for your team…"} rows={3} maxLength={3000} />
@@ -153,52 +155,57 @@ export function ClientApprovals() {
     const Icon = cfg.icon;
     const items = [...(approval.approval_request_items ?? [])].sort((a, b) => a.position - b.position);
     const isGrouped = items.length > 0;
+    const activeItem = isGrouped
+      ? items.find((item) => item.id === selectedVideoIds[approval.id]) ?? items[0]
+      : null;
+    const reviewedCount = items.filter((item) => item.status !== "pending").length;
+    const viewedCount = items.filter((item) => Boolean(item.viewed_at) || openedItemIds.has(item.id)).length;
 
     return (
       <motion.div key={approval.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 * index }}>
-        <Card className={status === "pending" ? "border-amber-500/30" : "opacity-85"}>
-          <CardContent className="space-y-3 pb-5 pt-5">
+        <Card className={status === "pending" ? "border-primary/35 shadow-[0_0_30px_rgba(37,99,235,0.08)]" : "opacity-85"}>
+          <CardContent className="space-y-4 pb-5 pt-5">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10"><Icon className={`h-5 w-5 ${cfg.color}`} /></div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2"><p className="font-medium">{approval.title}</p><Badge variant="outline" className={`text-[10px] ${cfg.color}`}>{approvalStatusLabel(status)}</Badge></div>
                 {approval.projects?.name && <p className="text-xs text-muted-foreground">Project: {approval.projects.name}</p>}
                 {approval.description && <p className="mt-1 text-sm text-muted-foreground">{approval.description}</p>}
-                {approval.review_url ? <Button variant="outline" size="sm" className="mt-3" asChild><a href={approval.review_url} target="_blank" rel="noopener noreferrer"><Video className="mr-2 h-4 w-4" /> {items.length > 1 ? "Open Dropbox folder" : "Watch Dropbox video"} <ExternalLink className="ml-2 h-3.5 w-3.5" /></a></Button> : <p className="mt-3 text-xs text-muted-foreground">A video link was not included with this legacy request.</p>}
-                {isGrouped && <p className="mt-2 text-xs text-muted-foreground">Open each video below to mark it <strong>Viewed</strong>. Opening the folder does not mark all videos viewed.</p>}
-                {approval.phase && <Badge variant="outline" className="ml-2 mt-3 text-[10px]">{approval.phase}</Badge>}
+                {isGrouped && <div className="mt-3 flex flex-wrap gap-2 text-xs"><Badge variant="secondary" className="gap-1"><ListVideo className="h-3 w-3" /> {items.length} video{items.length === 1 ? "" : "s"}</Badge><Badge variant="outline">{viewedCount} viewed</Badge><Badge variant="outline">{reviewedCount} decided</Badge></div>}
+                {approval.phase && <Badge variant="outline" className="mt-3 text-[10px]">{approval.phase}</Badge>}
                 <p className="mt-2 text-[10px] text-muted-foreground">Sent {format(new Date(approval.created_at), "MMMM d, yyyy")}</p>
               </div>
             </div>
 
-            {isGrouped ? (
-              <div className="space-y-2 border-t border-border pt-3">
-                <p className="text-sm font-medium">Videos in this delivery</p>
-                {items.map((item, itemIndex) => {
-                  const itemCfg = STATUS_CONFIG[item.status] || STATUS_CONFIG.pending;
-                  const ItemIcon = itemCfg.icon;
-                  const pendingItem = item.status === "pending";
-                  const viewed = Boolean(item.viewed_at) || openedItemIds.has(item.id);
-                  const videoNumber = item.position > 0 ? item.position : itemIndex + 1;
-                  return (
-                    <div key={item.id} className="rounded-md border border-border bg-muted/20 p-3">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div className="flex min-w-0 items-center gap-2">
-                          <ItemIcon className={`mt-0.5 h-4 w-4 shrink-0 ${itemCfg.color}`} />
-                          <div className="min-w-0"><p className="text-sm font-medium">Video {videoNumber}: {item.title}</p><div className="mt-1 flex flex-wrap items-center gap-1.5"><Badge variant="secondary" className="text-[9px]">{approvalStatusLabel(item.status)}</Badge><Badge variant={viewed ? "default" : "outline"} className={`gap-1 text-[9px] ${viewed ? "bg-sky-600 hover:bg-sky-600" : "text-muted-foreground"}`}><Eye className="h-2.5 w-2.5" /> {viewed ? "Viewed" : "Not viewed"}</Badge></div></div>
-                        </div>
-                        {item.review_url && <Button variant="link" size="sm" className="h-auto p-0 text-xs" asChild><a href={item.review_url} target="_blank" rel="noopener noreferrer" onClick={() => { if (!viewed) markViewed.mutate(item.id); }}>Open video <ExternalLink className="ml-1 h-3 w-3" /></a></Button>}
-                      </div>
-                      {item.viewed_at && <p className="mt-2 text-[10px] text-muted-foreground">Viewed {format(new Date(item.viewed_at), "MMM d, yyyy · h:mm a")}</p>}
-                      {item.response_note && <p className="mt-2 text-xs italic text-muted-foreground">“{item.response_note}”</p>}
-                      {pendingItem && responseControls({ kind: "item", id: item.id })}
-                      {item.responded_at && <p className="mt-2 text-[10px] text-muted-foreground">Responded {format(new Date(item.responded_at), "MMM d, yyyy")}</p>}
-                    </div>
-                  );
-                })}
+            {activeItem ? (
+              <div className="grid gap-4 border-t border-border pt-4 lg:grid-cols-[minmax(13rem,0.72fr)_minmax(0,1.5fr)]">
+                <div className="max-h-[28rem] space-y-1.5 overflow-y-auto rounded-xl border border-border bg-muted/20 p-2" aria-label="Video playlist">
+                  <p className="px-2 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Video playlist</p>
+                  {items.map((item, itemIndex) => {
+                    const itemCfg = STATUS_CONFIG[item.status] || STATUS_CONFIG.pending;
+                    const ItemIcon = itemCfg.icon;
+                    const viewed = Boolean(item.viewed_at) || openedItemIds.has(item.id);
+                    const videoNumber = item.position > 0 ? item.position : itemIndex + 1;
+                    const selected = item.id === activeItem.id;
+                    return <button key={item.id} type="button" onClick={() => setSelectedVideoIds((current) => ({ ...current, [approval.id]: item.id }))} className={`w-full rounded-lg border p-2.5 text-left transition-colors ${selected ? "border-primary/50 bg-primary/10 shadow-sm" : "border-transparent hover:border-border hover:bg-background/70"}`} aria-pressed={selected}>
+                      <div className="flex items-start gap-2"><ItemIcon className={`mt-0.5 h-4 w-4 shrink-0 ${itemCfg.color}`} /><div className="min-w-0 flex-1"><p className="line-clamp-2 text-xs font-medium">{videoNumber}. {item.title}</p><div className="mt-1.5 flex flex-wrap gap-1"><Badge variant="secondary" className="h-4 px-1 text-[8px]">{approvalStatusLabel(item.status)}</Badge><Badge variant={viewed ? "default" : "outline"} className={`h-4 gap-0.5 px-1 text-[8px] ${viewed ? "bg-sky-600 hover:bg-sky-600" : "text-muted-foreground"}`}>{viewed && <Eye className="h-2.5 w-2.5" />}{viewed ? "Viewed" : "Not viewed"}</Badge></div></div></div>
+                    </button>;
+                  })}
+                </div>
+
+                <div className="min-w-0">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">Now reviewing</p><p className="mt-0.5 text-sm font-semibold">{activeItem.title}</p></div><Badge variant="outline" className="text-[10px]">Video {activeItem.position || items.indexOf(activeItem) + 1} of {items.length}</Badge></div>
+                  <EmbeddedDropboxVideo itemId={activeItem.id} title={activeItem.title} onPlaybackStarted={() => {
+                    const viewed = Boolean(activeItem.viewed_at) || openedItemIds.has(activeItem.id);
+                    if (!viewed && !markViewed.isPending) markViewed.mutate(activeItem.id);
+                  }} />
+                  {activeItem.viewed_at && <p className="mt-2 text-[10px] text-muted-foreground">Viewed {format(new Date(activeItem.viewed_at), "MMM d, yyyy · h:mm a")}</p>}
+                  {activeItem.response_note && <p className="mt-3 text-xs italic text-muted-foreground">“{activeItem.response_note}”</p>}
+                  {activeItem.status === "pending" ? responseControls({ kind: "item", id: activeItem.id }) : <p className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground"><CheckCircle2 className={`h-3.5 w-3.5 ${(STATUS_CONFIG[activeItem.status] || STATUS_CONFIG.pending).color}`} /> Decision recorded: {approvalStatusLabel(activeItem.status)}</p>}
+                </div>
               </div>
             ) : (
-              <>{status === "pending" ? responseControls({ kind: "request", id: approval.id }) : <>{approval.response_note && <p className="mt-1 text-xs italic text-muted-foreground">“{approval.response_note}”</p>}{approval.responded_at && <p className="mt-1 text-[10px] text-muted-foreground">Responded {format(new Date(approval.responded_at), "MMM d, yyyy")}</p>}</>}</>
+              <div className="border-t border-border pt-4">{status === "pending" ? responseControls({ kind: "request", id: approval.id }) : <>{approval.response_note && <p className="text-xs italic text-muted-foreground">“{approval.response_note}”</p>}{approval.responded_at && <p className="mt-1 text-[10px] text-muted-foreground">Responded {format(new Date(approval.responded_at), "MMMM d, yyyy")}</p>}</>}</div>
             )}
           </CardContent>
         </Card>
@@ -209,5 +216,5 @@ export function ClientApprovals() {
   const pending = approvals.filter((approval) => deliveryStatus(approval) === "pending");
   const resolved = approvals.filter((approval) => deliveryStatus(approval) !== "pending");
 
-  return <div className="space-y-6"><motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}><h1 className="text-2xl font-bold tracking-tight">Video reviews</h1><p className="text-sm text-muted-foreground">For Dropbox folders, every video stays numbered and shows whether you have viewed it—separately from its approval decision.</p></motion.div>{pending.length > 0 && <div className="space-y-3"><h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Needs your review ({pending.length})</h2>{pending.map(renderApproval)}</div>}{resolved.length > 0 && <div className="space-y-3"><h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Previous decisions ({resolved.length})</h2>{resolved.map(renderApproval)}</div>}{approvals.length === 0 && !isLoading && <Card><CardContent className="flex flex-col items-center justify-center gap-3 py-16"><div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10"><Video className="h-8 w-8 text-primary/40" /></div><p className="text-sm text-muted-foreground">No videos are waiting for your review.</p></CardContent></Card>}</div>;
+  return <div className="space-y-6"><motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}><h1 className="text-2xl font-bold tracking-tight">Video reviews</h1><p className="text-sm text-muted-foreground">Watch each Dropbox video here in Vektiss, then approve it, request changes, or send suggestions.</p></motion.div>{pending.length > 0 && <div className="space-y-3"><h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Needs your review ({pending.length})</h2>{pending.map(renderApproval)}</div>}{resolved.length > 0 && <div className="space-y-3"><h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Previous decisions ({resolved.length})</h2>{resolved.map(renderApproval)}</div>}{approvals.length === 0 && !isLoading && <Card><CardContent className="flex flex-col items-center justify-center gap-3 py-16"><div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10"><Video className="h-8 w-8 text-primary/40" /></div><p className="text-sm text-muted-foreground">No videos are waiting for your review.</p></CardContent></Card>}</div>;
 }

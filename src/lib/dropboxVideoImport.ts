@@ -11,11 +11,12 @@ export function createDropboxImportedVideoItems(files: Array<{ name: string; tit
   const seenTitles = new Set<string>();
 
   return files.reduce<VideoReviewDraftItem[]>((items, file) => {
-    const title = (file.title?.trim() || dropboxVideoTitleFromFilename(file.name)).trim();
+    const sourceFileName = file.name.trim();
+    const title = (file.title?.trim() || dropboxVideoTitleFromFilename(sourceFileName)).trim();
     const key = title.toLocaleLowerCase();
-    if (!title || seenTitles.has(key)) return items;
+    if (!title || !sourceFileName || seenTitles.has(key)) return items;
     seenTitles.add(key);
-    items.push({ ...createVideoReviewDraftItem(), title });
+    items.push({ ...createVideoReviewDraftItem(), title, sourceFileName });
     return items;
   }, []);
 }

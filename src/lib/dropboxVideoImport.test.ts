@@ -19,5 +19,6 @@ describe("createDropboxImportedVideoItems", () => {
     expect(items).toHaveLength(2);
     expect(items.map((item) => item.title)).toEqual(["01. Welcome", "02. The Offer"]);
     expect(items.every((item) => item.reviewUrl === "")).toBe(true);
+    expect(items.map((item) => item.sourceFileName)).toEqual(["01. Welcome.mp4", "02. Offer.mov"]);
   });
 });

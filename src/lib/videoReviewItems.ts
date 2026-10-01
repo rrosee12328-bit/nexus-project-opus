@@ -4,11 +4,13 @@ export type VideoReviewDraftItem = {
   id: string;
   title: string;
   reviewUrl: string;
+  sourceFileName?: string;
 };
 
 export type VideoReviewItemPayload = {
   title: string;
   review_url: string;
+  source_file_name?: string;
 };
 
 export function createVideoReviewDraftItem(): VideoReviewDraftItem {
@@ -39,7 +41,12 @@ export function buildVideoReviewItems(
     const reviewUrl = directLink ? normalizeDropboxReviewUrl(directLink) : normalizedDeliveryUrl;
     if (!reviewUrl) throw new Error(`Video ${index + 1} needs a secure Dropbox link`);
 
-    return { title, review_url: reviewUrl };
+    const sourceFileName = item.sourceFileName?.trim();
+    return {
+      title,
+      review_url: reviewUrl,
+      ...(sourceFileName ? { source_file_name: sourceFileName } : {}),
+    };
   });
 
   return { deliveryUrl: normalizedDeliveryUrl, items: preparedItems };

@@ -925,7 +925,7 @@ export default function AdminSettings() {
                 <div className="rounded-lg border border-dashed p-4 space-y-3">
                   <div>
                     <p className="text-sm font-medium">Connect with a Dropbox access token</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Enable <code>files.metadata.read</code> and <code>sharing.read</code> in the Dropbox App Console, generate a new access token, then paste it here. The token is sent once to an authenticated server function and never returned to the browser.</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Enable <code>files.metadata.read</code>, <code>files.content.read</code>, and <code>sharing.read</code> in the Dropbox App Console, generate a new access token, then paste it here. The token is sent once to an authenticated server function and never returned to the browser.</p>
                   </div>
                   <div className="flex flex-col gap-2 sm:flex-row">
                     <Input type="password" value={dropboxAccessToken} onChange={(event) => setDropboxAccessToken(event.target.value)} placeholder="Dropbox access token" autoComplete="off" />

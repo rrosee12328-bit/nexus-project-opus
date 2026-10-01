@@ -221,6 +221,7 @@ export type Database = {
           responded_at: string | null
           response_note: string | null
           review_url: string
+          source_file_name: string | null
           status: string
           title: string
           updated_at: string
@@ -234,6 +235,7 @@ export type Database = {
           responded_at?: string | null
           response_note?: string | null
           review_url: string
+          source_file_name?: string | null
           status?: string
           title: string
           updated_at?: string
@@ -247,6 +249,7 @@ export type Database = {
           responded_at?: string | null
           response_note?: string | null
           review_url?: string
+          source_file_name?: string | null
           status?: string
           title?: string
           updated_at?: string

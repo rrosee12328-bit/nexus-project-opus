@@ -22,6 +22,17 @@ describe("buildVideoReviewItems", () => {
     expect(result.items[0].review_url).toBe("https://www.dropbox.com/scl/fi/opening.mp4?dl=0");
   });
 
+  it("preserves the imported Dropbox filename for in-portal playback", () => {
+    const result = buildVideoReviewItems("https://www.dropbox.com/scl/fo/folder?dl=0", [
+      { id: "one", title: "Opening reel", reviewUrl: "", sourceFileName: "Opening reel final.MP4" },
+    ]);
+
+    expect(result.items[0]).toMatchObject({
+      title: "Opening reel",
+      source_file_name: "Opening reel final.MP4",
+    });
+  });
+
   it("requires a title for every video", () => {
     expect(() => buildVideoReviewItems("https://www.dropbox.com/scl/fo/folder?dl=0", [
       { id: "one", title: " ", reviewUrl: "" },

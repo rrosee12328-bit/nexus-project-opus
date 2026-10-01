@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const DROPBOX_ACCOUNT_URL = "https://api.dropboxapi.com/2/users/get_current_account";
 const DROPBOX_LIST_FOLDER_URL = "https://api.dropboxapi.com/2/files/list_folder";
 const DROPBOX_LIST_SHARED_LINKS_URL = "https://api.dropboxapi.com/2/sharing/list_shared_links";
+const DROPBOX_TEMPORARY_LINK_URL = "https://api.dropboxapi.com/2/files/get_temporary_link";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -60,13 +61,18 @@ Deno.serve(async (req) => {
     if (!accountResponse.ok) return json({ error: "Dropbox rejected that access token." }, 422);
     const account = await accountResponse.json() as { account_id: string; name?: { display_name?: string } };
 
-    // Validate precisely the two scopes required by shared-folder title imports.
-    const [filesResponse, sharingResponse] = await Promise.all([
+    // Confirm title imports plus the content scope used to stream videos inside
+    // the branded Vektiss review player. An intentionally missing path gives a
+    // normal Dropbox path error when the content scope is present.
+    const [filesResponse, sharingResponse, contentScopeResponse] = await Promise.all([
       dropboxPost(DROPBOX_LIST_FOLDER_URL, accessToken, { path: "", recursive: false, include_deleted: false, limit: 1 }),
       dropboxPost(DROPBOX_LIST_SHARED_LINKS_URL, accessToken, { direct_only: true }),
+      dropboxPost(DROPBOX_TEMPORARY_LINK_URL, accessToken, { path: "/__vektiss_scope_check__" }),
     ]);
-    if (!filesResponse.ok || !sharingResponse.ok) {
-      return json({ error: "Enable files.metadata.read and sharing.read in the Dropbox App Console, generate a new access token, then try again." }, 422);
+    const contentScopePayload = await contentScopeResponse.clone().json().catch(() => ({})) as { error_summary?: string };
+    const contentScopeMissing = contentScopePayload.error_summary?.includes("missing_scope") || contentScopePayload.error_summary?.includes("insufficient_scope");
+    if (!filesResponse.ok || !sharingResponse.ok || contentScopeMissing) {
+      return json({ error: "Enable files.metadata.read, files.content.read, and sharing.read in the Dropbox App Console, generate a new access token, then try again." }, 422);
     }
 
     const { error: disableError } = await serviceClient
@@ -80,7 +86,7 @@ Deno.serve(async (req) => {
       account_name: account.name?.display_name ?? null,
       access_token: accessToken,
       refresh_token: "",
-      scopes: ["files.metadata.read", "sharing.read"],
+      scopes: ["files.metadata.read", "files.content.read", "sharing.read"],
       access_token_expires_at: null,
       connected_by: user.id,
       connected_at: new Date().toISOString(),

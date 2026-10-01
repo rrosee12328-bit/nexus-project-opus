@@ -51,3 +51,5 @@ project_id = "ogcgqbrewfzkchwqrrxj"
     verify_jwt = true
   [functions.configure-dropbox-video-review-token]
     verify_jwt = true
+  [functions.get-dropbox-review-video]
+    verify_jwt = true
