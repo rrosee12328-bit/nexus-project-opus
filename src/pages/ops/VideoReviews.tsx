@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { CheckCircle2, Clock, ExternalLink, Eye, Lightbulb, Send, Video, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, ExternalLink, Eye, FolderPlus, Lightbulb, Send, Video, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
+type ReviewClient = Pick<Database["public"]["Tables"]["clients"]["Row"], "id" | "name" | "status">;
 type ReviewProject = {
   id: string;
   name: string;
@@ -36,23 +37,38 @@ const STATUS_CONFIG: Record<string, { color: string; icon: typeof Clock }> = {
   rejected: { color: "text-destructive", icon: XCircle },
   suggestions: { color: "text-violet-500", icon: Lightbulb },
 };
+const EMPTY_REVIEW_CLIENTS: ReviewClient[] = [];
+const EMPTY_REVIEW_PROJECTS: ReviewProject[] = [];
 
 export default function VideoReviews() {
   const queryClient = useQueryClient();
+  const [clientId, setClientId] = useState("");
   const [projectId, setProjectId] = useState("");
+  const [newProjectName, setNewProjectName] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [reviewUrl, setReviewUrl] = useState("");
   const [videoItems, setVideoItems] = useState<VideoReviewDraftItem[]>([createVideoReviewDraftItem()]);
 
-  const { data: projects = [], isLoading: projectsLoading } = useQuery({
+  const clientsQuery = useQuery({
+    queryKey: ["team-video-review-clients"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("clients").select("id, name, status").neq("status", "closed").order("name");
+      if (error) throw error;
+      return (data ?? []) as ReviewClient[];
+    },
+  });
+  const clients = clientsQuery.data ?? EMPTY_REVIEW_CLIENTS;
+
+  const projectsQuery = useQuery({
     queryKey: ["team-video-review-projects"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("projects").select("id, name, client_id, current_phase, clients(name)").not("client_id", "is", null).order("name");
+      const { data, error } = await supabase.from("projects").select("id, name, client_id, current_phase, clients(name)").order("name");
       if (error) throw error;
       return (data ?? []) as unknown as ReviewProject[];
     },
   });
+  const projects = projectsQuery.data ?? EMPTY_REVIEW_PROJECTS;
 
   const { data: reviews = [] } = useQuery({
     queryKey: ["team-video-reviews"],
@@ -63,19 +79,45 @@ export default function VideoReviews() {
     },
   });
 
-  const selectedProject = useMemo(() => projects.find((project) => project.id === projectId) ?? null, [projectId, projects]);
+  const selectedClient = useMemo(() => clients.find((client) => client.id === clientId) ?? null, [clientId, clients]);
+  const clientProjects = useMemo(() => projects.filter((project) => project.client_id === clientId), [clientId, projects]);
+  const selectedProject = useMemo(() => clientProjects.find((project) => project.id === projectId) ?? null, [clientProjects, projectId]);
+  const noProjectsForClient = Boolean(clientId) && !projectsQuery.isLoading && clientProjects.length === 0;
 
   const resetForm = () => {
+    setClientId("");
     setProjectId("");
+    setNewProjectName("");
     setTitle("");
     setDescription("");
     setReviewUrl("");
     setVideoItems([createVideoReviewDraftItem()]);
   };
 
+  const createProject = useMutation({
+    mutationFn: async () => {
+      if (!selectedClient) throw new Error("Choose a client before creating a project");
+      if (!newProjectName.trim()) throw new Error("Enter a project name");
+      const { data, error } = await supabase.rpc("create_video_review_project", {
+        _client_id: selectedClient.id,
+        _project_name: newProjectName.trim(),
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: async (createdProjectId) => {
+      await queryClient.invalidateQueries({ queryKey: ["team-video-review-projects"] });
+      setProjectId(createdProjectId);
+      setNewProjectName("");
+      toast.success("Project created and selected for this review");
+    },
+    onError: (error: Error) => toast.error(error.message || "Could not create the project"),
+  });
+
   const submitReview = useMutation({
     mutationFn: async () => {
-      if (!selectedProject) throw new Error("Choose the client project for this delivery");
+      if (!selectedClient) throw new Error("Choose the client for this delivery");
+      if (!selectedProject) throw new Error("Choose or create a project for this delivery");
       if (!title.trim()) throw new Error("A review delivery name is required");
       const prepared = buildVideoReviewItems(reviewUrl, videoItems);
       const { error } = await supabase.rpc("create_video_review_request", {
@@ -99,19 +141,23 @@ export default function VideoReviews() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <div><p className="kicker mb-2">Client delivery</p><h1 className="text-2xl font-bold tracking-tight">Video reviews</h1><p className="mt-1 text-sm text-muted-foreground">Share a single video or a Dropbox folder, then track the client’s decision for every named video.</p></div>
+      <div><p className="kicker mb-2">Client delivery</p><h1 className="text-2xl font-bold tracking-tight">Video reviews</h1><p className="mt-1 text-sm text-muted-foreground">Select the client first, then choose or create their project before sending a single video or a Dropbox folder.</p></div>
 
       <Card className="border-primary/20">
         <CardHeader><CardTitle className="flex items-center gap-2"><Video className="h-5 w-5 text-primary" /> Send videos for review</CardTitle><CardDescription>The client receives one portal notification and can approve, decline, or send suggestions for each video.</CardDescription></CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2"><Label htmlFor="review-project">Client project *</Label><Select value={projectId} onValueChange={setProjectId} disabled={projectsLoading}><SelectTrigger id="review-project"><SelectValue placeholder={projectsLoading ? "Loading projects…" : "Choose a project"} /></SelectTrigger><SelectContent>{projects.map((project) => <SelectItem key={project.id} value={project.id}>{project.clients?.name ?? "Client"} — {project.name}</SelectItem>)}</SelectContent></Select>{selectedProject?.current_phase && <p className="text-xs text-muted-foreground">This will be tagged to the {selectedProject.current_phase} phase.</p>}</div>
-            <div className="space-y-2"><Label htmlFor="review-title">Delivery name *</Label><Input id="review-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. September campaign videos" maxLength={160} /></div>
+            <div className="space-y-2"><Label htmlFor="review-client">Client *</Label><Select value={clientId} onValueChange={(value) => { setClientId(value); setProjectId(""); setNewProjectName(""); }} disabled={clientsQuery.isLoading}><SelectTrigger id="review-client"><SelectValue placeholder={clientsQuery.isLoading ? "Loading clients…" : "Choose a client"} /></SelectTrigger><SelectContent>{clients.map((client) => <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>)}</SelectContent></Select>{clientsQuery.isError ? <p role="alert" className="text-xs text-destructive">Couldn&apos;t load clients. <button className="underline" type="button" onClick={() => void clientsQuery.refetch()}>Try again</button></p> : clients.length === 0 && <p className="text-xs text-muted-foreground">No clients are available. An admin needs to add a client before a video review can be sent.</p>}</div>
+            <div className="space-y-2"><Label htmlFor="review-project">Client project *</Label><Select value={projectId} onValueChange={setProjectId} disabled={!clientId || projectsQuery.isLoading || noProjectsForClient}><SelectTrigger id="review-project"><SelectValue placeholder={!clientId ? "Choose a client first" : projectsQuery.isLoading ? "Loading projects…" : noProjectsForClient ? "Create a project below" : "Choose a project"} /></SelectTrigger><SelectContent>{clientProjects.map((project) => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}</SelectContent></Select>{projectsQuery.isError ? <p role="alert" className="text-xs text-destructive">Couldn&apos;t load projects. <button className="underline" type="button" onClick={() => void projectsQuery.refetch()}>Try again</button></p> : selectedProject?.current_phase && <p className="text-xs text-muted-foreground">This review will be tagged to the {selectedProject.current_phase} phase.</p>}</div>
           </div>
+
+          {noProjectsForClient && selectedClient && <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4"><div className="flex items-start gap-3"><FolderPlus className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" /><div className="min-w-0 flex-1"><p className="text-sm font-medium">{selectedClient.name} does not have a project yet</p><p className="mt-1 text-xs text-muted-foreground">Create a project here to keep this delivery and its video decisions organized for that client.</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><Input value={newProjectName} onChange={(event) => setNewProjectName(event.target.value)} placeholder="e.g. Fall social media campaign" maxLength={160} aria-label="New project name" /><Button type="button" variant="secondary" onClick={() => createProject.mutate()} disabled={createProject.isPending || !newProjectName.trim()}>{createProject.isPending ? "Creating…" : "Create project"}</Button></div></div></div></div>}
+
+          <div className="space-y-2"><Label htmlFor="review-title">Delivery name *</Label><Input id="review-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. September campaign videos" maxLength={160} /></div>
           <div className="space-y-2"><Label htmlFor="review-link">Dropbox folder or video link *</Label><Input id="review-link" type="url" value={reviewUrl} onChange={(event) => setReviewUrl(event.target.value)} placeholder="https://www.dropbox.com/..." /><p className="text-xs text-muted-foreground">This is the folder link for grouped deliveries. Each video below can optionally have a direct Dropbox link.</p></div>
           <VideoReviewItemFields idPrefix="ops-video" items={videoItems} onChange={setVideoItems} />
           <div className="space-y-2"><Label htmlFor="review-notes">Review notes</Label><Textarea id="review-notes" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="What should the client review or decide?" rows={3} maxLength={2000} /></div>
-          <Button onClick={() => submitReview.mutate()} disabled={submitReview.isPending || projectsLoading}><Send className="mr-2 h-4 w-4" />{submitReview.isPending ? "Sending…" : "Send for client review"}</Button>
+          <Button onClick={() => submitReview.mutate()} disabled={submitReview.isPending || clientsQuery.isLoading || projectsQuery.isLoading || !selectedProject}><Send className="mr-2 h-4 w-4" />{submitReview.isPending ? "Sending…" : "Send for client review"}</Button>
         </CardContent>
       </Card>
 

@@ -3510,6 +3510,10 @@ export type Database = {
       activate_my_client_portal: { Args: never; Returns: string }
       submit_intake_response: { Args: { _token: string; _response: Json }; Returns: string }
       archive_done_tasks: { Args: never; Returns: undefined }
+      create_video_review_project: {
+        Args: { _client_id: string; _project_name: string }
+        Returns: string
+      }
       create_video_review_request: {
         Args: {
           _description: string
