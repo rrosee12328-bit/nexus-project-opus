@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const DROPBOX_LIST_FOLDER_URL = "https://api.dropboxapi.com/2/files/list_folder";
 const DROPBOX_LIST_CONTINUE_URL = "https://api.dropboxapi.com/2/files/list_folder/continue";
+const DROPBOX_TEMPORARY_LINK_URL = "https://api.dropboxapi.com/2/files/get_temporary_link";
 const VIDEO_EXTENSION = /\.(mp4|mov|m4v|webm|avi|mkv|mpeg|mpg)$/i;
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -108,6 +109,26 @@ Deno.serve(async (req) => {
     const file = await findFolderFile(connection.access_token, folderUrl, reviewItem.source_file_name ?? reviewItem.title, reviewItem.title);
     if (!file) return json({ error: "This video could not be matched to a file in the Dropbox folder." }, 404);
     const filePath = file.path_lower || file.path_display || `/${file.name}`;
+
+    // A Full Dropbox connection can mint a short-lived CDN URL. This keeps the
+    // branded Vektiss player while avoiding a server relay for every byte range.
+    const directLinkResponse = await fetch(DROPBOX_TEMPORARY_LINK_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${connection.access_token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ path: file.id || filePath }),
+    });
+    if (directLinkResponse.ok) {
+      const directLink = await directLinkResponse.json() as { link?: string };
+      if (directLink.link) {
+        return json({
+          url: directLink.link,
+          file_name: file.name,
+          expires_at: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+        });
+      }
+    } else {
+      console.info("Dropbox CDN playback unavailable; using secure shared-link stream", { status: directLinkResponse.status, file_name: file.name });
+    }
 
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
