@@ -115,6 +115,7 @@ export default function AdminDashboard() {
         .from("tasks")
         .select("*, clients(name)")
         .in("status", ["todo", "in_progress"])
+        .is("archived_at", null)
         .order("priority")
         .limit(5);
       if (error) {

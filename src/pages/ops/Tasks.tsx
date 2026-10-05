@@ -26,7 +26,7 @@ import { toast } from "sonner";
 import {
   Plus, Search, ListChecks, CheckSquare, Clock, AlertTriangle,
   TrendingUp, Pencil, Trash2, Filter, Calendar, ArrowUpDown, GripVertical,
-  Play, Square, Users, Building2,
+  Play, Square, Users, Building2, Archive, RotateCcw,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
@@ -95,6 +95,7 @@ export default function OpsTasks() {
   const [filterClient, setFilterClient] = useState<string>("all");
   const [filterAssignee, setFilterAssignee] = useState<string>("all");
   const [sortField, setSortField] = useState<"priority" | "due_date" | "created_at" | "manual">("manual");
+  const [showArchived, setShowArchived] = useState(false);
 
   // Selection state
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -112,13 +113,16 @@ export default function OpsTasks() {
 
   // Data fetching
   const { data: tasks = [], isLoading } = useQuery({
-    queryKey: ["ops-tasks"],
+    queryKey: ["ops-tasks", showArchived ? "archived" : "active"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("tasks")
         .select("*, clients(name), projects(name)")
-        .is("archived_at", null)
         .order("sort_order");
+      query = showArchived
+        ? query.not("archived_at", "is", null)
+        : query.is("archived_at", null);
+      const { data, error } = await query;
       if (error) throw error;
       return data as TaskWithRelations[];
     },
@@ -216,7 +220,36 @@ export default function OpsTasks() {
       logActivity("deleted_task", "task", id, "Deleted a task");
       setDeleteTarget(null);
     },
-    onError: () => toast.error("Failed to delete task"),
+    onError: (error: Error) => toast.error(`Could not delete task: ${error.message}`),
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: async ({ ids, restore }: { ids: string[]; restore: boolean }) => {
+      if (!restore && timer.activeTimer && ids.includes(timer.activeTimer.id)) {
+        await timer.stop();
+      }
+      const { error } = await supabase
+        .from("tasks")
+        .update({ archived_at: restore ? null : new Date().toISOString(), daily_focus: false })
+        .in("id", ids);
+      if (error) throw error;
+    },
+    onSuccess: (_data, { ids, restore }) => {
+      toast.success(`${ids.length} task${ids.length === 1 ? "" : "s"} ${restore ? "restored" : "archived"}`);
+      void queryClient.invalidateQueries({ queryKey: ["ops-tasks"] });
+      void queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      void queryClient.invalidateQueries({ queryKey: ["ops-timer-tasks"] });
+      ids.forEach((id) => {
+        void logActivity(
+          restore ? "restored_task" : "archived_task",
+          "task",
+          id,
+          restore ? "Restored a task" : "Archived a task",
+        );
+      });
+      setSelected(new Set());
+    },
+    onError: (error: Error) => toast.error(`Could not update task: ${error.message}`),
   });
 
   const statusMutation = useMutation({
@@ -291,7 +324,7 @@ export default function OpsTasks() {
       setSelected(new Set());
       setBulkDeleteOpen(false);
     },
-    onError: () => toast.error("Bulk delete failed"),
+    onError: (error: Error) => toast.error(`Could not delete tasks: ${error.message}`),
   });
 
   // Helpers
@@ -392,7 +425,10 @@ export default function OpsTasks() {
 
     const updates = reordered.map((t, i) => ({ id: t.id, sort_order: i }));
     reorderMutation.mutate(updates);
-    queryClient.setQueryData(["ops-tasks"], reordered.map((t, i) => ({ ...t, sort_order: i })));
+    queryClient.setQueryData(
+      ["ops-tasks", showArchived ? "archived" : "active"],
+      reordered.map((t, i) => ({ ...t, sort_order: i })),
+    );
   };
 
   // Get unique clients and assignees from tasks for filters
@@ -411,13 +447,29 @@ export default function OpsTasks() {
         className="flex items-center justify-between"
       >
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Tasks</h1>
-          <p className="text-muted-foreground">Manage priorities, assignments, and track progress.</p>
+          <h1 className="text-2xl font-bold tracking-tight">{showArchived ? "Archived Tasks" : "Tasks"}</h1>
+          <p className="text-muted-foreground">
+            {showArchived ? "Review, restore, or permanently remove archived work." : "Manage priorities, assignments, and track progress."}
+          </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={openCreate} className="gap-2">
-            <Plus className="h-4 w-4" /> New Task
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowArchived((current) => !current);
+              setSelected(new Set());
+              setSelectedTask(null);
+            }}
+            className="gap-2"
+          >
+            {showArchived ? <ListChecks className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+            {showArchived ? "Active Tasks" : "Archived"}
           </Button>
+          {!showArchived && (
+            <Button onClick={openCreate} className="gap-2">
+              <Plus className="h-4 w-4" /> New Task
+            </Button>
+          )}
         </div>
       </motion.div>
 
@@ -479,13 +531,25 @@ export default function OpsTasks() {
               </Select>
 
               <Button
-                variant="destructive"
+                variant="outline"
                 size="sm"
                 className="h-8 gap-1.5 text-xs"
-                onClick={() => setBulkDeleteOpen(true)}
+                onClick={() => archiveMutation.mutate({ ids: Array.from(selected), restore: showArchived })}
               >
-                <Trash2 className="h-3.5 w-3.5" /> Delete
+                {showArchived ? <RotateCcw className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
+                {showArchived ? "Restore" : "Archive"}
               </Button>
+
+              {showArchived && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="h-8 gap-1.5 text-xs"
+                  onClick={() => setBulkDeleteOpen(true)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Delete permanently
+                </Button>
+              )}
 
               <Button variant="ghost" size="sm" className="h-8 text-xs ml-auto" onClick={() => setSelected(new Set())}>
                 Clear
@@ -608,15 +672,15 @@ export default function OpsTasks() {
               </div>
               <div>
                 <h3 className="text-lg font-semibold">
-                  {tasks.length === 0 ? "No tasks yet" : "No tasks match your filters"}
+                  {tasks.length === 0 ? (showArchived ? "No archived tasks" : "No tasks yet") : "No tasks match your filters"}
                 </h3>
                 <p className="text-sm text-muted-foreground mt-1 max-w-sm">
                   {tasks.length === 0
-                    ? "Create your first task to start tracking work."
+                    ? (showArchived ? "Tasks you archive will appear here and can be restored later." : "Create your first task to start tracking work.")
                     : "Try adjusting your search or filter criteria."}
                 </p>
               </div>
-              {tasks.length === 0 && (
+              {tasks.length === 0 && !showArchived && (
                 <Button onClick={openCreate} className="gap-2 mt-2">
                   <Plus className="h-4 w-4" /> Create Task
                 </Button>
@@ -740,26 +804,45 @@ export default function OpsTasks() {
                                   </TableCell>
                                   <TableCell className="text-right">
                                     <div className="flex gap-1 justify-end items-center">
-                                      <Button
-                                        variant={isTimerActive ? "default" : "ghost"}
-                                        size="icon"
-                                        className={`h-8 w-8 ${isTimerActive ? "bg-primary text-primary-foreground" : "text-primary"}`}
-                                        onClick={(e) => { e.stopPropagation(); handleTimerToggle(task); }}
-                                        title={isTimerActive ? "Stop timer" : "Start timer"}
-                                      >
-                                        {isTimerActive ? <Square className="h-3 w-3" /> : <Play className="h-3.5 w-3.5" />}
-                                      </Button>
-                                      <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => { e.stopPropagation(); openEdit(task); }}>
-                                        <Pencil className="h-3.5 w-3.5" />
-                                      </Button>
+                                      {!showArchived && (
+                                        <>
+                                          <Button
+                                            variant={isTimerActive ? "default" : "ghost"}
+                                            size="icon"
+                                            className={`h-8 w-8 ${isTimerActive ? "bg-primary text-primary-foreground" : "text-primary"}`}
+                                            onClick={(e) => { e.stopPropagation(); handleTimerToggle(task); }}
+                                            title={isTimerActive ? "Stop timer" : "Start timer"}
+                                          >
+                                            {isTimerActive ? <Square className="h-3 w-3" /> : <Play className="h-3.5 w-3.5" />}
+                                          </Button>
+                                          <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => { e.stopPropagation(); openEdit(task); }}>
+                                            <Pencil className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </>
+                                      )}
                                       <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-7 w-7 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                                        onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: task.id, title: task.title }); }}
+                                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        title={showArchived ? "Restore task" : "Archive task"}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          archiveMutation.mutate({ ids: [task.id], restore: showArchived });
+                                        }}
                                       >
-                                        <Trash2 className="h-3.5 w-3.5" />
+                                        {showArchived ? <RotateCcw className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
                                       </Button>
+                                      {showArchived && (
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                                          title="Delete permanently"
+                                          onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: task.id, title: task.title }); }}
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                      )}
                                     </div>
                                   </TableCell>
                                 </TableRow>
@@ -906,7 +989,7 @@ export default function OpsTasks() {
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete task?</AlertDialogTitle>
+            <AlertDialogTitle>Delete task permanently?</AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently delete "<span className="font-medium text-foreground">{deleteTarget?.title}</span>". This action cannot be undone.
             </AlertDialogDescription>
@@ -917,7 +1000,7 @@ export default function OpsTasks() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
             >
-              {deleteMutation.isPending ? "Deleting…" : "Delete"}
+              {deleteMutation.isPending ? "Deleting…" : "Delete permanently"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -927,7 +1010,7 @@ export default function OpsTasks() {
       <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {selected.size} task(s)?</AlertDialogTitle>
+            <AlertDialogTitle>Delete {selected.size} archived task(s) permanently?</AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently delete the selected tasks. This action cannot be undone.
             </AlertDialogDescription>
@@ -938,7 +1021,7 @@ export default function OpsTasks() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => bulkDeleteMutation.mutate(Array.from(selected))}
             >
-              {bulkDeleteMutation.isPending ? "Deleting…" : `Delete ${selected.size} Tasks`}
+              {bulkDeleteMutation.isPending ? "Deleting…" : `Delete ${selected.size} permanently`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

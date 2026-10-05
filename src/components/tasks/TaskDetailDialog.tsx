@@ -20,10 +20,12 @@ import {
 import {
   Pencil, Trash2, Calendar, User, ExternalLink, LinkIcon, Paperclip,
   Plus, FileText, Upload, Loader2, Download, CheckSquare, Clock, AlertTriangle, TrendingUp, Star,
+  Archive, RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import type { Database } from "@/integrations/supabase/types";
+import { useTaskTimer } from "@/hooks/useTaskTimer";
 
 type Task = Database["public"]["Tables"]["tasks"]["Row"];
 type TaskStatus = Database["public"]["Enums"]["task_status"];
@@ -69,6 +71,7 @@ interface TaskDetailDialogProps {
 export default function TaskDetailDialog({ task, open, onClose }: TaskDetailDialogProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const timer = useTaskTimer();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [editMode, setEditMode] = useState(false);
@@ -77,6 +80,7 @@ export default function TaskDetailDialog({ task, open, onClose }: TaskDetailDial
   const [linkTitle, setLinkTitle] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<TaskAttachment | null>(null);
+  const [deleteTaskOpen, setDeleteTaskOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   // Sync edit form when task changes
@@ -132,10 +136,41 @@ export default function TaskDetailDialog({ task, open, onClose }: TaskDetailDial
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["ops-tasks"] });
       logActivity("deleted_task", "task", task?.id ?? null, `Deleted task: "${task?.title ?? "Unknown"}"`);
       toast.success("Task deleted");
       onClose();
     },
+    onError: (error: Error) => toast.error(`Could not delete task: ${error.message}`),
+  });
+
+  const archiveTask = useMutation({
+    mutationFn: async (restore: boolean) => {
+      if (!task) return;
+      if (!restore && timer.activeTimer?.id === task.id) {
+        await timer.stop();
+      }
+      const { error } = await supabase
+        .from("tasks")
+        .update({ archived_at: restore ? null : new Date().toISOString(), daily_focus: false })
+        .eq("id", task.id);
+      if (error) throw error;
+      return restore;
+    },
+    onSuccess: (restore) => {
+      void queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      void queryClient.invalidateQueries({ queryKey: ["ops-tasks"] });
+      void queryClient.invalidateQueries({ queryKey: ["ops-timer-tasks"] });
+      void logActivity(
+        restore ? "restored_task" : "archived_task",
+        "task",
+        task?.id ?? null,
+        `${restore ? "Restored" : "Archived"} task: "${task?.title ?? "Unknown"}"`,
+      );
+      toast.success(restore ? "Task restored" : "Task archived");
+      onClose();
+    },
+    onError: (error: Error) => toast.error(`Could not update task: ${error.message}`),
   });
 
   const moveTask = useMutation({
@@ -269,24 +304,39 @@ export default function TaskDetailDialog({ task, open, onClose }: TaskDetailDial
               <span>{editMode ? "Edit Task" : "Task Details"}</span>
               {!editMode && (
                 <div className="flex items-center gap-1">
+                  {!task.archived_at && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      title={(task as any).daily_focus ? "Remove from today's focus" : "Add to today's focus"}
+                      onClick={async () => {
+                        await supabase.from("tasks").update({ daily_focus: !(task as any).daily_focus } as any).eq("id", task.id);
+                        queryClient.invalidateQueries({ queryKey: ["tasks"] });
+                      }}
+                    >
+                      <Star className={`h-3.5 w-3.5 ${(task as any).daily_focus ? "text-primary fill-primary" : "text-muted-foreground"}`} />
+                    </Button>
+                  )}
+                  {!task.archived_at && (
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { initEditForm(task); setEditMode(true); }}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7"
-                    title={(task as any).daily_focus ? "Remove from today's focus" : "Add to today's focus"}
-                    onClick={async () => {
-                      await supabase.from("tasks").update({ daily_focus: !(task as any).daily_focus } as any).eq("id", task.id);
-                      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-                    }}
+                    title={task.archived_at ? "Restore task" : "Archive task"}
+                    onClick={() => archiveTask.mutate(Boolean(task.archived_at))}
                   >
-                    <Star className={`h-3.5 w-3.5 ${(task as any).daily_focus ? "text-primary fill-primary" : "text-muted-foreground"}`} />
+                    {task.archived_at ? <RotateCcw className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { initEditForm(task); setEditMode(true); }}>
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteTask.mutate()}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  {task.archived_at && (
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" title="Delete permanently" onClick={() => setDeleteTaskOpen(true)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
               )}
             </DialogTitle>
@@ -467,25 +517,29 @@ export default function TaskDetailDialog({ task, open, onClose }: TaskDetailDial
                 )}
               </div>
 
-              <Separator />
+              {!task.archived_at && (
+                <>
+                  <Separator />
 
-              {/* Move to section */}
-              <div>
-                <p className="text-xs text-muted-foreground mb-2">Move to</p>
-                <div className="flex gap-2 flex-wrap">
-                  {columns.filter(c => c.key !== task.status).map(c => (
-                    <Button
-                      key={c.key}
-                      variant="outline"
-                      size="sm"
-                      className="text-xs"
-                      onClick={() => moveTask.mutate(c.key)}
-                    >
-                      <c.icon className="h-3 w-3 mr-1.5" /> {c.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
+                  {/* Move to section */}
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-2">Move to</p>
+                    <div className="flex gap-2 flex-wrap">
+                      {columns.filter(c => c.key !== task.status).map(c => (
+                        <Button
+                          key={c.key}
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                          onClick={() => moveTask.mutate(c.key)}
+                        >
+                          <c.icon className="h-3 w-3 mr-1.5" /> {c.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             /* Edit mode */
@@ -524,6 +578,27 @@ export default function TaskDetailDialog({ task, open, onClose }: TaskDetailDial
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteTaskOpen} onOpenChange={setDeleteTaskOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete task permanently?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes "{task.title}". Archive is the safer choice when you need to preserve its history.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteTask.isPending}
+              onClick={() => deleteTask.mutate()}
+            >
+              {deleteTask.isPending ? "Deleting..." : "Delete permanently"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete attachment confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>

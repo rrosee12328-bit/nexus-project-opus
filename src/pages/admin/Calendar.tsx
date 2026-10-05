@@ -119,6 +119,7 @@ export default function AdminCalendar() {
       const { data, error } = await supabase
         .from("tasks")
         .select("id, title, due_date, status, priority, client_id, description")
+        .is("archived_at", null)
         .not("due_date", "is", null);
       if (error) throw error;
       return data;

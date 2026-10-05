@@ -73,6 +73,7 @@ export function GlobalSearch() {
           .from("tasks")
           .select("id, title, status, priority, client_id, clients(name)")
           .ilike("title", pattern)
+          .is("archived_at", null)
           .limit(5),
         supabase
           .from("messages")

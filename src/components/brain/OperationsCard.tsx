@@ -45,6 +45,7 @@ export function OperationsCard() {
         .from("tasks")
         .select("id, title, status, priority, clients(name)")
         .in("status", ["todo", "in_progress"])
+        .is("archived_at", null)
         .order("priority")
         .limit(5);
       if (error) throw error;
