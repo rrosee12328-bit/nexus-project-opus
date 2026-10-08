@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { CheckCircle2, Clock, ExternalLink, Eye, FolderPlus, Lightbulb, Send, Video, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, Copy, ExternalLink, Eye, FolderPlus, Lightbulb, Link2, Mail, Send, Video, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
@@ -50,6 +50,7 @@ export default function VideoReviews() {
   const [description, setDescription] = useState("");
   const [reviewUrl, setReviewUrl] = useState("");
   const [videoItems, setVideoItems] = useState<VideoReviewDraftItem[]>([createVideoReviewDraftItem()]);
+  const [sharingReviewId, setSharingReviewId] = useState<string | null>(null);
   const { connectionQuery: dropboxConnectionQuery, importMutation: importDropboxTitles } = useDropboxVideoReviewImport();
 
   const clientsQuery = useQuery({
@@ -157,10 +158,6 @@ export default function VideoReviews() {
       if (!itemsForSubmission.length) throw new Error("No video filenames could be imported from that Dropbox folder");
       if (isUntitledFolderDelivery) setVideoItems(itemsForSubmission);
       const prepared = buildVideoReviewItems(reviewUrl, itemsForSubmission);
-      const { error: inviteError } = await supabase.functions.invoke("invite-client", {
-        body: { client_id: selectedClient.id, project_id: selectedProject.id },
-      });
-      if (inviteError) throw new Error(`Could not prepare client portal access: ${inviteError.message}`);
       const { error } = await supabase.rpc("create_video_review_request", {
         _project_id: selectedProject.id,
         _title: title.trim(),
@@ -183,12 +180,47 @@ export default function VideoReviews() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+
+  const createClientReviewLink = async (reviewId: string) => {
+    const { data, error } = await supabase.rpc("create_creative_review_share_link", { _approval_request_id: reviewId });
+    if (error) throw error;
+    const result = Array.isArray(data) ? data[0] : data;
+    if (!result?.token) throw new Error("Could not create the private client review link");
+    return `https://portal.vektiss.com/review/${result.token}`;
+  };
+
+  const copyClientReviewLink = async (reviewId: string) => {
+    setSharingReviewId(reviewId);
+    try {
+      const link = await createClientReviewLink(reviewId);
+      await navigator.clipboard.writeText(link);
+      toast.success("Private client review link copied — it expires in 30 days");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not copy the client review link");
+    } finally {
+      setSharingReviewId(null);
+    }
+  };
+
+  const sendClientReviewLink = async (reviewId: string) => {
+    setSharingReviewId(reviewId);
+    try {
+      const { data, error } = await supabase.rpc("enqueue_creative_review_notification", { _approval_request_id: reviewId, _force: true });
+      if (error) throw error;
+      if (data !== true) throw new Error("This client does not have a delivery email address");
+      toast.success("Private client review link emailed successfully");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not email the client review link");
+    } finally {
+      setSharingReviewId(null);
+    }
+  };
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <div><p className="kicker mb-2">Client delivery</p><h1 className="text-2xl font-bold tracking-tight">Creative reviews</h1><p className="mt-1 text-sm text-muted-foreground">Select the client first, then choose or create their project before sending videos, graphics, or a mixed Dropbox folder.</p></div>
 
       <Card className="border-primary/20">
-        <CardHeader><CardTitle className="flex items-center gap-2"><Video className="h-5 w-5 text-primary" /> Send creative items for review</CardTitle><CardDescription>The client receives one portal notification and can approve, decline, or send suggestions for each video or graphic.</CardDescription></CardHeader>
+        <CardHeader><CardTitle className="flex items-center gap-2"><Video className="h-5 w-5 text-primary" /> Send creative items for review</CardTitle><CardDescription>The client receives a private, no-login review link by email and can approve, decline, or send suggestions for each video or graphic.</CardDescription></CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2"><Label htmlFor="review-client">Client *</Label><Select value={clientId} onValueChange={(value) => { setClientId(value); setProjectId(""); setNewProjectName(""); }} disabled={clientsQuery.isLoading}><SelectTrigger id="review-client"><SelectValue placeholder={clientsQuery.isLoading ? "Loading clients…" : "Choose a client"} /></SelectTrigger><SelectContent>{clients.map((client) => <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>)}</SelectContent></Select>{clientsQuery.isError ? <p role="alert" className="text-xs text-destructive">Couldn&apos;t load clients. <button className="underline" type="button" onClick={() => void clientsQuery.refetch()}>Try again</button></p> : clients.length === 0 && <p className="text-xs text-muted-foreground">No clients are available. An admin needs to add a client before a creative review can be sent.</p>}</div>
@@ -211,7 +243,7 @@ export default function VideoReviews() {
           const cfg = STATUS_CONFIG[review.status] || STATUS_CONFIG.pending;
           const Icon = cfg.icon;
           const items = [...(review.approval_request_items ?? [])].sort((a, b) => a.position - b.position);
-          return <Card key={review.id}><CardContent className="flex items-start gap-3 py-4"><div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10"><Icon className={`h-4 w-4 ${cfg.color}`} /></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-medium">{review.title}</p><Badge variant="outline" className={`text-[10px] ${cfg.color}`}>{approvalStatusLabel(review.status)}</Badge></div><p className="mt-0.5 text-xs text-muted-foreground">{review.clients?.name ?? "Client"} · {review.projects?.name ?? "Project"} · Sent {format(new Date(review.created_at), "MMM d, yyyy")}</p>{review.description && <p className="mt-1 text-sm text-muted-foreground">{review.description}</p>}{review.review_url ? <a href={review.review_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"><ExternalLink className="h-3.5 w-3.5" /> Open Dropbox source</a> : <p className="mt-2 text-xs text-muted-foreground">No Dropbox source link was included.</p>}{items.length > 0 && <div className="mt-3 space-y-1 rounded-md bg-muted/40 p-2.5"><p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Individual creative outcomes</p>{items.map((item, itemIndex) => { const videoNumber = item.position > 0 ? item.position : itemIndex + 1; return <div key={item.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"><span>Item {videoNumber}: {item.title}</span><Badge variant="secondary" className="h-4 px-1 text-[9px]">{approvalStatusLabel(item.status)}</Badge><Badge variant={item.viewed_at ? "default" : "outline"} className={`h-4 gap-0.5 px-1 text-[9px] ${item.viewed_at ? "bg-sky-600 hover:bg-sky-600" : "text-muted-foreground"}`}>{item.viewed_at && <Eye className="h-2.5 w-2.5" />}{item.viewed_at ? `Viewed ${format(new Date(item.viewed_at), "MMM d")}` : "Not viewed"}</Badge>{item.response_note && <span className="italic text-muted-foreground">“{item.response_note}”</span>}</div>; })}</div>}{review.response_note && <p className="mt-2 rounded-md bg-muted px-2.5 py-2 text-xs italic text-muted-foreground">{review.response_note}</p>}</div></CardContent></Card>;
+          return <Card key={review.id}><CardContent className="flex items-start gap-3 py-4"><div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10"><Icon className={`h-4 w-4 ${cfg.color}`} /></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-medium">{review.title}</p><Badge variant="outline" className={`text-[10px] ${cfg.color}`}>{approvalStatusLabel(review.status)}</Badge></div><p className="mt-0.5 text-xs text-muted-foreground">{review.clients?.name ?? "Client"} · {review.projects?.name ?? "Project"} · Sent {format(new Date(review.created_at), "MMM d, yyyy")}</p>{review.description && <p className="mt-1 text-sm text-muted-foreground">{review.description}</p>}{review.review_url ? <a href={review.review_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"><ExternalLink className="h-3.5 w-3.5" /> Open Dropbox source</a> : <p className="mt-2 text-xs text-muted-foreground">No Dropbox source link was included.</p>}<div className="mt-3 flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => void copyClientReviewLink(review.id)} disabled={sharingReviewId === review.id}><Copy className="mr-1.5 h-3.5 w-3.5" />{sharingReviewId === review.id ? "Preparing…" : "Copy client link"}</Button><Button type="button" size="sm" onClick={() => void sendClientReviewLink(review.id)} disabled={sharingReviewId === review.id}><Mail className="mr-1.5 h-3.5 w-3.5" />{sharingReviewId === review.id ? "Sending…" : "Send client link"}</Button><span className="inline-flex items-center gap-1 self-center text-[10px] text-muted-foreground"><Link2 className="h-3 w-3" /> No login required · expires in 30 days</span></div>{items.length > 0 && <div className="mt-3 space-y-1 rounded-md bg-muted/40 p-2.5"><p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Individual creative outcomes</p>{items.map((item, itemIndex) => { const videoNumber = item.position > 0 ? item.position : itemIndex + 1; return <div key={item.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"><span>Item {videoNumber}: {item.title}</span><Badge variant="secondary" className="h-4 px-1 text-[9px]">{approvalStatusLabel(item.status)}</Badge><Badge variant={item.viewed_at ? "default" : "outline"} className={`h-4 gap-0.5 px-1 text-[9px] ${item.viewed_at ? "bg-sky-600 hover:bg-sky-600" : "text-muted-foreground"}`}>{item.viewed_at && <Eye className="h-2.5 w-2.5" />}{item.viewed_at ? `Viewed ${format(new Date(item.viewed_at), "MMM d")}` : "Not viewed"}</Badge>{item.response_note && <span className="italic text-muted-foreground">“{item.response_note}”</span>}</div>; })}</div>}{review.response_note && <p className="mt-2 rounded-md bg-muted px-2.5 py-2 text-xs italic text-muted-foreground">{review.response_note}</p>}</div></CardContent></Card>;
         })}</div>}
       </section>
     </div>

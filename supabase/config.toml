@@ -52,8 +52,16 @@ project_id = "ogcgqbrewfzkchwqrrxj"
   [functions.configure-dropbox-video-review-token]
     verify_jwt = true
   [functions.get-dropbox-review-video]
-    verify_jwt = true
+    # The handler enforces either signed-in client/staff access or a valid
+    # delivery-specific opaque review token.
+    verify_jwt = false
   [functions.stream-dropbox-review-video]
     # Playback uses a single-item, short-lived opaque token minted only after
-    # the signed-in client review access check in get-dropbox-review-video.
+    # the signed-in or delivery-link review access check succeeds.
+    verify_jwt = false
+  [functions.get-public-creative-review]
+    # This endpoint validates the opaque review-link token internally.
+    verify_jwt = false
+  [functions.submit-public-creative-review]
+    # This endpoint validates the opaque review-link token internally.
     verify_jwt = false

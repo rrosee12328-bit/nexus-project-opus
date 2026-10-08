@@ -9,13 +9,13 @@ export type DropboxReviewVideo = {
 
 const PLAYBACK_TOKEN_FRESH_FOR_MS = 8 * 60 * 1000;
 
-export function useDropboxReviewVideo(itemId: string | null) {
+export function useDropboxReviewVideo(itemId: string | null, publicToken?: string | null) {
   return useQuery({
-    queryKey: ["dropbox-review-video", itemId],
+    queryKey: ["dropbox-review-video", itemId, publicToken ?? null],
     queryFn: async () => {
       if (!itemId) throw new Error("Choose an item to preview");
       const { data, error } = await supabase.functions.invoke<DropboxReviewVideo & { error?: string }>("get-dropbox-review-video", {
-        body: { itemId },
+        body: { itemId, ...(publicToken ? { publicToken } : {}) },
       });
       if (error) {
         const response = error.context;

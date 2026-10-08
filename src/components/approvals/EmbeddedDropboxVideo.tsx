@@ -8,11 +8,12 @@ interface EmbeddedDropboxVideoProps {
   title: string;
   sourceFileName?: string | null;
   assetKind?: DropboxReviewAssetKind;
+  publicToken?: string | null;
   onPlaybackStarted: () => void;
 }
 
-export function EmbeddedDropboxVideo({ itemId, title, sourceFileName, assetKind, onPlaybackStarted }: EmbeddedDropboxVideoProps) {
-  const assetQuery = useDropboxReviewVideo(itemId);
+export function EmbeddedDropboxVideo({ itemId, title, sourceFileName, assetKind, publicToken, onPlaybackStarted }: EmbeddedDropboxVideoProps) {
+  const assetQuery = useDropboxReviewVideo(itemId, publicToken);
   const kind = assetKind ?? getDropboxReviewAssetKind(sourceFileName ?? title);
   const isGraphic = kind === "graphic";
   const assetLabel = reviewAssetLabel(kind).toLocaleLowerCase();
@@ -71,7 +72,7 @@ export function EmbeddedDropboxVideo({ itemId, title, sourceFileName, assetKind,
   return (
     <>
       <div className="overflow-hidden rounded-xl border border-primary/25 bg-black shadow-[0_0_0_1px_rgba(59,130,246,0.07)]">
-        <div className="flex items-center justify-between gap-2 border-b border-white/10 bg-slate-950 px-2.5 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-300 sm:px-3 sm:tracking-[0.16em]"><span className="flex min-w-0 items-center gap-1.5">{icon}<span className="truncate sm:hidden">Review {assetLabel}</span><span className="hidden sm:inline">Vektiss review {assetLabel}</span></span><div className="flex shrink-0 items-center gap-2"><span className="hidden items-center gap-1 text-slate-400 sm:flex">{isGraphic ? <ImageIcon className="h-3.5 w-3.5" /> : <PlaySquare className="h-3.5 w-3.5" />} Dropbox source</span><button type="button" onClick={() => void maximizeAsset()} className="flex min-h-8 items-center gap-1 rounded-md border border-primary/45 bg-primary/10 px-2 text-[10px] font-semibold normal-case tracking-normal text-primary transition-colors hover:bg-primary hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label={`Maximize ${title}`}><Expand className="h-3.5 w-3.5" /> Maximize</button></div></div>
+        <div className="flex items-center justify-between gap-2 border-b border-white/10 bg-slate-950 px-2.5 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-300 sm:px-3 sm:tracking-[0.16em]"><span className="flex min-w-0 items-center gap-1.5">{icon}<span className="truncate sm:hidden">Review {assetLabel}</span><span className="hidden sm:inline">Vektiss review {assetLabel}</span></span><div className="flex shrink-0 items-center gap-2"><span className="hidden items-center gap-1 text-slate-400 sm:flex">{isGraphic ? <ImageIcon className="h-3.5 w-3.5" /> : <PlaySquare className="h-3.5 w-3.5" />} Secure delivery</span><button type="button" onClick={() => void maximizeAsset()} className="flex min-h-8 items-center gap-1 rounded-md border border-primary/45 bg-primary/10 px-2 text-[10px] font-semibold normal-case tracking-normal text-primary transition-colors hover:bg-primary hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label={`Maximize ${title}`}><Expand className="h-3.5 w-3.5" /> Maximize</button></div></div>
         <div className={`relative flex justify-center bg-black ${isGraphic ? "min-h-[18rem] sm:min-h-[28rem]" : ""}`}>
           {isGraphic ? (
             <img key={asset.url} src={asset.url} alt={title} className="block max-h-[68svh] w-auto max-w-full object-contain" onLoad={() => { setIsLoadingAsset(false); onPlaybackStarted(); }} onError={refreshExpiredPlaybackToken} />

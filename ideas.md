@@ -22,6 +22,12 @@
 - Keep the mobile item list dense and scannable: numbered rows, graphic/video labels, clear viewed state, and no repeated pending labels that consume screen space.
 - Size portrait videos and graphics for the available phone height, retain native video fullscreen behavior, and provide a full-screen in-portal graphic view.
 
+### Shareable creative-review links
+- Every new creative delivery receives a **private, no-login review link**. The link displays only that delivery and its items; every other Vektiss workspace area remains behind the normal client sign-in.
+- The delivery email links directly to the private review page. Ops can also choose **Copy link** for a fresh private URL or **Send client link** to email a fresh URL to the client.
+- Links use 256-bit opaque tokens stored as SHA-256 hashes, expire after 30 days, and may be independently revoked later without changing the underlying delivery. A public link can view, mark viewed, and submit approve / changes / suggestions only for its own delivery.
+- Dropbox playback remains server-mediated. A public page never receives Dropbox credentials or a Dropbox folder URL; it receives only a short-lived asset stream token after the delivery-link check succeeds.
+
 ## Visual system
 - Continue the Vektiss dark navy/black surfaces, blue primary accents, subtle borders, and compact status badges.
 - The viewer frame uses a quiet dark panel, a small Vektiss review label, and no third-party chrome.

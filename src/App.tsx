@@ -16,6 +16,7 @@ import ResetPassword from "./pages/ResetPassword";
 import AssetDownload from "./pages/AssetDownload";
 import ProposalPage from "./pages/Proposal";
 import IntakeFormPage from "./pages/IntakeForm";
+import PublicCreativeReview from "./pages/PublicCreativeReview";
 
 import AdminLayout from "./layouts/AdminLayout";
 import AdminClients from "./pages/admin/Clients";
@@ -84,6 +85,7 @@ const App = () => (
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/proposal/:token" element={<ProposalPage />} />
             <Route path="/intake/:token" element={<IntakeFormPage />} />
+            <Route path="/review/:token" element={<PublicCreativeReview />} />
             <Route
               path="/download/:assetId"
               element={

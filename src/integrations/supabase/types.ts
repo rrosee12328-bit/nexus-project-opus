@@ -3528,6 +3528,10 @@ export type Database = {
         }
         Returns: string
       }
+      create_creative_review_share_link: {
+        Args: { _approval_request_id: string }
+        Returns: { expires_at: string; token: string }[]
+      }
       convert_lead_to_proposal: {
         Args: { p_lead_id: string; p_proposal_id: string }
         Returns: undefined
@@ -3556,6 +3560,10 @@ export type Database = {
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
+      }
+      enqueue_creative_review_notification: {
+        Args: { _approval_request_id: string; _force?: boolean }
+        Returns: boolean
       }
       get_client_id_for_user: { Args: { _user_id: string }; Returns: string }
       get_client_scheduling_url: { Args: never; Returns: string | null }
