@@ -2,7 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const DROPBOX_TOKEN_URL = "https://api.dropboxapi.com/oauth2/token";
 const DROPBOX_ACCOUNT_URL = "https://api.dropboxapi.com/2/users/get_current_account";
-const DROPBOX_SCOPES = "files.metadata.read files.content.read sharing.read";
+const DROPBOX_SCOPES = "account_info.read files.metadata.read files.content.read sharing.read";
 
 function appendParams(base: string, params: Record<string, string>) {
   const url = new URL(base);

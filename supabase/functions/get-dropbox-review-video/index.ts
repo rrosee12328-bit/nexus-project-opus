@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
     await serviceClient.from("dropbox_review_video_playback_tokens").delete().lt("expires_at", new Date().toISOString());
-    const { error: tokenError } = await serviceClient.from("dropbox_review_video_playback_tokens").insert({ token, item_id: reviewItem.id, user_id: user.id, folder_url: folderUrl, file_path: filePath, file_name: file.name, expires_at: expiresAt });
+    const { error: tokenError } = await serviceClient.from("dropbox_review_video_playback_tokens").insert({ token, item_id: reviewItem.id, user_id: user.id, folder_url: sourceUrl, file_path: filePath, file_name: file.name, expires_at: expiresAt });
     if (tokenError) return json({ error: "Could not prepare secure creative playback." }, 503);
     return json({ url: `${supabaseUrl}/functions/v1/stream-dropbox-review-video?token=${encodeURIComponent(token)}`, file_name: file.name, expires_at: expiresAt });
   } catch (error) {

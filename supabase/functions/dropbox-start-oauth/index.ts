@@ -1,7 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const DROPBOX_AUTHORIZE_URL = "https://www.dropbox.com/oauth2/authorize";
-const DROPBOX_SCOPES = "files.metadata.read files.content.read sharing.read";
+const DROPBOX_SCOPES = "account_info.read files.metadata.read files.content.read sharing.read";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
