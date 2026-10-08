@@ -26,7 +26,9 @@ async function renewDropboxAccessToken(
   const expiresAt = connection.access_token_expires_at ? new Date(connection.access_token_expires_at).getTime() : 0;
   const needsRenewal = !expiresAt || expiresAt - Date.now() < 2 * 60 * 1000;
   if (!needsRenewal) return connection.access_token;
-  if (!connection.refresh_token) throw new Error("Dropbox needs to be reconnected.");
+  // A manually provisioned token has no refresh credential. It remains usable
+  // until Dropbox expires or revokes it; OAuth connections renew automatically.
+  if (!connection.refresh_token) return connection.access_token;
 
   const clientId = Deno.env.get("DROPBOX_CLIENT_ID");
   const clientSecret = Deno.env.get("DROPBOX_CLIENT_SECRET");
