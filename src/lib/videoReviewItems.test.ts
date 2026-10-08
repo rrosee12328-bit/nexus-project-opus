@@ -15,11 +15,14 @@ describe("buildVideoReviewItems", () => {
     });
   });
 
-  it("preserves a valid direct link for an individual video", () => {
+  it("preserves a valid direct link and detects a graphic filename", () => {
     const result = buildVideoReviewItems("https://www.dropbox.com/scl/fo/folder?dl=0", [
-      { id: "one", title: "Opening reel", reviewUrl: "https://www.dropbox.com/scl/fi/opening.mp4?dl=1" },
+      { id: "one", title: "Square ad", reviewUrl: "https://www.dropbox.com/scl/fi/square-ad.png?dl=1" },
     ]);
-    expect(result.items[0].review_url).toBe("https://www.dropbox.com/scl/fi/opening.mp4?dl=0");
+    expect(result.items[0]).toMatchObject({
+      review_url: "https://www.dropbox.com/scl/fi/square-ad.png?dl=0",
+      source_file_name: "square-ad.png",
+    });
   });
 
   it("preserves the imported Dropbox filename for in-portal playback", () => {
@@ -33,9 +36,9 @@ describe("buildVideoReviewItems", () => {
     });
   });
 
-  it("requires a title for every video", () => {
+  it("requires a title for every creative item", () => {
     expect(() => buildVideoReviewItems("https://www.dropbox.com/scl/fo/folder?dl=0", [
       { id: "one", title: " ", reviewUrl: "" },
-    ])).toThrow("Add a title for video 1");
+    ])).toThrow("Add a title for item 1");
   });
 });

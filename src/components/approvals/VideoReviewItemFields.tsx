@@ -36,15 +36,15 @@ export function VideoReviewItemFields({
     <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3 sm:p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <Label className="text-sm font-medium">Videos for this review *</Label>
-          <p className="mt-0.5 text-xs text-muted-foreground">Import video filenames from the Dropbox folder, or name every video manually. Leave an item link blank to use the folder above.</p>
+          <Label className="text-sm font-medium">Creative items for this review *</Label>
+          <p className="mt-0.5 text-xs text-muted-foreground">Import video and graphic filenames from the Dropbox folder, or name each item manually. Leave an item link blank to use the folder above.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {onImportFromDropbox && <Button type="button" variant="secondary" size="sm" onClick={onImportFromDropbox} disabled={!importReady || importConnectionLoading || importInProgress}>
-            <Download className={`mr-1 h-3.5 w-3.5 ${importInProgress ? "animate-pulse" : ""}`} /> {importInProgress ? "Importing…" : "Import titles"}
+            <Download className={`mr-1 h-3.5 w-3.5 ${importInProgress ? "animate-pulse" : ""}`} /> {importInProgress ? "Importing…" : "Import files"}
           </Button>}
           <Button type="button" variant="outline" size="sm" onClick={() => onChange([...items, createVideoReviewDraftItem()])}>
-            <Plus className="mr-1 h-3.5 w-3.5" /> Add video
+            <Plus className="mr-1 h-3.5 w-3.5" /> Add item
           </Button>
         </div>
       </div>
@@ -53,13 +53,13 @@ export function VideoReviewItemFields({
         {items.map((item, index) => (
           <div key={item.id} className="rounded-md border border-border bg-background p-3">
             <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Video {index + 1}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Item {index + 1}</p>
               {items.length > 1 && <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs text-destructive hover:text-destructive" onClick={() => removeItem(item.id)}><Trash2 className="mr-1 h-3.5 w-3.5" /> Remove</Button>}
             </div>
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor={`${idPrefix}-title-${item.id}`} className="text-xs">Video title *</Label>
-                <Input id={`${idPrefix}-title-${item.id}`} value={item.title} onChange={(event) => updateItem(item.id, "title", event.target.value)} placeholder="e.g. Testimonial — cut 1" maxLength={160} />
+                <Label htmlFor={`${idPrefix}-title-${item.id}`} className="text-xs">Creative item title *</Label>
+                <Input id={`${idPrefix}-title-${item.id}`} value={item.title} onChange={(event) => updateItem(item.id, "title", event.target.value)} placeholder="e.g. Social ad — square version" maxLength={160} />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor={`${idPrefix}-link-${item.id}`} className="text-xs">Direct Dropbox link <span className="font-normal text-muted-foreground">(optional)</span></Label>
