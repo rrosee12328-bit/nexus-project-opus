@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.4"
   }
   public: {
     Tables: {
@@ -212,6 +212,59 @@ export type Database = {
           },
         ]
       }
+      approval_request_items: {
+        Row: {
+          approval_request_id: string
+          created_at: string
+          id: string
+          position: number
+          responded_at: string | null
+          response_note: string | null
+          review_url: string
+          source_file_name: string | null
+          status: string
+          title: string
+          updated_at: string
+          viewed_at: string | null
+        }
+        Insert: {
+          approval_request_id: string
+          created_at?: string
+          id?: string
+          position?: number
+          responded_at?: string | null
+          response_note?: string | null
+          review_url: string
+          source_file_name?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          viewed_at?: string | null
+        }
+        Update: {
+          approval_request_id?: string
+          created_at?: string
+          id?: string
+          position?: number
+          responded_at?: string | null
+          response_note?: string | null
+          review_url?: string
+          source_file_name?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_request_items_approval_request_id_fkey"
+            columns: ["approval_request_id"]
+            isOneToOne: false
+            referencedRelation: "approval_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approval_requests: {
         Row: {
           client_id: string
@@ -220,6 +273,7 @@ export type Database = {
           id: string
           phase: string | null
           project_id: string
+          review_url: string | null
           responded_at: string | null
           response_note: string | null
           status: string
@@ -234,6 +288,7 @@ export type Database = {
           id?: string
           phase?: string | null
           project_id: string
+          review_url?: string | null
           responded_at?: string | null
           response_note?: string | null
           status?: string
@@ -248,6 +303,7 @@ export type Database = {
           id?: string
           phase?: string | null
           project_id?: string
+          review_url?: string | null
           responded_at?: string | null
           response_note?: string | null
           status?: string
@@ -1066,6 +1122,53 @@ export type Database = {
           },
         ]
       }
+      client_activity_feed: {
+        Row: {
+          client_id: string
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json
+          occurred_at: string
+          source: string
+          source_record_id: string
+          summary: string | null
+          title: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json
+          occurred_at?: string
+          source: string
+          source_record_id: string
+          summary?: string | null
+          title: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json
+          occurred_at?: string
+          source?: string
+          source_record_id?: string
+          summary?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_activity_feed_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           aspirations: string | null
@@ -1092,6 +1195,10 @@ export type Database = {
           notes: string | null
           phone: string | null
           pipeline_stage: string | null
+          portal_access_status: string
+          portal_activated_at: string | null
+          portal_invited_at: string | null
+          portal_primary_project_id: string | null
           profitability_sheet_url: string | null
           proposal_id: string | null
           setup_fee: number | null
@@ -1128,6 +1235,10 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           pipeline_stage?: string | null
+          portal_access_status?: string
+          portal_activated_at?: string | null
+          portal_invited_at?: string | null
+          portal_primary_project_id?: string | null
           profitability_sheet_url?: string | null
           proposal_id?: string | null
           setup_fee?: number | null
@@ -1164,6 +1275,10 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           pipeline_stage?: string | null
+          portal_access_status?: string
+          portal_activated_at?: string | null
+          portal_invited_at?: string | null
+          portal_primary_project_id?: string | null
           profitability_sheet_url?: string | null
           proposal_id?: string | null
           setup_fee?: number | null
@@ -2168,6 +2283,7 @@ export type Database = {
           id: string
           is_default: boolean
           onboarding_steps: Json
+          onboarding_questions: Json
           phases: string[]
           project_description: string
           project_name: string
@@ -2179,6 +2295,7 @@ export type Database = {
           id?: string
           is_default?: boolean
           onboarding_steps?: Json
+          onboarding_questions?: Json
           phases?: string[]
           project_description?: string
           project_name: string
@@ -2190,6 +2307,7 @@ export type Database = {
           id?: string
           is_default?: boolean
           onboarding_steps?: Json
+          onboarding_questions?: Json
           phases?: string[]
           project_description?: string
           project_name?: string
@@ -2532,6 +2650,7 @@ export type Database = {
       proposals: {
         Row: {
           billing_schedule: string
+          billing_start_date: string | null
           client_address: string | null
           client_email: string | null
           client_id: string | null
@@ -2549,7 +2668,11 @@ export type Database = {
           last_viewed_at: string | null
           lead_id: string | null
           monthly_fee: number
+          nda_signed_at: string | null
+          nda_signed_name: string | null
           paid_at: string | null
+          project_deposit_paid_at: string | null
+          project_id: string | null
           project_name: string | null
           project_number: string | null
           project_total: number | null
@@ -2558,6 +2681,7 @@ export type Database = {
           scope_description: string | null
           services_description: string | null
           setup_fee: number
+          setup_paid: number
           signed_at: string | null
           signed_name: string | null
           status: string
@@ -2569,6 +2693,7 @@ export type Database = {
         }
         Insert: {
           billing_schedule?: string
+          billing_start_date?: string | null
           client_address?: string | null
           client_email?: string | null
           client_id?: string | null
@@ -2586,7 +2711,11 @@ export type Database = {
           last_viewed_at?: string | null
           lead_id?: string | null
           monthly_fee?: number
+          nda_signed_at?: string | null
+          nda_signed_name?: string | null
           paid_at?: string | null
+          project_deposit_paid_at?: string | null
+          project_id?: string | null
           project_name?: string | null
           project_number?: string | null
           project_total?: number | null
@@ -2595,6 +2724,7 @@ export type Database = {
           scope_description?: string | null
           services_description?: string | null
           setup_fee?: number
+          setup_paid?: number
           signed_at?: string | null
           signed_name?: string | null
           status?: string
@@ -2606,6 +2736,7 @@ export type Database = {
         }
         Update: {
           billing_schedule?: string
+          billing_start_date?: string | null
           client_address?: string | null
           client_email?: string | null
           client_id?: string | null
@@ -2623,7 +2754,11 @@ export type Database = {
           last_viewed_at?: string | null
           lead_id?: string | null
           monthly_fee?: number
+          nda_signed_at?: string | null
+          nda_signed_name?: string | null
           paid_at?: string | null
+          project_deposit_paid_at?: string | null
+          project_id?: string | null
           project_name?: string | null
           project_number?: string | null
           project_total?: number | null
@@ -2632,6 +2767,7 @@ export type Database = {
           scope_description?: string | null
           services_description?: string | null
           setup_fee?: number
+          setup_paid?: number
           signed_at?: string | null
           signed_name?: string | null
           status?: string
@@ -2642,6 +2778,13 @@ export type Database = {
           view_count?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "proposals_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "proposals_client_id_fkey"
             columns: ["client_id"]
@@ -2982,6 +3125,7 @@ export type Database = {
           id: string
           needs_review: boolean
           priority: Database["public"]["Enums"]["task_priority"]
+          project_id: string | null
           recurring_key: string | null
           reviewed_at: string | null
           reviewed_by: string | null
@@ -3004,6 +3148,7 @@ export type Database = {
           id?: string
           needs_review?: boolean
           priority?: Database["public"]["Enums"]["task_priority"]
+          project_id?: string | null
           recurring_key?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -3026,6 +3171,7 @@ export type Database = {
           id?: string
           needs_review?: boolean
           priority?: Database["public"]["Enums"]["task_priority"]
+          project_id?: string | null
           recurring_key?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -3052,6 +3198,13 @@ export type Database = {
             referencedColumns: ["client_id"]
           },
           {
+            foreignKeyName: "tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tasks_source_call_id_fkey"
             columns: ["source_call_id"]
             isOneToOne: false
@@ -3072,7 +3225,10 @@ export type Database = {
           hours: number
           id: string
           project_id: string | null
+          source_call_id: string | null
           start_time: string
+          task_id: string | null
+          time_code_id: string | null
           updated_at: string
           user_id: string
         }
@@ -3087,7 +3243,10 @@ export type Database = {
           hours?: number
           id?: string
           project_id?: string | null
+          source_call_id?: string | null
           start_time: string
+          task_id?: string | null
+          time_code_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -3102,7 +3261,10 @@ export type Database = {
           hours?: number
           id?: string
           project_id?: string | null
+          source_call_id?: string | null
           start_time?: string
+          task_id?: string | null
+          time_code_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -3126,6 +3288,27 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_source_call_id_fkey"
+            columns: ["source_call_id"]
+            isOneToOne: false
+            referencedRelation: "call_intelligence"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_time_code_id_fkey"
+            columns: ["time_code_id"]
+            isOneToOne: false
+            referencedRelation: "time_tracking_codes"
             referencedColumns: ["id"]
           },
         ]
@@ -3327,7 +3510,28 @@ export type Database = {
       }
     }
     Functions: {
+      activate_my_client_portal: { Args: never; Returns: string }
+      submit_intake_response: { Args: { _token: string; _response: Json }; Returns: string }
       archive_done_tasks: { Args: never; Returns: undefined }
+      create_video_review_project: {
+        Args: { _client_id: string; _project_name: string }
+        Returns: string
+      }
+      create_video_review_request: {
+        Args: {
+          _description: string
+          _items: Json
+          _phase: string
+          _project_id: string
+          _review_url: string
+          _title: string
+        }
+        Returns: string
+      }
+      create_creative_review_share_link: {
+        Args: { _approval_request_id: string }
+        Returns: { expires_at: string; token: string }[]
+      }
       convert_lead_to_proposal: {
         Args: { p_lead_id: string; p_proposal_id: string }
         Returns: undefined
@@ -3357,7 +3561,21 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      enqueue_creative_review_notification: {
+        Args: { _approval_request_id: string; _force?: boolean }
+        Returns: boolean
+      }
       get_client_id_for_user: { Args: { _user_id: string }; Returns: string }
+      get_client_scheduling_url: { Args: never; Returns: string | null }
+      get_dropbox_video_review_connection: {
+        Args: never
+        Returns: {
+          account_name: string | null
+          connected: boolean
+          connected_at: string | null
+          updated_at: string | null
+        }[]
+      }
       get_intake_form_by_token: {
         Args: { _token: string }
         Returns: {
@@ -3385,6 +3603,7 @@ export type Database = {
       get_proposal_by_token: {
         Args: { _token: string }
         Returns: {
+          billing_start_date: string | null
           billing_schedule: string
           client_address: string | null
           client_email: string | null
@@ -3506,12 +3725,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3535,11 +3754,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3560,11 +3779,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3585,11 +3804,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3602,11 +3821,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never) = never,
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
