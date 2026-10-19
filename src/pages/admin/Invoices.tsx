@@ -30,7 +30,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type Client = { id: string; name: string; client_number: string | null; email: string | null };
+type Client = {
+  id: string;
+  name: string;
+  client_number: string | null;
+  email: string | null;
+  billing_contact_only: boolean;
+};
 
 type Project = { id: string; name: string; project_number: string | null; client_id: string };
 
@@ -46,6 +52,7 @@ type Entry = {
 };
 
 const EMPTY_ENTRIES: Entry[] = [];
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Extract a useful error message from a Supabase FunctionsHttpError.
 // supabase-js stores the underlying Response in error.context, so we read its body.
@@ -117,7 +124,11 @@ export default function Invoices() {
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
 
   // Flat-fee invoice state
+  const [flatCustomerMode, setFlatCustomerMode] = useState<"existing" | "new">("existing");
   const [flatClientId, setFlatClientId] = useState<string>("");
+  const [flatCustomerName, setFlatCustomerName] = useState("");
+  const [flatCustomerEmail, setFlatCustomerEmail] = useState("");
+  const [flatCustomerPhone, setFlatCustomerPhone] = useState("");
   const [flatNotes, setFlatNotes] = useState("");
   const [flatDueDays, setFlatDueDays] = useState("14");
   const [flatAutoFinalize, setFlatAutoFinalize] = useState(true);
@@ -126,8 +137,11 @@ export default function Invoices() {
     { description: "", amount: "" },
   ]);
   const flatTotal = flatLines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
+  const hasFlatCustomer = flatCustomerMode === "existing"
+    ? !!flatClientId
+    : !!flatCustomerName.trim() && EMAIL_PATTERN.test(flatCustomerEmail.trim());
   const flatValid =
-    !!flatClientId &&
+    hasFlatCustomer &&
     flatLines.some((l) => l.description.trim() && Number(l.amount) > 0);
 
   // composite key helpers: "timesheet:<id>" / "calendar:<id>"
@@ -138,7 +152,7 @@ export default function Invoices() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("clients")
-        .select("id, name, client_number, email")
+        .select("id, name, client_number, email, billing_contact_only")
         .order("name");
       if (error) throw error;
       return (data ?? []) as Client[];
@@ -325,14 +339,20 @@ export default function Invoices() {
 
   const createFlatInvoice = useMutation({
     mutationFn: async () => {
-      if (!flatClientId) throw new Error("Pick a client");
+      if (flatCustomerMode === "existing" && !flatClientId) throw new Error("Pick a client or billing contact");
+      if (flatCustomerMode === "new" && (!flatCustomerName.trim() || !flatCustomerEmail.trim())) {
+        throw new Error("Enter the customer's name and email");
+      }
       const clean = flatLines
         .map((l) => ({ description: l.description.trim(), amount: Number(l.amount) }))
         .filter((l) => l.description && Number.isFinite(l.amount) && l.amount > 0);
       if (!clean.length) throw new Error("Add at least one line with a description and amount");
       const { data, error } = await supabase.functions.invoke("create-flat-invoice", {
         body: {
-          client_id: flatClientId,
+          client_id: flatCustomerMode === "existing" ? flatClientId : undefined,
+          customer_name: flatCustomerMode === "new" ? flatCustomerName.trim() : undefined,
+          customer_email: flatCustomerMode === "new" ? flatCustomerEmail.trim() : undefined,
+          customer_phone: flatCustomerMode === "new" ? flatCustomerPhone.trim() || undefined : undefined,
           line_items: clean,
           notes: flatNotes || undefined,
           days_until_due: Number(flatDueDays) || 14,
@@ -345,10 +365,21 @@ export default function Invoices() {
       return data;
     },
     onSuccess: (data: any) => {
-      toast.success(flatAutoFinalize ? "Invoice sent to client" : "Draft invoice created");
+      const contactDescription = data?.customer_created
+        ? `${data.customer_name} was saved as a billing contact. No portal account or project was created.`
+        : data?.customer_reused
+          ? `${data.customer_email} matched an existing saved contact.`
+          : undefined;
+      toast.success(flatAutoFinalize ? "Invoice sent" : "Draft invoice created", {
+        description: contactDescription,
+      });
       setFlatLines([{ description: "", amount: "" }]);
       setFlatNotes("");
+      setFlatCustomerName("");
+      setFlatCustomerEmail("");
+      setFlatCustomerPhone("");
       qc.invalidateQueries({ queryKey: ["hourly-invoices"] });
+      qc.invalidateQueries({ queryKey: ["invoices-clients"] });
       if (data?.hosted_invoice_url) window.open(data.hosted_invoice_url, "_blank");
     },
     onError: (e: any) => toast.error(e.message ?? "Failed to create invoice"),
@@ -693,22 +724,81 @@ export default function Invoices() {
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Flat-fee invoice</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Use this when you've agreed a fixed price with the client (e.g. milestone, phase, or one-off project deliverable). No timesheets or hourly rate needed.
+                Use this for an existing client or a one-time customer when no timesheets or hourly rate are needed.
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <Label>Client</Label>
-                <Select value={flatClientId} onValueChange={setFlatClientId}>
-                  <SelectTrigger><SelectValue placeholder="Pick a client…" /></SelectTrigger>
-                  <SelectContent>
-                    {clients.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name} {c.email ? "" : "· no email"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="space-y-3">
+                <Label>Who are you billing?</Label>
+                <div className="grid grid-cols-2 gap-2 rounded-lg border bg-muted/20 p-1">
+                  <Button
+                    type="button"
+                    variant={flatCustomerMode === "existing" ? "secondary" : "ghost"}
+                    onClick={() => setFlatCustomerMode("existing")}
+                    aria-pressed={flatCustomerMode === "existing"}
+                  >
+                    Existing client
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={flatCustomerMode === "new" ? "secondary" : "ghost"}
+                    onClick={() => setFlatCustomerMode("new")}
+                    aria-pressed={flatCustomerMode === "new"}
+                  >
+                    New one-time customer
+                  </Button>
+                </div>
+
+                {flatCustomerMode === "existing" ? (
+                  <Select value={flatClientId} onValueChange={setFlatClientId}>
+                    <SelectTrigger><SelectValue placeholder="Pick a client or saved billing contact…" /></SelectTrigger>
+                    <SelectContent>
+                      {clients.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}{c.billing_contact_only ? " · billing contact" : ""}{c.email ? "" : " · no email"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="grid grid-cols-1 gap-3 rounded-lg border p-4 sm:grid-cols-2">
+                    <div>
+                      <Label htmlFor="flat-customer-name">Name</Label>
+                      <Input
+                        id="flat-customer-name"
+                        value={flatCustomerName}
+                        onChange={(event) => setFlatCustomerName(event.target.value)}
+                        placeholder="Customer or business name"
+                        autoComplete="name"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="flat-customer-email">Email</Label>
+                      <Input
+                        id="flat-customer-email"
+                        type="email"
+                        value={flatCustomerEmail}
+                        onChange={(event) => setFlatCustomerEmail(event.target.value)}
+                        placeholder="customer@example.com"
+                        autoComplete="email"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Label htmlFor="flat-customer-phone">Phone (optional)</Label>
+                      <Input
+                        id="flat-customer-phone"
+                        type="tel"
+                        value={flatCustomerPhone}
+                        onChange={(event) => setFlatCustomerPhone(event.target.value)}
+                        placeholder="(555) 123-4567"
+                        autoComplete="tel"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground sm:col-span-2">
+                      This saves a billing-only contact for invoice history and future invoices. It does not create portal access, onboarding, a project, or a sales lead.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -783,12 +873,14 @@ export default function Invoices() {
                 </Label>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Checkbox id="flat-force" checked={flatForce} onCheckedChange={(v) => setFlatForce(!!v)} />
-                <Label htmlFor="flat-force" className="text-sm font-normal cursor-pointer">
-                  Override billing pause (only needed if this client's billing is paused)
-                </Label>
-              </div>
+              {flatCustomerMode === "existing" && (
+                <div className="flex items-center gap-2">
+                  <Checkbox id="flat-force" checked={flatForce} onCheckedChange={(v) => setFlatForce(!!v)} />
+                  <Label htmlFor="flat-force" className="text-sm font-normal cursor-pointer">
+                    Override billing pause (only needed if this client's billing is paused)
+                  </Label>
+                </div>
+              )}
 
               <div className="flex items-center justify-between p-4 rounded-md bg-muted/40 border">
                 <div className="text-sm">
@@ -800,7 +892,7 @@ export default function Invoices() {
                   </p>
                   {!flatValid && (
                     <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                      Pick a client and add at least one line with description + amount
+                      Add a customer and at least one line with description + amount
                     </p>
                   )}
                 </div>

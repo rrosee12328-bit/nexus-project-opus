@@ -35,7 +35,7 @@ export default function AdminLeads() {
   });
 
   const leads = clients?.filter(
-    (c) => c.status === "lead" || c.status === "prospect" || c.pipeline_stage === "won",
+    (c) => !c.billing_contact_only && (c.status === "lead" || c.status === "prospect" || c.pipeline_stage === "won"),
   ) ?? [];
   const totalPipelineValue = leads.reduce((s, c) => s + (c.monthly_fee ?? 0) * 12 + (c.setup_fee ?? 0), 0);
   const wonLeads = leads.filter((c) => c.pipeline_stage === "won").length;
