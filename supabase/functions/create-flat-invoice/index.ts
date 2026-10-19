@@ -16,7 +16,10 @@ interface LineItem {
 }
 
 interface Body {
-  client_id: string;
+  client_id?: string;
+  customer_name?: string;
+  customer_email?: string;
+  customer_phone?: string;
   line_items: LineItem[];
   notes?: string;
   days_until_due?: number;
@@ -47,9 +50,26 @@ serve(async (req) => {
     if (!roleRow) throw new Error("Admin role required");
 
     const body: Body = await req.json();
-    const { client_id, line_items, notes, days_until_due, auto_finalize, force } = body;
+    const {
+      client_id,
+      customer_name,
+      customer_email,
+      customer_phone,
+      line_items,
+      notes,
+      days_until_due,
+      auto_finalize,
+      force,
+    } = body;
 
-    if (!client_id) throw new Error("client_id is required");
+    const normalizedEmail = (customer_email ?? "").trim().toLowerCase();
+    const normalizedName = (customer_name ?? "").trim();
+    if (!client_id && (!normalizedName || !normalizedEmail)) {
+      throw new Error("Choose an existing client or enter the customer's name and email");
+    }
+    if (!client_id && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      throw new Error("Enter a valid customer email address");
+    }
     if (!Array.isArray(line_items) || line_items.length === 0) {
       throw new Error("At least one line item is required");
     }
@@ -66,19 +86,72 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { data: client, error: clientErr } = await admin
-      .from("clients")
-      .select("id, name, email, stripe_customer_id, billing_paused_until")
-      .eq("id", client_id).single();
-    if (clientErr || !client) throw new Error("Client not found");
-    if (!client.email) throw new Error("Client has no email — add one before invoicing");
-    if (!force && client.billing_paused_until && new Date(client.billing_paused_until) > new Date()) {
+    let client: {
+      id: string;
+      name: string;
+      email: string | null;
+      stripe_customer_id: string | null;
+      billing_paused_until: string | null;
+      billing_contact_only: boolean;
+    } | null = null;
+    let customerCreated = false;
+    let customerReused = false;
+
+    if (client_id) {
+      const { data, error } = await admin
+        .from("clients")
+        .select("id, name, email, stripe_customer_id, billing_paused_until, billing_contact_only")
+        .eq("id", client_id)
+        .single();
+      if (error || !data) throw new Error("Client not found");
+      client = data;
+    } else {
+      const { data: existing, error: lookupError } = await admin
+        .from("clients")
+        .select("id, name, email, stripe_customer_id, billing_paused_until, billing_contact_only")
+        .ilike("email", normalizedEmail)
+        .order("billing_contact_only", { ascending: true })
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (lookupError) throw lookupError;
+
+      if (existing) {
+        client = existing;
+        customerReused = true;
+      } else {
+        const { data: created, error: createError } = await admin
+          .from("clients")
+          .insert({
+            name: normalizedName,
+            email: normalizedEmail,
+            phone: (customer_phone ?? "").trim() || null,
+            status: "closed",
+            type: "Billing contact",
+            lead_source: "one_time_invoice",
+            billing_contact_only: true,
+            notes: "Created automatically from a one-time invoice.",
+          })
+          .select("id, name, email, stripe_customer_id, billing_paused_until, billing_contact_only")
+          .single();
+        if (createError || !created) throw createError ?? new Error("Could not create billing contact");
+        client = created;
+        customerCreated = true;
+      }
+    }
+
+    if (!client) throw new Error("Customer could not be resolved");
+    if (!client.email) throw new Error("Customer has no email — add one before invoicing");
+    if (!client.billing_contact_only && !force && client.billing_paused_until && new Date(client.billing_paused_until) > new Date()) {
       throw new Error("Billing is paused for this client");
     }
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" as any });
 
-    const customerId = await ensureStripeCustomer(stripe, admin, client);
+    const customerId = await ensureStripeCustomer(stripe, admin, {
+      ...client,
+      email: client.email,
+    });
 
     const amountDue = Number(cleaned.reduce((s, l) => s + l.amount, 0).toFixed(2));
 
@@ -144,6 +217,11 @@ serve(async (req) => {
       hosted_invoice_url: finalInvoice.hosted_invoice_url,
       status: finalInvoice.status,
       amount_due: amountDue,
+      client_id: client.id,
+      customer_created: customerCreated,
+      customer_reused: customerReused,
+      customer_name: client.name,
+      customer_email: client.email,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
   } catch (err: any) {
     console.error("create-flat-invoice error:", err);
