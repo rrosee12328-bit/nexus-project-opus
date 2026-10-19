@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { ensureStripeCustomer } from "../../supabase/functions/_shared/stripe-customer";
+import { getInvoiceDeliveryOptions } from "../../supabase/functions/_shared/stripe-invoice-delivery";
 
 const client = {
   id: "client-1",
@@ -81,5 +82,20 @@ describe("ensureStripeCustomer", () => {
       metadata: { client_id: "client-1" },
     });
     expect(update).toHaveBeenCalledWith({ stripe_customer_id: "cus_no_email" });
+  });
+});
+
+describe("getInvoiceDeliveryOptions", () => {
+  it("uses Stripe's email invoice flow when the customer has an email", () => {
+    expect(getInvoiceDeliveryOptions("billing@example.com", 7)).toEqual({
+      collection_method: "send_invoice",
+      days_until_due: 7,
+    });
+  });
+
+  it("uses the hosted payment flow when the customer has no email", () => {
+    expect(getInvoiceDeliveryOptions(null, 7)).toEqual({
+      collection_method: "charge_automatically",
+    });
   });
 });
