@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { ensureStripeCustomer } from "../_shared/stripe-customer.ts";
+import { getInvoiceDeliveryOptions } from "../_shared/stripe-invoice-delivery.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -154,12 +155,12 @@ serve(async (req) => {
     const customerId = await ensureStripeCustomer(stripe, admin, client);
 
     const amountDue = Number(cleaned.reduce((s, l) => s + l.amount, 0).toFixed(2));
+    const deliveryOptions = getInvoiceDeliveryOptions(client.email, days_until_due ?? 14);
 
     // Create Stripe invoice + items FIRST so a failure here doesn't leave an orphan DB row
     const invoice = await stripe.invoices.create({
       customer: customerId!,
-      collection_method: "send_invoice",
-      days_until_due: days_until_due ?? 14,
+      ...deliveryOptions,
       auto_advance: false,
       description: notes ?? "Services",
       metadata: { client_id: client.id, invoice_type: "flat" },
