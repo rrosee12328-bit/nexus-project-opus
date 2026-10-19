@@ -59,4 +59,27 @@ describe("ensureStripeCustomer", () => {
 
     await expect(ensureStripeCustomer(stripe, admin, client)).rejects.toBe(stripeError);
   });
+
+  it("creates a Stripe customer without attempting an email lookup when email is absent", async () => {
+    const stripe = {
+      customers: {
+        retrieve: vi.fn(),
+        list: vi.fn(),
+        create: vi.fn().mockResolvedValue({ id: "cus_no_email" }),
+      },
+    };
+    const { admin, update } = createAdmin();
+
+    await expect(ensureStripeCustomer(stripe, admin, {
+      ...client,
+      email: null,
+      stripe_customer_id: null,
+    })).resolves.toBe("cus_no_email");
+    expect(stripe.customers.list).not.toHaveBeenCalled();
+    expect(stripe.customers.create).toHaveBeenCalledWith({
+      name: "Goodland Church",
+      metadata: { client_id: "client-1" },
+    });
+    expect(update).toHaveBeenCalledWith({ stripe_customer_id: "cus_no_email" });
+  });
 });
