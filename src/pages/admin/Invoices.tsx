@@ -139,7 +139,7 @@ export default function Invoices() {
   const flatTotal = flatLines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
   const hasFlatCustomer = flatCustomerMode === "existing"
     ? !!flatClientId
-    : !!flatCustomerName.trim() && EMAIL_PATTERN.test(flatCustomerEmail.trim());
+    : !!flatCustomerName.trim() && (!flatCustomerEmail.trim() || EMAIL_PATTERN.test(flatCustomerEmail.trim()));
   const flatValid =
     hasFlatCustomer &&
     flatLines.some((l) => l.description.trim() && Number(l.amount) > 0);
@@ -340,8 +340,11 @@ export default function Invoices() {
   const createFlatInvoice = useMutation({
     mutationFn: async () => {
       if (flatCustomerMode === "existing" && !flatClientId) throw new Error("Pick a client or billing contact");
-      if (flatCustomerMode === "new" && (!flatCustomerName.trim() || !flatCustomerEmail.trim())) {
-        throw new Error("Enter the customer's name and email");
+      if (flatCustomerMode === "new" && !flatCustomerName.trim()) {
+        throw new Error("Enter the customer's name");
+      }
+      if (flatCustomerMode === "new" && flatCustomerEmail.trim() && !EMAIL_PATTERN.test(flatCustomerEmail.trim())) {
+        throw new Error("Enter a valid customer email address or leave it blank");
       }
       const clean = flatLines
         .map((l) => ({ description: l.description.trim(), amount: Number(l.amount) }))
@@ -368,11 +371,17 @@ export default function Invoices() {
       const contactDescription = data?.customer_created
         ? `${data.customer_name} was saved as a billing contact. No portal account or project was created.`
         : data?.customer_reused
-          ? `${data.customer_email} matched an existing saved contact.`
+          ? `${data.customer_email ?? data.customer_name} matched an existing saved contact.`
           : undefined;
-      toast.success(flatAutoFinalize ? "Invoice sent" : "Draft invoice created", {
-        description: contactDescription,
-      });
+      const deliveryDescription = flatAutoFinalize && !data?.email_sent
+        ? "No email was provided, so no message was sent. Share the generated payment link directly with the customer."
+        : contactDescription;
+      toast.success(
+        flatAutoFinalize ? (data?.email_sent ? "Invoice sent" : "Invoice finalized") : "Draft invoice created",
+        {
+          description: deliveryDescription,
+        },
+      );
       setFlatLines([{ description: "", amount: "" }]);
       setFlatNotes("");
       setFlatCustomerName("");
@@ -773,7 +782,7 @@ export default function Invoices() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="flat-customer-email">Email</Label>
+                      <Label htmlFor="flat-customer-email">Email (optional)</Label>
                       <Input
                         id="flat-customer-email"
                         type="email"
@@ -795,7 +804,7 @@ export default function Invoices() {
                       />
                     </div>
                     <p className="text-xs text-muted-foreground sm:col-span-2">
-                      This saves a billing-only contact for invoice history and future invoices. It does not create portal access, onboarding, a project, or a sales lead.
+                      This saves a billing-only contact for invoice history and future invoices. Without an email, the invoice is created but not emailed; share its payment link directly. It does not create portal access, onboarding, a project, or a sales lead.
                     </p>
                   </div>
                 )}
