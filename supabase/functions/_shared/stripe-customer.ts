@@ -3,7 +3,7 @@ interface StripeCustomerClient {
     retrieve: (id: string) => Promise<{ deleted?: boolean }>;
     list: (params: { email: string; limit: number }) => Promise<{ data: Array<{ id: string }> }>;
     create: (params: {
-      email: string;
+      email?: string;
       name: string;
       metadata: { client_id: string };
     }) => Promise<{ id: string }>;
@@ -21,7 +21,7 @@ interface SupabaseAdminClient {
 interface BillingClient {
   id: string;
   name: string;
-  email: string;
+  email: string | null;
   stripe_customer_id: string | null;
 }
 
@@ -47,9 +47,11 @@ export async function ensureStripeCustomer(
     }
   }
 
-  const existing = await stripe.customers.list({ email: client.email, limit: 1 });
+  const existing = client.email
+    ? await stripe.customers.list({ email: client.email, limit: 1 })
+    : { data: [] };
   customerId = existing.data[0]?.id ?? (await stripe.customers.create({
-    email: client.email,
+    ...(client.email ? { email: client.email } : {}),
     name: client.name,
     metadata: { client_id: client.id },
   })).id;
