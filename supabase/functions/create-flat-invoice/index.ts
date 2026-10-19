@@ -64,10 +64,10 @@ serve(async (req) => {
 
     const normalizedEmail = (customer_email ?? "").trim().toLowerCase();
     const normalizedName = (customer_name ?? "").trim();
-    if (!client_id && (!normalizedName || !normalizedEmail)) {
-      throw new Error("Choose an existing client or enter the customer's name and email");
+    if (!client_id && !normalizedName) {
+      throw new Error("Choose an existing client or enter the customer's name");
     }
-    if (!client_id && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    if (!client_id && normalizedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       throw new Error("Enter a valid customer email address");
     }
     if (!Array.isArray(line_items) || line_items.length === 0) {
@@ -106,15 +106,19 @@ serve(async (req) => {
       if (error || !data) throw new Error("Client not found");
       client = data;
     } else {
-      const { data: existing, error: lookupError } = await admin
-        .from("clients")
-        .select("id, name, email, stripe_customer_id, billing_paused_until, billing_contact_only")
-        .ilike("email", normalizedEmail)
-        .order("billing_contact_only", { ascending: true })
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-      if (lookupError) throw lookupError;
+      let existing = null;
+      if (normalizedEmail) {
+        const { data, error: lookupError } = await admin
+          .from("clients")
+          .select("id, name, email, stripe_customer_id, billing_paused_until, billing_contact_only")
+          .ilike("email", normalizedEmail)
+          .order("billing_contact_only", { ascending: true })
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        if (lookupError) throw lookupError;
+        existing = data;
+      }
 
       if (existing) {
         client = existing;
@@ -124,7 +128,7 @@ serve(async (req) => {
           .from("clients")
           .insert({
             name: normalizedName,
-            email: normalizedEmail,
+            email: normalizedEmail || null,
             phone: (customer_phone ?? "").trim() || null,
             status: "closed",
             type: "Billing contact",
@@ -141,17 +145,13 @@ serve(async (req) => {
     }
 
     if (!client) throw new Error("Customer could not be resolved");
-    if (!client.email) throw new Error("Customer has no email — add one before invoicing");
     if (!client.billing_contact_only && !force && client.billing_paused_until && new Date(client.billing_paused_until) > new Date()) {
       throw new Error("Billing is paused for this client");
     }
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" as any });
 
-    const customerId = await ensureStripeCustomer(stripe, admin, {
-      ...client,
-      email: client.email,
-    });
+    const customerId = await ensureStripeCustomer(stripe, admin, client);
 
     const amountDue = Number(cleaned.reduce((s, l) => s + l.amount, 0).toFixed(2));
 
@@ -176,9 +176,17 @@ serve(async (req) => {
     }
 
     let finalInvoice: any = invoice;
+    let emailSent = false;
     if (auto_finalize) {
       finalInvoice = await stripe.invoices.finalizeInvoice(invoice.id);
-      try { await stripe.invoices.sendInvoice(invoice.id); } catch (e) { console.warn("sendInvoice:", e); }
+      if (client.email) {
+        try {
+          await stripe.invoices.sendInvoice(invoice.id);
+          emailSent = true;
+        } catch (e) {
+          console.warn("sendInvoice:", e);
+        }
+      }
     } else {
       finalInvoice = await stripe.invoices.retrieve(invoice.id);
     }
@@ -222,6 +230,7 @@ serve(async (req) => {
       customer_reused: customerReused,
       customer_name: client.name,
       customer_email: client.email,
+      email_sent: emailSent,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
   } catch (err: any) {
     console.error("create-flat-invoice error:", err);
