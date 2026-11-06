@@ -7,7 +7,7 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, Sid
 const groups = [
   { label: "Today", icon: CalendarDays, items: [["Today", "/admin"], ["Calendar", "/admin/calendar"], ["Assistant", "/admin/agent"], ["Brain", "/admin/brain"]] },
   { label: "Clients", icon: Users, items: [["All clients", "/admin/clients"], ["Messages", "/admin/messages"], ["Calls", "/admin/calls"], ["Email", "/admin/emails"], ["Summaries", "/admin/summaries"], ["Tracker", "/admin/tracker"]] },
-  { label: "Sales", icon: TrendingUp, items: [["Pipeline", "/admin/leads"], ["Proposals", "/admin/proposals"]] },
+  { label: "Sales", icon: TrendingUp, items: [["Pipeline", "/admin/leads"], ["Business Overviews", "/admin/overviews"], ["Proposals", "/admin/proposals"]] },
   { label: "Work", icon: Briefcase, items: [["Projects", "/admin/projects"], ["Tasks", "/ops/tasks"], ["Time", "/ops/timesheets"], ["Files", "/admin/assets"], ["Media", "/admin/business-media"], ["Intakes", "/admin/intakes"], ["Knowledge", "/admin/lever"]] },
   { label: "Money", icon: Wallet, items: [["Financials", "/admin/financials"], ["Invoices", "/admin/invoices"], ["Reports", "/admin/reports"]] },
 ];
