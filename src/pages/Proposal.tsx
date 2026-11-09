@@ -780,7 +780,7 @@ export default function ProposalPage() {
                     <h3 className="font-semibold">Sign NDA</h3>
                   </div>
                   <SignaturePad
-                    signerName={clientName}
+                    companyName={companyName.trim() || clientName.trim()}
                     onSignatureChange={(sig) => {
                       setNdaSignature(sig);
                       if (sig && step !== "nda-sign") setStep("nda-sign");
@@ -865,7 +865,7 @@ export default function ProposalPage() {
                     <h3 className="font-semibold">Sign Contract</h3>
                   </div>
                   <SignaturePad
-                    signerName={clientName}
+                    companyName={companyName.trim() || clientName.trim()}
                     onSignatureChange={(sig) => {
                       setContractSignature(sig);
                       if (sig && step !== "sign") setStep("sign");

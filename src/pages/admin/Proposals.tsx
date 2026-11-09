@@ -38,9 +38,9 @@ import { formatBillingStartDate, isStripeBillingStartDateValid } from "@/lib/bil
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   draft: { label: "Draft", color: "bg-muted text-muted-foreground border-border" },
-  sent: { label: "Sent", color: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
-  signed: { label: "Signed", color: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
-  paid: { label: "Paid", color: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+  sent: { label: "Sent", color: "bg-amber-500/15 text-amber-800 dark:text-amber-400 border-amber-500/30" },
+  signed: { label: "Signed", color: "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30" },
+  paid: { label: "Paid", color: "bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border-emerald-500/30" },
 };
 
 function formatCurrency(val: number | null) {
@@ -706,7 +706,7 @@ export default function AdminProposals() {
       </PageHero>
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }}>
-        <Card>
+        <Card className="bg-card border-border shadow-sm hover:shadow-sm hover:border-border">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" />
@@ -745,15 +745,38 @@ export default function AdminProposals() {
                     return (
                       <TableRow key={p.id}>
                         <TableCell>
-                          {(p as any).proposal_number ? (
-                            <span className="font-mono text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
-                              {(p as any).proposal_number}
-                            </span>
+                          {p.token ? (
+                            <a href={getAppUrl(`/proposal/${p.token}?preview=1`)} target="_blank" rel="noopener noreferrer"
+                              aria-label={`Preview ${(p as any).proposal_number || clientName}`}
+                              className="font-mono text-xs font-semibold text-blue-700 dark:text-blue-400 bg-primary/10 px-2 py-1 rounded border border-primary/20 hover:underline focus-visible:ring-2 focus-visible:ring-ring">
+                              {(p as any).proposal_number || "Preview"}
+                            </a>
                           ) : (
-                            <span className="text-muted-foreground text-xs">—</span>
+                            <span className="text-muted-foreground text-xs">{(p as any).proposal_number || "—"}</span>
                           )}
                         </TableCell>
-                        <TableCell className="font-medium">{clientName}</TableCell>
+                        <TableCell className="font-medium">
+                          <div>{clientName}</div>
+                          {p.token ? (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              <Button variant="outline" size="sm" asChild>
+                                <a href={getAppUrl(`/proposal/${p.token}?preview=1`)} target="_blank" rel="noopener noreferrer">
+                                  <Eye className="h-4 w-4 mr-1" /> Preview
+                                </a>
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={async () => {
+                                try {
+                                  await navigator.clipboard.writeText(getAppUrl(`/proposal/${p.token}`));
+                                  toast.success("Client proposal link copied");
+                                } catch {
+                                  toast.error("Could not copy the link. Please allow clipboard access and try again.");
+                                }
+                              }}>
+                                <Copy className="h-4 w-4 mr-1" /> Copy link
+                              </Button>
+                            </div>
+                          ) : <p className="text-xs text-muted-foreground mt-1">Proposal link unavailable</p>}
+                        </TableCell>
                         <TableCell>{formatCurrency(p.setup_fee)}</TableCell>
                         <TableCell>{formatCurrency(p.monthly_fee)}</TableCell>
                         <TableCell>
