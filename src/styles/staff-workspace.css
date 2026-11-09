@@ -26,6 +26,9 @@
 }
 .staff-wordmark { display: block; position: relative; flex-shrink: 0; width: 152px; height: 43px; overflow: hidden; background: #0d1015; border-radius: 4px; }
 .staff-wordmark img { position: absolute; width: 175px; height: 175px; max-width: none; left: -11px; top: -66px; }
+/* Adapt the white-on-black brand asset to a light sidebar without a dark tile. */
+:root:not(.dark) .staff-wordmark { background: transparent; }
+:root:not(.dark) .staff-wordmark img { filter: invert(1) hue-rotate(180deg); mix-blend-mode: multiply; }
 .staff-workspace [data-sidebar="menu-button"][data-active="true"] {
   background: hsl(var(--primary) / .12);
   color: hsl(var(--primary));
