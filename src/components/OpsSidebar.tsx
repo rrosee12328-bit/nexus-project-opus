@@ -55,10 +55,10 @@ export function OpsSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border/60">
-      <SidebarHeader className="border-b border-sidebar-border/60 px-4 py-2 relative">
+      <SidebarHeader className="h-20 justify-center border-b border-sidebar-border/60 px-4 py-2 relative">
         <span className="absolute bottom-0 left-0 right-0 h-px edge-line opacity-60" />
         {!collapsed && (
-          <img src="/vektiss-logo.png" alt="Vektiss" className="h-20 object-contain" />
+          <span className="staff-wordmark"><img src="/vektiss-logo.png" alt="Vektiss" /></span>
         )}
         {collapsed && (
           <img src="/vektiss-icon.png" alt="Vektiss" className="h-12 w-12 object-contain" />

@@ -5,6 +5,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { OpsTaskTimer } from "@/components/ops/OpsTaskTimer";
 import { TaskTimerProvider } from "@/hooks/useTaskTimer";
+import "@/styles/staff-workspace.css";
 
 export default function OpsLayout() {
   return (
