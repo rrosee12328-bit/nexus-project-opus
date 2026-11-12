@@ -16,7 +16,10 @@ Deno.serve(async req => {
     const {data:form,error}=await db.from("intake_forms").select("id,status,expires_at,form_type").eq("token",token).maybeSingle();
     if(error || !form || form.form_type!=="website_development" || form.status==="completed" || (form.expires_at && Date.parse(form.expires_at)<=Date.now())) return reply({error:"This upload link is unavailable"},403);
     const file=body.get("file");
-    if(!file){const {data,error}=await db.from("intake_uploads").select("id,file_name,category").eq("intake_form_id",form.id).eq("status","ready");if(error)throw error;return reply({files:data});}
+    if(!file){const {data,error}=await db.from("intake_uploads").select("id,file_name,category,purpose").eq("intake_form_id",form.id).eq("status","ready");if(error)throw error;return reply({files:data});}
+    const category=String(body.get("category")||"materials");
+    const purpose=category==="logo" ? "Company logo" : category==="photos" ? "Company / team photos" : String(body.get("purpose")||"").trim();
+    if(!purpose || purpose.length>500)return reply({error:"Choose what this file is for before uploading (maximum 500 characters)."},400);
     if(!(file instanceof File) || file.size<1 || file.size>10485760) return reply({error:"Choose a file up to 10 MB"},400);
     const bytes=new Uint8Array(await file.arrayBuffer());
     const start=new TextDecoder().decode(bytes.slice(0,12));
@@ -28,8 +31,8 @@ Deno.serve(async req => {
     if(reserveError || !reserved) return reply({error:"Upload unavailable. The form may be closed or have reached its 20-file limit."},400);
     const {error:uploadError}=await db.storage.from("intake-materials").upload(reserved.storage_path,bytes,{contentType:mime,upsert:false});
     if(uploadError){await db.from("intake_uploads").delete().eq("id",reserved.id);throw uploadError;}
-    const {error:saveError}=await db.from("intake_uploads").update({status:"ready"}).eq("id",reserved.id);
+    const {error:saveError}=await db.from("intake_uploads").update({status:"ready",purpose}).eq("id",reserved.id);
     if(saveError){await db.storage.from("intake-materials").remove([reserved.storage_path]);await db.from("intake_uploads").delete().eq("id",reserved.id);throw saveError;}
-    return reply({file:{id:reserved.id,file_name:reserved.file_name,category:reserved.category}});
+    return reply({file:{id:reserved.id,file_name:reserved.file_name,category:reserved.category,purpose}});
   } catch { return reply({error:"Upload failed. Please try again."},500); }
 });

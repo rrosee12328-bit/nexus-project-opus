@@ -526,7 +526,7 @@ function ViewResponseDialog({
                         <p className={`text-sm whitespace-pre-wrap break-words ${q.answer ? "" : "text-muted-foreground italic"}`}>{q.answer || "No written answer provided."}</p>
                         {form?.form_type === "website_development" && ["q9", "q13", "materials"].includes(q.key) && (
                           <>
-                            {q.key === "materials" && <p className="text-xs text-muted-foreground">General supporting files uploaded in the Required materials section, not attached to a specific question.</p>}
+                            {q.key === "materials" && <p className="text-xs text-muted-foreground">Each attachment below shows its purpose or question. Staff can label older uploads whose purpose was not recorded.</p>}
                             <StaffIntakeUploads formId={form.id} category={q.key === "q9" ? "logo" : q.key === "q13" ? "photos" : "materials"} />
                           </>
                         )}
