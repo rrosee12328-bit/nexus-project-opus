@@ -126,6 +126,21 @@ export default function AdminIntakes() {
   const qc = useQueryClient();
   const [newOpen, setNewOpen] = useState(false);
   const [viewing, setViewing] = useState<IntakeFormRow | null>(null);
+  const [resending, setResending] = useState<IntakeFormRow | null>(null);
+  const [resendBusy, setResendBusy] = useState(false);
+
+  const reopenForm = async () => {
+    if (!resending) return;
+    setResendBusy(true);
+    try {
+      const { data, error } = await supabase.rpc("reopen_intake_form" as never, { p_id: resending.id } as never);
+      if (error) throw error;
+      setResending(data as unknown as IntakeFormRow);
+      await qc.invalidateQueries({ queryKey: ["intake-forms"] });
+      toast.success("Form reopened. No email sent; previous responses and files retained.");
+    } catch { toast.error("Could not reopen this form. Please try again."); }
+    finally { setResendBusy(false); }
+  };
 
   const { data: rows, isLoading } = useQuery({
     queryKey: ["intake-forms"],
@@ -257,12 +272,10 @@ export default function AdminIntakes() {
                         <Button size="icon" variant="ghost" title="Open link" asChild>
                           <a href={publicUrl(r.token)} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" /></a>
                         </Button>
-                        {r.recipient_email && (
-                          <Button size="icon" variant="ghost" title="Send email" onClick={() => resendEmail(r)}>
-                            <Mail className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {r.status === "completed" && (
+                        <Button size="sm" variant="outline" onClick={() => setResending(r)}>
+                          <Mail className="h-4 w-4 mr-1" /> Resend form
+                        </Button>
+                        {(r.status === "completed" || r.form_type === "website_development") && (
                           <Button size="icon" variant="ghost" title="View response" onClick={() => setViewing(r)}>
                             <Eye className="h-4 w-4" />
                           </Button>
@@ -292,6 +305,25 @@ export default function AdminIntakes() {
 
       <NewIntakeDialog open={newOpen} onOpenChange={setNewOpen} onCreated={() => qc.invalidateQueries({ queryKey: ["intake-forms"] })} />
       <ViewResponseDialog form={viewing} onOpenChange={(o) => !o && setViewing(null)} />
+      <Dialog open={!!resending} onOpenChange={open=>{if(!open && !resendBusy)setResending(null);}}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Resend form</DialogTitle></DialogHeader>
+          <p className="text-sm">{resending?.recipient_name} - {getFormCopy(resending?.form_type).label}</p>
+          {resending && (resending.status === "completed" || (resending.expires_at && Date.parse(resending.expires_at)<=Date.now())) ? <>
+            <p className="text-sm text-muted-foreground">This form is completed or expired. Reopen it before sharing so the recipient can submit again. Existing responses and uploads stay saved. Reopening does not send email.</p>
+            <Button disabled={resendBusy} onClick={reopenForm}>Reopen form</Button>
+          </> : <>
+            <p className="text-sm text-muted-foreground">The form is ready to complete. Copy its link to share yourself, or explicitly send an email below.</p>
+            <Input readOnly aria-label="Form link" value={resending ? publicUrl(resending.token) : ""} />
+            <Button variant="outline" onClick={()=>resending && copyLink(resending.token)}>Copy form link</Button>
+            {resending?.recipient_email ? <Button disabled={resendBusy} onClick={async()=>{
+              if(!resending || !confirm(`Send this form to ${resending.recipient_email}?`))return;
+              setResendBusy(true);
+              try {await resendEmail(resending);} finally {setResendBusy(false);}
+            }}>Email form to {resending.recipient_email}</Button> : <p className="text-sm text-muted-foreground">No recipient email saved. Use Copy form link to send it yourself.</p>}
+          </>}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
