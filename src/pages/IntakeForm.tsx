@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { WebsiteQuestionnaire } from "@/components/WebsiteQuestionnaire";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +14,7 @@ import { CheckCircle2, Loader2, Plus, Trash2 } from "lucide-react";
 interface IntakeForm {
   id: string;
   token: string;
-  form_type: "business_media" | "funding_app" | "meta_ad_account";
+  form_type: "business_media" | "funding_app" | "meta_ad_account" | "website_development";
   status: string;
   recipient_name: string | null;
   recipient_email: string | null;
@@ -449,6 +450,8 @@ export default function IntakeFormPage() {
       </div>
     );
   }
+
+  if (form?.form_type === "website_development") return <WebsiteQuestionnaire token={token!} recipientName={form.recipient_name} onDone={() => setDone(true)} />;
 
   if (form?.form_type === "funding_app") {
     return (

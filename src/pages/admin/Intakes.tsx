@@ -25,7 +25,7 @@ import {
 interface IntakeFormRow {
   id: string;
   token: string;
-  form_type: "business_media" | "funding_app" | "meta_ad_account";
+  form_type: "business_media" | "funding_app" | "meta_ad_account" | "website_development";
   client_id: string | null;
   recipient_name: string | null;
   recipient_email: string | null;
@@ -73,6 +73,11 @@ interface IntakeResponse {
 }
 
 const FORM_COPY = {
+  website_development: {
+    label: "Website Development", title: "Website Development Questionnaire",
+    description: "Tell us about your company, services, branding, and website needs.",
+    subject: "Vektiss - Website Development Questionnaire", text: "please complete your website questionnaire",
+  },
   business_media: {
     label: "Business Media",
     title: "Business Media Intake Form",
@@ -97,6 +102,7 @@ const FORM_COPY = {
 } as const;
 
 function getFormCopy(formType?: string | null) {
+  if (formType === "website_development") return FORM_COPY.website_development;
   if (formType === "funding_app") return FORM_COPY.funding_app;
   if (formType === "meta_ad_account") return FORM_COPY.meta_ad_account;
   return FORM_COPY.business_media;
@@ -292,13 +298,13 @@ export default function AdminIntakes() {
 function NewIntakeDialog({
   open, onOpenChange, onCreated,
 }: { open: boolean; onOpenChange: (o: boolean) => void; onCreated: () => void }) {
-  const [formType, setFormType] = useState<"business_media" | "funding_app" | "meta_ad_account">("business_media");
+  const [formType, setFormType] = useState<IntakeFormRow["form_type"]>("business_media");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [clientId, setClientId] = useState<string>("none");
   const [saving, setSaving] = useState(false);
   const [createdUrl, setCreatedUrl] = useState<string | null>(null);
-  const [createdRow, setCreatedRow] = useState<{ token: string; email: string | null; name: string | null; formType: "business_media" | "funding_app" | "meta_ad_account" } | null>(null);
+  const [createdRow, setCreatedRow] = useState<{ token: string; email: string | null; name: string | null; formType: IntakeFormRow["form_type"] } | null>(null);
 
   const { data: clients } = useQuery({
     queryKey: ["intake-client-picker"],
@@ -388,12 +394,13 @@ function NewIntakeDialog({
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Form Type</Label>
-              <Select value={formType} onValueChange={(v) => setFormType(v as "business_media" | "funding_app" | "meta_ad_account")}>
+              <Select value={formType} onValueChange={(v) => setFormType(v as IntakeFormRow["form_type"])}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="business_media">Business Media</SelectItem>
                   <SelectItem value="funding_app">Funding App</SelectItem>
                   <SelectItem value="meta_ad_account">Meta Ad Account</SelectItem>
+                  <SelectItem value="website_development">Website Development</SelectItem>
                 </SelectContent>
               </Select>
             </div>
