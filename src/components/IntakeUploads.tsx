@@ -29,13 +29,15 @@ export function IntakeUploads({ token, category, files, busy, onBusy, onUploaded
   </div>;
 }
 
-export function StaffIntakeUploads({ formId }: {formId:string}) {
-  const {data:files,error}=useQuery({queryKey:["intake-uploads",formId],queryFn:async()=>{
+export function StaffIntakeUploads({ formId, category }: {formId:string; category?:string}) {
+  const {data:files,error,isLoading}=useQuery({queryKey:["intake-uploads",formId],queryFn:async()=>{
     const {data,error}=await supabase.from("intake_uploads" as never).select("id,file_name,category,storage_path").eq("intake_form_id",formId).eq("status","ready");if(error)throw error;return data as unknown as IntakeUpload[];
   }});
   if(error)return <p className="text-sm text-destructive">Unable to load uploaded materials. Please reopen this response to retry.</p>;
-  if(!files?.length)return null;
-  return <section className="space-y-2"><h3 className="font-semibold">Uploaded website materials</h3>{files.map(file=><div key={file.id} className="flex flex-wrap items-center gap-2"><span className="text-sm break-all">{file.category}: {file.file_name}</span><Button size="sm" variant="outline" onClick={async()=>{
+  if(isLoading)return <p className="text-sm text-muted-foreground">Loading attachments...</p>;
+  const matchingFiles=(files || []).filter(file=>!category || file.category===category);
+  if(!matchingFiles.length)return <p className="text-xs text-muted-foreground">No files uploaded{category ? " here" : ""}.</p>;
+  return <section className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3"><h3 className="text-sm font-semibold">{category==="logo" ? "Company logo attachments" : category==="photos" ? "Company / team photo attachments" : "Website materials attachments"} ({matchingFiles.length})</h3>{matchingFiles.map(file=><div key={file.id} className="flex flex-col sm:flex-row sm:items-center gap-2 rounded-md border bg-background p-3"><span className="min-w-0 flex-1 text-sm break-all">{file.file_name}</span><Button className="shrink-0" size="sm" variant="outline" onClick={async()=>{
     const {data,error}=await supabase.storage.from("intake-materials").createSignedUrl(file.storage_path!,60,{download:file.file_name});
     if(error || !data){toast.error("Could not download file");return;}
     const a=document.createElement("a");a.href=data.signedUrl;a.rel="noreferrer";a.click();

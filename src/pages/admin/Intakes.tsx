@@ -497,7 +497,7 @@ function ViewResponseDialog({
         <DialogHeader>
           <DialogTitle>Intake Response</DialogTitle>
         </DialogHeader>
-        {form?.form_type === "website_development" && <StaffIntakeUploads formId={form.id} />}
+        {form?.form_type === "website_development" && !response?.response_payload?.sections?.length && <StaffIntakeUploads formId={form.id} />}
         {isLoading ? (
           <p className="text-sm text-muted-foreground py-6">Loading…</p>
         ) : !response ? (
@@ -515,15 +515,21 @@ function ViewResponseDialog({
               </div>
             </div>
             {response.response_payload.sections.map((payloadSection) => (
-              <div key={payloadSection.title} className="space-y-3">
-                <h4 className="text-xs uppercase font-semibold tracking-wider text-muted-foreground">{payloadSection.title}</h4>
+              <div key={payloadSection.title} className="space-y-3 rounded-xl border p-4">
+                <h4 className="text-sm font-semibold text-primary">{payloadSection.title}</h4>
                 <div className="space-y-3">
                   {payloadSection.questions
-                    .filter((q) => q.answer)
+                    .filter((q) => form?.form_type === "website_development" || q.answer)
                     .map((q) => (
-                      <div key={q.key}>
-                        <div className="text-xs text-muted-foreground">{q.label}</div>
-                        <p className="text-sm whitespace-pre-wrap">{q.answer}</p>
+                      <div key={q.key} className="space-y-2 border-b pb-4 last:border-0 last:pb-0">
+                        <div className="text-sm font-medium">{q.label}</div>
+                        <p className={`text-sm whitespace-pre-wrap break-words ${q.answer ? "" : "text-muted-foreground italic"}`}>{q.answer || "No written answer provided."}</p>
+                        {form?.form_type === "website_development" && ["q9", "q13", "materials"].includes(q.key) && (
+                          <>
+                            {q.key === "materials" && <p className="text-xs text-muted-foreground">General supporting files uploaded in the Required materials section, not attached to a specific question.</p>}
+                            <StaffIntakeUploads formId={form.id} category={q.key === "q9" ? "logo" : q.key === "q13" ? "photos" : "materials"} />
+                          </>
+                        )}
                       </div>
                     ))}
                 </div>
