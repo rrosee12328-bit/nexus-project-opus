@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { StaffIntakeUploads } from "@/components/IntakeUploads";
 import {
   ClipboardList, Copy, Eye, Mail, Plus, Trash2, ExternalLink,
 } from "lucide-react";
@@ -496,6 +497,7 @@ function ViewResponseDialog({
         <DialogHeader>
           <DialogTitle>Intake Response</DialogTitle>
         </DialogHeader>
+        {form?.form_type === "website_development" && <StaffIntakeUploads formId={form.id} />}
         {isLoading ? (
           <p className="text-sm text-muted-foreground py-6">Loading…</p>
         ) : !response ? (

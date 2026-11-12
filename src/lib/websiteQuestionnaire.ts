@@ -49,7 +49,7 @@ export const WEBSITE_QUESTIONS = [
     "questions": [
       {
         "key": "q9",
-        "label": "Do you have a company logo? If yes, paste a shared file or folder link.",
+        "label": "Do you have a company logo? Upload it below.",
         "options": []
       },
       {
@@ -176,74 +176,6 @@ export const WEBSITE_QUESTIONS = [
           "Inquire about healthcare partnerships",
           "Other"
         ]
-      }
-    ]
-  },
-  {
-    "title": "NURSE RECRUITMENT",
-    "questions": [
-      {
-        "key": "q28",
-        "label": "What nursing positions are you currently recruiting for?",
-        "options": [
-          "Registered Nurses (RN)",
-          "Licensed Vocational/Practical Nurses (LVN/LPN)",
-          "Infusion Nurses",
-          "PRN/Per Diem Nurses",
-          "Other"
-        ]
-      },
-      {
-        "key": "q29",
-        "label": "What qualifications, licenses, certifications, or experience are required?",
-        "options": []
-      },
-      {
-        "key": "q30",
-        "label": "Are positions available as full-time, part-time, PRN, or contract opportunities?",
-        "options": []
-      },
-      {
-        "key": "q31",
-        "label": "What cities or geographic areas are you hiring nurses to serve?",
-        "options": []
-      },
-      {
-        "key": "q32",
-        "label": "What benefits or advantages would you like highlighted to attract nursing applicants?",
-        "options": []
-      },
-      {
-        "key": "q33",
-        "label": "What information would you like collected through the online nurse application?",
-        "options": [
-          "Full name",
-          "Email address",
-          "Phone number",
-          "City and state",
-          "Nursing license type",
-          "Nursing license number",
-          "Years of nursing experience",
-          "Infusion therapy experience",
-          "Availability",
-          "Résumé upload",
-          "Additional comments"
-        ]
-      },
-      {
-        "key": "q34",
-        "label": "What email address should receive submitted nursing applications?",
-        "options": []
-      },
-      {
-        "key": "q35",
-        "label": "Would you like applicants to upload their résumés directly through the website?",
-        "options": []
-      },
-      {
-        "key": "q36",
-        "label": "Are there any specific questions you want applicants to answer?",
-        "options": []
       }
     ]
   },
