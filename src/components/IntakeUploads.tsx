@@ -3,27 +3,20 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { WEBSITE_QUESTIONS } from "@/lib/websiteQuestionnaire";
 
 export type IntakeUpload = { id: string; file_name: string; category: string; purpose?: string | null; storage_path?: string };
 export function IntakeUploads({ token, category, files, busy, onBusy, onUploaded }: { token:string; category:string; files:IntakeUpload[]; busy:boolean; onBusy:(v:boolean)=>void; onUploaded:(file:IntakeUpload)=>void }) {
   const [error,setError]=useState("");
-  const [purpose,setPurpose]=useState("");
   const [customPurpose,setCustomPurpose]=useState("");
-  const uploadPurpose=purpose==="other" ? customPurpose.trim() : purpose;
+  const uploadPurpose=customPurpose.trim() || "Anything else to upload?";
   return <div className="rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 p-4 space-y-2">
-    <label htmlFor={`upload-${category}`} className="block font-semibold">{category==="logo" ? "Upload company logo" : category==="photos" ? "Upload company / team photos" : "Upload website materials"}</label>
+    <label htmlFor={`upload-${category}`} className="block font-semibold">{category==="logo" ? "Upload company logo" : category==="photos" ? "Upload company / team photos" : "Upload additional files"}</label>
     <p className="text-xs text-muted-foreground">Choose files from your phone or computer. PNG, JPG, WEBP, GIF, or PDF. Up to 10 MB each, 20 files total. Files are uploaded immediately and privately attached to this questionnaire.</p>
     {category==="materials" && <div className="space-y-2">
-      <label htmlFor="upload-purpose" className="block text-sm font-medium">What is this file for? *</label>
-      <select id="upload-purpose" value={purpose} disabled={busy} onChange={e=>setPurpose(e.target.value)} className="w-full min-w-0 rounded-md border bg-background p-2 text-sm">
-        <option value="">Select the question this file answers</option>
-        {WEBSITE_QUESTIONS.map(section=><optgroup key={section.title} label={section.title}>{section.questions.map(q=><option key={q.key} value={q.label}>{q.label}</option>)}</optgroup>)}
-        <option value="other">Other - describe the file</option>
-      </select>
-      {purpose==="other" && <input aria-label="File purpose" value={customPurpose} maxLength={500} disabled={busy} onChange={e=>setCustomPurpose(e.target.value)} placeholder="e.g. Brand guidelines or service brochure" className="w-full rounded-md border bg-background p-2 text-sm" />}
+      <label htmlFor="upload-purpose" className="block text-sm font-medium">Short description (optional)</label>
+      <input id="upload-purpose" value={customPurpose} maxLength={500} disabled={busy} onChange={e=>setCustomPurpose(e.target.value)} placeholder="e.g. Service brochure" className="w-full rounded-md border bg-background p-2 text-sm" />
     </div>}
-    <input id={`upload-${category}`} type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.pdf" disabled={busy || (category==="materials" && !uploadPurpose)} className="block w-full min-w-0 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-primary-foreground" onChange={async event=>{
+    <input id={`upload-${category}`} type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.pdf" disabled={busy} className="block w-full min-w-0 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-primary-foreground" onChange={async event=>{
       const selected=Array.from(event.target.files||[]);event.target.value="";setError("");onBusy(true);
       try { for(const file of selected) {
         if(file.size>10485760) throw new Error(`${file.name}: maximum size is 10 MB.`);

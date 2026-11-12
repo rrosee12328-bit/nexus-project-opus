@@ -9,10 +9,13 @@ it("shows website-only questions and direct upload controls", () => {
   expect(WEBSITE_QUESTIONS).toHaveLength(5);
   expect(WEBSITE_QUESTIONS.flatMap(s => s.questions)).toHaveLength(35);
   render(<WebsiteQuestionnaire token="test" recipientName="Integrated Infusions" onDone={() => {}} />);
-  expect(screen.getAllByRole("textbox")).toHaveLength(36);
+  expect(screen.getAllByRole("textbox")).toHaveLength(37);
   expect(screen.getByLabelText("Upload company logo")).toHaveAttribute("type", "file");
   expect(screen.getByLabelText("Upload company / team photos")).toHaveAttribute("type", "file");
-  expect(screen.getByLabelText("Upload website materials")).toHaveAttribute("type", "file");
+  expect(screen.getByLabelText("Upload additional files")).toHaveAttribute("type", "file");
+  expect(screen.getByLabelText("Upload additional files")).not.toBeDisabled();
+  expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  expect(screen.getByLabelText("Short description (optional)")).not.toBeRequired();
   expect(screen.queryByText(/nurse recruitment/i)).not.toBeInTheDocument();
 });
 it("submits optional answers through the intake RPC without email", async () => {
