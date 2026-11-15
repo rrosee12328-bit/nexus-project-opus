@@ -19,6 +19,7 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { StaffIntakeUploads } from "@/components/IntakeUploads";
+import { formatIntakeExport } from "@/lib/intakeExport";
 import {
   ClipboardList, Copy, Eye, Mail, Plus, Trash2, ExternalLink,
 } from "lucide-react";
@@ -491,6 +492,7 @@ function NewIntakeDialog({
 function ViewResponseDialog({
   form, onOpenChange,
 }: { form: IntakeFormRow | null; onOpenChange: (o: boolean) => void }) {
+  const [exporting, setExporting] = useState(false);
   const { data: response, isLoading } = useQuery({
     queryKey: ["intake-response", form?.id],
     queryFn: async () => {
@@ -528,6 +530,19 @@ function ViewResponseDialog({
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Intake Response</DialogTitle>
+          <Button variant="outline" className="w-fit" disabled={!response || exporting} onClick={async()=>{
+            if(!form || !response)return;
+            setExporting(true);
+            try {
+              const {data:files,error}=await supabase.from("intake_uploads" as never).select("file_name,purpose,category").eq("intake_form_id",form.id).eq("status","ready");
+              if(error)throw error;
+              const text=formatIntakeExport(form.recipient_name || "Intake",response as unknown as Record<string,unknown>,files || []);
+              const url=URL.createObjectURL(new Blob([text],{type:"text/plain;charset=utf-8"}));
+              const a=document.createElement("a");a.href=url;a.download=`${(form.recipient_name || "Intake").replace(/[^a-z0-9 -]/gi,"")}-questions-and-answers.txt`;
+              document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);
+            } catch {toast.error("Could not download intake response. Please try again.");}
+            finally {setExporting(false);}
+          }}>{exporting ? "Preparing download..." : "Download questions & answers"}</Button>
         </DialogHeader>
         {form?.form_type === "website_development" && !response?.response_payload?.sections?.length && <StaffIntakeUploads formId={form.id} />}
         {isLoading ? (
