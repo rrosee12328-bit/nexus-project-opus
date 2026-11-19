@@ -1,5 +1,18 @@
 {
   "period": "November 5-18, 2026",
+  "campaign": {
+    "offer": "Kairos Security Total Home Protection Plan: professionally installed home-security systems, with plans starting at $39.99/month and no credit check required. Equipment, installation fees, monitoring and final terms must be confirmed by a specialist; pictured devices are not all included at the starting price.",
+    "audience": "Houston-area homeowners and authorized property decision-makers looking for a new system, an upgrade, or help choosing alarm and camera options. Residential needs come first; business inquiries are secondary. These are creative audience hypotheses, not proof of each person's circumstances or exact targeting settings.",
+    "approach": "Use Meta ads to introduce the offer, send interested people to the three-question security-options page, capture an inquiry with contact consent, and support specialist follow-up. Ten 4:5 creative designs and matching copy are prepared around distinct reasons to inquire. Qualified conversations and confirmed installations are the goal.",
+    "journey": ["Ad introduces the offer", "Three questions + contact consent", "Specialist confirms needs and price", "Quote, follow-up and installation"],
+    "angles": ["Professional installation", "Houston service + starting price", "Options built for your home", "Home protection", "No credit check required", "24/7 monitoring available", "Alarm, camera + sensors", "Doorbell camera options", "Local professionals", "Simple options + clear price"]
+  },
+  "charts": [
+    {"title":"Reported leads by creative","unit":"Lead events","rows":[{"label":"Product Focus","value":22},{"label":"Burgundy Home","value":1},{"label":"White Houston Home","value":1}],"note":"November 5-18. Six other ads had no canonical Lead event reported, not verified zero conversions. Delivery and spend were unequal; this is not a controlled creative test."},
+    {"title":"Weekly lead volume","unit":"Lead events","rows":[{"label":"Nov 5-11","value":13},{"label":"Nov 12-18","value":11}],"note":"Meta-attributed website Lead events, not verified unique customers. The first week includes the partial launch day."},
+    {"title":"Weekly cost per lead","unit":"USD","rows":[{"label":"Nov 5-11","value":31.81},{"label":"Nov 12-18","value":33.78}],"note":"Cost per reported Lead event rose 6.2%. This is not customer acquisition cost or cost per installation."},
+    {"title":"Reported leads by platform","unit":"Lead events","rows":[{"label":"Facebook","value":17},{"label":"Instagram","value":5},{"label":"Audience Network","value":2}],"note":"November 5-18. Other platforms had no canonical Lead events reported. Historical platform results alone do not justify excluding placements."}
+  ],
   "headline": "The campaign is creating inquiries. The next step is turning them into customers.",
   "summary": "A review of Kairos Security's marketing performance, creative signals and sales priorities. The completed reporting period shows inquiry generation, but qualified leads, installations and revenue still need to be verified.",
   "metrics": [
