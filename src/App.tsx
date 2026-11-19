@@ -16,6 +16,8 @@ import ResetPassword from "./pages/ResetPassword";
 import AssetDownload from "./pages/AssetDownload";
 import ProposalPage from "./pages/Proposal";
 import BusinessOverview from "./pages/BusinessOverview";
+import ClientReport from "./pages/ClientReport";
+import ClientReports from "./pages/admin/ClientReports";
 import BusinessOverviews from "./pages/admin/BusinessOverviews";
 import IntakeFormPage from "./pages/IntakeForm";
 import PublicCreativeReview from "./pages/PublicCreativeReview";
@@ -87,6 +89,7 @@ const App = () => (
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/proposal/:token" element={<ProposalPage />} />
             <Route path="/overview/:token" element={<BusinessOverview />} />
+            <Route path="/report/:token" element={<ClientReport />} />
             <Route path="/intake/:token" element={<IntakeFormPage />} />
             <Route path="/review/:token" element={<PublicCreativeReview />} />
             <Route
@@ -123,6 +126,7 @@ const App = () => (
               <Route path="leads" element={<AdminLeads />} />
               <Route path="proposals" element={<AdminProposals />} />
               <Route path="overviews" element={<BusinessOverviews />} />
+              <Route path="client-reports" element={<ClientReports />} />
               <Route path="summaries" element={<AdminSummaries />} />
               <Route path="tracker" element={<AdminClientTracker />} />
               <Route path="calls" element={<AdminCalls />} />
